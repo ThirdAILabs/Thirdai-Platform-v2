@@ -412,7 +412,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum (increase(ndb_chat_same_question_count{job=\"deployment-jobs\",workload=\"$workload\"})[1m])",
+          "expr": "sum (increase(ndb_chat_same_question_count{job=\"deployment-jobs\",workload=\"$workload\"})[15s])",
           "instant": false,
           "legendFormat": "value",
           "range": true,
@@ -486,6 +486,6 @@
   "timezone": "browser",
   "title": "Chat",
   "uid": "ae7rn25nhxdkwc",
-  "version": 9,
+  "version": 10,
   "weekStart": ""
 }

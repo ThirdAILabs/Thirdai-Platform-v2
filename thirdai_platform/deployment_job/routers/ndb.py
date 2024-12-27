@@ -601,7 +601,7 @@ class NDBRouter:
         ndb_chat_same_question.inc()
         return response(
             status_code=status.HTTP_200_OK,
-            message = "haan sab theek hai"
+            message = "Logged successfully"
         )
 
     def chat_feedback(

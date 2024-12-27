@@ -312,7 +312,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum (ndb_chat_upvote_metric_count{job=\"deployment-jobs\",workload=\"$workload\"}) / (sum (ndb_chat_upvote_metric_count{job=\"deployment-jobs\",workload=\"$workload\"}) + sum (ndb_chat_downvote_metric_count{job=\"deployment-jobs\",workload=\"$workload\"}))",
+          "expr": "sum (ndb_chat_upvote_metric_total{job=\"deployment-jobs\",workload=\"$workload\"}) / (sum (ndb_chat_upvote_metric_total{job=\"deployment-jobs\",workload=\"$workload\"}) + sum (ndb_chat_downvote_metric_total{job=\"deployment-jobs\",workload=\"$workload\"}))",
           "instant": false,
           "legendFormat": "value",
           "range": true,
@@ -412,7 +412,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum (increase(ndb_chat_same_question_count{job=\"deployment-jobs\",workload=\"$workload\"})[15s])",
+          "expr": "sum (increase(ndb_chat_same_question_count{job=\"deployment-jobs\",workload=\"$workload\"})[10s])",
           "instant": false,
           "legendFormat": "value",
           "range": true,
@@ -486,6 +486,6 @@
   "timezone": "browser",
   "title": "Chat",
   "uid": "ae7rn25nhxdkwc",
-  "version": 10,
+  "version": 13,
   "weekStart": ""
 }

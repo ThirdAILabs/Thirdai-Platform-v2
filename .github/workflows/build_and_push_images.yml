@@ -74,6 +74,7 @@ jobs:
             sudo add-apt-repository ppa:rmescandon/yq
             sudo apt update
             sudo apt install yq -y
+            yq --version 
       
       - name: Add credentials for the docker image in config.yml (if provided)
         if: ${{ inputs.base_encoded_docker_registry_push_password != '' && inputs.base_encoded_docker_registry_pull_password != '' }}
@@ -88,7 +89,7 @@ jobs:
           yq -i ".${provider}.branches.${{ inputs.docker_image_branch_name }}.push_credentials.password = ${decoded_push_password}" $GITHUB_WORKSPACE/release/config.yaml
           yq -i ".${provider}.branches.${{ inputs.docker_image_branch_name }}.pull_credentials.username = ${pull_username}" $GITHUB_WORKSPACE/release/config.yaml
           yq -i ".${provider}.branches.${{ inputs.docker_image_branch_name }}.pull_credentials.password = ${decoded_pull_password}" $GITHUB_WORKSPACE/release/config.yaml
-          yq -i ".${provider}.branches.${{ inputs.docker_image_branch_name }}.version = "${{ inputs.docker_image_version }}" $GITHUB_WORKSPACE/release/config.yaml
+          yq -i ".${provider}.branches.${{ inputs.docker_image_branch_name }}.version = ${{ inputs.docker_image_version }}" $GITHUB_WORKSPACE/release/config.yaml
 
       - name: Build and push docker images to the repository (Only versioned)
         if: ${{ inputs.dont_update_latest == true }}

@@ -279,15 +279,17 @@ func (s *UserService) List(w http.ResponseWriter, r *http.Request) {
 	var result *gorm.DB
 	if user.IsAdmin {
 		result = s.db.Preload("Teams").Preload("Teams.Team").Find(&users)
-	} else if len(user.Teams) > 0 {
+	} else {
 		userTeams, err := schema.GetUserTeamIds(user.Id, s.db)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		result = s.db.Preload("Teams").Preload("Teams.Team").Joins("JOIN user_teams ON user_teams.user_id = users.id").Where("user_teams.team_id in ?", userTeams).Find(&users)
-	} else {
-		users = []schema.User{user}
+		if len(userTeams) > 0 {
+			result = s.db.Preload("Teams").Preload("Teams.Team").Joins("JOIN user_teams ON user_teams.user_id = users.id").Where("user_teams.team_id in ?", userTeams).Find(&users)
+		} else {
+			users = []schema.User{user}
+		}
 	}
 
 	if result != nil && result.Error != nil {

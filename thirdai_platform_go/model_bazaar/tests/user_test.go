@@ -161,7 +161,7 @@ func TestListUsers(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(users) != 1 || users[0].Username != "abc" {
-		t.Fatal("invalid user1 user list")
+		t.Fatalf("invalid user1 user list: %v", users)
 	}
 
 	client := env.newClient()
@@ -196,7 +196,7 @@ func TestListUsers(t *testing.T) {
 	}
 	sortUserList(users)
 	if len(users) != 2 || users[0].Username != "abc" || users[1].Username != "qrs" {
-		t.Fatal("invalid user1 user list")
+		t.Fatalf("invalid user1 user list: %v", users)
 	}
 }
 

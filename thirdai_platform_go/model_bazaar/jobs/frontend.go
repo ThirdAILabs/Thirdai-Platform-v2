@@ -19,13 +19,7 @@ func StartFrontendJob(client nomad.NomadClient, driver nomad.DockerDriver, opena
 		Driver:                       driver,
 	}
 
-	err := stopJobIfExists(client, job.GetJobName())
-	if err != nil {
-		slog.Error("error stopping existing frontend job", "error", err)
-		return fmt.Errorf("error stopping existing frontend job: %w", err)
-	}
-
-	err = client.StartJob(job)
+	err := client.StartJob(job)
 	if err != nil {
 		slog.Error("error starting frontend job", "error", err)
 		return fmt.Errorf("error starting frontend job: %w", err)

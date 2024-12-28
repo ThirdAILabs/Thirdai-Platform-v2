@@ -23,10 +23,18 @@ func StartLlmCacheJob(client nomad.NomadClient, license *licensing.LicenseVerifi
 		Driver:              driver,
 	}
 
-	err = stopJobIfExists(client, job.GetJobName())
-	if err != nil {
-		slog.Error("error stopping existing llm-cache job", "error", err)
-		return fmt.Errorf("error stopping existing llm-cache job: %w", err)
+	if driver.DriverType() == "local" {
+		// When running in production with docker we don't restart here because multiple
+		// model bazaar jobs could be used. When an installation is updated the docker
+		// version will be updated which will cause nomad to detect a change in the hcl
+		// file and thus restart the job when StartJob is invoked later. If multiple
+		// model bazaar jobs call StartJob with the same version, nomad will ignore
+		// subsequent calls.
+		err := stopJobIfExists(client, job.GetJobName())
+		if err != nil {
+			slog.Error("error stopping existing llm-cache job", "error", err)
+			return fmt.Errorf("error stopping existing llm-cache job: %w", err)
+		}
 	}
 
 	err = client.StartJob(job)

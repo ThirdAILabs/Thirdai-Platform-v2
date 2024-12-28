@@ -237,6 +237,12 @@ func main() {
 	}
 	defer logFile.Close()
 
+	auditLog, err := os.OpenFile(filepath.Join(env.ShareDir, "logs/audit.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		log.Fatalf("error opening audit log file: %v", err)
+	}
+	defer auditLog.Close()
+
 	initLogging(logFile)
 
 	db := initDb(env.postgresDsn())
@@ -262,26 +268,34 @@ func main() {
 
 	var identityProvider auth.IdentityProvider
 	if env.IdentityProvider == "keycloak" {
-		identityProvider, err = auth.NewKeycloakIdentityProvider(db, auth.KeycloakArgs{
-			KeycloakServerUrl:     env.KeycloakServerUrl,
-			KeycloakAdminUsername: env.KeycloakAdminUsername,
-			KeycloakAdminPassword: env.keycloakAdminPassword,
-			AdminUsername:         env.AdminUsername,
-			AdminEmail:            env.AdminEmail,
-			AdminPassword:         env.AdminPassword,
-			PublicHostname:        getHostname(env.PublicModelBazaarEndpoint),
-			PrivateHostname:       getHostname(env.PrivateModelBazaarEndpoint),
-			SslLogin:              env.UseSslInLogin,
-		})
+		identityProvider, err = auth.NewKeycloakIdentityProvider(
+			db,
+			auth.NewAuditLogger(auditLog),
+			auth.KeycloakArgs{
+				KeycloakServerUrl:     env.KeycloakServerUrl,
+				KeycloakAdminUsername: env.KeycloakAdminUsername,
+				KeycloakAdminPassword: env.keycloakAdminPassword,
+				AdminUsername:         env.AdminUsername,
+				AdminEmail:            env.AdminEmail,
+				AdminPassword:         env.AdminPassword,
+				PublicHostname:        getHostname(env.PublicModelBazaarEndpoint),
+				PrivateHostname:       getHostname(env.PrivateModelBazaarEndpoint),
+				SslLogin:              env.UseSslInLogin,
+			},
+		)
 		if err != nil {
 			log.Fatalf("error creating keycloak identity provider: %v", err)
 		}
 	} else {
-		identityProvider, err = auth.NewBasicIdentityProvider(db, auth.BasicProviderArgs{
-			AdminUsername: env.AdminUsername,
-			AdminEmail:    env.AdminEmail,
-			AdminPassword: env.AdminPassword,
-		})
+		identityProvider, err = auth.NewBasicIdentityProvider(
+			db,
+			auth.NewAuditLogger(auditLog),
+			auth.BasicProviderArgs{
+				AdminUsername: env.AdminUsername,
+				AdminEmail:    env.AdminEmail,
+				AdminPassword: env.AdminPassword,
+			},
+		)
 		if err != nil {
 			log.Fatalf("error creating basic identity provider: %v", err)
 		}

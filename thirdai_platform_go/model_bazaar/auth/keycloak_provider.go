@@ -19,6 +19,7 @@ import (
 type KeycloakIdentityProvider struct {
 	keycloak *gocloak.GoCloak
 	db       *gorm.DB
+	auditLog AuditLogger
 
 	realm      string
 	adminToken string
@@ -244,7 +245,7 @@ type KeycloakArgs struct {
 	Verbose bool
 }
 
-func NewKeycloakIdentityProvider(db *gorm.DB, args KeycloakArgs) (IdentityProvider, error) {
+func NewKeycloakIdentityProvider(db *gorm.DB, auditLog AuditLogger, args KeycloakArgs) (IdentityProvider, error) {
 	realm := "ThirdAI-Platform"
 
 	client := gocloak.NewClient(args.KeycloakServerUrl)
@@ -323,6 +324,7 @@ func NewKeycloakIdentityProvider(db *gorm.DB, args KeycloakArgs) (IdentityProvid
 	return &KeycloakIdentityProvider{
 		keycloak:   client,
 		db:         db,
+		auditLog:   auditLog,
 		realm:      realm,
 		adminToken: adminToken,
 	}, nil
@@ -372,7 +374,7 @@ func (auth *KeycloakIdentityProvider) middleware() func(http.Handler) http.Handl
 }
 
 func (auth *KeycloakIdentityProvider) AuthMiddleware() chi.Middlewares {
-	return chi.Middlewares{auth.middleware()}
+	return chi.Middlewares{auth.middleware(), auth.auditLog.Middleware}
 }
 
 func (auth *KeycloakIdentityProvider) AllowDirectSignup() bool {

@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -64,11 +65,15 @@ func setupTestEnv(t *testing.T) *testEnv {
 	store := storage.NewSharedDisk(storagePath)
 	nomadStub := newNomadStub()
 
-	userAuth, err := auth.NewBasicIdentityProvider(db, auth.BasicProviderArgs{
-		AdminUsername: adminUsername,
-		AdminEmail:    adminEmail,
-		AdminPassword: adminPassword,
-	})
+	userAuth, err := auth.NewBasicIdentityProvider(
+		db,
+		auth.NewAuditLogger(new(bytes.Buffer)),
+		auth.BasicProviderArgs{
+			AdminUsername: adminUsername,
+			AdminEmail:    adminEmail,
+			AdminPassword: adminPassword,
+		},
+	)
 
 	modelBazaar := services.NewModelBazaar(
 		db, nomadStub, store,

@@ -17,6 +17,7 @@ import (
 type BasicIdentityProvider struct {
 	jwtManager *JwtManager
 	db         *gorm.DB
+	auditLog   AuditLogger
 }
 
 type BasicProviderArgs struct {
@@ -25,7 +26,7 @@ type BasicProviderArgs struct {
 	AdminPassword string
 }
 
-func NewBasicIdentityProvider(db *gorm.DB, args BasicProviderArgs) (IdentityProvider, error) {
+func NewBasicIdentityProvider(db *gorm.DB, auditLog AuditLogger, args BasicProviderArgs) (IdentityProvider, error) {
 	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(args.AdminPassword), 10)
 	if err != nil {
 		return nil, fmt.Errorf("error encrypting admin password: %w", err)
@@ -39,6 +40,7 @@ func NewBasicIdentityProvider(db *gorm.DB, args BasicProviderArgs) (IdentityProv
 	return &BasicIdentityProvider{
 		jwtManager: NewJwtManager(),
 		db:         db,
+		auditLog:   auditLog,
 	}, nil
 }
 
@@ -67,7 +69,7 @@ func (auth *BasicIdentityProvider) addUserToContext() func(http.Handler) http.Ha
 }
 
 func (auth *BasicIdentityProvider) AuthMiddleware() chi.Middlewares {
-	return chi.Middlewares{auth.jwtManager.Verifier(), auth.jwtManager.Authenticator(), auth.addUserToContext()}
+	return chi.Middlewares{auth.jwtManager.Verifier(), auth.jwtManager.Authenticator(), auth.addUserToContext(), auth.auditLog.Middleware}
 }
 
 func (auth *BasicIdentityProvider) AllowDirectSignup() bool {

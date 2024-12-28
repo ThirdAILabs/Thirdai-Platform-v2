@@ -197,6 +197,8 @@ type FrontendJob struct {
 	KeycloakServerHostname string
 	NextAuthSecret         string
 
+	MajorityCriticalServiceNodes int
+
 	UseSslInLogin bool
 	Driver        DockerDriver
 }

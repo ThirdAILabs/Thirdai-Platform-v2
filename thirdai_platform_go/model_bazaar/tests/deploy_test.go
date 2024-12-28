@@ -73,9 +73,9 @@ func TestDeploy(t *testing.T) {
 
 	env.nomad.Clear() // Make it look like the job stopped
 
-	go env.modelBazaar.StartStatusSync(100 * time.Millisecond)
+	go env.modelBazaar.JobStatusSync(100 * time.Millisecond)
 	time.Sleep(300 * time.Millisecond) // Ensure status sync runs
-	env.modelBazaar.StopStatusSync()
+	env.modelBazaar.StopJobStatusSync()
 	time.Sleep(300 * time.Millisecond) // Ensure status sync stops
 
 	status, err = client.deployStatus(model)

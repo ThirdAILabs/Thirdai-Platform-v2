@@ -10,12 +10,13 @@ func StartFrontendJob(client nomad.NomadClient, driver nomad.DockerDriver, opena
 	slog.Info("starting frontend job")
 
 	job := nomad.FrontendJob{
-		OpenaiApiKey:           openaiKey,
-		IdentityProvider:       "TODO",
-		KeycloakServerHostname: "TODO",
-		NextAuthSecret:         "TODO",
-		UseSslInLogin:          false, // TODO
-		Driver:                 driver,
+		OpenaiApiKey:                 openaiKey,
+		IdentityProvider:             "TODO",
+		KeycloakServerHostname:       "TODO",
+		NextAuthSecret:               "TODO",
+		MajorityCriticalServiceNodes: 1,     // TODO
+		UseSslInLogin:                false, // TODO
+		Driver:                       driver,
 	}
 
 	err := stopJobIfExists(client, job.GetJobName())

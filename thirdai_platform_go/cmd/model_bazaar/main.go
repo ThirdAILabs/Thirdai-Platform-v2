@@ -325,7 +325,7 @@ func main() {
 		}
 	}
 
-	go model_bazaar.StartStatusSync(5 * time.Second)
+	go model_bazaar.JobStatusSync(5 * time.Second)
 
 	r := chi.NewRouter()
 	r.Mount("/api/v2", model_bazaar.Routes())
@@ -335,5 +335,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("listen and serve returned error: %v", err.Error())
 	}
-	model_bazaar.StopStatusSync()
+	model_bazaar.StopJobStatusSync()
 }

@@ -171,7 +171,7 @@ func (m *ModelBazaar) statusSync() {
 	}
 }
 
-func (m *ModelBazaar) StartStatusSync(interval time.Duration) {
+func (m *ModelBazaar) JobStatusSync(interval time.Duration) {
 	slog.Info("status sync: starting")
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -187,6 +187,6 @@ func (m *ModelBazaar) StartStatusSync(interval time.Duration) {
 	}
 }
 
-func (m *ModelBazaar) StopStatusSync() {
+func (m *ModelBazaar) StopJobStatusSync() {
 	close(m.stop)
 }

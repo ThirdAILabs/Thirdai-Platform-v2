@@ -76,13 +76,13 @@ const TopRightCorner = styled.section`
   padding: 10px;
   top: 0;
   right: 0;
-  z-index: 200;
+  z-index: 100;  // Lower this from 200
 `;
 
 const PdfViewerWrapper = styled.section`
   display: block;
   position: fixed;
-  z-index: 1000;
+  z-index: 2000;  // Increase this from 1000
   width: 100%;
   height: 100%;
   padding: ${padding.card};

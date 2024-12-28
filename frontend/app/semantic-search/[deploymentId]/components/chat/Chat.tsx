@@ -260,6 +260,7 @@ function ChatBox({
   onOpenPdf: (pdfInfo: PdfInfo) => void;
   showFeedback: boolean;
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleReferenceClick = async (chunkInfo: any) => {
     if (!modelService) return;
@@ -292,6 +293,11 @@ function ChatBox({
   const handleDownvote = () => {
     modelService?.recordGeneratedResponseFeedback(false);
   }
+
+  // Check if this is the welcome message
+  const isWelcomeMessage = message.sender === 'AI' && 
+    message.content.startsWith("Welcome! I'm here to assist you");
+
   return (
     <ChatBoxContainer>
       <ChatBoxSender>{message.sender === 'human' ? '👋 You' : '🤖 AI'}</ChatBoxSender>
@@ -309,7 +315,7 @@ function ChatBox({
           ) : (
             <ReactMarkdown>{message.content}</ReactMarkdown>
           )}
-          {showFeedback && message.sender === 'AI' && <div className='flex mt-4'>
+          {showFeedback && message.sender === 'AI' && !isWelcomeMessage && <div className='flex mt-4'>
             <div className='flex items-center justify-center space-x-4 py-1 px-6 bg-gray-50 border rounded-full w-fit'>
               <p className="text-sm font-medium text-gray-700">Share your feedback:</p>
               <button
@@ -341,25 +347,33 @@ function ChatBox({
         </div>
 
         {showFeedback && context && message.sender === 'AI' && (
-          <div className="mt-2 text-sm text-gray-600">
-            <div className="font-medium mb-1">References:</div>
-            <div className="space-y-2">
-              {context.map((ref, i) => (
-                <ReferenceItem
-                  key={i}
-                  reference={ref}
-                  query={ref.query}
-                  onVote={(refId, content, voteType) => {
-                    if (voteType === 'up') {
-                      modelService?.upvote("null", ref.query, refId, content);
-                    } else {
-                      modelService?.downvote("null", ref.query, refId, content);
-                    }
-                  }}
-                  onReferenceClick={handleReferenceClick}
-                />
-              ))}
-            </div>
+          <div className="mt-2">
+            <button 
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="flex items-center text-sm text-gray-600 hover:text-gray-800"
+            >
+              <span className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
+              <span className="ml-1 font-medium">References</span>
+            </button>
+            {isExpanded && (
+              <div className="space-y-2 mt-2">
+                {context.map((ref, i) => (
+                  <ReferenceItem
+                    key={i}
+                    reference={ref}
+                    query={ref.query}
+                    onVote={(refId, content, voteType) => {
+                      if (voteType === 'up') {
+                        modelService?.upvote("null", ref.query, refId, content);
+                      } else {
+                        modelService?.downvote("null", ref.query, refId, content);
+                      }
+                    }}
+                    onReferenceClick={handleReferenceClick}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </ChatBoxContent>

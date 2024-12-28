@@ -11,6 +11,11 @@ type ModelClient struct {
 	modelId string
 }
 
+func (c *ModelClient) DeploymentHealthy() bool {
+	err := c.Get(fmt.Sprintf("/%v/health", c.modelId)).Do(nil)
+	return err == nil
+}
+
 func (c *ModelClient) getStatus(job string) (services.StatusResponse, error) {
 	var res services.StatusResponse
 	err := c.Get(fmt.Sprintf("/api/v2/%v/%v/status", job, c.modelId)).Do(&res)
@@ -32,7 +37,9 @@ func (c *ModelClient) awaitJob(job string, timeout time.Duration) error {
 				return fmt.Errorf("%v has status: %v", job, status.Status)
 			}
 			if status.Status == "complete" {
-				return nil
+				if c.DeploymentHealthy() || job == "train" {
+					return nil
+				}
 			}
 		case <-stop:
 			return fmt.Errorf("timeout reached before %v job completed", job)
@@ -53,12 +60,7 @@ func (c *ModelClient) AwaitTrain(timeout time.Duration) error {
 }
 
 func (c *ModelClient) AwaitDeploy(timeout time.Duration) error {
-	err := c.awaitJob("deploy", timeout)
-	if err != nil {
-		return err
-	}
-	time.Sleep(4 * time.Second) // Wait to make sure traefik updates
-	return nil
+	return c.awaitJob("deploy", timeout)
 }
 
 type Logs struct {

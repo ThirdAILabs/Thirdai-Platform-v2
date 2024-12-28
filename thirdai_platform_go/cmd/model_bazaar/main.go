@@ -330,7 +330,7 @@ func main() {
 	r := chi.NewRouter()
 	r.Mount("/api/v2", model_bazaar.Routes())
 
-	slog.Info("starting serrver", "port", 8000)
+	slog.Info("starting server", "port", 8000)
 	err = http.ListenAndServe(fmt.Sprintf(":%d", 8000), r)
 	if err != nil {
 		log.Fatalf("listen and serve returned error: %v", err.Error())

@@ -24,6 +24,12 @@ type KeycloakIdentityProvider struct {
 	adminToken string
 }
 
+func isConflict(err error) bool {
+	apiErr, ok := err.(*gocloak.APIError)
+	// Keycloak returns 409 if user/realm etc already exists when creating it.
+	return ok && apiErr.Code == http.StatusConflict
+}
+
 func pArg[T any](value T) *T {
 	p := new(T)
 	*p = value
@@ -46,20 +52,32 @@ func adminLogin(client *gocloak.GoCloak, adminUsername, adminPassword string) (s
 	return adminToken.AccessToken, nil
 }
 
-func createAdminIfNotExists(client *gocloak.GoCloak, adminToken, username, email, password string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
+func getUserID(ctx context.Context, client *gocloak.GoCloak, adminToken, username string) (*string, error) {
 	users, err := client.GetUsers(ctx, adminToken, "master", gocloak.GetUsersParams{
 		Username: &username,
 		Max:      intArg(1),
 		Exact:    boolArg(true),
 	})
 	if err != nil {
-		return "", fmt.Errorf("error checking for existing admin: %w", err)
+		return nil, fmt.Errorf("error retrieving user id: %w", err)
 	}
 	if len(users) == 1 {
-		return *users[0].ID, nil
+		return users[0].ID, nil
+	}
+	return nil, nil
+}
+
+func createAdminIfNotExists(client *gocloak.GoCloak, adminToken, username, email, password string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	existingUserId, err := getUserID(ctx, client, adminToken, username)
+	if err != nil {
+		return "", fmt.Errorf("error checking for existing admin : %w", err)
+	}
+	if existingUserId != nil {
+		slog.Info("KEYCLOAK: admin user has already been created")
+		return *existingUserId, nil
 	}
 
 	userId, err := client.CreateUser(ctx, adminToken, "master", gocloak.User{
@@ -75,7 +93,19 @@ func createAdminIfNotExists(client *gocloak.GoCloak, adminToken, username, email
 			},
 		},
 	})
+
 	if err != nil {
+		if isConflict(err) {
+			userId, err := getUserID(ctx, client, adminToken, username)
+			slog.Info("KEYCLOAK: admin user has already been created")
+			if err != nil {
+				return "", fmt.Errorf("error retrieving existing admin after conflict creating admin: %w", err)
+			}
+			if userId == nil {
+				return "", fmt.Errorf("no user found after conflict creating admin")
+			}
+			return *userId, nil
+		}
 		return "", fmt.Errorf("error creating new admin: %w", err)
 	}
 
@@ -135,6 +165,10 @@ func createRealm(client *gocloak.GoCloak, adminToken, realmName string) error {
 
 	_, err = client.CreateRealm(ctx, adminToken, args)
 	if err != nil {
+		if isConflict(err) {
+			slog.Info(fmt.Sprintf("KEYCLOAK: realm '%v' has already been created", realmName))
+			return nil // Ok if realm already exists
+		}
 		return fmt.Errorf("error creating realm: %w", err)
 	}
 	return nil
@@ -153,7 +187,7 @@ func createClient(client *gocloak.GoCloak, adminToken, realm string, redirectUrl
 		return fmt.Errorf("error listing existing clients for realm: %w", err)
 	}
 	if len(clients) == 1 {
-		slog.Info("client %v already exists for realm %v", clientName, realm)
+		slog.Info(fmt.Sprintf("KEYCLOAK: client '%v' already exists for realm '%v'", clientName, realm))
 		return nil
 	}
 
@@ -183,6 +217,10 @@ func createClient(client *gocloak.GoCloak, adminToken, realm string, redirectUrl
 		WebOrigins: &redirectUrls,
 	})
 	if err != nil {
+		if isConflict(err) {
+			slog.Info(fmt.Sprintf("KEYCLOAK: client '%v' has already been created for realm '%v'", clientName, realm))
+			return nil
+		}
 		return fmt.Errorf("error creating realm client: %w", err)
 	}
 	return nil
@@ -202,6 +240,8 @@ type KeycloakArgs struct {
 	PrivateHostname string
 
 	SslLogin bool
+
+	Verbose bool
 }
 
 func NewKeycloakIdentityProvider(db *gorm.DB, args KeycloakArgs) (IdentityProvider, error) {
@@ -209,7 +249,7 @@ func NewKeycloakIdentityProvider(db *gorm.DB, args KeycloakArgs) (IdentityProvid
 
 	client := gocloak.NewClient(args.KeycloakServerUrl)
 	restyClient := client.RestyClient()
-	restyClient.SetDebug(true) // Adds logging for every request
+	restyClient.SetDebug(args.Verbose) // Adds logging for every request
 
 	if args.SslLogin {
 		cert, err := tls.LoadX509KeyPair("/model_bazaar/certs/traefik.crt", "/model_bazaar/certs/traefik.key")
@@ -223,27 +263,38 @@ func NewKeycloakIdentityProvider(db *gorm.DB, args KeycloakArgs) (IdentityProvid
 
 	adminToken, err := adminLogin(client, args.KeycloakAdminUsername, args.KeycloakAdminPassword)
 	if err != nil {
+		slog.Error("KEYCLOAK: admin login failed", "error", err)
 		return nil, err
 	}
+	slog.Info("KEYCLOAK: admin login successful")
 
 	userId, err := createAdminIfNotExists(client, adminToken, args.AdminUsername, args.AdminEmail, args.AdminPassword)
 	if err != nil {
+		slog.Error("KEYCLOAK: new admin creation failed", "error", err)
 		return nil, err
 	}
+	slog.Info("KEYCLOAK: new admin creation successful")
+
 	err = addInitialAdminToDb(db, userId, args.AdminUsername, args.AdminEmail, nil)
 	if err != nil {
+		slog.Error("KEYCLOAK: adding new admin to db failed", "error", err)
 		return nil, err
 	}
+	slog.Info("KEYCLOAK: adding new admin to db successful")
 
 	err = assignAdminRole(client, adminToken, userId)
 	if err != nil {
+		slog.Error("KEYCLOAK: admin role assignment failed", "error", err)
 		return nil, err
 	}
+	slog.Info("KEYCLOAK: admin role assignment successful")
 
 	err = createRealm(client, adminToken, realm)
 	if err != nil {
+		slog.Error("KEYCLOAK: realm creation failed", "error", err)
 		return nil, err
 	}
+	slog.Info("KEYCLOAK: realm creation successful")
 
 	redirectUrls := []string{
 		fmt.Sprintf("http://%v/*", args.PublicHostname),
@@ -264,8 +315,10 @@ func NewKeycloakIdentityProvider(db *gorm.DB, args KeycloakArgs) (IdentityProvid
 	}
 	err = createClient(client, adminToken, realm, redirectUrls, args.KeycloakServerUrl)
 	if err != nil {
+		slog.Error("KEYCLOAK: client creation failed", "error", err)
 		return nil, err
 	}
+	slog.Info("KEYCLOAK: client creation successful")
 
 	return &KeycloakIdentityProvider{
 		keycloak:   client,

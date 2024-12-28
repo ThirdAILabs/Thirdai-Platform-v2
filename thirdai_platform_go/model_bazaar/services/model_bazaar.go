@@ -4,12 +4,14 @@ import (
 	"errors"
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
+	"thirdai_platform/model_bazaar/utils"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -93,6 +95,10 @@ func (m *ModelBazaar) Routes() chi.Router {
 	r.Mount("/deploy", m.deploy.Routes())
 	r.Mount("/telemetry", m.telemetry.Routes())
 	r.Mount("/workflow", m.workflow.Routes())
+
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		utils.WriteSuccess(w)
+	})
 
 	return r
 }

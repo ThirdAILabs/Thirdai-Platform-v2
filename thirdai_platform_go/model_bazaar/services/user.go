@@ -175,7 +175,7 @@ func (s *UserService) PromoteAdmin(w http.ResponseWriter, r *http.Request) {
 	userId := chi.URLParam(r, "user_id")
 
 	err := s.db.Transaction(func(txn *gorm.DB) error {
-		user, err := schema.GetUser(userId, txn, false)
+		user, err := schema.GetUser(userId, txn)
 		if err != nil {
 			return err
 		}
@@ -202,7 +202,7 @@ func (s *UserService) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
 	userId := chi.URLParam(r, "user_id")
 
 	err := s.db.Transaction(func(txn *gorm.DB) error {
-		user, err := schema.GetUser(userId, txn, false)
+		user, err := schema.GetUser(userId, txn)
 		if err != nil {
 			return err
 		}
@@ -269,15 +269,10 @@ func convertToUserInfo(user *schema.User) UserInfo {
 }
 
 func (s *UserService) List(w http.ResponseWriter, r *http.Request) {
-	userId, err := auth.UserIdFromContext(r)
+	user, err := auth.UserFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
-	}
-
-	user, err := schema.GetUser(userId, s.db, true)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
 	var users []schema.User
@@ -285,9 +280,10 @@ func (s *UserService) List(w http.ResponseWriter, r *http.Request) {
 	if user.IsAdmin {
 		result = s.db.Preload("Teams").Preload("Teams.Team").Find(&users)
 	} else if len(user.Teams) > 0 {
-		userTeams := make([]string, 0, len(user.Teams))
-		for _, t := range user.Teams {
-			userTeams = append(userTeams, t.TeamId)
+		userTeams, err := schema.GetUserTeamIds(user.Id, s.db)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 		result = s.db.Preload("Teams").Preload("Teams.Team").Joins("JOIN user_teams ON user_teams.user_id = users.id").Where("user_teams.team_id in ?", userTeams).Find(&users)
 	} else {
@@ -308,18 +304,21 @@ func (s *UserService) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *UserService) Info(w http.ResponseWriter, r *http.Request) {
-	userId, err := auth.UserIdFromContext(r)
+	user, err := auth.UserFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	user, err := schema.GetUser(userId, s.db, true)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error retrieving user info: %v", err), http.StatusBadRequest)
+	var userWithTeams schema.User
+	result := s.db.Preload("Teams").Preload("Teams.Team").First(&userWithTeams, "id = ?", user.Id)
+	if result.Error != nil {
+		err := schema.NewDbError("retrieving user info with teams", result.Error)
+		http.Error(w, fmt.Sprintf("error getting user info: %v", err), http.StatusBadRequest)
+		return
 	}
 
-	info := convertToUserInfo(&user)
+	info := convertToUserInfo(&userWithTeams)
 	utils.WriteJsonResponse(w, info)
 }
 

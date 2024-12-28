@@ -156,15 +156,10 @@ func (s *ModelService) Info(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
-	userId, err := auth.UserIdFromContext(r)
+	user, err := auth.UserFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
-	}
-
-	user, err := schema.GetUser(userId, s.db, true)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
 	var models []schema.Model
@@ -172,9 +167,10 @@ func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 	if user.IsAdmin {
 		result = s.db.Preload("Dependencies").Preload("Attributes").Preload("User").Find(&models)
 	} else {
-		userTeams := make([]string, 0, len(user.Teams))
-		for _, t := range user.Teams {
-			userTeams = append(userTeams, t.TeamId)
+		userTeams, err := schema.GetUserTeamIds(user.Id, s.db)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 		result = s.db.
 			Preload("Dependencies").Preload("Attributes").Preload("User").
@@ -214,13 +210,13 @@ type ModelPermissions struct {
 func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
 	modelId := chi.URLParam(r, "model_id")
 
-	userId, err := auth.UserIdFromContext(r)
+	user, err := auth.UserFromContext(r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error getting user_id: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	permission, err := auth.GetModelPermissions(modelId, userId, s.db)
+	permission, err := auth.GetModelPermissions(modelId, user, s.db)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error retrieving model permissions: %v", err), http.StatusBadRequest)
 		return
@@ -236,7 +232,7 @@ func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
 		Read:     permission >= auth.ReadPermission,
 		Write:    permission >= auth.WritePermission,
 		Owner:    permission >= auth.OwnerPermission,
-		Username: userId, // TODO(nicholas): store user info in context for audit logging
+		Username: user.Id, // TODO(nicholas): store user info in context for audit logging
 		Exp:      expiration,
 	}
 	utils.WriteJsonResponse(w, res)
@@ -337,7 +333,7 @@ func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userId, err := auth.UserIdFromContext(r)
+	user, err := auth.UserFromContext(r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error retrieving user id from request: %v", err), http.StatusBadRequest)
 		return
@@ -352,11 +348,11 @@ func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
 		DeployStatus:      schema.NotStarted,
 		Access:            schema.Private,
 		DefaultPermission: schema.ReadPerm,
-		UserId:            userId,
+		UserId:            user.Id,
 	}
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
-		err := checkForDuplicateModel(txn, model.Name, userId)
+		err := checkForDuplicateModel(txn, model.Name, user.Id)
 		if err != nil {
 			return err
 		}

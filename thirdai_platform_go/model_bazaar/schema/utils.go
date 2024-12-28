@@ -26,16 +26,10 @@ func (e DbError) Unwrap() error {
 	return e.err
 }
 
-func GetUser(userId string, db *gorm.DB, loadTeams bool) (User, error) {
+func GetUser(userId string, db *gorm.DB) (User, error) {
 	var user User
 
-	var result *gorm.DB
-	if loadTeams {
-		result = db.Preload("Teams").Preload("Teams.Team").First(&user, "id = ?", userId)
-	} else {
-		result = db.First(&user, "id = ?", userId)
-	}
-
+	result := db.First(&user, "id = ?", userId)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return user, fmt.Errorf("no user with id %v", userId)
@@ -69,6 +63,19 @@ func GetModel(modelId string, db *gorm.DB, loadDeps, loadAttrs, loadUser bool) (
 	}
 
 	return model, nil
+}
+
+func GetUserTeamIds(userId string, db *gorm.DB) ([]string, error) {
+	var teams []UserTeam
+	result := db.Find(&teams, "user_id = ?", userId)
+	if result.Error != nil {
+		return nil, NewDbError("retrieving user_team entries", result.Error)
+	}
+	ids := make([]string, 0, len(teams))
+	for _, team := range teams {
+		ids = append(ids, team.TeamId)
+	}
+	return ids, nil
 }
 
 func GetUserTeam(teamId, userId string, db *gorm.DB) (*UserTeam, error) {

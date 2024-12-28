@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"thirdai_platform/model_bazaar/schema"
@@ -41,8 +42,32 @@ func NewBasicIdentityProvider(db *gorm.DB, args BasicProviderArgs) (IdentityProv
 	}, nil
 }
 
+func (auth *BasicIdentityProvider) addUserToContext() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			userId, err := ValueFromContext(r, userIdKey)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusUnauthorized)
+				return
+			}
+
+			user, err := schema.GetUser(userId, auth.db)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("unable to find user %v: %v", userId, err), http.StatusUnauthorized)
+				return
+			}
+
+			reqCtx := r.Context()
+			reqCtx = context.WithValue(reqCtx, "user", user)
+			next.ServeHTTP(w, r.WithContext(reqCtx))
+		}
+
+		return http.HandlerFunc(handler)
+	}
+}
+
 func (auth *BasicIdentityProvider) AuthMiddleware() chi.Middlewares {
-	return chi.Middlewares{auth.jwtManager.Verifier(), auth.jwtManager.Authenticator()}
+	return chi.Middlewares{auth.jwtManager.Verifier(), auth.jwtManager.Authenticator(), auth.addUserToContext()}
 }
 
 func (auth *BasicIdentityProvider) AllowDirectSignup() bool {

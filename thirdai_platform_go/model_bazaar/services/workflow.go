@@ -59,7 +59,7 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	userId, err := auth.UserIdFromContext(r)
+	user, err := auth.UserFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -68,7 +68,7 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 	modelId := uuid.New().String()
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
-		err := checkForDuplicateModel(txn, params.ModelName, userId)
+		err := checkForDuplicateModel(txn, params.ModelName, user.Id)
 		if err != nil {
 			return err
 		}
@@ -86,7 +86,7 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 				return fmt.Errorf("component %v was expected to have type %v, but specified model has type %v", component.component, component.expectedType, model.Type)
 			}
 
-			perm, err := auth.GetModelPermissions(model.Id, userId, txn)
+			perm, err := auth.GetModelPermissions(model.Id, user, txn)
 			if err != nil {
 				return fmt.Errorf("error verifying permissions for %v: %w", component.component, err)
 			}
@@ -105,7 +105,7 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 			attrs = append(attrs, schema.ModelAttribute{ModelId: modelId, Key: "default_mode", Value: *params.DefaultMode})
 		}
 
-		model := createModel(modelId, params.ModelName, schema.EnterpriseSearch, nil, userId)
+		model := createModel(modelId, params.ModelName, schema.EnterpriseSearch, nil, user.Id)
 		model.TrainStatus = schema.Complete
 		model.Dependencies = deps
 		model.Attributes = attrs

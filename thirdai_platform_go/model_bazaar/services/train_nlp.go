@@ -212,7 +212,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("unable to start nlp-token training, found the following errors: %v", err), http.StatusBadRequest)
 	}
 
-	userId, err := auth.UserIdFromContext(r)
+	user, err := auth.UserFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -255,7 +255,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 		ModelId:             modelId,
 		ModelType:           params.modelType(),
 		BaseModelId:         params.BaseModelId,
-		UserId:              userId,
+		UserId:              user.Id,
 		ModelOptions:        modelOptions,
 		Data:                data,
 		TrainOptions:        params.TrainOptions,
@@ -275,7 +275,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 		TaskOptions:         params.taskOptions(),
 	}
 
-	err = s.createModelAndStartDatagenTraining(params.ModelName, userId, trainConfig, datagenConfig)
+	err = s.createModelAndStartDatagenTraining(params.ModelName, user, trainConfig, datagenConfig)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("unable to start training: %v", err), http.StatusBadRequest)
 		return
@@ -332,7 +332,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("unable to start nlp-token training, found the following errors: %v", err), http.StatusBadRequest)
 	}
 
-	userId, err := auth.UserIdFromContext(r)
+	user, err := auth.UserFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -368,7 +368,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 		ModelId:             modelId,
 		ModelType:           schema.NlpTokenModel,
 		BaseModelId:         &params.BaseModelId,
-		UserId:              userId,
+		UserId:              user.Id,
 		ModelOptions:        nil,
 		Data:                data,
 		TrainOptions:        params.TrainOptions,
@@ -397,7 +397,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	err = s.createModelAndStartDatagenTraining(params.ModelName, userId, trainConfig, datagenConfig)
+	err = s.createModelAndStartDatagenTraining(params.ModelName, user, trainConfig, datagenConfig)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("unable to start training: %v", err), http.StatusBadRequest)
 		return
@@ -409,7 +409,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TrainService) createModelAndStartDatagenTraining(
-	modelName, userId string, trainConfig config.TrainConfig, datagenConfig config.DatagenConfig,
+	modelName string, user schema.User, trainConfig config.TrainConfig, datagenConfig config.DatagenConfig,
 ) error {
 	trainConfigPath, err := saveConfig(trainConfig.ModelId, "train", trainConfig, s.storage)
 	if err != nil {
@@ -426,7 +426,7 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 		return err
 	}
 
-	model := createModel(trainConfig.ModelId, modelName, trainConfig.ModelType, trainConfig.BaseModelId, userId)
+	model := createModel(trainConfig.ModelId, modelName, trainConfig.ModelType, trainConfig.BaseModelId, user.Id)
 
 	job := nomad.DatagenTrainJob{
 		TrainJob: nomad.TrainJob{
@@ -444,7 +444,7 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 		GenaiKey:          genaiKey,
 	}
 
-	return s.saveModelAndStartJob(model, job)
+	return s.saveModelAndStartJob(model, user, job)
 }
 
 func (s *TrainService) getDatagenData(modelId string) (string, config.NlpData, error) {

@@ -69,19 +69,19 @@ func (s *DeployService) Routes() chi.Router {
 	return r
 }
 
-func (s *DeployService) deployModel(modelId, userId string, autoscaling bool, autoscalingMax int, memory int, deploymentName string) error {
+func (s *DeployService) deployModel(modelId string, user schema.User, autoscaling bool, autoscalingMax int, memory int, deploymentName string) error {
 	slog.Info("deploying model", "model_id", modelId, "autoscaling", autoscaling, "autoscalingMax", autoscalingMax, "memory", memory, "deployment_name", deploymentName)
 
 	requiresOnPremLlm := false
 
 	var nomadErr error = nil
 	err := s.db.Transaction(func(txn *gorm.DB) error {
-		perm, err := auth.GetModelPermissions(modelId, userId, txn)
+		perm, err := auth.GetModelPermissions(modelId, user, txn)
 		if err != nil {
 			return fmt.Errorf("unable to retrieve permission for model: %w", err)
 		}
 		if perm < auth.OwnerPermission {
-			return fmt.Errorf("user %v does not have permission to deploy model %v", userId, modelId)
+			return fmt.Errorf("user %v does not have permission to deploy model %v", user.Id, modelId)
 		}
 
 		model, err := schema.GetModel(modelId, txn, false, true, false)
@@ -129,7 +129,7 @@ func (s *DeployService) deployModel(modelId, userId string, autoscaling bool, au
 
 		config := config.DeployConfig{
 			ModelId:             model.Id,
-			UserId:              userId,
+			UserId:              user.Id,
 			ModelType:           model.Type,
 			ModelBazaarDir:      s.storage.Location(),
 			HostDir:             hostDir,
@@ -201,7 +201,7 @@ type startRequest struct {
 }
 
 func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
-	userId, err := auth.UserIdFromContext(r)
+	user, err := auth.UserFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -228,7 +228,7 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 		if dep.Id == modelId {
 			name = params.DeploymentName
 		}
-		err := s.deployModel(dep.Id, userId, params.Autoscaling, params.AutoscalingMax, params.Memory, name)
+		err := s.deployModel(dep.Id, user, params.Autoscaling, params.AutoscalingMax, params.Memory, name)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -311,7 +311,7 @@ type saveDeployedRequest struct {
 }
 
 func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
-	userId, err := auth.UserIdFromContext(r)
+	user, err := auth.UserFromContext(r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error retrieving user id from request: %v", err), http.StatusBadRequest)
 		return
@@ -330,13 +330,13 @@ func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		err = checkForDuplicateModel(txn, params.ModelName, userId)
+		err = checkForDuplicateModel(txn, params.ModelName, user.Id)
 		if err != nil {
 			slog.Info("unable to save deployed model: duplicate model name", "base_model_id", baseModel.Id, "model_name", params.ModelName)
 			return err
 		}
 
-		model := createModel(newModelId, params.ModelName, baseModel.Type, &baseModel.Id, userId)
+		model := createModel(newModelId, params.ModelName, baseModel.Type, &baseModel.Id, user.Id)
 
 		model.Attributes = make([]schema.ModelAttribute, 0, len(baseModel.Attributes))
 		for _, attr := range baseModel.Attributes {

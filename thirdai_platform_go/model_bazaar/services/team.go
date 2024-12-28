@@ -371,15 +371,10 @@ type TeamInfo struct {
 }
 
 func (s *TeamService) List(w http.ResponseWriter, r *http.Request) {
-	userId, err := auth.UserIdFromContext(r)
+	user, err := auth.UserFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
-	}
-
-	user, err := schema.GetUser(userId, s.db, true)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
 	var teams []schema.Team
@@ -387,9 +382,10 @@ func (s *TeamService) List(w http.ResponseWriter, r *http.Request) {
 	if user.IsAdmin {
 		result = s.db.Find(&teams)
 	} else {
-		userTeams := make([]string, 0, len(user.Teams))
-		for _, t := range user.Teams {
-			userTeams = append(userTeams, t.TeamId)
+		userTeams, err := schema.GetUserTeamIds(user.Id, s.db)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 		result = s.db.Where("id IN ?", userTeams).Find(&teams)
 	}

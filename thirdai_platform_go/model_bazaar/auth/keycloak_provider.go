@@ -356,14 +356,14 @@ func (auth *KeycloakIdentityProvider) middleware() func(http.Handler) http.Handl
 				return
 			}
 
-			user, err := schema.GetUser(*userInfo.Sub, auth.db, false)
+			user, err := schema.GetUser(*userInfo.Sub, auth.db)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("unable to find user %v: %v", *userInfo.Sub, err), http.StatusUnauthorized)
 				return
 			}
 
 			reqCtx := r.Context()
-			reqCtx = context.WithValue(reqCtx, "user_id", user.Id)
+			reqCtx = context.WithValue(reqCtx, "user", user)
 			next.ServeHTTP(w, r.WithContext(reqCtx))
 		}
 

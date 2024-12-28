@@ -85,13 +85,13 @@ type basicTrainArgs struct {
 }
 
 func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, args basicTrainArgs) {
-	userId, err := auth.UserIdFromContext(r)
+	user, err := auth.UserFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	model := createModel(uuid.NewString(), args.modelName, args.modelType, args.baseModelId, userId)
+	model := createModel(uuid.NewString(), args.modelName, args.modelType, args.baseModelId, user.Id)
 
 	slog.Info("starting training", "model_type", args.modelType, "model_id", model.Id, "model_name", args.modelName)
 
@@ -115,7 +115,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 		ModelId:             model.Id,
 		ModelType:           args.modelType,
 		BaseModelId:         args.baseModelId,
-		UserId:              userId,
+		UserId:              user.Id,
 		ModelOptions:        args.modelOptions,
 		Data:                args.data,
 		TrainOptions:        args.trainOptions,
@@ -141,7 +141,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 		CloudCredentials: s.variables.CloudCredentials,
 	}
 
-	err = s.saveModelAndStartJob(model, job)
+	err = s.saveModelAndStartJob(model, user, job)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error starting %v training: %v", args.modelType, err), http.StatusBadRequest)
 		return
@@ -152,7 +152,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 	utils.WriteJsonResponse(w, map[string]string{"model_id": model.Id})
 }
 
-func (s *TrainService) saveModelAndStartJob(model schema.Model, job nomad.Job) error {
+func (s *TrainService) saveModelAndStartJob(model schema.Model, user schema.User, job nomad.Job) error {
 	err := s.db.Transaction(func(txn *gorm.DB) error {
 		if model.BaseModelId != nil {
 			baseModel, err := schema.GetModel(*model.BaseModelId, txn, false, true, false)
@@ -163,7 +163,7 @@ func (s *TrainService) saveModelAndStartJob(model schema.Model, job nomad.Job) e
 				return fmt.Errorf("specified base model has type %v but new model has type %v", baseModel.Type, model.Type)
 			}
 
-			perm, err := auth.GetModelPermissions(baseModel.Id, model.UserId, txn)
+			perm, err := auth.GetModelPermissions(baseModel.Id, user, txn)
 			if err != nil {
 				return fmt.Errorf("error verifying permissions for base model %v: %w", baseModel.Id, err)
 			}

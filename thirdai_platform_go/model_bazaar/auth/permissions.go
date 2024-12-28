@@ -9,29 +9,17 @@ import (
 	"gorm.io/gorm"
 )
 
-func ExpectAdmin(userId string, db *gorm.DB) error {
-	user, err := schema.GetUser(userId, db, false)
-	if err != nil {
-		return err
-	}
-	if !user.IsAdmin {
-		return fmt.Errorf("user %v is not an admin", userId)
-	}
-	return nil
-}
-
 func AdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
-			userId, err := UserIdFromContext(r)
+			user, err := UserFromContext(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusUnauthorized)
 				return
 			}
 
-			err = ExpectAdmin(userId, db)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
+			if !user.IsAdmin {
+				http.Error(w, fmt.Sprintf("user %v is not an admin", user.Id), http.StatusUnauthorized)
 				return
 			}
 
@@ -55,19 +43,13 @@ func AdminOrTeamAdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
 			teamId := chi.URLParam(r, "team_id")
 
-			userId, err := UserIdFromContext(r)
+			user, err := UserFromContext(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusUnauthorized)
 				return
 			}
 
-			user, err := schema.GetUser(userId, db, false)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
-				return
-			}
-
-			if !user.IsAdmin && !isTeamAdmin(teamId, userId, db) {
+			if !user.IsAdmin && !isTeamAdmin(teamId, user.Id, db) {
 				http.Error(w, "user must be admin or team admin to access endpoint", http.StatusUnauthorized)
 				return
 			}
@@ -92,19 +74,13 @@ func TeamMemberOnly(db *gorm.DB) func(http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
 			teamId := chi.URLParam(r, "team_id")
 
-			userId, err := UserIdFromContext(r)
+			user, err := UserFromContext(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusUnauthorized)
 				return
 			}
 
-			user, err := schema.GetUser(userId, db, false)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
-				return
-			}
-
-			if !user.IsAdmin && !isTeamMember(teamId, userId, db) {
+			if !user.IsAdmin && !isTeamMember(teamId, user.Id, db) {
 				http.Error(w, "user must be team member to access endpoint", http.StatusUnauthorized)
 				return
 			}
@@ -124,12 +100,7 @@ const (
 	OwnerPermission modelPermissions = 3
 )
 
-func GetModelPermissions(modelId, userId string, db *gorm.DB) (modelPermissions, error) {
-	user, err := schema.GetUser(userId, db, false)
-	if err != nil {
-		return NoPermission, err
-	}
-
+func GetModelPermissions(modelId string, user schema.User, db *gorm.DB) (modelPermissions, error) {
 	if user.IsAdmin {
 		return OwnerPermission, nil
 	}
@@ -139,7 +110,7 @@ func GetModelPermissions(modelId, userId string, db *gorm.DB) (modelPermissions,
 		return NoPermission, err
 	}
 
-	if model.UserId == userId {
+	if model.UserId == user.Id {
 		return OwnerPermission, nil
 	}
 
@@ -151,7 +122,7 @@ func GetModelPermissions(modelId, userId string, db *gorm.DB) (modelPermissions,
 	}
 
 	if model.Access == schema.Protected && model.TeamId != nil {
-		userTeam, err := schema.GetUserTeam(*model.TeamId, userId, db)
+		userTeam, err := schema.GetUserTeam(*model.TeamId, user.Id, db)
 		if err != nil {
 			return NoPermission, err
 		}
@@ -174,13 +145,13 @@ func ModelPermissionOnly(db *gorm.DB, minPermission modelPermissions) func(http.
 		hfn := func(w http.ResponseWriter, r *http.Request) {
 			modelId := chi.URLParam(r, "model_id")
 
-			userId, err := UserIdFromContext(r)
+			user, err := UserFromContext(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusUnauthorized)
 				return
 			}
 
-			permission, err := GetModelPermissions(modelId, userId, db)
+			permission, err := GetModelPermissions(modelId, user, db)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusUnauthorized)
 				return
@@ -191,7 +162,7 @@ func ModelPermissionOnly(db *gorm.DB, minPermission modelPermissions) func(http.
 				return
 			}
 
-			http.Error(w, fmt.Sprintf("user %v does not have owner permission for model %v", userId, modelId), http.StatusUnauthorized)
+			http.Error(w, fmt.Sprintf("user %v does not have owner permission for model %v", user.Id, modelId), http.StatusUnauthorized)
 		}
 		return http.HandlerFunc(hfn)
 	}

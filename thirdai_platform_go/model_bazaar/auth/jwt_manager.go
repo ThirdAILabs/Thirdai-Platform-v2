@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"thirdai_platform/model_bazaar/schema"
 	"time"
 
 	"github.com/go-chi/jwtauth/v5"
@@ -64,17 +65,16 @@ func ValueFromContext(r *http.Request, key string) (string, error) {
 	return value, nil
 }
 
-func UserIdFromContext(r *http.Request) (string, error) {
-	userId := r.Context().Value("user_id")
-	if userId != nil {
-		userIdStr, ok := userId.(string)
-		if !ok {
-			return "", fmt.Errorf("invalid value for user_id, expected string")
-		}
-		return userIdStr, nil
+func UserFromContext(r *http.Request) (schema.User, error) {
+	userUntyped := r.Context().Value("user")
+	if userUntyped == nil {
+		return schema.User{}, fmt.Errorf("user field not found in request context")
 	}
-
-	return ValueFromContext(r, userIdKey)
+	user, ok := userUntyped.(schema.User)
+	if !ok {
+		return schema.User{}, fmt.Errorf("invalid value for user field")
+	}
+	return user, nil
 }
 
 func getSecret() []byte {

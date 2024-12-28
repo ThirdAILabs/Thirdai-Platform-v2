@@ -44,7 +44,7 @@ const Conversations: React.FC = () => {
   const [numberOfQuestions, setNumberOfQuestions] = useState<number>(0);
 
   const handleShowMore = () => {
-    setNumberOfQuestions(min(numberOfQuestions + 5, chatHistory.length));
+    setNumberOfQuestions(min(numberOfQuestions + 50, chatHistory.length));
   }
 
   // Extract parameters from the URL
@@ -56,7 +56,7 @@ const Conversations: React.FC = () => {
           const data = await getAllChatHistory(model_id);
           const convertedData = convertAndSortDataByQueryTime(data)
           setChatHistory(convertedData);
-          setNumberOfQuestions(min(5, convertedData.length));
+          setNumberOfQuestions(min(50, convertedData.length));
         } catch (error) {
           console.error('Error fetching chat history:', error);
         }

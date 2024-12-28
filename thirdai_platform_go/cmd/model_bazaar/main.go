@@ -210,6 +210,8 @@ func initDb(dsn string) *gorm.DB {
 		log.Fatalf("error migrating db schema: %v", err)
 	}
 
+	fmt.Println("DB: ", db.Dialector.(*postgres.Dialector).DSN)
+
 	return db
 }
 

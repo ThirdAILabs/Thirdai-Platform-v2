@@ -30,7 +30,7 @@ func StartLlmCacheJob(client nomad.NomadClient, license *licensing.LicenseVerifi
 		// file and thus restart the job when StartJob is invoked later. If multiple
 		// model bazaar jobs call StartJob with the same version, nomad will ignore
 		// subsequent calls.
-		err := stopJobIfExists(client, job.GetJobName())
+		err := nomad.StopJobIfExists(client, job.GetJobName())
 		if err != nil {
 			slog.Error("error stopping existing llm-cache job", "error", err)
 			return fmt.Errorf("error stopping existing llm-cache job: %w", err)

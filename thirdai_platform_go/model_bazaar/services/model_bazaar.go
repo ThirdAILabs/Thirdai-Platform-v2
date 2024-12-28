@@ -27,6 +27,7 @@ type ModelBazaar struct {
 	deploy    DeployService
 	telemetry TelemetryService
 	workflow  WorkflowService
+	recovery  RecoveryService
 
 	db    *gorm.DB
 	nomad nomad.NomadClient
@@ -74,6 +75,13 @@ func NewModelBazaar(
 			db:       db,
 			userAuth: userAuth,
 		},
+		recovery: RecoveryService{
+			db:        db,
+			storage:   storage,
+			nomad:     nomad,
+			userAuth:  userAuth,
+			variables: variables,
+		},
 		db:    db,
 		nomad: nomad,
 		stop:  make(chan bool, 1),
@@ -95,6 +103,7 @@ func (m *ModelBazaar) Routes() chi.Router {
 	r.Mount("/deploy", m.deploy.Routes())
 	r.Mount("/telemetry", m.telemetry.Routes())
 	r.Mount("/workflow", m.workflow.Routes())
+	r.Mount("/recovery", m.recovery.Routes())
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		utils.WriteSuccess(w)

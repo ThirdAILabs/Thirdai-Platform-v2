@@ -100,7 +100,7 @@ func StartTelemetryJob(client nomad.NomadClient, storage storage.Storage, args T
 		// file and thus restart the job when StartJob is invoked later. If multiple
 		// model bazaar jobs call StartJob with the same version, nomad will ignore
 		// subsequent calls.
-		err := stopJobIfExists(client, job.GetJobName())
+		err := nomad.StopJobIfExists(client, job.GetJobName())
 		if err != nil {
 			slog.Error("error stopping existing telemetry job", "error", err)
 			return fmt.Errorf("error stopping existing telemetry job: %w", err)

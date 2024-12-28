@@ -300,3 +300,13 @@ func (c *PlatformClient) UploadModel(modelName, modelType, path string) (interfa
 		return nil, fmt.Errorf("invalid model type: %v", modelType)
 	}
 }
+
+func (c *PlatformClient) Backup(config services.BackupRequest) error {
+	return c.Post("/api/v2/recovery/backup").Json(config).Do(nil)
+}
+
+func (c *PlatformClient) LocalBackups() ([]string, error) {
+	var backups []string
+	err := c.Get("/api/v2/recovery/backups").Do(&backups)
+	return backups, err
+}

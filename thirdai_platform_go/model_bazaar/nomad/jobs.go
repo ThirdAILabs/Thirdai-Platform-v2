@@ -210,3 +210,19 @@ func (j FrontendJob) GetJobName() string {
 func (j FrontendJob) TemplateName() string {
 	return "frontend.hcl.tmpl"
 }
+
+type SnapshotJob struct {
+	ConfigPath string
+	ShareDir   string
+	DbUri      string
+
+	Driver Driver
+}
+
+func (j SnapshotJob) GetJobName() string {
+	return "snapshot"
+}
+
+func (j SnapshotJob) TemplateName() string {
+	return "snapshot.hcl.tmpl"
+}

@@ -68,7 +68,7 @@ func StartOnPremGenerationJob(
 	}
 
 	if !restart {
-		exists, err := jobExists(client, job.GetJobName())
+		exists, err := nomad.JobExists(client, job.GetJobName())
 		if err != nil {
 			slog.Error("error checking if on-prem-generation job exists", "error", err)
 			return fmt.Errorf("error checking if on-prem-generation job exists: %w", err)
@@ -78,7 +78,7 @@ func StartOnPremGenerationJob(
 		}
 	}
 
-	err = stopJobIfExists(client, job.GetJobName())
+	err = nomad.StopJobIfExists(client, job.GetJobName())
 	if err != nil {
 		slog.Error("error stopping existing on-prem-generation job", "error", err)
 		return fmt.Errorf("error stopping existing on-prem-generation job: %w", err)

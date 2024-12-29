@@ -244,6 +244,7 @@ function ChatBox({
   modelService,
   onOpenPdf,
   showFeedback,
+  showReferences = true, // Add new prop with default value
 }: {
   message: ChatMessage;
   transformedMessage?: string[][];
@@ -259,6 +260,7 @@ function ChatBox({
   modelService: ModelService | null;
   onOpenPdf: (pdfInfo: PdfInfo) => void;
   showFeedback: boolean;
+  showReferences?: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -346,7 +348,7 @@ function ChatBox({
           )}
         </div>
 
-        {showFeedback && context && message.sender === 'AI' && (
+        {showReferences && context && message.sender === 'AI' && (
           <div className="mt-2">
             <button 
               onClick={() => setIsExpanded(!isExpanded)}
@@ -719,6 +721,7 @@ export default function Chat({
                 context={contextData[i]}
                 onOpenPdf={handleOpenPdf}
                 showFeedback={!aiLoading}
+                showReferences={i < chatHistory.length - 1 || !aiLoading} // Show references for all messages except the last one during generation
               />
             ))}
             {aiLoading && (

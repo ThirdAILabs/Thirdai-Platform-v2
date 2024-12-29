@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -224,6 +225,8 @@ func getHostname(u string) string {
 }
 
 func main() {
+	restartJobs := flag.Bool("restart_jobs", false, "Whether or not to restart llm-cache, llm-dispatch, and telemetry jobs")
+
 	env := loadEnv()
 
 	err := os.MkdirAll(filepath.Join(env.ShareDir, "logs/"), 0777)
@@ -310,28 +313,30 @@ func main() {
 		variables,
 	)
 
-	err = jobs.StartLlmCacheJob(nomadClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
-	if err != nil {
-		log.Fatalf("failed to start llm cache job: %v", err)
-	}
+	if *restartJobs {
+		err = jobs.StartLlmCacheJob(nomadClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
+		if err != nil {
+			log.Fatalf("failed to start llm cache job: %v", err)
+		}
 
-	err = jobs.StartLlmDispatchJob(nomadClient, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
-	if err != nil {
-		log.Fatalf("failed to start llm dispatch job: %v", err)
-	}
+		err = jobs.StartLlmDispatchJob(nomadClient, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
+		if err != nil {
+			log.Fatalf("failed to start llm dispatch job: %v", err)
+		}
 
-	telemetryArgs := jobs.TelemetryJobArgs{
-		IsLocal:             env.BackendImage == "",
-		ModelBazaarEndpoint: env.PrivateModelBazaarEndpoint,
-		Docker:              variables.DockerEnv(),
-		GrafanaDbUrl:        env.GrafanaDbUri,
-		AdminUsername:       env.AdminUsername,
-		AdminEmail:          env.AdminEmail,
-		AdminPassword:       env.AdminPassword,
-	}
-	err = jobs.StartTelemetryJob(nomadClient, sharedStorage, telemetryArgs)
-	if err != nil {
-		log.Fatalf("failed to start telemetry job: %v", err)
+		telemetryArgs := jobs.TelemetryJobArgs{
+			IsLocal:             env.BackendImage == "",
+			ModelBazaarEndpoint: env.PrivateModelBazaarEndpoint,
+			Docker:              variables.DockerEnv(),
+			GrafanaDbUrl:        env.GrafanaDbUri,
+			AdminUsername:       env.AdminUsername,
+			AdminEmail:          env.AdminEmail,
+			AdminPassword:       env.AdminPassword,
+		}
+		err = jobs.StartTelemetryJob(nomadClient, sharedStorage, telemetryArgs)
+		if err != nil {
+			log.Fatalf("failed to start telemetry job: %v", err)
+		}
 	}
 
 	if env.FrontendImage != "" {

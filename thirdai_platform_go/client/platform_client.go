@@ -240,6 +240,32 @@ func (c *PlatformClient) CreateEnterpriseSearchWorkflow(modelName string, retrie
 	}, nil
 }
 
+func (c *PlatformClient) CreateKnowledgeExtractionWorkflow(modelName string, questions []string, llmProvider string) (*KnowledgeExtractionClient, error) {
+	questionKeywords := make([]services.QuestionKeywords, 0, len(questions))
+	for _, q := range questions {
+		questionKeywords = append(questionKeywords, services.QuestionKeywords{Question: q})
+	}
+
+	body := services.KnowledgeExtractionRequest{
+		ModelName:   modelName,
+		Questions:   questionKeywords,
+		LlmProvider: llmProvider,
+	}
+
+	var res map[string]string
+	err := c.Post("/api/v2/workflow/knowledge-extraction").Json(body).Do(&res)
+	if err != nil {
+		return nil, err
+	}
+
+	return &KnowledgeExtractionClient{
+		ModelClient{
+			baseClient: c.baseClient,
+			modelId:    res["model_id"],
+		},
+	}, nil
+}
+
 func (c *PlatformClient) UploadModel(modelName, modelType, path string) (interface{}, error) {
 	// TODO: path could be a directory for ndb uploads, needs to be zipped
 

@@ -114,6 +114,10 @@ func (c *NomadHttpClient) request(method, endpoint string, body io.Reader, resul
 		return errNomadReturnedNotFound
 	}
 	if res.StatusCode != http.StatusOK {
+		data, err := io.ReadAll(res.Body)
+		if err == nil {
+			slog.Error("nomad returned error", "method", method, "endpoint", endpoint, "code", res.StatusCode, "response", string(data))
+		}
 		return fmt.Errorf("%v request to nomad endpoint %v returned status %d", method, endpoint, res.StatusCode)
 	}
 

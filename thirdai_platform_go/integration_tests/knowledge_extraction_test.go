@@ -1,0 +1,116 @@
+package integrationtests
+
+import (
+	"fmt"
+	"strings"
+	"testing"
+	"thirdai_platform/model_bazaar/config"
+	"time"
+)
+
+func TestKnowledgeExtraction(t *testing.T) {
+	c := getClient(t)
+
+	client, err := c.CreateKnowledgeExtractionWorkflow(randomName("knowledge-extraction"), []string{
+		"net revenue of apple",
+		"iphone sales in 2021 (in billion)",
+		"a question that should be deleted",
+		"did sales in europe change from 2022 to 2023",
+		"how much did apple spend on research and development in 2021",
+	}, "openai")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = client.Deploy(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err := client.Undeploy()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	err = client.AwaitDeploy(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = client.AddQuestion("what were the EPS in 2022")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	questions, err := client.ListQuestions()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(questions) != 6 {
+		t.Fatalf("invalid question list: %v", questions)
+	}
+
+	for _, q := range questions {
+		if strings.Contains(q.QuestionText, "EPS") {
+			err := client.AddKeywords(q.QuestionId, []string{"earnings", "per", "share"})
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		if strings.Contains(q.QuestionText, "deleted") {
+			err := client.DeleteQuestion(q.QuestionId)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	reportId, err := client.CreateReport([]config.FileInfo{
+		{Path: "./data/apple-10k.pdf",
+			Location: "local",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := client.AwaitReport(reportId, 200*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedAnswers := map[string]string{
+		"net revenue of apple":                                         "383.3",
+		"iphone sales in 2021 (in billion)":                            "191.973",
+		"did sales in europe change from 2022 to 2023":                 "decreased",
+		"how much did apple spend on research and development in 2021": "21,914",
+		"what were the EPS in 2022":                                    "6.15",
+	}
+
+	questionToAnswer := map[string]string{}
+	for _, res := range report.Content.Results {
+		questionToAnswer[res.Question] = res.Answer
+	}
+
+	fmt.Println(questionToAnswer)
+
+	if len(questionToAnswer) != len(expectedAnswers) {
+		t.Fatal("incorrect number of questions answered")
+	}
+
+	for question, expected := range expectedAnswers {
+		answer, ok := questionToAnswer[question]
+		if !ok || !strings.Contains(answer, expected) {
+			t.Fatalf("incorrect answer '%v' for question '%v'", answer, question)
+		}
+	}
+
+	err = client.DeleteReport(reportId)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// TODO: check 404 for report
+}

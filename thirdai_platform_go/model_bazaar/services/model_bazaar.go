@@ -73,6 +73,7 @@ func NewModelBazaar(
 		},
 		workflow: WorkflowService{
 			db:       db,
+			storage:  storage,
 			userAuth: userAuth,
 		},
 		recovery: RecoveryService{

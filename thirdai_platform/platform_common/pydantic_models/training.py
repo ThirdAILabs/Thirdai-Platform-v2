@@ -15,7 +15,7 @@ class ModelType(str, Enum):
     NLP_TOKEN = "nlp-token"
     NLP_TEXT = "nlp-text"
     ENTERPRISE_SEARCH = "enterprise-search"
-    KNOWLEDGE_EXTRACTION = "knowledge-extraction"
+    KNOWLEDGE_EXTRACTION = "ke"
 
 
 class ModelDataType(str, Enum):

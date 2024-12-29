@@ -14,22 +14,24 @@ import (
 )
 
 type httpRequest struct {
-	method   string
-	baseUrl  string
-	endpoint string
-	headers  map[string]string
-	json     interface{}
-	body     io.Reader
+	method      string
+	baseUrl     string
+	endpoint    string
+	headers     map[string]string
+	queryParams map[string]string
+	json        interface{}
+	body        io.Reader
 }
 
 func newHttpRequest(method, baseUrl, endpoint string) *httpRequest {
 	return &httpRequest{
-		method:   method,
-		baseUrl:  baseUrl,
-		endpoint: endpoint,
-		headers:  nil,
-		json:     nil,
-		body:     nil,
+		method:      method,
+		baseUrl:     baseUrl,
+		endpoint:    endpoint,
+		headers:     nil,
+		queryParams: nil,
+		json:        nil,
+		body:        nil,
 	}
 }
 
@@ -52,6 +54,14 @@ func (r *httpRequest) Json(data interface{}) *httpRequest {
 
 func (r *httpRequest) Body(body io.Reader) *httpRequest {
 	r.body = body
+	return r
+}
+
+func (r *httpRequest) Param(key, value string) *httpRequest {
+	if r.queryParams == nil {
+		r.queryParams = make(map[string]string)
+	}
+	r.queryParams[key] = value
 	return r
 }
 
@@ -79,6 +89,14 @@ func (r *httpRequest) Do(result interface{}) error {
 		for k, v := range r.headers {
 			req.Header.Add(k, v)
 		}
+	}
+
+	if r.queryParams != nil {
+		query := req.URL.Query()
+		for k, v := range r.queryParams {
+			query.Add(k, v)
+		}
+		req.URL.RawQuery = query.Encode()
 	}
 
 	res, err := http.DefaultClient.Do(req)

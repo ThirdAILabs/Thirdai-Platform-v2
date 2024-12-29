@@ -89,6 +89,7 @@ type DeployJob struct {
 	CloudCredentials CloudCredentials
 
 	JobToken string
+	IsKE     bool
 }
 
 func (j DeployJob) GetJobName() string {

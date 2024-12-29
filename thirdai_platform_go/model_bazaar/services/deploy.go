@@ -116,8 +116,12 @@ func (s *DeployService) deployModel(modelId string, user schema.User, autoscalin
 
 		attrs := model.GetAttributes()
 
-		if llm, hasLlm := attrs["llm_provider"]; hasLlm && llm == "on-prem" {
-			requiresOnPremLlm = true
+		if llm, hasLlm := attrs["llm_provider"]; hasLlm {
+			if llm == "on-prem" {
+				requiresOnPremLlm = true
+			} else {
+				attrs["genai_key"] = s.variables.LlmProviders[llm]
+			}
 		}
 
 		var hostDir string
@@ -157,6 +161,7 @@ func (s *DeployService) deployModel(modelId string, user schema.User, autoscalin
 				Resources:          resources,
 				CloudCredentials:   s.variables.CloudCredentials,
 				JobToken:           uuid.New().String(),
+				IsKE:               model.Type == schema.KnowledgeExtraction,
 			},
 		)
 		var newStatus string

@@ -7,6 +7,7 @@ job "{{ .JobName }}" {
   group "deployment" {
     count = 1
 
+    {{ if not .IsKE }}
     scaling {
       enabled = {{ .AutoscalingEnabled }}
       min = 1
@@ -24,6 +25,7 @@ job "{{ .JobName }}" {
         }
       }
     }
+    {{ end }}
 
     network {
       port "{{ .ModelId }}-http" {
@@ -125,4 +127,93 @@ EOF
       }
     }
   }
+
+
+  {{ if .IsKE }}
+
+  group "knowledge-extraction" {
+    scaling {
+      enabled = "{{ .AutoscalingEnabled }}"
+      min = 1
+      max = {{ .AutoscalingMax }}
+      policy {
+        cooldown = "1m"
+        evaluation_interval = "30s"
+        check "avg_cpu" {
+          source = "nomad-apm"
+          query = "avg_cpu-allocated"
+          query_window = "1m"
+          strategy "target-value" {
+            target = 70
+          }
+        }
+      }
+    }
+
+    task "knowledge-extraction-worker" {
+      {{ if isLocal .Driver }}
+        driver = "raw_exec"
+      {{ else if isDocker .Driver }}  
+        driver = "docker"
+      {{ end }}
+
+      template {
+        destination = "${NOMAD_SECRETS_DIR}/env.vars"
+        env         = true
+        data        = <<EOF
+{{ `{{ range nomadService "` }}{{ .JobName }}{{ `" }}
+JOB_ENDPOINT = {{ .Address }}:{{ .Port }}
+{{- end -}}` }}
+EOF
+      }
+
+      config {
+        {{ if isDocker .Driver }}  
+          {{ with .Driver }}
+          image = "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          image_pull_timeout = "15m"
+          auth {
+            username = "{{ .DockerUsername }}"
+            password = "{{ .DockerPasword }}"
+            server_address = "{{ .Registry }}"
+          }
+          volumes = [
+            "{{ .ShareDir }}:/model_bazaar"
+          ]
+          command = "python3"
+          args    = ["-m", "deployment_job.workers.knowledge_extraction"]
+          {{ end }}
+        {{ else if isLocal .Driver }}
+          {{ with .Driver }}
+          command = "/bin/sh"
+          args    = ["-c", "cd {{ .PlatformDir }} && {{ .PythonPath }} -m deployment_job.workers.knowledge_extraction"]
+          {{ end }}
+        {{ end }}
+      }
+
+      env {
+        CONFIG_PATH = "{{ .ConfigPath }}"
+        {{ with .CloudCredentials }}
+        AWS_ACCESS_KEY = "{{ .AwsAccessKey }}"
+        AWS_ACCESS_SECRET = "{{ .AwsAccessSecret }}"
+        AWS_REGION_NAME = "{{ .AwsRegionName }}"
+        AZURE_ACCOUNT_NAME = "{{ .AzureAccountName }}"
+        AZURE_ACCOUNT_KEY = "{{ .AzureAccountKey }}"
+        GCP_CREDENTIALS_FILE = "{{ .GcpCredentialsFile }}"
+        {{ end }}
+        JOB_TOKEN = "{{ .JobToken }}"
+        {{ with $worker_cores := 4 }}
+        WORKER_CORES = "{{ $worker_cores }}"
+      }
+
+      resources {
+        cores = {{ $worker_cores }}
+        memory = 4000 
+        memory_max = 8000
+      }
+      {{ end }}
+    }
+  }
+
+  {{ end }}
 }

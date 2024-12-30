@@ -10,7 +10,7 @@ job "{{ .JobName }}" {
     {{ if not .IsKE }}
     scaling {
       enabled = {{ .AutoscalingEnabled }}
-      min = 1
+      min = {{ .AutoscalingMin }}
       max = {{ .AutoscalingMax }}
       policy {
         cooldown = "1m"
@@ -134,7 +134,7 @@ EOF
   group "knowledge-extraction" {
     scaling {
       enabled = "{{ .AutoscalingEnabled }}"
-      min = 1
+      min = {{ .AutoscalingMin }}
       max = {{ .AutoscalingMax }}
       policy {
         cooldown = "1m"

@@ -1,11 +1,13 @@
 package services
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/jobs"
@@ -69,7 +71,37 @@ func (s *DeployService) Routes() chi.Router {
 	return r
 }
 
-func (s *DeployService) deployModel(modelId string, user schema.User, autoscaling bool, autoscalingMax int, memory int, deploymentName string) error {
+func getDeploymentMemory(modelId string, userSpecified int, attrs map[string]string) int {
+	if userSpecified > 500 {
+		slog.Info("using user specified memory for deployment memory", "model_id", modelId, "memory", userSpecified)
+		return userSpecified
+	} else if userSpecified > 0 {
+		slog.Error("user specified memory is to low", "model_id", modelId, "memory", userSpecified)
+	}
+
+	slog.Info("attributes", "stuff", attrs)
+	metadataJson, ok := attrs["metadata"]
+	if ok {
+		var metadata map[string]interface{}
+		err := json.Unmarshal([]byte(metadataJson), &metadata)
+		if err == nil {
+			if sizeInMemoryAny, ok := metadata["size_in_memory"]; ok {
+				if sizeInMemoryStr, ok := sizeInMemoryAny.(string); ok {
+					if sizeInMemory, err := strconv.Atoi(sizeInMemoryStr); err == nil {
+						mem := sizeInMemory/1000000 + 1000
+						slog.Info("using memory metadata for deployment memory", "model_id", modelId, "memory", mem)
+						return mem
+					}
+				}
+			}
+		}
+	}
+
+	slog.Info("using default for deployment memory", "model_id", modelId, "memory", 1000)
+	return 1000
+}
+
+func (s *DeployService) deployModel(modelId string, user schema.User, autoscaling bool, autoscalingMin, autoscalingMax int, memory int, deploymentName string) error {
 	slog.Info("deploying model", "model_id", modelId, "autoscaling", autoscaling, "autoscalingMax", autoscalingMax, "memory", memory, "deployment_name", deploymentName)
 
 	requiresOnPremLlm := false
@@ -97,7 +129,9 @@ func (s *DeployService) deployModel(modelId string, user schema.User, autoscalin
 			return nil
 		}
 
-		// TODO(Nicholas) : autotune memory from metadata if present
+		attrs := model.GetAttributes()
+
+		memory := getDeploymentMemory(modelId, memory, attrs)
 		resources := nomad.Resources{
 			AllocationMhz:       2400,
 			AllocationMemory:    memory,
@@ -113,8 +147,6 @@ func (s *DeployService) deployModel(modelId string, user schema.User, autoscalin
 		if err != nil {
 			return fmt.Errorf("error creating job token: %v", err)
 		}
-
-		attrs := model.GetAttributes()
 
 		if llm, hasLlm := attrs["llm_provider"]; hasLlm {
 			if llm == "on-prem" {
@@ -156,6 +188,7 @@ func (s *DeployService) deployModel(modelId string, user schema.User, autoscalin
 				ConfigPath:         configPath,
 				DeploymentName:     deploymentName,
 				AutoscalingEnabled: autoscaling,
+				AutoscalingMin:     autoscalingMin,
 				AutoscalingMax:     autoscalingMax,
 				Driver:             s.variables.BackendDriver,
 				Resources:          resources,
@@ -201,6 +234,7 @@ func (s *DeployService) deployModel(modelId string, user schema.User, autoscalin
 type startRequest struct {
 	DeploymentName string `json:"deployment_name"`
 	Autoscaling    bool   `json:"autoscaling_enabled"`
+	AutoscalingMin int    `json:"autoscaling_min"`
 	AutoscalingMax int    `json:"autoscaling_max"`
 	Memory         int    `json:"memory"`
 }
@@ -219,7 +253,7 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	params.Memory = max(params.Memory, 1000)
+	params.AutoscalingMin = max(params.AutoscalingMin, 1)
 	params.AutoscalingMax = max(params.AutoscalingMax, 1)
 
 	deps, err := listModelDependencies(modelId, s.db)
@@ -233,7 +267,7 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 		if dep.Id == modelId {
 			name = params.DeploymentName
 		}
-		err := s.deployModel(dep.Id, user, params.Autoscaling, params.AutoscalingMax, params.Memory, name)
+		err := s.deployModel(dep.Id, user, params.Autoscaling, params.AutoscalingMin, params.AutoscalingMax, params.Memory, name)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

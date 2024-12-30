@@ -80,6 +80,7 @@ type DeployJob struct {
 	DeploymentName string
 
 	AutoscalingEnabled bool
+	AutoscalingMin     int
 	AutoscalingMax     int
 
 	Driver Driver

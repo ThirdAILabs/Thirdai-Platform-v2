@@ -246,6 +246,7 @@ class NeuralDBV2VectorStore(VectorStore):
         """
         try:
             data = convert_constraints(constraints)
+            print(f"NDB CHAT QUERY: '{query}'")
             references = self.db.search(
                 query=query, top_k=k, constraints=data, **kwargs
             )

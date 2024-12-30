@@ -319,7 +319,7 @@ function ChatBox({
           )}
           {showFeedback && message.sender === 'AI' && !isWelcomeMessage && <div className='flex mt-4'>
             <div className='flex items-center justify-center space-x-4 py-1 px-6 bg-gray-50 border rounded-full w-fit'>
-              <p className="text-sm font-medium text-gray-700">Share your feedback:</p>
+              <p className="text-sm font-medium text-gray-700">Was this helpful?</p>
               <button
                 onClick={handleUpvote}
                 className="flex items-center justify-center w-8 h-8 text-gray-800 rounded-full hover:bg-gray-200 focus:bg-blue-700"

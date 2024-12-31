@@ -2,12 +2,30 @@ from __future__ import annotations
 
 import typing
 from abc import abstractmethod
+from uuid import uuid4
 
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import scoped_session, sessionmaker
 
-from .data_types import DataSample, Metadata, MetadataStatus, SampleStatus
-from .schemas import Base, MetaData, Samples, SampleSeen
+from .data_types import (
+    DataSample,
+    Metadata,
+    MetadataStatus,
+    SampleStatus,
+    XMLElementData,
+    XMLFeedbackData,
+    XMLLogData,
+)
+from .schemas import (
+    Base,
+    LogElementAssociation,
+    MetaData,
+    Samples,
+    SampleSeen,
+    XMLElement,
+    XMLFeedback,
+    XMLLog,
+)
 from .utils import reservoir_sampling
 
 RESERVOIR_RECENCY_MULTIPLIER = 1
@@ -83,6 +101,28 @@ class Connector:
 
     @abstractmethod
     def update_sample_status(self, name: str, status: SampleStatus):
+        pass
+
+    @abstractmethod
+    def add_xml_log(self, xml_log: XMLLogData) -> str:
+        pass
+
+    @abstractmethod
+    def store_user_xml_feedback(
+        self, log_id: str, feedbacks: typing.List[XMLFeedbackData]
+    ):
+        pass
+
+    @abstractmethod
+    def get_xml_log_by_id(self, log_id: str) -> XMLLogData:
+        pass
+
+    @abstractmethod
+    def get_user_provided_xml_feedback(self, status: SampleStatus):
+        pass
+
+    @abstractmethod
+    def find_conflicting_xml_feedback(self, feedback: XMLFeedbackData):
         pass
 
 
@@ -274,6 +314,178 @@ class SQLiteConnector(Connector):
         )
         session.commit()
 
+    def add_xml_log(self, log: XMLLogData):
+        session = self.Session()
+        # Create XMLLog entry
+        log_id = str(uuid4())
+        xml_log = XMLLog(id=log_id, xml_string=log.xml_string)
+        session.add(xml_log)
+
+        # Add each element, reusing existing ones if found
+        for elem in log.elements:
+            element = (
+                session.query(XMLElement)
+                .filter_by(
+                    xpath=elem.xpath,
+                    attribute=elem.attribute,
+                    n_tokens=elem.n_tokens,
+                )
+                .first()
+            )
+
+            if not element:
+                element = XMLElement(
+                    xpath=elem.xpath,
+                    attribute=elem.attribute,
+                    n_tokens=elem.n_tokens,
+                )
+                session.add(element)
+
+            xml_log.elements.append(element)
+
+        session.commit()
+        return log_id
+
+    def store_user_xml_feedback(
+        self, log_id: str, feedbacks: typing.List[XMLFeedbackData]
+    ):
+        session = self.Session()
+        xml_log = session.query(XMLLog).get(log_id)
+        if not xml_log:
+            raise ValueError("XML Log not found")
+
+        for fb in feedbacks:
+            existing_feedback = (
+                session.query(XMLFeedback)
+                .filter_by(
+                    xpath=fb.xpath,
+                    attribute=fb.attribute,
+                    token_start=fb.token_start,
+                    token_end=fb.token_end,
+                    n_tokens=fb.n_tokens,
+                    label=fb.label,
+                )
+                .first()
+            )
+
+            if existing_feedback:
+                # Reuse existing feedback
+                xml_log.feedback.append(existing_feedback)
+            else:
+                # Create new feedback only if it doesn't exist
+                feedback = XMLFeedback(
+                    xpath=fb.xpath,
+                    attribute=fb.attribute,
+                    token_start=fb.token_start,
+                    token_end=fb.token_end,
+                    n_tokens=fb.n_tokens,
+                    label=fb.label,
+                    user_provided=fb.user_provided,
+                    status=fb.status,
+                )
+                session.add(feedback)
+                xml_log.feedback.append(feedback)
+
+        session.commit()
+
+    def get_xml_log_by_id(self, log_id: str) -> XMLLogData:
+        session = self.Session()
+        log = session.query(XMLLog).get(log_id)
+        return XMLLogData(
+            xml_string=log.xml_string,
+            elements=[
+                XMLElementData(
+                    xpath=elem.xpath, attribute=elem.attribute, n_tokens=elem.n_tokens
+                )
+                for elem in log.elements
+            ],
+        )
+
+    def get_user_provided_xml_feedback(self, status: SampleStatus):
+        session = self.Session()
+        # Get all user provided feedback
+        feedbacks = (
+            session.query(XMLFeedback)
+            .filter_by(user_provided=True, status=status)
+            .all()
+        )
+
+        results = []
+        for fb in feedbacks:
+            # Find all XML logs that have matching elements
+            matching_xmls = (
+                session.query(XMLLog)
+                .join(LogElementAssociation)
+                .join(XMLElement)
+                .filter(
+                    XMLElement.xpath == fb.xpath,
+                    XMLElement.n_tokens == fb.n_tokens,
+                    XMLElement.attribute == fb.attribute,
+                )
+                .all()
+            )
+
+            feedback = XMLFeedbackData(
+                xpath=fb.xpath,
+                attribute=fb.attribute,
+                token_start=fb.token_start,
+                token_end=fb.token_end,
+                n_tokens=fb.n_tokens,
+                label=fb.label,
+                user_provided=fb.user_provided,
+                status=fb.status,
+            )
+
+            results.append((feedback, [log.id for log in matching_xmls]))
+        return results
+
+    def find_conflicting_xml_feedback(
+        self, feedback: XMLFeedbackData
+    ) -> typing.List[XMLFeedbackData]:
+        session = self.Session()
+        # Find any conflicting feedback
+        conflicts = (
+            session.query(XMLFeedback)
+            .filter(
+                XMLFeedback.xpath == feedback.xpath,
+                XMLFeedback.attribute == feedback.attribute,
+                XMLFeedback.n_tokens == feedback.n_tokens,
+                XMLFeedback.token_start == feedback.token_start,
+                XMLFeedback.token_end == feedback.token_end,
+                XMLFeedback.label != feedback.label,
+                XMLFeedback.status == feedback.status,
+            )
+            .all()
+        )
+
+        return [
+            XMLFeedbackData(
+                xpath=c.xpath,
+                attribute=c.attribute,
+                token_start=c.token_start,
+                token_end=c.token_end,
+                n_tokens=c.n_tokens,
+                label=c.label,
+                user_provided=c.user_provided,
+                status=c.status,
+            )
+            for c in conflicts
+        ]
+
+    def update_xml_feedback_status(
+        self, feedback: XMLFeedbackData, status: SampleStatus
+    ):
+        session = self.Session()
+        session.query(XMLFeedback).filter_by(
+            xpath=feedback.xpath,
+            attribute=feedback.attribute,
+            token_start=feedback.token_start,
+            token_end=feedback.token_end,
+            n_tokens=feedback.n_tokens,
+            label=feedback.label,
+        ).update({XMLFeedback.status: status})
+        session.commit()
+
 
 class DataStorage:
     def __init__(self, connector: Connector):
@@ -368,3 +580,22 @@ class DataStorage:
 
     def update_sample_status(self, name: str, status: SampleStatus):
         self.connector.update_sample_status(name, status)
+
+    def add_xml_log(self, xml_log: XMLLogData) -> str:
+        return self.connector.add_xml_log(xml_log)
+
+    def store_user_xml_feedback(
+        self, log_id: str, feedbacks: typing.List[XMLFeedbackData]
+    ):
+        self.connector.store_user_xml_feedback(log_id, feedbacks)
+
+    def get_xml_log_by_id(self, log_id: str) -> XMLLogData:
+        return self.connector.get_xml_log_by_id(log_id)
+
+    def get_user_provided_xml_feedback(self, status: SampleStatus):
+        return self.connector.get_user_provided_xml_feedback(status)
+
+    def find_conflicting_xml_feedback(
+        self, feedback: XMLFeedbackData
+    ) -> typing.List[XMLFeedbackData]:
+        return self.connector.find_conflicting_xml_feedback(feedback)

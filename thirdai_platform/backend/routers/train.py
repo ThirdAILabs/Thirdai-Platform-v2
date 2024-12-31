@@ -439,14 +439,23 @@ def retrain_ndb(
             message=str(error),
         )
 
-    # TODO(david) check if there are still files with new data to train on
+    cache_insertions_dir = os.listdir(
+        os.path.join(
+            model_bazaar_path(), "models", str(model.id), "llm_cache", "insertions"
+        )
+    )
+    if len(cache_insertions_dir) == 0:
+        return response(
+            status_code=status.HTTP_200_OK,
+            message=f"No cache insertions left for model: {model.id}. Cache is up to date.",
+        )
 
     nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
     llm_cache_job_id = f"llm-cache-{model.id}"
     # TODO what happens if someone calls deploy when its still refreshing?
     # if nomad_job_exists(llm_cache_job_id, nomad_endpoint):
     #     # TODO(david) we should make sure no one deploys while its refreshing
-    #     # refreshing while deployed can be done in a future PR by copying the 
+    #     # refreshing while deployed can be done in a future PR by copying the
     #     # ndb, running the refresh in the background, and hotswapping
     #     return response(
     #         status_code=status.HTTP_400_BAD_REQUEST,

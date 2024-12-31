@@ -671,7 +671,7 @@ export class ModelService {
         query: question,
         prompt: genaiPrompt,
         references: references.map((ref) => {
-          return { text: ref.content, source: ref.sourceName, metadata: ref.metadata };
+          return { text: ref.content, source: ref.sourceName, metadata: ref.metadata, ref_id: ref.id};
         }),
         key: apiKey,
         provider: genAiProvider,

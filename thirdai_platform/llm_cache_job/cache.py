@@ -98,15 +98,13 @@ class NDBSemanticCache(Cache):
         self.logger.info("Cache miss or similarity below threshold.")
         return None
 
-    def queue_insert(self, query: str, llm_res: str, references: List[str]) -> None:
+    def queue_insert(self, query: str, llm_res: str, reference_ids: List[int]) -> None:
         self.logger.info(f"Inserting query into cache for query '{query}'")
-        reference_hash = hash("".join(references))
         self.insertion_logger.log(
             InsertLog(
                 query=query,
                 llm_res=llm_res,
-                reference_hash=reference_hash,
-                num_references=len(references),
+                reference_ids=reference_ids,
             )
         )
 
@@ -118,8 +116,7 @@ class NDBSemanticCache(Cache):
                     text=insert_log.query,
                     doc_metadata={
                         "llm_res": insert_log.llm_res,
-                        "reference_hash": insert_log.reference_hash,
-                        "num_references": insert_log.num_references,
+                        "reference_ids": insert_log.reference_ids,
                     },
                 )
             ]

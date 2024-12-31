@@ -403,18 +403,16 @@ class NeuralDBV2(Model):
         chunk_ids_to_delete = []
         # TODO (david) Universe PR for iter_chunks() method
 
-        # TODO use a set of reference ids to invalidate cache responses instead 
-        # of the reference hash. This will account for upvotes and we won't have to hash things
-
-        # TODO log the queries that have been evicted from the cache due to stale results. 
+        # TODO log the queries that have been evicted from the cache due to stale results.
         # We could potentially regenerate answers for those. though its tricky.
-        # if the references it used originally have been deleted or the question 
+        # if the references it used originally have been deleted or the question
         # is no longer relevant then the generation might not be relevant either
         for chunk in self.llm_cache.chunk_store.iter_chunks():
-            results = self.db.search(self.db.query)
-            num_refs = chunk.metadata["num_references"]
-            reference_texts = [r.text for r in results][:num_refs]
-            if hash("".join(reference_texts)) != chunk.metadata["reference_hash"]:
+            query = chunk.metadata["query"]
+            results = self.db.search(query)
+            cache_ref_ids = chunk.metadata["reference_ids"]
+            model_ref_ids = [r.chunk_id for r in results][: len(cache_ref_ids)]
+            if set(cache_ref_ids) != set(model_ref_ids):
                 chunk_ids_to_delete.append(chunk.id)
 
         self.cache.delete(chunk_ids_to_delete)

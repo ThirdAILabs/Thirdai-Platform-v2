@@ -1,6 +1,7 @@
 import logging
 import traceback
 from pathlib import Path
+from typing import List
 
 from dotenv import load_dotenv
 from platform_common.logging import setup_logger
@@ -146,13 +147,14 @@ async def generate(generate_args: GenerateArgs):
             raise HTTPException(
                 status_code=500, detail=f"Error while generating content: {e}"
             )
-        else:
-            if generate_args.cache_access_token is not None:
-                await insert_into_cache(
-                    generate_args.query,
-                    generated_response,
-                    generate_args.cache_access_token,
-                )
+
+        if generate_args.cache_access_token is not None:
+            await insert_into_cache(
+                generate_args.query,
+                generated_response,
+                generate_args.cache_access_token,
+                [ref.ref_id for ref in generate_args.references],
+            )
 
     return StreamingResponse(generate_stream(), media_type="text/plain")
 
@@ -160,14 +162,18 @@ async def generate(generate_args: GenerateArgs):
 # TODO avoid caching bad answers like "I cannot answer", use keyword detection for now
 # TODO if there's a deployment name we need to hit that endpoint instead of the /modelid endpoint
 async def insert_into_cache(
-    original_query: str, generated_response: str, cache_access_token: str
+    original_query: str,
+    generated_response: str,
+    cache_access_token: str,
+    reference_ids: List[int],
 ):
     try:
         res = requests.post(
             urljoin(os.environ["MODEL_BAZAAR_ENDPOINT"], "/cache/insert"),
-            params={
+            json={
                 "query": original_query,
                 "llm_res": generated_response,
+                "reference_ids": reference_ids,
             },
             headers={
                 "Authorization": f"Bearer {cache_access_token}",

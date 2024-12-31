@@ -97,7 +97,7 @@ def cache_query(query: str):
 class CacheInsertRequest(BaseModel):
     query: str
     llm_res: str
-    references: List[str]
+    reference_ids: List[int]
 
 
 @router.post("/insert")
@@ -108,7 +108,7 @@ def cache_insert(
     cache.queue_insert(
         query=insert_data.query,
         llm_res=insert_data.llm_res,
-        references=insert_data.references,
+        reference_ids=insert_data.reference_ids,
     )
 
     logger.info(f"cached query={insert_data.query}")

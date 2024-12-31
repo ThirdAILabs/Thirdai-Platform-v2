@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 class Reference(BaseModel):
     text: str
+    ref_id: int
     source: Optional[str] = None
     metadata: Dict[str, Any] = {}
 

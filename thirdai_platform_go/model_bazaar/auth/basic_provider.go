@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"thirdai_platform/model_bazaar/schema"
@@ -78,13 +79,12 @@ func (auth *BasicIdentityProvider) AllowDirectSignup() bool {
 
 func (auth *BasicIdentityProvider) LoginWithEmail(email, password string) (LoginResult, error) {
 	var user schema.User
-	result := auth.db.Find(&user, "email = ?", email)
+	result := auth.db.First(&user, "email = ?", email)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return LoginResult{}, fmt.Errorf("no user found with email %v", email)
+		}
 		return LoginResult{}, schema.NewDbError("locating user for email", result.Error)
-	}
-
-	if result.RowsAffected != 1 {
-		return LoginResult{}, fmt.Errorf("no user found with email %v", email)
 	}
 
 	err := bcrypt.CompareHashAndPassword(user.Password, []byte(password))
@@ -114,7 +114,7 @@ func (auth *BasicIdentityProvider) CreateUser(username, email, password string) 
 
 	err = auth.db.Transaction(func(txn *gorm.DB) error {
 		var existingUser schema.User
-		result := txn.Find(&existingUser, "username = ? or email = ?", username, email)
+		result := txn.Limit(1).Find(&existingUser, "username = ? or email = ?", username, email)
 		if result.Error != nil {
 			return schema.NewDbError("checking for existing username/email", result.Error)
 		}

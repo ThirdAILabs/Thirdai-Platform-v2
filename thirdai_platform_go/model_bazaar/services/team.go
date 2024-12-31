@@ -72,7 +72,7 @@ func (s *TeamService) CreateTeam(w http.ResponseWriter, r *http.Request) {
 
 	err := s.db.Transaction(func(txn *gorm.DB) error {
 		var existingTeam schema.Team
-		result := txn.Find(&existingTeam, "name = ?", params.Name)
+		result := txn.Limit(1).Find(&existingTeam, "name = ?", params.Name)
 		if result.Error != nil {
 			return schema.NewDbError("checking for existing team with name", result.Error)
 		}

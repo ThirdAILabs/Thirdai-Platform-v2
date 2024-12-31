@@ -69,18 +69,23 @@ func boolEnvVar(key string) bool {
 	return strings.ToLower(value) == "true"
 }
 
-func loadEnvFileIfExists() {
-	path := []string{"thirdai_platform_go", "cmd", "model_bazaar", ".env"}
+func requiredEnv(key string) string {
+	env := os.Getenv(key)
+	if env == "" {
+		log.Fatalf("Missing required env variable %v", key)
+	}
+	return env
+}
 
-	for i := 0; i < len(path); i++ {
-		candidate := filepath.Join(path[i:]...)
-		if _, err := os.Stat(candidate); err == nil {
-			err := godotenv.Load(candidate)
-			if err != nil {
-				log.Fatalf("error loading .env file '%v': %v", candidate, err)
-			}
-			break
-		}
+func optionalEnv(key string) string {
+	return os.Getenv(key)
+}
+
+func loadEnvFile(envFile string) {
+	slog.Info(fmt.Sprintf("loading env from file %v", envFile))
+	err := godotenv.Load(envFile)
+	if err != nil {
+		log.Fatalf("error loading .env file '%v': %v", envFile, err)
 	}
 }
 
@@ -93,51 +98,56 @@ func loadEnvFileIfExists() {
  * ==========================================================================
  */
 func loadEnv() modelBazaarEnv {
-	loadEnvFileIfExists()
+	env := modelBazaarEnv{
+		PublicModelBazaarEndpoint:  requiredEnv("PUBLIC_MODEL_BAZAAR_ENDPOINT"),
+		PrivateModelBazaarEndpoint: requiredEnv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
+		LicensePath:                requiredEnv("LICENSE_PATH"),
+		NomadEndpoint:              requiredEnv("NOMAD_ENDPOINT"),
+		NomadToken:                 requiredEnv("TASK_RUNNER_TOKEN"),
+		ShareDir:                   requiredEnv("SHARE_DIR"),
 
-	return modelBazaarEnv{
-		PublicModelBazaarEndpoint:  os.Getenv("PUBLIC_MODEL_BAZAAR_ENDPOINT"),
-		PrivateModelBazaarEndpoint: os.Getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
-		LicensePath:                os.Getenv("LICENSE_PATH"),
-		NomadEndpoint:              os.Getenv("NOMAD_ENDPOINT"),
-		NomadToken:                 os.Getenv("TASK_RUNNER_TOKEN"),
-		ShareDir:                   os.Getenv("SHARE_DIR"),
+		AdminUsername: requiredEnv("ADMIN_USERNAME"),
+		AdminEmail:    requiredEnv("ADMIN_MAIL"),
+		AdminPassword: requiredEnv("ADMIN_PASSWORD"),
 
-		AdminUsername: os.Getenv("ADMIN_USERNAME"),
-		AdminEmail:    os.Getenv("ADMIN_MAIL"),
-		AdminPassword: os.Getenv("ADMIN_PASSWORD"),
+		GenAiKey: optionalEnv("GENAI_KEY"),
 
-		// LlmAutoscalingEnabled: boolEnvVar("AUTOSCALING_ENABLED"),
-		GenAiKey: os.Getenv("GENAI_KEY"),
-
-		IdentityProvider:      os.Getenv("IDENTITY_PROVIDER"),
-		KeycloakServerUrl:     os.Getenv("KEYCLOAK_SERVER_URL"),
+		IdentityProvider:      requiredEnv("IDENTITY_PROVIDER"),
+		KeycloakServerUrl:     optionalEnv("KEYCLOAK_SERVER_URL"),
 		UseSslInLogin:         boolEnvVar("USE_SSL_IN_LOGIN"),
-		KeycloakAdminUsername: os.Getenv("KEYCLOAK_ADMIN_USER"),
-		keycloakAdminPassword: os.Getenv("KEYCLOAK_ADMIN_PASSWORD"),
+		KeycloakAdminUsername: optionalEnv("KEYCLOAK_ADMIN_USER"),
+		keycloakAdminPassword: optionalEnv("KEYCLOAK_ADMIN_PASSWORD"),
 
-		DockerRegistry: os.Getenv("DOCKER_REGISTRY"),
-		DockerUsername: os.Getenv("DOCKER_USERNAME"),
-		DockerPassword: os.Getenv("DOCKER_PASSWORD"),
-		Tag:            os.Getenv("TAG"),
-		BackendImage:   os.Getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
-		FrontendImage:  os.Getenv("FRONTEND_IMAGE_NAME"),
+		DockerRegistry: requiredEnv("DOCKER_REGISTRY"),
+		DockerUsername: requiredEnv("DOCKER_USERNAME"),
+		DockerPassword: requiredEnv("DOCKER_PASSWORD"),
+		Tag:            optionalEnv("TAG"),
+		BackendImage:   optionalEnv("THIRDAI_PLATFORM_IMAGE_NAME"),
+		FrontendImage:  optionalEnv("FRONTEND_IMAGE_NAME"),
 
-		PythonPath:  os.Getenv("PYTHON_PATH"),
-		PlatformDir: os.Getenv("PLATFORM_DIR"),
+		PythonPath:  optionalEnv("PYTHON_PATH"),
+		PlatformDir: optionalEnv("PLATFORM_DIR"),
 
-		DatabaseUri:  os.Getenv("DATABASE_URI"),
-		GrafanaDbUri: os.Getenv("GRAFANA_DB_URL"),
+		DatabaseUri:  requiredEnv("DATABASE_URI"),
+		GrafanaDbUri: requiredEnv("GRAFANA_DB_URL"),
 
 		CloudCredentials: nomad.CloudCredentials{
-			AwsAccessKey:       os.Getenv("AWS_ACCESS_KEY"),
-			AwsAccessSecret:    os.Getenv("AWS_ACCESS_SECRET"),
-			AwsRegionName:      os.Getenv("AWS_REGION_NAME"),
-			AzureAccountName:   os.Getenv("AZURE_ACCOUNT_NAME"),
-			AzureAccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
-			GcpCredentialsFile: os.Getenv("GCP_CREDENTIALS_FILE"),
+			AwsAccessKey:       optionalEnv("AWS_ACCESS_KEY"),
+			AwsAccessSecret:    optionalEnv("AWS_ACCESS_SECRET"),
+			AwsRegionName:      optionalEnv("AWS_REGION_NAME"),
+			AzureAccountName:   optionalEnv("AZURE_ACCOUNT_NAME"),
+			AzureAccountKey:    optionalEnv("AZURE_ACCOUNT_KEY"),
+			GcpCredentialsFile: optionalEnv("GCP_CREDENTIALS_FILE"),
 		},
 	}
+
+	if env.BackendImage == "" && (env.PythonPath == "" || env.PlatformDir == "") {
+		log.Fatal("If THIRDAI_PLATFORM_IMAGE_NAME env var is not specified then PYTHON_PATH and PLATFORM_DIR env vars must be provided.")
+	} else if (env.BackendImage != "" || env.FrontendImage != "") && env.Tag == "" {
+		log.Fatal("If THIRDAI_PLATFORM_IMAGE_NAME or FRONTEND_IMAGE_NAME env vars are specified then TAG must be specified as well.")
+	}
+
+	return env
 }
 
 func (env *modelBazaarEnv) postgresDsn() string {
@@ -225,8 +235,15 @@ func getHostname(u string) string {
 }
 
 func main() {
-	restartJobs := flag.Bool("restart_jobs", true, "Whether or not to restart llm-cache, llm-dispatch, and telemetry jobs")
+	envFile := flag.String("env", "", "File to load env variables from")
+	skipJobRestart := flag.Bool("skip_job_restart", false, "If true will not restart llm-cache, llm-dispatch, and telemetry jobs")
+	port := flag.Int("port", 8000, "Port to run server on")
 
+	flag.Parse()
+
+	if *envFile != "" {
+		loadEnvFile(*envFile)
+	}
 	env := loadEnv()
 
 	err := os.MkdirAll(filepath.Join(env.ShareDir, "logs/"), 0777)
@@ -313,7 +330,7 @@ func main() {
 		variables,
 	)
 
-	if *restartJobs {
+	if !*skipJobRestart {
 		err = jobs.StartLlmCacheJob(nomadClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
 		if err != nil {
 			log.Fatalf("failed to start llm cache job: %v", err)
@@ -351,8 +368,8 @@ func main() {
 	r := chi.NewRouter()
 	r.Mount("/api/v2", model_bazaar.Routes())
 
-	slog.Info("starting server", "port", 8000)
-	err = http.ListenAndServe(fmt.Sprintf(":%d", 8000), r)
+	slog.Info("starting server", "port", *port)
+	err = http.ListenAndServe(fmt.Sprintf(":%d", *port), r)
 	if err != nil {
 		log.Fatalf("listen and serve returned error: %v", err.Error())
 	}

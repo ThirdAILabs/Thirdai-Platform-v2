@@ -335,7 +335,7 @@ func verifyLicenseForNewJob(nomad nomad.NomadClient, license *licensing.LicenseV
 
 func checkForDuplicateModel(db *gorm.DB, modelName, userId string) error {
 	var duplicateModel schema.Model
-	result := db.Find(&duplicateModel, "user_id = ? AND name = ?", userId, modelName)
+	result := db.Limit(1).Find(&duplicateModel, "user_id = ? AND name = ?", userId, modelName)
 	if result.Error != nil {
 		return schema.NewDbError("checking for duplicate model", result.Error)
 	}

@@ -80,12 +80,12 @@ func GetUserTeamIds(userId string, db *gorm.DB) ([]string, error) {
 
 func GetUserTeam(teamId, userId string, db *gorm.DB) (*UserTeam, error) {
 	var team UserTeam
-	result := db.Find(&team, "team_id = ? and user_id = ?", teamId, userId)
+	result := db.First(&team, "team_id = ? and user_id = ?", teamId, userId)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, NewDbError("retrieving user_team entry", result.Error)
-	}
-	if result.RowsAffected != 1 {
-		return nil, nil
 	}
 
 	return &team, nil
@@ -93,27 +93,36 @@ func GetUserTeam(teamId, userId string, db *gorm.DB) (*UserTeam, error) {
 
 func ModelExists(db *gorm.DB, modelId string) (bool, error) {
 	var model Model
-	result := db.Find(&model, "id = ?", modelId)
+	result := db.First(&model, "id = ?", modelId)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
 		return false, NewDbError("checking if model exists", result.Error)
 	}
-	return result.RowsAffected > 0, nil
+	return true, nil
 }
 
 func UserExists(db *gorm.DB, userId string) (bool, error) {
 	var user User
-	result := db.Find(&user, "id = ?", userId)
+	result := db.First(&user, "id = ?", userId)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
 		return false, NewDbError("checking if user exists", result.Error)
 	}
-	return result.RowsAffected > 0, nil
+	return true, nil
 }
 
 func TeamExists(db *gorm.DB, teamId string) (bool, error) {
 	var team Team
-	result := db.Find(&team, "id = ?", teamId)
+	result := db.First(&team, "id = ?", teamId)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
 		return false, NewDbError("checking if team exists", result.Error)
 	}
-	return result.RowsAffected > 0, nil
+	return true, nil
 }

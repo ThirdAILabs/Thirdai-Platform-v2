@@ -399,7 +399,7 @@ func (auth *KeycloakIdentityProvider) LoginWithToken(accessToken string) (LoginR
 	var user schema.User
 
 	err = auth.db.Transaction(func(txn *gorm.DB) error {
-		findUserResult := txn.Find(&user, "email = ?", userInfo.Email)
+		findUserResult := txn.Limit(1).Find(&user, "email = ?", userInfo.Email)
 		if findUserResult.Error != nil {
 			return schema.NewDbError("locate user by email", findUserResult.Error)
 		}

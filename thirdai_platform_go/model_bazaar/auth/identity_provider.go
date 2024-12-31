@@ -46,7 +46,7 @@ func addInitialAdminToDb(db *gorm.DB, userId, username, email string, password [
 
 	err := db.Transaction(func(txn *gorm.DB) error {
 		var existingUser schema.User
-		result := txn.Find(&existingUser, "id = ? or username = ? or email = ?", userId, username, email)
+		result := txn.Limit(1).Find(&existingUser, "id = ? or username = ? or email = ?", userId, username, email)
 		if result.Error != nil {
 			return schema.NewDbError("checking if admin has already been added", result.Error)
 		}

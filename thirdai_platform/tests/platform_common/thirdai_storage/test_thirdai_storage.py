@@ -276,7 +276,7 @@ def test_xml_feedback_conflict(data_storage):
             xpath="/Employee/Email[@Name='email']",
             attribute=None,
             token_start=0,
-            token_end=1,
+            token_end=4,
             n_tokens=1,
             label="EMAIL",
             user_provided=True,

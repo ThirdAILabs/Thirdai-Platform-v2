@@ -450,8 +450,8 @@ class SQLiteConnector(Connector):
                 XMLFeedback.xpath == feedback.xpath,
                 XMLFeedback.attribute == feedback.attribute,
                 XMLFeedback.n_tokens == feedback.n_tokens,
-                XMLFeedback.token_start == feedback.token_start,
-                XMLFeedback.token_end == feedback.token_end,
+                XMLFeedback.token_start <= feedback.token_start,
+                XMLFeedback.token_end >= feedback.token_end,
                 XMLFeedback.label != feedback.label,
                 XMLFeedback.status == feedback.status,
             )

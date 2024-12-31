@@ -174,8 +174,11 @@ interface VoteButtonProps {
 const VoteButton: React.FC<VoteButtonProps> = ({ onClick, icon: Icon, active = false }) => (
   <button
     onClick={onClick}
-    className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${active ? 'text-blue-500' : 'text-gray-500'
-      }`}
+    className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${
+      active 
+        ? 'text-blue-500 bg-blue-50' 
+        : 'text-gray-500'
+    }`}
   >
     <Icon size={16} />
   </button>
@@ -203,14 +206,14 @@ const ReferenceItem: React.FC<ReferenceItemProps> = ({
   onVote,
   onReferenceClick
 }) => {
-  const handleUpvote = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onVote(reference.chunk_id, reference.content, 'up');
-  };
+  const [activeVote, setActiveVote] = useState<'up' | 'down' | null>(null);
 
-  const handleDownvote = (e: React.MouseEvent) => {
+  const handleVote = (voteType: 'up' | 'down') => (e: React.MouseEvent) => {
     e.stopPropagation();
-    onVote(reference.chunk_id, reference.content, 'down');
+    if (activeVote !== voteType) {
+      setActiveVote(voteType);
+      onVote(reference.chunk_id, reference.content, voteType);
+    }
   };
 
   return (
@@ -223,8 +226,16 @@ const ReferenceItem: React.FC<ReferenceItemProps> = ({
           {reference.sourceName}
         </button>
         <div className="flex items-center gap-1">
-          <VoteButton onClick={handleUpvote} icon={ThumbsUp} />
-          <VoteButton onClick={handleDownvote} icon={ThumbsDown} />
+          <VoteButton 
+            onClick={handleVote('up')}
+            icon={ThumbsUp}
+            active={activeVote === 'up'}
+          />
+          <VoteButton 
+            onClick={handleVote('down')}
+            icon={ThumbsDown}
+            active={activeVote === 'down'}
+          />
         </div>
       </div>
       <div className="text-gray-700 text-sm mt-1">

@@ -244,25 +244,19 @@ function ChatBox({
   modelService,
   onOpenPdf,
   showFeedback,
-  showReferences = true, // Add new prop with default value
+  showReferences = true,
 }: {
   message: ChatMessage;
   transformedMessage?: string[][];
   sentiment?: string;
-  context?: Array<{
-    chunk_id: number;
-    query: string;
-    sourceURL: string;
-    sourceName: string;
-    content: string;
-    metadata: any;
-  }>;
+  context?: Reference[];
   modelService: ModelService | null;
   onOpenPdf: (pdfInfo: PdfInfo) => void;
   showFeedback: boolean;
   showReferences?: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const references = context || message.references || [];
 
   const handleReferenceClick = async (chunkInfo: any) => {
     if (!modelService) return;
@@ -348,18 +342,18 @@ function ChatBox({
           )}
         </div>
 
-        {showReferences && context && message.sender === 'AI' && (
+        {showReferences && references.length > 0 && message.sender === 'AI' && (
           <div className="mt-2">
             <button 
               onClick={() => setIsExpanded(!isExpanded)}
               className="flex items-center text-sm text-gray-600 hover:text-gray-800"
             >
               <span className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
-              <span className="ml-1 font-medium">References</span>
+              <span className="ml-1 font-medium">References ({references.length})</span>
             </button>
             {isExpanded && (
               <div className="space-y-2 mt-2">
-                {context.map((ref, i) => (
+                {references.map((ref, i) => (
                   <ReferenceItem
                     key={i}
                     reference={ref}
@@ -422,14 +416,20 @@ export default function Chat({
 
   useEffect(() => {
     if (modelService && provider) {
-      console.log('print the provider', provider);
-
-      // Set the chat settings based on the provider
       modelService
         .setChat(provider)
         .then(() => {
-          // After setting chat settings, fetch chat history
-          modelService.getChatHistory(provider).then(setChatHistory);
+          modelService.getChatHistory(provider).then((history) => {
+            setChatHistory(history);
+            // Also set up the context data from the saved references
+            const contextDataFromHistory: Record<number, Reference[]> = {};
+            history.forEach((message, index) => {
+              if (message.references?.length) {
+                contextDataFromHistory[index] = message.references;
+              }
+            });
+            setContextData(contextDataFromHistory);
+          });
         })
         .catch((e) => {
           console.error('Failed to update chat settings:', e);
@@ -541,7 +541,11 @@ export default function Chat({
       setAiLoading(true);
 
       // Add human message
-      const newHistory = [...chatHistory, { sender: 'human', content: lastTextInput }];
+      const humanMessage: ChatMessage = {
+        sender: 'human',
+        content: lastTextInput
+      };
+      const newHistory = [...chatHistory, humanMessage];
       setChatHistory(newHistory);
 
       // Handle sentiment classification

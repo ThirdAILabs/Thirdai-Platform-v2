@@ -99,13 +99,20 @@ class ChatInterface(ABC):
 
     def get_chat_history(self, session_id: str, **kwargs):
         chat_history = self._get_chat_history_conn(session_id=session_id)
-        chat_history_list = [
-            {
+        chat_history_list = []
+        
+        for message in chat_history.messages:
+            message_dict = {
                 "content": message.content,
                 "sender": "AI" if isinstance(message, AIMessage) else "human",
             }
-            for message in chat_history.messages
-        ]
+            
+            # Add references if they exist in additional_kwargs
+            if isinstance(message, AIMessage) and message.additional_kwargs.get("references"):
+                message_dict["references"] = message.additional_kwargs["references"]
+            
+            chat_history_list.append(message_dict)
+        
         return chat_history_list
 
     async def chat(
@@ -178,6 +185,8 @@ class ChatInterface(ABC):
         )
 
         response_chunks = []
+        context_info = None
+
         async for chunk in self.conversational_retrieval_chain.astream(
             {"messages": chat_history.messages}
         ):
@@ -196,7 +205,18 @@ class ChatInterface(ABC):
                     }
                     for doc in chunk["context"]
                 ]
+                context_info = context  # Store context for later use
                 yield "context: " + json.dumps(context)
 
         full_response = "".join(response_chunks)
-        chat_history.add_ai_message(full_response)
+        
+        # Create AIMessage with additional metadata
+        ai_message = AIMessage(
+            content=full_response,
+            additional_kwargs={
+                "references": context_info
+            }
+        )
+        
+        # Add the enhanced message to chat history
+        chat_history.add_message(ai_message)

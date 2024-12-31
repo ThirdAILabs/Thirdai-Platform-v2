@@ -663,6 +663,7 @@ class NDBRouter:
         else:
             session_id = input.session_id
 
+        # Get chat history with references
         chat_history = {"chat_history": chat.get_chat_history(session_id)}
 
         return response(

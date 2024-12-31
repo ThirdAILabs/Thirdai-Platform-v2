@@ -39,9 +39,19 @@ export interface PdfInfo {
   highlighted: Chunk;
 }
 
-export interface ChatMessage {
-  sender: string;
+interface Reference {
+  chunk_id: number;
+  query: string;
+  sourceURL: string;
+  sourceName: string;
   content: string;
+  metadata: any;
+}
+
+export interface ChatMessage {
+  sender: 'human' | 'AI';
+  content: string;
+  references?: Reference[];  // Add references to the message type
 }
 
 export interface ChatResponse {
@@ -753,7 +763,13 @@ export class ModelService {
           });
         }
       })
-      .then((response) => response['data']['chat_history'] as ChatMessage[])
+      .then((response) => {
+        const chatHistory = response['data']['chat_history'] as ChatMessage[];
+        return chatHistory.map(message => ({
+          ...message,
+          references: message.references || []  // Ensure references is always an array
+        }));
+      })
       .catch((e) => {
         console.error('Error fetching chat history:', e);
         alert('Error fetching chat history: ' + e);

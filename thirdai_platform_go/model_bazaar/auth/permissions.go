@@ -91,16 +91,31 @@ func TeamMemberOnly(db *gorm.DB) func(http.Handler) http.Handler {
 	}
 }
 
-type modelPermissions int // Private so that no other permissions can be defined
+type modelPermission int // Private so that no other permissions can be defined
 
 const (
-	NoPermission    modelPermissions = 0
-	ReadPermission  modelPermissions = 1
-	WritePermission modelPermissions = 2
-	OwnerPermission modelPermissions = 3
+	NoPermission    modelPermission = 0
+	ReadPermission  modelPermission = 1
+	WritePermission modelPermission = 2
+	OwnerPermission modelPermission = 3
 )
 
-func GetModelPermissions(modelId string, user schema.User, db *gorm.DB) (modelPermissions, error) {
+func modelPermissionToString(perm modelPermission) string {
+	switch perm {
+	case NoPermission:
+		return "None"
+	case ReadPermission:
+		return "'Read"
+	case WritePermission:
+		return "Write"
+	case OwnerPermission:
+		return "Owner"
+	default:
+		return "invalid permission"
+	}
+}
+
+func GetModelPermissions(modelId string, user schema.User, db *gorm.DB) (modelPermission, error) {
 	if user.IsAdmin {
 		return OwnerPermission, nil
 	}
@@ -140,7 +155,7 @@ func GetModelPermissions(modelId string, user schema.User, db *gorm.DB) (modelPe
 	return NoPermission, nil
 }
 
-func ModelPermissionOnly(db *gorm.DB, minPermission modelPermissions) func(http.Handler) http.Handler {
+func ModelPermissionOnly(db *gorm.DB, minPermission modelPermission) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
 			modelId := chi.URLParam(r, "model_id")
@@ -162,7 +177,8 @@ func ModelPermissionOnly(db *gorm.DB, minPermission modelPermissions) func(http.
 				return
 			}
 
-			http.Error(w, fmt.Sprintf("user %v does not have owner permission for model %v", user.Id, modelId), http.StatusUnauthorized)
+			required, actual := modelPermissionToString(minPermission), modelPermissionToString(permission)
+			http.Error(w, fmt.Sprintf("user %v does not have required permission for model %v (required=%v, actual=%v)", user.Id, modelId, required, actual), http.StatusUnauthorized)
 		}
 		return http.HandlerFunc(hfn)
 	}

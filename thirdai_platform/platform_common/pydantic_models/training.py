@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field, model_validator
 
 class ModelType(str, Enum):
     NDB = "ndb"
-    UDT = "udt"
     NLP_TOKEN = "nlp-token"
     NLP_TEXT = "nlp-text"
     ENTERPRISE_SEARCH = "enterprise-search"

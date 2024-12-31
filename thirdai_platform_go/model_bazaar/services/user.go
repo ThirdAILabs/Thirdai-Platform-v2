@@ -130,11 +130,6 @@ func (s *UserService) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	userId := chi.URLParam(r, "user_id")
 
 	err := s.db.Transaction(func(txn *gorm.DB) error {
-		deleteResult := txn.Where("user_id  = ?", userId).Where("access = ?", schema.Private).Delete(&schema.Model{})
-		if deleteResult.Error != nil {
-			return schema.NewDbError("deleting user private models", deleteResult.Error)
-		}
-
 		var admin schema.User
 		adminResult := txn.Where("is_admin = ?", true).First(&admin)
 		if adminResult.Error != nil {
@@ -143,7 +138,6 @@ func (s *UserService) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 		updateResult := txn.Model(&schema.Model{}).
 			Where("user_id = ?", userId).
-			Where("access IN ?", []string{schema.Protected, schema.Public}).
 			Update("user_id", admin.Id)
 		if updateResult.Error != nil {
 			return schema.NewDbError("updating owner of user protected/public models", updateResult.Error)

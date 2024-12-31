@@ -359,7 +359,7 @@ func TestDeleteUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	sortModelList(models)
-	if len(models) != 2 || models[0].ModelId != m1 || models[1].ModelId != m2 {
+	if len(models) != 3 || models[0].ModelId != m1 || models[1].ModelId != m2 || models[2].ModelId != m3 {
 		t.Fatal("invalid models")
 	}
 	for _, m := range models {

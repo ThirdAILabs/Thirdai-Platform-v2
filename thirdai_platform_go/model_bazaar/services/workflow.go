@@ -84,6 +84,7 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 
 		components := params.components()
 		deps := make([]schema.ModelDependency, 0, len(components))
+		// Each component is stored as an attribute, and then we have 2 additional hyperparameters
 		attrs := make([]schema.ModelAttribute, 0, len(components)+2)
 		for _, component := range components {
 			// TODO: check dep types
@@ -100,7 +101,7 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 				return fmt.Errorf("error verifying permissions for %v: %w", component.component, err)
 			}
 			if perm < auth.ReadPermission {
-				return fmt.Errorf("user does not have permissiont to access %v", component.component)
+				return fmt.Errorf("user does not have permissions to access %v", component.component)
 			}
 
 			deps = append(deps, schema.ModelDependency{ModelId: modelId, DependencyId: model.Id})
@@ -128,7 +129,7 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 	})
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error creating enterpise search model: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error creating enterprise search model: %v", err), http.StatusBadRequest)
 		return
 	}
 

@@ -220,8 +220,6 @@ func (s *DeployService) deployModel(modelId string, user schema.User, autoscalin
 		}
 	}
 
-	// TODO(nicholas): start on prem llm if needed
-
 	if jerr := errors.Join(err, nomadErr); jerr != nil {
 		return fmt.Errorf("error starting deployment for model %v: %w", modelId, jerr)
 	}

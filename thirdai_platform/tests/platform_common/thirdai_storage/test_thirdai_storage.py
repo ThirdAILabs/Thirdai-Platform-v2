@@ -16,9 +16,8 @@ from platform_common.thirdai_storage.data_types import (
     TokenClassificationData,
     XMLElementData,
     XMLFeedbackData,
-    XMLLogData,
 )
-from platform_common.thirdai_storage.schemas import XMLElement, XMLFeedback, XMLLog
+from platform_common.thirdai_storage.schemas import XMLElement, XMLLog
 from platform_common.thirdai_storage.storage import DataStorage, SQLiteConnector
 
 pytestmark = [pytest.mark.unit]

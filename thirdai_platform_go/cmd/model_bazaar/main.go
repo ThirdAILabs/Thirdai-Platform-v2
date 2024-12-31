@@ -225,7 +225,7 @@ func getHostname(u string) string {
 }
 
 func main() {
-	restartJobs := flag.Bool("restart_jobs", false, "Whether or not to restart llm-cache, llm-dispatch, and telemetry jobs")
+	restartJobs := flag.Bool("restart_jobs", true, "Whether or not to restart llm-cache, llm-dispatch, and telemetry jobs")
 
 	env := loadEnv()
 

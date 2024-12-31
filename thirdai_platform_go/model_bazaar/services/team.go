@@ -97,11 +97,15 @@ func (s *TeamService) CreateTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) DeleteTeam(w http.ResponseWriter, r *http.Request) {
-	teamId := chi.URLParam(r, "team_id")
+	teamId, err := utils.URLParam(r, "team_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	team := schema.Team{Id: teamId}
 
-	err := s.db.Transaction(func(txn *gorm.DB) error {
+	err = s.db.Transaction(func(txn *gorm.DB) error {
 		exists, err := schema.TeamExists(txn, team.Id)
 		if err != nil {
 			return err
@@ -132,11 +136,20 @@ func (s *TeamService) DeleteTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) AddUserToTeam(w http.ResponseWriter, r *http.Request) {
-	teamId, userId := chi.URLParam(r, "team_id"), chi.URLParam(r, "user_id")
+	teamId, err := utils.URLParam(r, "team_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	userId, err := utils.URLParam(r, "user_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	userTeam := schema.UserTeam{UserId: userId, TeamId: teamId}
 
-	err := s.db.Transaction(func(txn *gorm.DB) error {
+	err = s.db.Transaction(func(txn *gorm.DB) error {
 		teamExists, err := schema.TeamExists(txn, teamId)
 		if err != nil {
 			return err
@@ -170,9 +183,18 @@ func (s *TeamService) AddUserToTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) RemoveUserFromTeam(w http.ResponseWriter, r *http.Request) {
-	teamId, userId := chi.URLParam(r, "team_id"), chi.URLParam(r, "user_id")
+	teamId, err := utils.URLParam(r, "team_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	userId, err := utils.URLParam(r, "user_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	err := s.db.Transaction(func(txn *gorm.DB) error {
+	err = s.db.Transaction(func(txn *gorm.DB) error {
 		teamExists, err := schema.TeamExists(txn, teamId)
 		if err != nil {
 			return err
@@ -211,9 +233,18 @@ func (s *TeamService) RemoveUserFromTeam(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *TeamService) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
-	teamId, modelId := chi.URLParam(r, "team_id"), chi.URLParam(r, "model_id")
+	teamId, err := utils.URLParam(r, "team_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	modelId, err := utils.URLParam(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	err := s.db.Transaction(func(txn *gorm.DB) error {
+	err = s.db.Transaction(func(txn *gorm.DB) error {
 		teamExists, err := schema.TeamExists(txn, teamId)
 		if err != nil {
 			return err
@@ -258,9 +289,18 @@ func (s *TeamService) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) RemoveModelFromTeam(w http.ResponseWriter, r *http.Request) {
-	teamId, modelId := chi.URLParam(r, "team_id"), chi.URLParam(r, "model_id")
+	teamId, err := utils.URLParam(r, "team_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	modelId, err := utils.URLParam(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	err := s.db.Transaction(func(txn *gorm.DB) error {
+	err = s.db.Transaction(func(txn *gorm.DB) error {
 		teamExists, err := schema.TeamExists(txn, teamId)
 		if err != nil {
 			return err
@@ -294,9 +334,18 @@ func (s *TeamService) RemoveModelFromTeam(w http.ResponseWriter, r *http.Request
 }
 
 func (s *TeamService) AddTeamAdmin(w http.ResponseWriter, r *http.Request) {
-	teamId, userId := chi.URLParam(r, "team_id"), chi.URLParam(r, "user_id")
+	teamId, err := utils.URLParam(r, "team_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	userId, err := utils.URLParam(r, "user_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	err := s.db.Transaction(func(txn *gorm.DB) error {
+	err = s.db.Transaction(func(txn *gorm.DB) error {
 		teamExists, err := schema.TeamExists(txn, teamId)
 		if err != nil {
 			return err
@@ -330,9 +379,18 @@ func (s *TeamService) AddTeamAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) RemoveTeamAdmin(w http.ResponseWriter, r *http.Request) {
-	teamId, userId := chi.URLParam(r, "team_id"), chi.URLParam(r, "user_id")
+	teamId, err := utils.URLParam(r, "team_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	userId, err := utils.URLParam(r, "user_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	err := s.db.Transaction(func(txn *gorm.DB) error {
+	err = s.db.Transaction(func(txn *gorm.DB) error {
 		teamExists, err := schema.TeamExists(txn, teamId)
 		if err != nil {
 			return err
@@ -412,7 +470,11 @@ type TeamUserInfo struct {
 }
 
 func (s *TeamService) TeamUsers(w http.ResponseWriter, r *http.Request) {
-	teamId := chi.URLParam(r, "team_id")
+	teamId, err := utils.URLParam(r, "team_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	teamExists, err := schema.TeamExists(s.db, teamId)
 	if err != nil {
@@ -446,7 +508,11 @@ func (s *TeamService) TeamUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) TeamModels(w http.ResponseWriter, r *http.Request) {
-	teamId := chi.URLParam(r, "team_id")
+	teamId, err := utils.URLParam(r, "team_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	teamExists, err := schema.TeamExists(s.db, teamId)
 	if err != nil {

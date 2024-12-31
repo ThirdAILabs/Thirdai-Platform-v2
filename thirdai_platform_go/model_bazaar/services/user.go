@@ -127,9 +127,13 @@ func (s *UserService) LoginWithToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *UserService) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	userId := chi.URLParam(r, "user_id")
+	userId, err := utils.URLParam(r, "user_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	err := s.db.Transaction(func(txn *gorm.DB) error {
+	err = s.db.Transaction(func(txn *gorm.DB) error {
 		var admin schema.User
 		adminResult := txn.Where("is_admin = ?", true).First(&admin)
 		if adminResult.Error != nil {
@@ -166,9 +170,13 @@ func (s *UserService) DeleteUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *UserService) PromoteAdmin(w http.ResponseWriter, r *http.Request) {
-	userId := chi.URLParam(r, "user_id")
+	userId, err := utils.URLParam(r, "user_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	err := s.db.Transaction(func(txn *gorm.DB) error {
+	err = s.db.Transaction(func(txn *gorm.DB) error {
 		user, err := schema.GetUser(userId, txn)
 		if err != nil {
 			return err
@@ -193,9 +201,13 @@ func (s *UserService) PromoteAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *UserService) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
-	userId := chi.URLParam(r, "user_id")
+	userId, err := utils.URLParam(r, "user_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	err := s.db.Transaction(func(txn *gorm.DB) error {
+	err = s.db.Transaction(func(txn *gorm.DB) error {
 		user, err := schema.GetUser(userId, txn)
 		if err != nil {
 			return err
@@ -335,9 +347,13 @@ func (s *UserService) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *UserService) VerifyUser(w http.ResponseWriter, r *http.Request) {
-	userId := chi.URLParam(r, "user_id")
+	userId, err := utils.URLParam(r, "user_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	err := s.userAuth.VerifyUser(userId)
+	err = s.userAuth.VerifyUser(userId)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error verifying user '%v': %v", userId, err), http.StatusBadRequest)
 		return

@@ -271,7 +271,11 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TrainService) GetStatus(w http.ResponseWriter, r *http.Request) {
-	modelId := chi.URLParam(r, "model_id")
+	modelId, err := utils.URLParam(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	getStatusHandler(w, modelId, s.db, "train")
 }
 
@@ -288,7 +292,13 @@ func (s *TrainService) JobLog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TrainService) TrainReport(w http.ResponseWriter, r *http.Request) {
-	model, err := schema.GetModel(chi.URLParam(r, "model_id"), s.db, false, false, false)
+	modelId, err := utils.URLParam(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	model, err := schema.GetModel(modelId, s.db, false, false, false)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error retrieving model info: %v", err), http.StatusBadRequest)
 		return

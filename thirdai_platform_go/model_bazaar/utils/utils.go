@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
 )
 
 func ParseRequestBody(w http.ResponseWriter, r *http.Request, dest interface{}) bool {
@@ -30,4 +32,12 @@ func WriteJsonResponse(w http.ResponseWriter, data interface{}) {
 
 func WriteSuccess(w http.ResponseWriter) {
 	WriteJsonResponse(w, struct{}{})
+}
+
+func URLParam(r *http.Request, key string) (string, error) {
+	param := chi.URLParam(r, key)
+	if len(param) == 0 {
+		return "", fmt.Errorf("missing {%v} url parameter", key)
+	}
+	return param, nil
 }

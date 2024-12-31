@@ -15,7 +15,6 @@ import (
 	"thirdai_platform/model_bazaar/utils"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -277,7 +276,11 @@ func jobLogHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job stri
 }
 
 func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad.NomadClient, job string) {
-	modelId := chi.URLParam(r, "model_id")
+	modelId, err := utils.URLParam(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	model, err := schema.GetModel(modelId, db, false, false, false)
 	if err != nil {

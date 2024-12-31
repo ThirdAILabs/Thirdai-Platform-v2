@@ -138,7 +138,11 @@ func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 }
 
 func (s *ModelService) Info(w http.ResponseWriter, r *http.Request) {
-	modelId := chi.URLParam(r, "model_id")
+	modelId, err := utils.URLParam(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	model, err := schema.GetModel(modelId, s.db, true, true, true)
 	if err != nil {
@@ -208,7 +212,11 @@ type ModelPermissions struct {
 }
 
 func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
-	modelId := chi.URLParam(r, "model_id")
+	modelId, err := utils.URLParam(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	user, err := auth.UserFromContext(r)
 	if err != nil {
@@ -252,9 +260,13 @@ func countTrainingChildModels(db *gorm.DB, modelId string) (int64, error) {
 }
 
 func (s *ModelService) Delete(w http.ResponseWriter, r *http.Request) {
-	modelId := chi.URLParam(r, "model_id")
+	modelId, err := utils.URLParam(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	err := s.db.Transaction(func(txn *gorm.DB) error {
+	err = s.db.Transaction(func(txn *gorm.DB) error {
 		usedBy, err := countDownstreamModels(modelId, txn, false)
 		if err != nil {
 			return err
@@ -380,7 +392,12 @@ func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *ModelService) UploadChunk(w http.ResponseWriter, r *http.Request) {
-	chunkIdx, err := strconv.Atoi(chi.URLParam(r, "chunk_idx"))
+	chunkIdxParam, err := utils.URLParam(r, "chunk_idx")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	chunkIdx, err := strconv.Atoi(chunkIdxParam)
 	if err != nil || chunkIdx < 0 {
 		http.Error(w, "expected 'chunk_idx' parameter to be an positive integer", http.StatusBadRequest)
 		return
@@ -481,7 +498,11 @@ func (s *ModelService) UploadCommit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
-	modelId := chi.URLParam(r, "model_id")
+	modelId, err := utils.URLParam(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	model, err := schema.GetModel(modelId, s.db, false, false, false)
 	if err != nil {
@@ -544,7 +565,11 @@ type updateAccessRequest struct {
 }
 
 func (s *ModelService) UpdateAccess(w http.ResponseWriter, r *http.Request) {
-	modelId := chi.URLParam(r, "model_id")
+	modelId, err := utils.URLParam(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	var params updateAccessRequest
 	if !utils.ParseRequestBody(w, r, &params) {
@@ -575,7 +600,11 @@ type updateDefaultPermissionRequest struct {
 }
 
 func (s *ModelService) UpdateDefaultPermission(w http.ResponseWriter, r *http.Request) {
-	modelId := chi.URLParam(r, "model_id")
+	modelId, err := utils.URLParam(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	var params updateDefaultPermissionRequest
 	if !utils.ParseRequestBody(w, r, &params) {

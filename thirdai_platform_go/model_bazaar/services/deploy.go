@@ -244,7 +244,11 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	modelId := chi.URLParam(r, "model_id")
+	modelId, err := utils.URLParam(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	var params startRequest
 	if !utils.ParseRequestBody(w, r, &params) {
@@ -276,11 +280,15 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
-	modelId := chi.URLParam(r, "model_id")
+	modelId, err := utils.URLParam(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	slog.Info("stopping deployment for model", "model_id", modelId)
 
-	err := s.db.Transaction(func(txn *gorm.DB) error {
+	err = s.db.Transaction(func(txn *gorm.DB) error {
 		usedBy, err := countDownstreamModels(modelId, txn, true)
 		if err != nil {
 			return err
@@ -327,7 +335,11 @@ func (s *DeployService) GetStatusInternal(w http.ResponseWriter, r *http.Request
 }
 
 func (s *DeployService) GetStatus(w http.ResponseWriter, r *http.Request) {
-	modelId := chi.URLParam(r, "model_id")
+	modelId, err := utils.URLParam(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	getStatusHandler(w, modelId, s.db, "deploy")
 }
 
@@ -359,10 +371,16 @@ func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	baseModelId, err := utils.URLParam(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	newModelId := uuid.New().String()
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
-		baseModel, err := schema.GetModel(chi.URLParam(r, "model_id"), txn, true, true, false)
+		baseModel, err := schema.GetModel(baseModelId, txn, true, true, false)
 		if err != nil {
 			return err
 		}

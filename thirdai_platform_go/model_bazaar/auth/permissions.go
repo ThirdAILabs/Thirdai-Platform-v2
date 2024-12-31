@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"thirdai_platform/model_bazaar/schema"
+	"thirdai_platform/model_bazaar/utils"
 
-	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
 )
 
@@ -41,7 +41,11 @@ func isTeamAdmin(teamId, userId string, db *gorm.DB) bool {
 func AdminOrTeamAdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
-			teamId := chi.URLParam(r, "team_id")
+			teamId, err := utils.URLParam(r, "team_id")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 
 			user, err := UserFromContext(r)
 			if err != nil {
@@ -72,7 +76,11 @@ func isTeamMember(teamId, userId string, db *gorm.DB) bool {
 func TeamMemberOnly(db *gorm.DB) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
-			teamId := chi.URLParam(r, "team_id")
+			teamId, err := utils.URLParam(r, "team_id")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 
 			user, err := UserFromContext(r)
 			if err != nil {
@@ -158,7 +166,11 @@ func GetModelPermissions(modelId string, user schema.User, db *gorm.DB) (modelPe
 func ModelPermissionOnly(db *gorm.DB, minPermission modelPermission) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
-			modelId := chi.URLParam(r, "model_id")
+			modelId, err := utils.URLParam(r, "model_id")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 
 			user, err := UserFromContext(r)
 			if err != nil {

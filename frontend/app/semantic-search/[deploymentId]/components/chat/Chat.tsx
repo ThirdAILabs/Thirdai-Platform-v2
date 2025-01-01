@@ -174,10 +174,10 @@ interface VoteButtonProps {
 const VoteButton: React.FC<VoteButtonProps> = ({ onClick, icon: Icon, active = false }) => (
   <button
     onClick={onClick}
-    className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${
+    className={`p-2 rounded-full transition-colors flex items-center justify-center w-8 h-8 ${
       active 
-        ? 'text-blue-500 bg-blue-50' 
-        : 'text-gray-500'
+        ? 'bg-[#3B52DD] text-white' 
+        : 'text-gray-500 hover:bg-gray-100'
     }`}
   >
     <Icon size={16} />

@@ -84,7 +84,7 @@ class Guardrail:
                 "User-Agent": "NDB Deployment job",
                 "Authorization": f"Bearer {access_token}",
             },
-            json={"text": text, "top_k": 1},
+            json={"text": text, "data_type": "unstructured"},
         )
 
         if res.status_code != status.HTTP_200_OK:
@@ -95,8 +95,8 @@ class Guardrail:
 
         results = res.json()["data"]["prediction_results"]
 
-        if results["log_type"] != "unstructured":
-            message = f"Guardrail model returned non-unstructured log type: {results['log_type']}"
+        if results["data_type"] != "unstructured":
+            message = f"Guardrail model returned non-unstructured data type: {results['data_type']}"
             self.logger.error(message, code=LogCode.GUARDRAILS)
             raise ValueError(message)
 

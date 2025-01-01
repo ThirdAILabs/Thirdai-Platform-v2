@@ -276,20 +276,39 @@ export default function SearchBar({
     }
   }, [query, cacheEnabled]);
 
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  const adjustHeight = () => {
+    if (textAreaRef.current) {
+      textAreaRef.current.style.height = '3rem';
+      const lineHeight = 24; // Approximate line height in pixels
+      const maxHeight = 11 * lineHeight; // 11 lines
+      const newHeight = Math.min(textAreaRef.current.scrollHeight, maxHeight);
+      textAreaRef.current.style.height = `${newHeight}px`;
+    }
+  };
+
   return (
     <Container>
       <div>
         <SearchArea style={{ marginBottom: '5px' }}>
-          <TextField
-            autoFocus
-            className="text-m w-full"
+          <textarea
+            ref={textAreaRef}
+            className="text-m w-full resize-none rounded-md border px-3 py-2"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              adjustHeight();
+            }}
             placeholder="Ask anything..."
-            style={{ height: '3rem' }}
-            onSubmit={handleSubmit}
+            style={{
+              minHeight: '3rem',
+              maxHeight: '264px', // 11 lines * 24px line height
+              overflowY: 'auto',
+              lineHeight: '24px',
+            }}
             onKeyDown={(e) => {
-              if (e.keyCode === 13 && e.shiftKey === false) {
+              if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSubmit();
               }

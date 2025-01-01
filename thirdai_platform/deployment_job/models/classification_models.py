@@ -7,7 +7,7 @@ from deployment_job.pydantic_models.inputs import SearchResultsTextClassificatio
 from fastapi import HTTPException, status
 from platform_common.logging import JobLogger
 from platform_common.logging.logcodes import LogCode
-from platform_common.pii.data_types import convert_log_to_concrete_type
+from platform_common.pii.data_types import UnstructuredText, XMLLog
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.thirdai_storage.data_types import (
     DataSample,
@@ -218,13 +218,22 @@ class TokenClassificationModel(ClassificationModel):
             )
             raise e
 
-    def predict(self, text: str, **kwargs):
+    def predict(self, text: str, data_type: str, **kwargs):
         try:
-            log = convert_log_to_concrete_type(text)
+            if data_type == "unstructured":
+                log = UnstructuredText(text)
+            elif data_type == "xml":
+                log = XMLLog(text)
+            else:
+                raise ValueError(
+                    "Expected data type to be either 'unstructured' or 'xml'. Found: {data_type}"
+                )
+
             model_predictions = self.model.predict(
                 log.inference_sample, top_k=1, as_unicode=True
             )
             result = log.process_prediction(model_predictions)
+
         except ValueError as e:
             message = f"Error processing prediction: {e}"
             self.logger.error(message, code=LogCode.MODEL_PREDICT)

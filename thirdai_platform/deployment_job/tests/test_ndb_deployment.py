@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import time
 import uuid
 from pathlib import Path
 from unittest.mock import patch
@@ -18,11 +19,12 @@ from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.chunk_stores import PandasChunkStore
 from thirdai.neural_db_v2.retrievers import FinetunableRetriever
 
+DEPLOYMENT_ID = "123"
 USER_ID = "abc"
 MODEL_ID = "xyz"
 
 THIRDAI_LICENSE = os.path.join(
-    os.path.dirname(__file__), "../tests/ndb_enterprise_license.json"
+    os.path.dirname(__file__), "../../tests/ndb_enterprise_license.json"
 )
 
 
@@ -37,10 +39,7 @@ logger = JobLogger(
 
 
 def doc_dir():
-    return os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        "train_job/sample_docs",
-    )
+    return os.path.join(os.path.dirname(__file__), "../../train_job/sample_docs")
 
 
 @pytest.fixture(scope="function")
@@ -70,6 +69,16 @@ def create_ndbv2_model(tmp_dir: str, on_disk: bool):
     )
 
     db.save(os.path.join(tmp_dir, "models", f"{MODEL_ID}", "model.ndb"))
+    db.save(
+        os.path.join(
+            tmp_dir,
+            "host_dir",
+            "models",
+            f"{MODEL_ID}",
+            f"{DEPLOYMENT_ID}",
+            "model.ndb",
+        )
+    )
 
     shutil.rmtree(random_path)
 
@@ -88,10 +97,12 @@ def create_config(tmp_dir: str, autoscaling: bool, on_disk: bool):
     license_info = verify_license.verify_license(THIRDAI_LICENSE)
 
     return DeploymentConfig(
+        deployment_id=DEPLOYMENT_ID,
         user_id=USER_ID,
         model_id=MODEL_ID,
         model_bazaar_endpoint="",
         model_bazaar_dir=tmp_dir,
+        host_dir=os.path.join(tmp_dir, "host_dir"),
         license_key=license_info["boltLicenseKey"],
         autoscaling_enabled=autoscaling,
         model_options=NDBDeploymentOptions(),
@@ -199,6 +210,100 @@ def check_deletion_dev_mode(client: TestClient):
     assert len(res.json()["data"]) == 3
 
 
+def check_async_insertion_dev_mode(client: TestClient):
+    res = client.get("/sources")
+    assert res.status_code == 200
+
+    documents = [
+        {
+            "path": "apple-10k.pdf",
+            "location": "local",
+            "source_id": "async_insertion_doc",
+        },
+    ]
+
+    files = [
+        *[
+            ("files", open(os.path.join(doc_dir(), doc["path"]), "rb"))
+            for doc in documents
+        ],
+        ("documents", (None, json.dumps({"documents": documents}), "application/json")),
+    ]
+
+    res = client.post(
+        "/insert?sync=False",
+        files=files,
+    )
+    assert res.status_code == 202
+
+    task_id = res.json()["data"]["task_id"]
+    res = client.get(
+        "/tasks",
+    )
+    all_tasks = res.json()["data"]["tasks"]
+    assert task_id in all_tasks
+
+    num_seconds = 30
+    for i in range(num_seconds):
+        res = client.get(
+            f"/tasks?task_id={task_id}",
+        )
+        task_info = res.json()["data"]["task"]
+        if task_info["status"] == "complete":
+            break
+        time.sleep(1)
+    else:
+        raise RuntimeError(
+            f"Async insertion did not complete after {num_seconds} seconds"
+        )
+
+    res = client.get("/sources")
+    assert res.status_code == 200
+
+    source_ids = [s["source_id"] for s in res.json()["data"]]
+    assert "async_insertion_doc" in source_ids
+
+
+def check_async_deletion_dev_mode(client: TestClient):
+    res = client.get("/sources")
+    assert res.status_code == 200
+
+    source_ids = [s["source_id"] for s in res.json()["data"]]
+    assert "async_insertion_doc" in source_ids
+
+    res = client.post(
+        "/delete?sync=False", json={"source_ids": ["async_insertion_doc"]}
+    )
+    assert res.status_code == 202
+
+    task_id = res.json()["data"]["task_id"]
+    res = client.get(
+        "/tasks",
+    )
+    all_tasks = res.json()["data"]["tasks"]
+    assert task_id in all_tasks
+
+    num_seconds = 30
+    for i in range(num_seconds):
+        res = client.get(
+            f"/tasks?task_id={task_id}",
+        )
+        task_info = res.json()["data"]["task"]
+        if task_info["status"] == "complete":
+            break
+        time.sleep(1)
+    else:
+        raise RuntimeError(
+            f"Async deletion did not complete after {num_seconds} seconds"
+        )
+
+    res = client.get("/sources")
+    assert res.status_code == 200
+
+    source_ids = [s["source_id"] for s in res.json()["data"]]
+    assert "async_insertion_doc" not in source_ids
+
+
 @pytest.mark.unit
 @patch.object(Permissions, "verify_permission", mock_verify_permission)
 @patch.object(Permissions, "check_permission", mock_check_permission)
@@ -215,6 +320,8 @@ def test_deploy_ndb_dev_mode(tmp_dir):
     check_associate_dev_mode(client)
     check_insertion_dev_mode(client)
     check_deletion_dev_mode(client)
+    check_async_insertion_dev_mode(client)
+    check_async_deletion_dev_mode(client)
 
 
 def check_upvote_prod_mode(client: TestClient):

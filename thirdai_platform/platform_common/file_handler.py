@@ -6,7 +6,6 @@ from functools import wraps
 from typing import List
 
 import boto3
-from botocore import UNSIGNED
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from fastapi import HTTPException, UploadFile, status
@@ -15,7 +14,9 @@ from platform_common.pydantic_models.training import FileInfo, FileLocation
 
 
 def download_local_file(file_info: FileInfo, upload_file: UploadFile, dest_dir: str):
-    assert os.path.basename(file_info.path) == upload_file.filename
+    assert upload_file is not None
+
+    # Create the destination path preserving the directory structure
     destination_path = os.path.join(dest_dir, upload_file.filename)
     os.makedirs(os.path.dirname(destination_path), exist_ok=True)
     with open(destination_path, "wb") as f:
@@ -27,6 +28,7 @@ def download_local_file(file_info: FileInfo, upload_file: UploadFile, dest_dir: 
 def download_local_files(
     files: List[UploadFile], file_infos: List[FileInfo], dest_dir: str
 ) -> List[FileInfo]:
+    # Keep using full paths in the mapping
     filename_to_file = {file.filename: file for file in files}
 
     os.makedirs(dest_dir, exist_ok=True)
@@ -37,7 +39,10 @@ def download_local_files(
             try:
                 local_path = download_local_file(
                     file_info=file_info,
-                    upload_file=filename_to_file[os.path.basename(file_info.path)],
+                    upload_file=filename_to_file.get(
+                        str(file_info.path),
+                        filename_to_file.get(os.path.basename(file_info.path)),
+                    ),
                     dest_dir=dest_dir,
                 )
                 file_ops.clear_cache(local_path)
@@ -232,7 +237,6 @@ class S3StorageHandler(CloudStorageHandler):
         # https://docs.aws.amazon.com/sdk-for-php/v3/developer-guide/guide_credentials_environment.html
         if not aws_access_key or not aws_secret_access_key:
             config = Config(
-                signature_version=UNSIGNED,
                 retries={"max_attempts": 10, "mode": "standard"},
                 connect_timeout=5,
                 read_timeout=60,

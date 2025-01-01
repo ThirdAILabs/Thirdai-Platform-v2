@@ -25,7 +25,7 @@ def test_logger():
         shutil.rmtree(log_dir)
 
 
-def fake_ner_output(self, text, access_token):
+def fake_ner_output(text, access_token):
     tokens = [
         ("my", "O"),
         ("neighbor", "O"),

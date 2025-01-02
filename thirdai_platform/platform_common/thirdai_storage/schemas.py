@@ -74,16 +74,15 @@ class XMLElement(Base):
 class XMLFeedback(Base):
     __tablename__ = "xml_feedback"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    xpath = Column(String, index=True)
-    attribute = Column(String, index=True, nullable=True)
-    token_start = Column(Integer)
-    token_end = Column(Integer)
-    n_tokens = Column(Integer, index=True)
+    element_id = Column(Integer, ForeignKey("xml_element.id"), index=True)
+    token_start = Column(Integer, index=True)
+    token_end = Column(Integer, index=True)
     label = Column(String)
     user_provided = Column(Boolean, default=False)
     status = Column(String)
 
-    # Many-to-many relationship with logs
+    # Relationships
+    element = relationship("XMLElement")
     logs = relationship(
         "XMLLog", secondary="log_feedback_association", back_populates="feedback"
     )

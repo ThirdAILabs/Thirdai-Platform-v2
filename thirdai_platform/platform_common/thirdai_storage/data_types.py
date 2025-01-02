@@ -203,12 +203,9 @@ class XMLLogData(SerializableBaseModel):
 
 
 class XMLFeedbackData(SerializableBaseModel):
-    xpath: str
-    attribute: Optional[str]
+    element: XMLElementData
     token_start: int
     token_end: int
-    n_tokens: int
     label: str
     status: SampleStatus = SampleStatus.untrained
-
     user_provided: bool = True

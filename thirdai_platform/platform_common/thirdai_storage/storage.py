@@ -355,14 +355,33 @@ class SQLiteConnector(Connector):
             raise ValueError("XML Log not found")
 
         for fb in feedbacks:
+            # Find or create element
+            element = (
+                session.query(XMLElement)
+                .filter_by(
+                    xpath=fb.element.xpath,
+                    attribute=fb.element.attribute,
+                    n_tokens=fb.element.n_tokens,
+                )
+                .first()
+            )
+
+            if not element:
+                element = XMLElement(
+                    xpath=fb.element.xpath,
+                    attribute=fb.element.attribute,
+                    n_tokens=fb.element.n_tokens,
+                )
+                session.add(element)
+                session.flush()  # To get the element id
+
+            # Find existing feedback
             existing_feedback = (
                 session.query(XMLFeedback)
                 .filter_by(
-                    xpath=fb.xpath,
-                    attribute=fb.attribute,
+                    element_id=element.id,
                     token_start=fb.token_start,
                     token_end=fb.token_end,
-                    n_tokens=fb.n_tokens,
                     label=fb.label,
                 )
                 .first()
@@ -374,11 +393,9 @@ class SQLiteConnector(Connector):
             else:
                 # Create new feedback only if it doesn't exist
                 feedback = XMLFeedback(
-                    xpath=fb.xpath,
-                    attribute=fb.attribute,
+                    element_id=element.id,
                     token_start=fb.token_start,
                     token_end=fb.token_end,
-                    n_tokens=fb.n_tokens,
                     label=fb.label,
                     user_provided=fb.user_provided,
                     status=fb.status,
@@ -413,15 +430,15 @@ class SQLiteConnector(Connector):
         results = []
         for fb in feedbacks:
             # Find all XML logs that have matching elements
-            matching_xmls = (
-                session.query(XMLLog)
-                .join(LogElementAssociation)
+            matching_log_ids = (
+                session.query(LogElementAssociation.log_id)
                 .join(XMLElement)
                 .filter(
                     XMLElement.xpath == fb.xpath,
                     XMLElement.n_tokens == fb.n_tokens,
                     XMLElement.attribute == fb.attribute,
                 )
+                .distinct()
                 .all()
             )
 
@@ -436,20 +453,33 @@ class SQLiteConnector(Connector):
                 status=fb.status,
             )
 
-            results.append((feedback, [log.id for log in matching_xmls]))
+            results.append((feedback, [log_id[0] for log_id in matching_log_ids]))
         return results
 
     def find_conflicting_xml_feedback(
         self, feedback: XMLFeedbackData
     ) -> typing.List[XMLFeedbackData]:
         session = self.Session()
-        # Find any conflicting feedback
+
+        # Find element
+        element = (
+            session.query(XMLElement)
+            .filter_by(
+                xpath=feedback.element.xpath,
+                attribute=feedback.element.attribute,
+                n_tokens=feedback.element.n_tokens,
+            )
+            .first()
+        )
+
+        if not element:
+            return []
+
+        # Find conflicting feedback for this element
         conflicts = (
             session.query(XMLFeedback)
             .filter(
-                XMLFeedback.xpath == feedback.xpath,
-                XMLFeedback.attribute == feedback.attribute,
-                XMLFeedback.n_tokens == feedback.n_tokens,
+                XMLFeedback.element_id == element.id,
                 XMLFeedback.token_start <= feedback.token_start,
                 XMLFeedback.token_end >= feedback.token_end,
                 XMLFeedback.label != feedback.label,
@@ -460,11 +490,13 @@ class SQLiteConnector(Connector):
 
         return [
             XMLFeedbackData(
-                xpath=c.xpath,
-                attribute=c.attribute,
+                element=XMLElementData(
+                    xpath=element.xpath,
+                    attribute=element.attribute,
+                    n_tokens=element.n_tokens,
+                ),
                 token_start=c.token_start,
                 token_end=c.token_end,
-                n_tokens=c.n_tokens,
                 label=c.label,
                 user_provided=c.user_provided,
                 status=c.status,

@@ -162,13 +162,12 @@ class ChatInterface(ABC):
         user_input: str,
         session_id: str,
         document_path_prefix: str,
-        constraints: Optional[Dict[str, Dict[str, str]]] = None,
         **kwargs,
     ) -> AsyncGenerator[str, None]:
         chat_history = self._get_chat_history_conn(session_id=session_id)
         chat_history.add_user_message(user_input)
 
-        retriever = self.get_retriever(constraints)
+        retriever = self.get_retriever()
 
         query_transforming_retriever_chain = RunnableBranch(
             (

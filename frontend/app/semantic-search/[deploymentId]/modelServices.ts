@@ -780,7 +780,6 @@ export class ModelService {
   async chat(
     textInput: string,
     provider: string,
-    constraints: Record<string, { constraint_type: string; value: string }>,
     onNextWord: (str: string) => void,
     onComplete?: (finalResponse: string) => void,
     signal?: AbortSignal
@@ -792,7 +791,6 @@ export class ModelService {
           session_id: this.sessionId,
           user_input: textInput,
           provider: provider,
-          constraints: constraints,
         }),
         headers: {
           'Content-type': 'application/json; charset=UTF-8',

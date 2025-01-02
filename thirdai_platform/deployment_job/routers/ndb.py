@@ -703,7 +703,6 @@ class NDBRouter:
             async for chunk in chat.stream_chat(
                 input.user_input,
                 session_id,
-                constraints=input.constraints,
                 document_path_prefix=Path(self.config.model_bazaar_dir)
                 / "models"
                 / self.config.model_id

@@ -603,7 +603,6 @@ export default function Chat({
         await modelService?.chat(
           lastTextInput,
           provider,
-          Object.keys(newConstraints).length > 0 ? newConstraints : persistentConstraints,
           (newData: string) => {
             if (newData.startsWith('context:') || isCollectingContext.current) {
               // Handle context streaming
@@ -746,15 +745,7 @@ export default function Chat({
             )}
           </AllChatBoxes>
         ) : (
-          <ChatBox
-            message={{
-              sender: 'AI',
-              content: "Welcome! I'm here to assist you with any questions or issues related to air-conditioners.\n\nFeel free to share the BRAND and MODEL_NUMBER of your air-conditioner if you have it handy. Don't worry if you don't. Just tell me what you need, and I'll do my best to answer!"
-            }}
-            modelService={modelService}
-            onOpenPdf={handleOpenPdf}
-            showFeedback={!aiLoading}
-          />
+          <Placeholder> Ask anything to start chatting! </Placeholder>
         )}
       </ScrollableArea>
       <ChatBarContainer>

@@ -227,7 +227,9 @@ class NDBModel(Model):
             if len(values) > UNIQUE_VALUE_THRESHOLD * CHUNK_THRESHOLD:
                 # Summarize numerical columns
                 try:
-                    numerical_values = {float(v) for v in values}  # Attempt conversion to numerical
+                    numerical_values = {
+                        float(v) for v in values
+                    }  # Attempt conversion to numerical
                     result[key] = self.summarize_numerical(numerical_values)
                 except ValueError:
                     # If not numerical, return as is (e.g., strings or non-convertible)

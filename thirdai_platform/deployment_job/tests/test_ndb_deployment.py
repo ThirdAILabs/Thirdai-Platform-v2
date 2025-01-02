@@ -174,7 +174,9 @@ def check_metadata(client: TestClient):
         },
     )
 
-    assert len(met_res.json()["data"]["id"]) == 100
+    assert met_res.json()["data"]["id"]["min"] == 0.0
+    assert met_res.json()["data"]["id"]["max"] == 99.0
+    assert met_res.json()["data"]["id"]["unique_count"] == 100
 
 
 def check_insertion_dev_mode(client: TestClient):

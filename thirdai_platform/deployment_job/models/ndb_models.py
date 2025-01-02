@@ -194,30 +194,19 @@ class NDBModel(Model):
 
         metadata_aggregator = {}
 
-        if doc_type == ".csv" or doc_type == ".docx" or doc_type == ".html":
-            for chunk in chunks:
-                if chunk.metadata:
-                    for key, value in chunk.metadata.items():
-                        if key not in metadata_aggregator:
-                            metadata_aggregator[key] = (
-                                set()
-                            )  # Use a set to store unique values
-                        metadata_aggregator[key].add(value)
-
-        elif doc_type == ".pdf":
-            # Skip keys like 'highlight' and 'page' for PDFs
-            for chunk in chunks:
-                if chunk.metadata:
-                    for key, value in chunk.metadata.items():
-                        if key not in {"highlight", "page", "chunk_boxes"}:
-                            if key not in metadata_aggregator:
-                                metadata_aggregator[key] = (
-                                    set()
-                                )  # Use a set to store unique values
-                            metadata_aggregator[key].add(value)
-
-        else:
+        if doc_type not in [".csv", ".docx", ".html", ".pdf"]:
             raise ValueError(f"{doc_type} is not supported.")
+        is_pdf = doc_type == ".pdf"
+        for chunk in chunks:
+            if chunk.metadata:
+                for key, value in chunk.metadata.items():
+                    if is_pdf and key in {"highlight", "page", "chunk_boxes"}:
+                        continue
+                    if key not in metadata_aggregator:
+                        metadata_aggregator[key] = (
+                            set()
+                        )  # Use a set to store unique values
+                    metadata_aggregator[key].add(value)
 
         return {key: list(values) for key, values in metadata_aggregator.items()}
 

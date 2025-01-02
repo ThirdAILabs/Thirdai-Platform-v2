@@ -1055,7 +1055,7 @@ export default function Interact() {
             />
           </Card>
         )}
-        {xmlAnnotations.length !== 0 && (
+        {xmlAnnotations !== undefined && xmlAnnotations.length !== 0 && (
           <FeedbackDashboardXML selections={selections} onDeleteSelection={handleDeleteSelection} />
         )}
       </div>

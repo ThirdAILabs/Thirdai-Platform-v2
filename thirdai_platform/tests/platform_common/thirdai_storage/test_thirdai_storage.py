@@ -156,14 +156,14 @@ def test_remove_untrained_samples(data_storage):
     assert len(remaining_samples) == 0, "Untrained samples should be removed"
 
 
-def test_basic_xml_insertion(data_storage):
+def test_xml_basic_insertion(data_storage):
     xml_query = """<Employee>
   <Email Name = "email">
           shubh@thirdai.com
   </Email>
 </Employee>"""
     log, feedbacks = convert_xml_feedback_to_storage_format(
-        XMLUserFeedback(xml_string=xml_query, feedbacks=[])
+        XMLUserFeedback(datatype="xml", xml_string=xml_query, feedbacks=[])
     )
 
     assert len(log.elements) == 2, "Expected 2 elements in the log"
@@ -186,7 +186,7 @@ def test_basic_xml_insertion(data_storage):
     assert inserted_log.elements[1] == log.elements[1]
 
 
-def test_basic_xml_feedback(data_storage):
+def test_xml_basic_feedback(data_storage):
     xml_query = """<Employee>
   <Email Name = "email">
           shubh@thirdai.com
@@ -198,7 +198,7 @@ def test_basic_xml_feedback(data_storage):
 
     # Create initial XML log with elements but no feedback
     log, feedbacks = convert_xml_feedback_to_storage_format(
-        XMLUserFeedback(xml_string=xml_query, feedbacks=[])
+        XMLUserFeedback(datatype="xml", xml_string=xml_query, feedbacks=[])
     )
 
     assert len(log.elements) == 4  # 2 elements with attributes, 2 without
@@ -228,7 +228,7 @@ def test_basic_xml_feedback(data_storage):
     assert inserted_log.feedback[0].label == "EMAIL"
 
 
-def test_element_reuse(data_storage):
+def test_xml_element_reuse(data_storage):
     xml1 = """<Employee>
   <Email Name = "email">
           shubh@thirdai.com
@@ -245,12 +245,12 @@ def test_element_reuse(data_storage):
 </Employee>"""
 
     log1, _ = convert_xml_feedback_to_storage_format(
-        XMLUserFeedback(xml_string=xml1, feedbacks=[])
+        XMLUserFeedback(datatype="xml", xml_string=xml1, feedbacks=[])
     )
     data_storage.add_xml_log(log1)
 
     log2, _ = convert_xml_feedback_to_storage_format(
-        XMLUserFeedback(xml_string=xml2, feedbacks=[])
+        XMLUserFeedback(datatype="xml", xml_string=xml2, feedbacks=[])
     )
     data_storage.add_xml_log(log2)
 
@@ -269,7 +269,7 @@ def test_xml_feedback_conflict(data_storage):
 </Employee>"""
 
     log, _ = convert_xml_feedback_to_storage_format(
-        XMLUserFeedback(xml_string=xml_query, feedbacks=[])
+        XMLUserFeedback(datatype="xml", xml_string=xml_query, feedbacks=[])
     )
     log_id = data_storage.add_xml_log(log)
 

@@ -55,6 +55,7 @@ class XMLLabelFeedback(BaseModel):
 
 
 class XMLUserFeedback(BaseModel):
+    datatype: Literal["xml"]
     xml_string: str
     feedbacks: List[XMLLabelFeedback]
 

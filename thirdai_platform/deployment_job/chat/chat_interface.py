@@ -1,10 +1,12 @@
 import json
 import logging
 from abc import ABC, abstractmethod
-from pathlib import Path
+
+pass
+import os
 from threading import Lock
 from typing import AsyncGenerator, Dict, List, Optional, Union
-import os
+
 from deployment_job.chat.ndbv2_vectorstore import NeuralDBV2VectorStore
 from fastapi import HTTPException, status
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -100,19 +102,21 @@ class ChatInterface(ABC):
     def get_chat_history(self, session_id: str, **kwargs):
         chat_history = self._get_chat_history_conn(session_id=session_id)
         chat_history_list = []
-        
+
         for message in chat_history.messages:
             message_dict = {
                 "content": message.content,
                 "sender": "AI" if isinstance(message, AIMessage) else "human",
             }
-            
+
             # Add references if they exist in additional_kwargs
-            if isinstance(message, AIMessage) and message.additional_kwargs.get("references"):
+            if isinstance(message, AIMessage) and message.additional_kwargs.get(
+                "references"
+            ):
                 message_dict["references"] = message.additional_kwargs["references"]
-            
+
             chat_history_list.append(message_dict)
-        
+
         return chat_history_list
 
     async def chat(
@@ -197,7 +201,9 @@ class ChatInterface(ABC):
                     {
                         "chunk_id": doc.metadata["chunk_id"],
                         "query": doc.metadata["query"],
-                        "sourceURL": os.path.join(str(document_path_prefix), doc.metadata["document"]),
+                        "sourceURL": os.path.join(
+                            str(document_path_prefix), doc.metadata["document"]
+                        ),
                         "sourceName": doc.metadata["document"].split("/")[-1],
                         "content": doc.page_content,
                         "metadata": doc.metadata.get("metadata", {}),
@@ -208,14 +214,11 @@ class ChatInterface(ABC):
                 yield "context: " + json.dumps(context)
 
         full_response = "".join(response_chunks)
-        
+
         # Create AIMessage with additional metadata
         ai_message = AIMessage(
-            content=full_response,
-            additional_kwargs={
-                "references": context_info
-            }
+            content=full_response, additional_kwargs={"references": context_info}
         )
-        
+
         # Add the enhanced message to chat history
         chat_history.add_message(ai_message)

@@ -51,7 +51,7 @@ interface Reference {
 export interface ChatMessage {
   sender: 'human' | 'AI';
   content: string;
-  references?: Reference[];  // Add references to the message type
+  references?: Reference[]; // Add references to the message type
 }
 
 export interface ChatResponse {
@@ -765,9 +765,9 @@ export class ModelService {
       })
       .then((response) => {
         const chatHistory = response['data']['chat_history'] as ChatMessage[];
-        return chatHistory.map(message => ({
+        return chatHistory.map((message) => ({
           ...message,
-          references: message.references || []  // Ensure references is always an array
+          references: message.references || [], // Ensure references is always an array
         }));
       })
       .catch((e) => {
@@ -921,4 +921,3 @@ export class ModelService {
     }
   }
 }
-

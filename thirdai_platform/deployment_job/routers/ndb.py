@@ -52,7 +52,6 @@ from platform_common.logging.job_loggers import JobLogger
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.feedback_logs import (
     AssociateLog,
-    ChatFeedbackLog,
     DeleteLog,
     FeedbackLog,
     ImplicitUpvoteLog,
@@ -68,8 +67,10 @@ ndb_upvote_metric = Summary("ndb_upvote", "NDB upvotes")
 ndb_associate_metric = Summary("ndb_associate", "NDB associations")
 ndb_implicit_feedback_metric = Summary("ndb_implicit_feedback", "NDB implicit feedback")
 ndb_chat_upvote_metric = Counter("ndb_chat_upvote_metric", "NDB chat upvote")
-ndb_chat_upvote_metric.inc()        # satisfaction score = (chat_upvote / (chat_upvote + chat_downvote)). To avoid divide-by-zero error, incrementing chat_upvote by 1
-ndb_chat_same_question = Counter("ndb_chat_same_question", "Metric for same question being asked in the chat")
+ndb_chat_upvote_metric.inc()  # satisfaction score = (chat_upvote / (chat_upvote + chat_downvote)). To avoid divide-by-zero error, incrementing chat_upvote by 1
+ndb_chat_same_question = Counter(
+    "ndb_chat_same_question", "Metric for same question being asked in the chat"
+)
 ndb_chat_downvote_metric = Counter("ndb_chat_downvote_metric", "NDB chat downvote")
 ndb_insert_metric = Summary("ndb_insert", "NDB insertions")
 ndb_delete_metric = Summary("ndb_delete", "NDB deletions")
@@ -599,10 +600,7 @@ class NDBRouter:
         token: str = Depends(Permissions.verify_permission("read")),
     ):
         ndb_chat_same_question.inc()
-        return response(
-            status_code=status.HTTP_200_OK,
-            message = "Logged successfully"
-        )
+        return response(status_code=status.HTTP_200_OK, message="Logged successfully")
 
     def chat_feedback(
         self,

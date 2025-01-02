@@ -1987,13 +1987,23 @@ interface UserTeamInfo {
   team_name: string;
   role: 'Member' | 'team_admin' | 'Global Admin';
 }
-
+export interface OwnedModel {
+  id: string; // UUID represented as a string
+  name: string;
+  type: string;
+  subType?: string; // Optional field
+  trainStatus: string;
+  deployStatus: string;
+  publishedDate?: string; // Optional ISO date string
+  access_level: 'private' | 'protected' | 'public';
+}
 interface UserResponse {
   email: string;
   global_admin: boolean;
   id: string;
   teams: UserTeamInfo[];
   username: string;
+  ownedModels: OwnedModel[];
   verified: boolean;
   is_deactivated: boolean;
 }

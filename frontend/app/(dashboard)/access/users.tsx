@@ -9,6 +9,7 @@ import {
 import { UserContext } from '../../user_wrapper';
 import { getUsers, User } from '@/utils/apiRequests';
 import UserCreationForm from './UserCreationForm';
+import ConditionalButton from '@/components/ui/ConditionalButton';
 
 export default function Users() {
   const { user } = React.useContext(UserContext);
@@ -26,25 +27,6 @@ export default function Users() {
     if (userData) setUsers(userData);
   }
 
-  const deleteUser = async (userName: string) => {
-    try {
-      const user = users.find((u) => u.name === userName);
-      if (!user) {
-        console.error('User not found');
-        return;
-      }
-
-      const isConfirmed = window.confirm(`Are you sure you want to delete the user "${userName}"?`);
-      if (!isConfirmed) return;
-
-      await deleteUserAccount(user.email);
-      await getUsersData();
-    } catch (error) {
-      console.error('Failed to delete user', error);
-      alert('Failed to delete user: ' + error);
-    }
-  };
-
   const handleOpenDeleteDialog = (user: User) => {
     setSelectedUser(user);
     setDeleteDialogOpen(true);
@@ -57,7 +39,6 @@ export default function Users() {
 
   const handleDeleteUser = async () => {
     if (!selectedUser) return;
-
     try {
       await deleteUserAccount(selectedUser.email);
       await getUsersData();
@@ -128,9 +109,9 @@ export default function Users() {
                     .join(', ')}
                 </div>
               )}
-              {user.ownedModels.length > 0 && (
+              {/* {user.ownedModels.length > 0 && (
                 <div className="text-gray-700">Owned Models: {user.ownedModels.join(', ')}</div>
-              )}
+              )} */}
             </div>
             {isGlobalAdmin && (
               <div className="flex gap-2">
@@ -155,7 +136,7 @@ export default function Users() {
             )}
           </div>
           {user.ownedModels.length > 0 && (
-            <div className="text-gray-700">Owned Models: {user.ownedModels.join(', ')}</div>
+            <div className="text-gray-700 flex flex-wrap gap-2">Owned Models: {user.ownedModels.map((model, index) => <span>{(index < user.ownedModels.length - 1) ? model.name + ", " : model.name}</span>)}</div>
           )}
           {isGlobalAdmin && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '30%' }}>
@@ -175,7 +156,7 @@ export default function Users() {
       {/* Delete Confirmation Dialog */}
       {selectedUser?.is_deactivated ? (
         <Dialog open={isDeleteDialogOpen} onClose={handleCloseDeleteDialog}>
-          <DialogTitle>Are you sure you want to delete the user{' '}
+          <DialogTitle>Are you sure you want to delete {' '}
             <strong>{selectedUser.name}</strong>?</DialogTitle>
           <DialogContent>
             <Typography>
@@ -186,17 +167,24 @@ export default function Users() {
             </Typography>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseDeleteDialog} color="secondary">
-              Cancel
-            </Button>
-            <Button onClick={handleDeleteUser} color="error">
-              Delete User
-            </Button>
+            <div className='justify-end flex flex-row gap-3'>
+              <Button onClick={handleCloseDeleteDialog} color="secondary">
+                Cancel
+              </Button>
+              <ConditionalButton
+                onClick={handleDeleteUser}
+                isDisabled={selectedUser.ownedModels.find((model) => model.access_level === 'protected' || model.access_level === 'public') !== undefined}
+                tooltipMessage={`Please change the ownership of public and protected models owned by ${selectedUser.name}`}
+                color='error'
+              >
+                Delete User
+              </ConditionalButton>
+            </div>
           </DialogActions>
         </Dialog>
       ) : (
         // Deactivate confirmation dialog box
-        <Dialog open={isDeleteDialogOpen} onClose={handleCloseDeleteDialog}>
+        selectedUser && <Dialog open={isDeleteDialogOpen} onClose={handleCloseDeleteDialog}>
           <DialogTitle>Confirm Deactivation</DialogTitle>
           <DialogContent>
             <Typography>

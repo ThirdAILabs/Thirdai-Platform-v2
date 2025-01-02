@@ -1,4 +1,4 @@
-import { fetchAllModels, fetchAllTeams, fetchAllUsers } from '@/lib/backend';
+import { fetchAllModels, fetchAllTeams, fetchAllUsers, OwnedModel } from '@/lib/backend';
 import exp from 'constants';
 type Model = {
   name: string;
@@ -32,7 +32,7 @@ type User = {
   email: string;
   role: 'Member' | 'Team Admin' | 'Global Admin';
   teams: { id: string; name: string; role: 'Member' | 'team_admin' | 'Global Admin' }[];
-  ownedModels: string[];
+  ownedModels: OwnedModel[];
   verified: boolean;
   is_deactivated: boolean;
 };
@@ -87,7 +87,7 @@ const getUsers = async () => {
           name: team.team_name,
           role: team.role,
         })),
-        ownedModels: [],
+        ownedModels: user.ownedModels,
         verified: user.verified,
         is_deactivated: user.is_deactivated,
       })

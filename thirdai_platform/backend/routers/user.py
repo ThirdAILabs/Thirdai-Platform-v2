@@ -599,6 +599,7 @@ def list_accessible_users(
         # If the user is not present in any team
         users = [user]
 
+
     # Build the response data with team membership information
     users_info = [
         {
@@ -613,6 +614,21 @@ def list_accessible_users(
                     "role": user_team.role,
                 }
                 for user_team in user.teams
+            ],
+            "ownedModels": [
+                {
+                    "id": model.id,
+                    "name": model.name,
+                    "type": model.type,
+                    "sub_type": model.sub_type,
+                    "train_status": model.train_status.value,
+                    "deploy_status": model.deploy_status.value,
+                    "published_date": model.published_date,
+                    "access_level":model.access_level,
+                }
+                for model in session.query(schema.Model)
+                .filter(schema.Model.user_id == user.id)
+                .all()
             ],
             "verified": user.verified,
             "is_deactivated": user.is_deactivated,

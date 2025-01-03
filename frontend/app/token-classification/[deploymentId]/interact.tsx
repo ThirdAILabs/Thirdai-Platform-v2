@@ -328,9 +328,6 @@ export default function Interact() {
     } else {
       setXmlAnnotations((prevAnnotations) => [...prevAnnotations, xmlAnnotation]);
       setSelections([...selections, selection]);
-      // console.log('New selection:', selection);
-      // console.log('All selections:', [...selections, selection]);
-      // console.log('all sele xml ', xmlAnnotations);
     }
   };
   // Handler to delete a selection
@@ -959,8 +956,6 @@ export default function Interact() {
       return <div style={contentStyle}>{renderHighlightedContent(parsedData.content)}</div>;
     }
   };
-  console.log("annotations: ", annotations);
-  console.log("xml-annotations: ", xmlAnnotations);
 
   return (
     <Container

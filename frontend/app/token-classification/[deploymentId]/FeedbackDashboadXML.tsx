@@ -68,11 +68,11 @@ export function FeedbackDashboard({ selections, onDeleteSelection }: FeedbackDas
         ))}
         <Button
           variant="contained"
-          style={{ width: '100%', height: '3rem', marginTop: '20px' }}
-          // onClick={submitFeedbacks}
-          // disabled={
-          //   isXml ? feedbacks.length === 0 : charspans.length === 0
-          // }
+          style={{ width: '100%', marginTop: '20px' }}
+        // onClick={submitFeedbacks}
+        // disabled={
+        //   isXml ? feedbacks.length === 0 : charspans.length === 0
+        // }
         >
           Submit Feedback
         </Button>

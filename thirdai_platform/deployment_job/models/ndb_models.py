@@ -188,10 +188,9 @@ class NDBModel(Model):
         )
 
     def summarize_numerical(self, values):
-        sorted_values = sorted(values)
         return {
-            "min": sorted_values[0],
-            "max": sorted_values[-1],
+            "min": min(values),
+            "max": max(values),
             "unique_count": len(values),
         }
 

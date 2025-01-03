@@ -187,11 +187,12 @@ class NDBModel(Model):
             key=lambda x: x["source"],
         )
 
-    def summarize_numerical(self, values):
+    def summarize_values(self, values):
         return {
             "min": min(values),
             "max": max(values),
             "unique_count": len(values),
+            "examples": values[:10],
         }
 
     def get_metadata(self, doc_id: str, doc_version: int):
@@ -220,21 +221,13 @@ class NDBModel(Model):
                         metadata_aggregator[key] = set()
                     metadata_aggregator[key].add(value)
 
-        # Post-process metadata to handle high-cardinality numerical columns
         result = {}
         for key, values in metadata_aggregator.items():
             if len(values) > UNIQUE_VALUE_THRESHOLD * CHUNK_THRESHOLD:
-                # Summarize numerical columns
-                try:
-                    numerical_values = {
-                        float(v) for v in values
-                    }  # Attempt conversion to numerical
-                    result[key] = self.summarize_numerical(numerical_values)
-                except ValueError:
-                    # If not numerical, return as is (e.g., strings or non-convertible)
-                    result[key] = list(values)
+                # Summarize high-cardinality columns
+                result[key] = self.summarize_values(values)
             else:
-                # Return values as a list for low-cardinality keys
+                # For low-cardinality columns, return as a list
                 result[key] = list(values)
 
         return result

@@ -458,8 +458,8 @@ export default function Interact() {
     try {
       const result = await predict(text);
       setProcessingTime(result.time_taken);
-      setLogType(result.prediction_results.log_type);
-      if (result.prediction_results.log_type === 'unstructured') {
+      setLogType(result.prediction_results.data_type);
+      if (result.prediction_results.data_type === 'unstructured') {
         updateTagColors(result.prediction_results.predicted_tags);
         setAnnotations(
           _.zip(result.prediction_results.tokens, result.prediction_results.predicted_tags).map(
@@ -959,6 +959,8 @@ export default function Interact() {
       return <div style={contentStyle}>{renderHighlightedContent(parsedData.content)}</div>;
     }
   };
+  console.log("annotations: ", annotations);
+  console.log("xml-annotations: ", xmlAnnotations);
 
   return (
     <Container

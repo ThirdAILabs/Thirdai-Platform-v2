@@ -174,8 +174,8 @@ def check_metadata(client: TestClient):
         },
     )
 
-    assert met_res.json()["data"]["id"]["min"] == 0.0
-    assert met_res.json()["data"]["id"]["max"] == 99.0
+    assert met_res.json()["data"]["id"]["min"] == 0
+    assert met_res.json()["data"]["id"]["max"] == 99
     assert met_res.json()["data"]["id"]["unique_count"] == 100
 
 

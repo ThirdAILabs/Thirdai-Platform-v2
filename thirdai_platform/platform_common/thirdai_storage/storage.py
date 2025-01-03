@@ -490,6 +490,7 @@ class SQLiteConnector(Connector):
 
         return [
             XMLFeedbackData(
+                id=c.id,
                 element=XMLElementData(
                     xpath=element.xpath,
                     attribute=element.attribute,
@@ -508,14 +509,9 @@ class SQLiteConnector(Connector):
         self, feedback: XMLFeedbackData, status: SampleStatus
     ):
         session = self.Session()
-        session.query(XMLFeedback).filter_by(
-            xpath=feedback.xpath,
-            attribute=feedback.attribute,
-            token_start=feedback.token_start,
-            token_end=feedback.token_end,
-            n_tokens=feedback.n_tokens,
-            label=feedback.label,
-        ).update({XMLFeedback.status: status})
+        session.query(XMLFeedback).filter_by(id=feedback.id).update(
+            {XMLFeedback.status: status}
+        )
         session.commit()
 
 

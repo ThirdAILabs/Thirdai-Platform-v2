@@ -203,6 +203,7 @@ class XMLLogData(SerializableBaseModel):
 
 
 class XMLFeedbackData(SerializableBaseModel):
+    id: Optional[int] = None
     element: XMLElementData
     token_start: int
     token_end: int

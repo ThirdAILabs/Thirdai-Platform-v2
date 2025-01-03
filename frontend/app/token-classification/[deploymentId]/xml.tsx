@@ -52,6 +52,30 @@ export function parseXML(xml: string) {
   return parsedData;
 }
 
+function getNamespaceResolver(xmlDom: Document): Record<string, string> | null {
+  const root = xmlDom.documentElement;
+  if (root?.namespaceURI) {
+    // Bind a generic prefix 'ns' to the default namespace URI
+    return { ns: root.namespaceURI };
+  }
+  return null;
+}
+
+function selectXPath(xpathExpression: string, xmlDom: Document): any {
+  const namespaceResolver = getNamespaceResolver(xmlDom);
+
+  if (namespaceResolver) {
+    // Namespace-aware query
+    const select: any = Xpath.useNamespaces(namespaceResolver);
+    // Prefix every part of the query with the namespace prefix 'ns:'
+    const nsExpression = xpathExpression.replace(/(^|\/)([a-zA-Z_][\w-]*)/g, '$1ns:$2');
+    return select(nsExpression, xmlDom);
+  } else {
+    // Namespace-unaware query
+    return Xpath.select(xpathExpression, xmlDom);
+  }
+}
+
 interface CharSpan {
   start: number;
   end: number;
@@ -318,9 +342,11 @@ function XMLValueRenderer({
     const newIndices = new Set<number>();
     for (let index = 0; index < predictions.length; index++) {
       const prediction = predictions[index];
-      const node: any = Xpath.select(prediction.location.xpath_location.xpath, xmlDom);
-      const nodeValue = node[0].firstChild.data;
-      if (data.toString() === nodeValue.trim()) {
+      // Query the XML
+      const node: any = selectXPath(prediction.location.xpath_location.xpath, xmlDom);
+      const nodeValue = node[0]?.firstChild?.data;
+      console.log(`node: ${node} and ${node[0]?.firstChild?.data}`);
+      if (data?.toString() === nodeValue?.trim()) {
         const { start: startI, end: endI } = prediction.location.local_char_span;
         let hasIntersection = false;
         for (let j = index + 1; j < predictions.length; j++) {

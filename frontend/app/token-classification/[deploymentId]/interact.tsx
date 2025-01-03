@@ -43,7 +43,6 @@ import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
 import { parseXML, XMLRenderer, clean } from './xml';
 import { DOMParser } from 'xmldom';
 import ExpandingInput from '@/components/ui/ExpandingInput';
-import { isXML } from '@/lib/helper';
 interface Token {
   text: string;
   tag: string;
@@ -456,7 +455,8 @@ export default function Interact() {
       const result = await predict(text);
       setProcessingTime(result.time_taken);
 
-      if (!isXML(text)) {
+      if (!parseXML(text)) {
+        console.log('this is not xml');
         setLogType('unstructured');
         updateTagColors(result.prediction_results.predicted_tags);
         setAnnotations(
@@ -868,7 +868,9 @@ export default function Interact() {
     if (logType === 'xml' && xmlQueryText) {
       const cleanXml = clean(xmlQueryText);
       const parsedXml = parseXML(cleanXml);
-      const xmlDom = new DOMParser().parseFromString(cleanXml, 'application/xml');
+      const parser = new DOMParser();
+      const xmlDom = parser.parseFromString(cleanXml, 'application/xml');
+      console.log('xmlDom1: ', xmlDom);
       return (
         <XMLRenderer
           data={parsedXml}

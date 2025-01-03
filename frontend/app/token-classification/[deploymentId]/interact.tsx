@@ -43,7 +43,7 @@ import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
 import { parseXML, XMLRenderer, clean } from './xml';
 import { DOMParser } from 'xmldom';
 import ExpandingInput from '@/components/ui/ExpandingInput';
-
+import { isXML } from '@/lib/helper';
 interface Token {
   text: string;
   tag: string;
@@ -455,8 +455,9 @@ export default function Interact() {
     try {
       const result = await predict(text);
       setProcessingTime(result.time_taken);
-      setLogType(result.prediction_results.data_type);
-      if (result.prediction_results.data_type === 'unstructured') {
+
+      if (!isXML(text)) {
+        setLogType('unstructured');
         updateTagColors(result.prediction_results.predicted_tags);
         setAnnotations(
           _.zip(result.prediction_results.tokens, result.prediction_results.predicted_tags).map(
@@ -468,6 +469,7 @@ export default function Interact() {
         );
       } else {
         const result = await predictXml(clean(text));
+        setLogType('xml');
         setXmlQueryText(result.prediction_results.query_text);
         setXmlAnnotations(result.prediction_results.predictions);
         setSelections([]);

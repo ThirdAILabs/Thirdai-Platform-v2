@@ -1669,6 +1669,7 @@ export function useTokenClassificationEndpoints() {
       const response = await axios.post(`${deploymentUrl}/predict`, {
         text: query,
         top_k: 1,
+        data_type: 'unstructured',
       });
       return response.data.data;
     } catch (error) {
@@ -1684,6 +1685,7 @@ export function useTokenClassificationEndpoints() {
       const response = await axios.post(`${deploymentUrl}/predict`, {
         text: query,
         top_k: 1,
+        data_type: 'xml',
       });
       return response.data.data;
     } catch (error) {

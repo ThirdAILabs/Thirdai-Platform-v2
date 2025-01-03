@@ -192,7 +192,7 @@ class NDBModel(Model):
             "min": min(values),
             "max": max(values),
             "unique_count": len(values),
-            "examples": values[:10],
+            "examples": list(values)[:10],
         }
 
     def get_metadata(self, doc_id: str, doc_version: int):

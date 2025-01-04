@@ -69,7 +69,7 @@ const SelectXPath = (xpathExpression: string, xmlDom: Document): any => {
     : xpathExpression;
 
   return createNamespaceSelector(nsExpression, xmlDom);
-}
+};
 
 interface CharSpan {
   start: number;

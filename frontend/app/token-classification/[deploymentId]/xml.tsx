@@ -52,28 +52,23 @@ export function parseXML(xml: string) {
   return parsedData;
 }
 
-function getNamespaceResolver(xmlDom: Document): Record<string, string> | null {
+function getNamespaceResolver(xmlDom: Document): Record<string, string> {
   const root = xmlDom.documentElement;
-  if (root?.namespaceURI) {
-    // Bind a generic prefix 'ns' to the default namespace URI
-    return { ns: root.namespaceURI };
-  }
-  return null;
+  return root?.namespaceURI ? { ns: root.namespaceURI } : {}; // Return empty object for no namespace
 }
 
-function selectXPath(xpathExpression: string, xmlDom: Document): any {
+const SelectXPath = (xpathExpression: string, xmlDom: Document): any => {
+  // Always call `Xpath.useNamespaces` with a valid object
   const namespaceResolver = getNamespaceResolver(xmlDom);
+  const createNamespaceSelector = Xpath.useNamespaces(namespaceResolver);
 
-  if (namespaceResolver) {
-    // Namespace-aware query
-    const select: any = Xpath.useNamespaces(namespaceResolver);
-    // Prefix every part of the query with the namespace prefix 'ns:'
-    const nsExpression = xpathExpression.replace(/(^|\/)([a-zA-Z_][\w-]*)/g, '$1ns:$2');
-    return select(nsExpression, xmlDom);
-  } else {
-    // Namespace-unaware query
-    return Xpath.select(xpathExpression, xmlDom);
-  }
+  // Modify the XPath expression only if a namespace exists
+  const hasNamespace = !!Object.keys(namespaceResolver).length;
+  const nsExpression = hasNamespace
+    ? xpathExpression.replace(/(^|\/)([a-zA-Z_][\w-]*)/g, '$1ns:$2')
+    : xpathExpression;
+
+  return createNamespaceSelector(nsExpression, xmlDom);
 }
 
 interface CharSpan {
@@ -343,7 +338,7 @@ function XMLValueRenderer({
     for (let index = 0; index < predictions.length; index++) {
       const prediction = predictions[index];
       // Query the XML
-      const node: any = selectXPath(prediction.location.xpath_location.xpath, xmlDom);
+      const node: any = SelectXPath(prediction.location.xpath_location.xpath, xmlDom);
       const nodeValue = node[0]?.firstChild?.data;
       console.log(`node: ${node} and ${node[0]?.firstChild?.data}`);
       if (data?.toString() === nodeValue?.trim()) {

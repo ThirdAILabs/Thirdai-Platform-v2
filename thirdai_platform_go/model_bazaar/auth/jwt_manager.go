@@ -15,8 +15,8 @@ type JwtManager struct {
 	auth *jwtauth.JWTAuth
 }
 
-func NewJwtManager() *JwtManager {
-	return &JwtManager{auth: jwtauth.New("HS256", getSecret(), nil)}
+func NewJwtManager(secret []byte) *JwtManager {
+	return &JwtManager{auth: jwtauth.New("HS256", secret, nil)}
 }
 
 func (m *JwtManager) Verifier() func(http.Handler) http.Handler {

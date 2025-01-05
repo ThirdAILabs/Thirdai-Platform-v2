@@ -6,16 +6,25 @@ import (
 	"thirdai_platform/model_bazaar/nomad"
 )
 
-func StartFrontendJob(client nomad.NomadClient, driver nomad.DockerDriver, openaiKey string) error {
+type FrontendJobArgs struct {
+	IdentityProvider             string
+	KeycloakServerHostname       string
+	NextAuthSecret               string
+	MajorityCriticalServiceNodes int
+	UseSslInLogin                bool
+	OpenaiKey                    string
+}
+
+func StartFrontendJob(client nomad.NomadClient, driver nomad.DockerDriver, args FrontendJobArgs) error {
 	slog.Info("starting frontend job")
 
 	job := nomad.FrontendJob{
-		OpenaiApiKey:                 openaiKey,
-		IdentityProvider:             "TODO",
-		KeycloakServerHostname:       "TODO",
-		NextAuthSecret:               "TODO",
-		MajorityCriticalServiceNodes: 1,     // TODO
-		UseSslInLogin:                false, // TODO
+		OpenaiApiKey:                 args.OpenaiKey,
+		IdentityProvider:             args.IdentityProvider,
+		KeycloakServerHostname:       args.KeycloakServerHostname,
+		NextAuthSecret:               args.NextAuthSecret,
+		MajorityCriticalServiceNodes: args.MajorityCriticalServiceNodes,
+		UseSslInLogin:                args.UseSslInLogin,
 		Driver:                       driver,
 	}
 

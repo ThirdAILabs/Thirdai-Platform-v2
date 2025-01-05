@@ -17,6 +17,8 @@ func StartOnPremGenerationJobDefaultArgs(
 	return StartOnPremGenerationJob(client, storage, docker, "", true, true, -1)
 }
 
+const genaiModelsPath = "pretrained-models/genai"
+
 func StartOnPremGenerationJob(
 	client nomad.NomadClient,
 	storage storage.Storage,
@@ -31,7 +33,7 @@ func StartOnPremGenerationJob(
 		model = "Llama-3.2-1B-Instruct-f16.gguf"
 	}
 
-	models, err := storage.List("gen-ai-models")
+	models, err := storage.List(genaiModelsPath)
 	if err != nil {
 		slog.Error("error listing genai models", "error", err)
 		return fmt.Errorf("error listing genai models: %w", err)
@@ -42,7 +44,7 @@ func StartOnPremGenerationJob(
 		return fmt.Errorf("model %v is not available", model)
 	}
 
-	modelSize, err := storage.Size(filepath.Join("gen-ai-models", model))
+	modelSize, err := storage.Size(filepath.Join(genaiModelsPath, model))
 	if err != nil {
 		slog.Error("error getting model size", "error", err)
 		return fmt.Errorf("error getting model size: %w", err)
@@ -57,7 +59,7 @@ func StartOnPremGenerationJob(
 		InitialAllocations: 1,
 		MinAllocations:     1,
 		MaxAllocations:     5,
-		ModelDir:           filepath.Join(storage.Location(), "gen-ai-models"),
+		ModelDir:           filepath.Join(storage.Location(), genaiModelsPath),
 		ModelName:          model,
 		Docker:             docker,
 		Resources: nomad.Resources{

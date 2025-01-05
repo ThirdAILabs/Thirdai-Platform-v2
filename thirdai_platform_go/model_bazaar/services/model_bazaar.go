@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/nomad"
@@ -35,9 +36,9 @@ type ModelBazaar struct {
 }
 
 func NewModelBazaar(
-	db *gorm.DB, nomad nomad.NomadClient, storage storage.Storage, license *licensing.LicenseVerifier, userAuth auth.IdentityProvider, variables Variables,
+	db *gorm.DB, nomad nomad.NomadClient, storage storage.Storage, license *licensing.LicenseVerifier, userAuth auth.IdentityProvider, variables Variables, secret []byte,
 ) ModelBazaar {
-	jobAuth := auth.NewJwtManager()
+	jobAuth := auth.NewJwtManager(slices.Concat(secret, []byte("job")))
 
 	return ModelBazaar{
 		user: UserService{db: db, userAuth: userAuth},
@@ -47,7 +48,7 @@ func NewModelBazaar(
 			nomad:             nomad,
 			storage:           storage,
 			userAuth:          userAuth,
-			uploadSessionAuth: auth.NewJwtManager(),
+			uploadSessionAuth: auth.NewJwtManager(slices.Concat(secret, []byte("upload"))),
 		},
 		train: TrainService{
 			db:        db,

@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/jobs"
@@ -33,6 +34,7 @@ type modelBazaarEnv struct {
 	NomadEndpoint              string
 	NomadToken                 string
 	ShareDir                   string
+	JwtSecret                  string
 
 	AdminUsername string
 	AdminEmail    string
@@ -46,6 +48,8 @@ type modelBazaarEnv struct {
 	UseSslInLogin         bool
 	KeycloakAdminUsername string
 	keycloakAdminPassword string
+
+	MajorityCriticalServiceNodes int
 
 	DockerRegistry string
 	DockerUsername string
@@ -67,6 +71,18 @@ type modelBazaarEnv struct {
 func boolEnvVar(key string) bool {
 	value := os.Getenv(key)
 	return strings.ToLower(value) == "true"
+}
+
+func intEnvVar(key string, defaultValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	i, err := strconv.Atoi(value)
+	if err != nil {
+		log.Fatalf("unable to parse integer from env var %v='%v': %v", key, value, err)
+	}
+	return i
 }
 
 func requiredEnv(key string) string {
@@ -105,6 +121,7 @@ func loadEnv() modelBazaarEnv {
 		NomadEndpoint:              requiredEnv("NOMAD_ENDPOINT"),
 		NomadToken:                 requiredEnv("TASK_RUNNER_TOKEN"),
 		ShareDir:                   requiredEnv("SHARE_DIR"),
+		JwtSecret:                  requiredEnv("JWT_SECRET"),
 
 		AdminUsername: requiredEnv("ADMIN_USERNAME"),
 		AdminEmail:    requiredEnv("ADMIN_MAIL"),
@@ -117,6 +134,8 @@ func loadEnv() modelBazaarEnv {
 		UseSslInLogin:         boolEnvVar("USE_SSL_IN_LOGIN"),
 		KeycloakAdminUsername: optionalEnv("KEYCLOAK_ADMIN_USER"),
 		keycloakAdminPassword: optionalEnv("KEYCLOAK_ADMIN_PASSWORD"),
+
+		MajorityCriticalServiceNodes: intEnvVar("MAJORITY_CRITICAL_SERVICE_NODES", 1),
 
 		DockerRegistry: requiredEnv("DOCKER_REGISTRY"),
 		DockerUsername: requiredEnv("DOCKER_USERNAME"),
@@ -311,6 +330,7 @@ func main() {
 			db,
 			auth.NewAuditLogger(auditLog),
 			auth.BasicProviderArgs{
+				Secret:        []byte(env.JwtSecret),
 				AdminUsername: env.AdminUsername,
 				AdminEmail:    env.AdminEmail,
 				AdminPassword: env.AdminPassword,
@@ -328,6 +348,7 @@ func main() {
 		licenseVerifier,
 		identityProvider,
 		variables,
+		[]byte(env.JwtSecret),
 	)
 
 	if !*skipJobRestart {
@@ -357,7 +378,20 @@ func main() {
 	}
 
 	if env.FrontendImage != "" {
-		err := jobs.StartFrontendJob(nomadClient, env.FrontendDriver(), env.GenAiKey)
+		keycloakUrl, err := url.Parse(env.KeycloakServerUrl)
+		if err != nil {
+			log.Fatalf("unable to parse keycloak url: %v", err)
+		}
+
+		frontendArgs := jobs.FrontendJobArgs{
+			IdentityProvider:             env.IdentityProvider,
+			KeycloakServerHostname:       keycloakUrl.Hostname(),
+			NextAuthSecret:               env.JwtSecret,
+			MajorityCriticalServiceNodes: env.MajorityCriticalServiceNodes,
+			UseSslInLogin:                env.UseSslInLogin,
+			OpenaiKey:                    variables.LlmProviders["openai"],
+		}
+		err = jobs.StartFrontendJob(nomadClient, env.FrontendDriver(), frontendArgs)
 		if err != nil {
 			log.Fatalf("failed to start frontend job: %v", err)
 		}

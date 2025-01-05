@@ -22,6 +22,7 @@ type BasicIdentityProvider struct {
 }
 
 type BasicProviderArgs struct {
+	Secret        []byte
 	AdminUsername string
 	AdminEmail    string
 	AdminPassword string
@@ -39,7 +40,7 @@ func NewBasicIdentityProvider(db *gorm.DB, auditLog AuditLogger, args BasicProvi
 	}
 
 	return &BasicIdentityProvider{
-		jwtManager: NewJwtManager(),
+		jwtManager: NewJwtManager(args.Secret),
 		db:         db,
 		auditLog:   auditLog,
 	}, nil

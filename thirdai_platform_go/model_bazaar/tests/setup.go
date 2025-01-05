@@ -65,10 +65,13 @@ func setupTestEnv(t *testing.T) *testEnv {
 	store := storage.NewSharedDisk(storagePath)
 	nomadStub := newNomadStub()
 
+	secret := []byte("290zcv02ai249")
+
 	userAuth, err := auth.NewBasicIdentityProvider(
 		db,
 		auth.NewAuditLogger(new(bytes.Buffer)),
 		auth.BasicProviderArgs{
+			Secret:        secret,
 			AdminUsername: adminUsername,
 			AdminEmail:    adminEmail,
 			AdminPassword: adminPassword,
@@ -82,6 +85,7 @@ func setupTestEnv(t *testing.T) *testEnv {
 		services.Variables{
 			BackendDriver: &nomad.LocalDriver{},
 		},
+		secret,
 	)
 
 	return &testEnv{modelBazaar: modelBazaar, api: modelBazaar.Routes(), storage: store, nomad: nomadStub}

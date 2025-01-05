@@ -44,7 +44,7 @@ func TestSignupAndLogin(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if info.Username != username || info.Email != email || info.Id != client.userId || info.Admin {
+		if info.Username != username || info.Email != email || info.Id.String() != client.userId || info.Admin {
 			t.Fatalf("invalid info %v", info)
 		}
 	}
@@ -96,7 +96,7 @@ func TestUserInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Username != adminUsername || info.Email != adminEmail || info.Id != admin.userId || !info.Admin {
+	if info.Username != adminUsername || info.Email != adminEmail || info.Id.String() != admin.userId || !info.Admin {
 		t.Fatalf("invalid admin info %v", info)
 	}
 
@@ -121,7 +121,7 @@ func TestUserInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if info.Username != "abc" || info.Email != "abc@mail.com" || info.Id != client.userId || info.Admin {
+	if info.Username != "abc" || info.Email != "abc@mail.com" || info.Id.String() != client.userId || info.Admin {
 		t.Fatalf("invalid user info %v", info)
 	}
 }
@@ -322,7 +322,7 @@ func TestDeleteUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	sortUserList(users)
-	if len(users) != 2 || users[0].Id != user.userId || users[1].Id != admin.userId {
+	if len(users) != 2 || users[0].Id.String() != user.userId || users[1].Id.String() != admin.userId {
 		t.Fatal("invalid users")
 	}
 
@@ -331,7 +331,7 @@ func TestDeleteUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	sortModelList(models)
-	if len(models) != 3 || models[0].ModelId != m1 || models[1].ModelId != m2 || models[2].ModelId != m3 {
+	if len(models) != 3 || models[0].ModelId.String() != m1 || models[1].ModelId.String() != m2 || models[2].ModelId.String() != m3 {
 		t.Fatal("invalid models")
 	}
 	for _, m := range models {
@@ -350,7 +350,7 @@ func TestDeleteUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	sortUserList(users)
-	if len(users) != 1 || users[0].Id != admin.userId {
+	if len(users) != 1 || users[0].Id.String() != admin.userId {
 		t.Fatal("invalid users")
 	}
 
@@ -359,7 +359,7 @@ func TestDeleteUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	sortModelList(models)
-	if len(models) != 3 || models[0].ModelId != m1 || models[1].ModelId != m2 || models[2].ModelId != m3 {
+	if len(models) != 3 || models[0].ModelId.String() != m1 || models[1].ModelId.String() != m2 || models[2].ModelId.String() != m3 {
 		t.Fatal("invalid models")
 	}
 	for _, m := range models {

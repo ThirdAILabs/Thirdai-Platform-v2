@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-chi/jwtauth/v5"
+	"github.com/google/uuid"
 )
 
 type JwtManager struct {
@@ -27,9 +28,12 @@ func (m *JwtManager) Authenticator() func(http.Handler) http.Handler {
 	return jwtauth.Authenticator(m.auth)
 }
 
-const userIdKey = "user_id"
+const (
+	userIdKey  = "user_id"
+	modelIdKey = "model_id"
+)
 
-func (m *JwtManager) CreateToken(key, value string, exp time.Duration) (string, error) {
+func (m *JwtManager) createToken(key, value string, exp time.Duration) (string, error) {
 	claims := map[string]interface{}{
 		key:   value,
 		"exp": time.Now().Add(exp),
@@ -42,8 +46,12 @@ func (m *JwtManager) CreateToken(key, value string, exp time.Duration) (string, 
 	return token, nil
 }
 
-func (m *JwtManager) CreateUserJwt(userId string) (string, error) {
-	return m.CreateToken(userIdKey, userId, 15*time.Minute)
+func (m *JwtManager) CreateUserJwt(userId uuid.UUID) (string, error) {
+	return m.createToken(userIdKey, userId.String(), 15*time.Minute)
+}
+
+func (m *JwtManager) CreateModelJwt(modelId uuid.UUID, exp time.Duration) (string, error) {
+	return m.createToken(modelIdKey, modelId.String(), exp)
 }
 
 func ValueFromContext(r *http.Request, key string) (string, error) {
@@ -63,6 +71,19 @@ func ValueFromContext(r *http.Request, key string) (string, error) {
 	}
 
 	return value, nil
+}
+
+func ModelIdFromContext(r *http.Request) (uuid.UUID, error) {
+	value, err := ValueFromContext(r, modelIdKey)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+
+	id, err := uuid.Parse(value)
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("invalid uuid '%v' provided: %w", value, err)
+	}
+	return id, nil
 }
 
 func UserFromContext(r *http.Request) (schema.User, error) {

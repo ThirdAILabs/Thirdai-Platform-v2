@@ -43,7 +43,7 @@ func TestCreateDeleteTeams(t *testing.T) {
 		t.Fatal("expected 2 teams")
 	}
 
-	if teams[0].Id != team1 || teams[0].Name != "abc" || teams[1].Id != team2 || teams[1].Name != "xyz" {
+	if teams[0].Id.String() != team1 || teams[0].Name != "abc" || teams[1].Id.String() != team2 || teams[1].Name != "xyz" {
 		t.Fatal("team info wrong")
 	}
 
@@ -66,7 +66,7 @@ func TestCreateDeleteTeams(t *testing.T) {
 		t.Fatal("expected 2 teams")
 	}
 
-	if teams[0].Id != team2 || teams[0].Name != "xyz" {
+	if teams[0].Id.String() != team2 || teams[0].Name != "xyz" {
 		t.Fatal("team info wrong")
 	}
 }
@@ -116,7 +116,7 @@ func TestAddRemoveTeamUsers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(info.Teams) != 1 || info.Teams[0].TeamId != team1 || info.Teams[0].TeamName != "abc" || info.Teams[0].TeamAdmin {
+	if len(info.Teams) != 1 || info.Teams[0].TeamId.String() != team1 || info.Teams[0].TeamName != "abc" || info.Teams[0].TeamAdmin {
 		t.Fatal("invalid team info")
 	}
 
@@ -124,7 +124,7 @@ func TestAddRemoveTeamUsers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(info.Teams) != 1 || info.Teams[0].TeamId != team2 || info.Teams[0].TeamName != "xyz" || info.Teams[0].TeamAdmin {
+	if len(info.Teams) != 1 || info.Teams[0].TeamId.String() != team2 || info.Teams[0].TeamName != "xyz" || info.Teams[0].TeamAdmin {
 		t.Fatal("invalid team info")
 	}
 
@@ -153,8 +153,8 @@ func TestAddRemoveTeamUsers(t *testing.T) {
 		t.Fatal(err)
 	}
 	sortUserTeamList(info.Teams)
-	if len(info.Teams) != 2 || info.Teams[0].TeamId != team1 || info.Teams[0].TeamName != "abc" || info.Teams[0].TeamAdmin ||
-		info.Teams[1].TeamId != team2 || info.Teams[1].TeamName != "xyz" || info.Teams[1].TeamAdmin {
+	if len(info.Teams) != 2 || info.Teams[0].TeamId.String() != team1 || info.Teams[0].TeamName != "abc" || info.Teams[0].TeamAdmin ||
+		info.Teams[1].TeamId.String() != team2 || info.Teams[1].TeamName != "xyz" || info.Teams[1].TeamAdmin {
 		t.Fatal("invalid team info")
 	}
 
@@ -252,7 +252,7 @@ func TestTeamAdmins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(info.Teams) != 1 || info.Teams[0].TeamId != team1 || !info.Teams[0].TeamAdmin {
+	if len(info.Teams) != 1 || info.Teams[0].TeamId.String() != team1 || !info.Teams[0].TeamAdmin {
 		t.Fatal("user2 should be admin on 1 team")
 	}
 }
@@ -305,12 +305,12 @@ func TestListTeamsAndTeamUsers(t *testing.T) {
 		t.Fatal(err)
 	}
 	sortTeamList(teams)
-	if len(teams) != 2 || teams[0].Id != team1 || teams[0].Name != "abc" || teams[1].Id != team2 || teams[1].Name != "xyz" {
+	if len(teams) != 2 || teams[0].Id.String() != team1 || teams[0].Name != "abc" || teams[1].Id.String() != team2 || teams[1].Name != "xyz" {
 		t.Fatal("invalid teams list for user 1")
 	}
 
 	teams, err = user2.listTeams()
-	if len(teams) != 1 || teams[0].Id != team1 || teams[0].Name != "abc" {
+	if len(teams) != 1 || teams[0].Id.String() != team1 || teams[0].Name != "abc" {
 		t.Fatal("invalid teams list for user 2")
 	}
 
@@ -319,8 +319,8 @@ func TestListTeamsAndTeamUsers(t *testing.T) {
 		t.Fatal(err)
 	}
 	sortTeamUserList(teamUsers)
-	if len(teamUsers) != 2 || teamUsers[0].Username != "123" || teamUsers[0].UserId != user1.userId || !teamUsers[0].TeamAdmin ||
-		teamUsers[1].Username != "456" || teamUsers[1].UserId != user2.userId || teamUsers[1].TeamAdmin {
+	if len(teamUsers) != 2 || teamUsers[0].Username != "123" || teamUsers[0].UserId.String() != user1.userId || !teamUsers[0].TeamAdmin ||
+		teamUsers[1].Username != "456" || teamUsers[1].UserId.String() != user2.userId || teamUsers[1].TeamAdmin {
 		t.Fatal("invalid team users")
 	}
 
@@ -402,7 +402,7 @@ func TestTeamModels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.ModelId != model1 || *info.TeamId != team {
+	if info.ModelId.String() != model1 || info.TeamId.String() != team {
 		t.Fatalf("wrong model info %v", info)
 	}
 
@@ -410,7 +410,7 @@ func TestTeamModels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(models) != 1 || models[0].ModelId != model1 {
+	if len(models) != 1 || models[0].ModelId.String() != model1 {
 		t.Fatalf("wrong team models %v", models)
 	}
 
@@ -438,7 +438,7 @@ func TestTeamModels(t *testing.T) {
 		t.Fatal(err)
 	}
 	sortModelList(models)
-	if len(models) != 2 || models[0].ModelId != model2 || models[1].ModelId != model1 {
+	if len(models) != 2 || models[0].ModelId.String() != model2 || models[1].ModelId.String() != model1 {
 		t.Fatalf("wrong team models %v", models)
 	}
 
@@ -451,7 +451,7 @@ func TestTeamModels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(models) != 1 || models[0].ModelId != model2 {
+	if len(models) != 1 || models[0].ModelId.String() != model2 {
 		t.Fatalf("wrong team models %v", models)
 	}
 }

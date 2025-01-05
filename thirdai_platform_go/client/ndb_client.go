@@ -7,6 +7,8 @@ import (
 	"mime/multipart"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/services"
+
+	"github.com/google/uuid"
 )
 
 type NdbClient struct {
@@ -37,7 +39,7 @@ func (c *NdbClient) Search(query string, topk int) ([]NdbSearchResult, error) {
 	body := ndbSearchParams{Query: query, Topk: topk}
 
 	var res ndbSearchResults
-	err := c.Post(fmt.Sprintf("/%v/search", c.modelId)).Json(body).Do(&res)
+	err := c.Post(fmt.Sprintf("/%v/search", c.deploymentId())).Json(body).Do(&res)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +81,7 @@ func (c *NdbClient) Insert(files []config.FileInfo) error {
 		return fmt.Errorf("error closing mutlipart writer: %w", err)
 	}
 
-	return c.Post(fmt.Sprintf("/%v/insert", c.modelId)).Header("Content-Type", writer.FormDataContentType()).Body(body).Do(nil)
+	return c.Post(fmt.Sprintf("/%v/insert", c.deploymentId())).Header("Content-Type", writer.FormDataContentType()).Body(body).Do(nil)
 }
 
 type deleteParams struct {
@@ -89,7 +91,7 @@ type deleteParams struct {
 func (c *NdbClient) DeleteDocs(doc_ids []string) error {
 	body := deleteParams{SourceIds: doc_ids}
 
-	return c.Post(fmt.Sprintf("/%v/delete", c.modelId)).Json(body).Do(nil)
+	return c.Post(fmt.Sprintf("/%v/delete", c.deploymentId())).Json(body).Do(nil)
 }
 
 type UpvotePair struct {
@@ -105,7 +107,7 @@ type upvoteParams struct {
 func (c *NdbClient) Upvote(samples []UpvotePair) error {
 	body := upvoteParams{TextIdPairs: samples}
 
-	return c.Post(fmt.Sprintf("/%v/upvote", c.modelId)).Json(body).Do(nil)
+	return c.Post(fmt.Sprintf("/%v/upvote", c.deploymentId())).Json(body).Do(nil)
 }
 
 type AssociatePair struct {
@@ -120,7 +122,7 @@ type associateParams struct {
 func (c *NdbClient) Associate(samples []AssociatePair) error {
 	body := associateParams{TextPairs: samples}
 
-	return c.Post(fmt.Sprintf("/%v/associate", c.modelId)).Json(body).Do(nil)
+	return c.Post(fmt.Sprintf("/%v/associate", c.deploymentId())).Json(body).Do(nil)
 }
 
 type Source struct {
@@ -135,7 +137,7 @@ type sourcesResponse struct {
 
 func (c *NdbClient) Sources() ([]Source, error) {
 	var res sourcesResponse
-	err := c.Get(fmt.Sprintf("/%v/sources", c.modelId)).Do(&res)
+	err := c.Get(fmt.Sprintf("/%v/sources", c.deploymentId())).Do(&res)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +150,7 @@ func (c *NdbClient) Retrain(newModelName string) (*NdbClient, error) {
 		BaseModelId: c.modelId,
 	}
 
-	var res map[string]string
+	var res newModelResponse
 	err := c.Post("/api/v2/train/ndb-retrain").Json(body).Do(&res)
 	if err != nil {
 		return nil, err
@@ -157,7 +159,7 @@ func (c *NdbClient) Retrain(newModelName string) (*NdbClient, error) {
 	return &NdbClient{
 		ModelClient{
 			baseClient: c.baseClient,
-			modelId:    res["model_id"],
+			modelId:    res.ModelId,
 		},
 	}, nil
 }
@@ -169,7 +171,7 @@ type saveRequest struct {
 
 type saveReponse struct {
 	Data struct {
-		NewModelId string `json:"new_model_id"`
+		NewModelId uuid.UUID `json:"new_model_id"`
 	} `json:"data"`
 }
 
@@ -177,7 +179,7 @@ func (c *NdbClient) Save(newModelName string) (*NdbClient, error) {
 	body := saveRequest{Override: false, ModelName: newModelName}
 
 	var res saveReponse
-	err := c.Post(fmt.Sprintf("/%v/save", c.modelId)).Json(body).Do(&res)
+	err := c.Post(fmt.Sprintf("/%v/save", c.deploymentId())).Json(body).Do(&res)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +194,8 @@ func (c *NdbClient) Save(newModelName string) (*NdbClient, error) {
 
 func (c *NdbClient) ClientForDeployment(name string) *NdbClient {
 	return &NdbClient{ModelClient{
-		baseClient: c.baseClient,
-		modelId:    name,
+		baseClient:     c.baseClient,
+		modelId:        c.modelId,
+		deploymentName: &name,
 	}}
 }

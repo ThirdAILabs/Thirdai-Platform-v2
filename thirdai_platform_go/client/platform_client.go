@@ -8,6 +8,8 @@ import (
 	"os"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/services"
+
+	"github.com/google/uuid"
 )
 
 type PlatformClient struct {
@@ -88,7 +90,7 @@ func (c *PlatformClient) TrainNdb(name string, unsupervised []config.FileInfo, s
 		JobOptions: jobOptions,
 	}
 
-	var res map[string]string
+	var res newModelResponse
 	err = c.Post("/api/v2/train/ndb").Json(body).Do(&res)
 	if err != nil {
 		return nil, err
@@ -97,7 +99,7 @@ func (c *PlatformClient) TrainNdb(name string, unsupervised []config.FileInfo, s
 	return &NdbClient{
 		ModelClient{
 			baseClient: c.baseClient,
-			modelId:    res["model_id"],
+			modelId:    res.ModelId,
 		},
 	}, nil
 }
@@ -122,7 +124,7 @@ func (c *PlatformClient) TrainNlpToken(name string, labels []string, files []con
 		TrainOptions: trainOptions,
 	}
 
-	var res map[string]string
+	var res newModelResponse
 	err = c.Post("/api/v2/train/nlp-token").Json(body).Do(&res)
 	if err != nil {
 		return nil, err
@@ -131,7 +133,7 @@ func (c *PlatformClient) TrainNlpToken(name string, labels []string, files []con
 	return &NlpTokenClient{
 		ModelClient{
 			baseClient: c.baseClient,
-			modelId:    res["model_id"],
+			modelId:    res.ModelId,
 		},
 	}, nil
 }
@@ -156,7 +158,7 @@ func (c *PlatformClient) TrainNlpText(name string, nTargetClasses int, files []c
 		TrainOptions: trainOptions,
 	}
 
-	var res map[string]string
+	var res newModelResponse
 	err = c.Post("/api/v2/train/nlp-text").Json(body).Do(&res)
 	if err != nil {
 		return nil, err
@@ -165,7 +167,7 @@ func (c *PlatformClient) TrainNlpText(name string, nTargetClasses int, files []c
 	return &NlpTextClient{
 		ModelClient{
 			baseClient: c.baseClient,
-			modelId:    res["model_id"],
+			modelId:    res.ModelId,
 		},
 	}, nil
 }
@@ -178,7 +180,7 @@ func (c *PlatformClient) TrainNlpTokenDatagen(name string, taskPrompt string, op
 		TrainOptions: trainOptions,
 	}
 
-	var res map[string]string
+	var res newModelResponse
 	err := c.Post("/api/v2/train/nlp-datagen").Json(body).Do(&res)
 	if err != nil {
 		return nil, err
@@ -187,7 +189,7 @@ func (c *PlatformClient) TrainNlpTokenDatagen(name string, taskPrompt string, op
 	return &NlpTokenClient{
 		ModelClient{
 			baseClient: c.baseClient,
-			modelId:    res["model_id"],
+			modelId:    res.ModelId,
 		},
 	}, nil
 }
@@ -200,7 +202,7 @@ func (c *PlatformClient) TrainNlpTextDatagen(name string, taskPrompt string, opt
 		TrainOptions: trainOptions,
 	}
 
-	var res map[string]string
+	var res newModelResponse
 	err := c.Post("/api/v2/train/nlp-datagen").Json(body).Do(&res)
 	if err != nil {
 		return nil, err
@@ -209,13 +211,13 @@ func (c *PlatformClient) TrainNlpTextDatagen(name string, taskPrompt string, opt
 	return &NlpTextClient{
 		ModelClient{
 			baseClient: c.baseClient,
-			modelId:    res["model_id"],
+			modelId:    res.ModelId,
 		},
 	}, nil
 }
 
 func (c *PlatformClient) CreateEnterpriseSearchWorkflow(modelName string, retrieval *NdbClient, guardrail *NlpTokenClient) (*EnterpriseSearchClient, error) {
-	var guardrailId *string = nil
+	var guardrailId *uuid.UUID = nil
 	if guardrail != nil {
 		guardrailId = &guardrail.modelId
 	}
@@ -226,7 +228,7 @@ func (c *PlatformClient) CreateEnterpriseSearchWorkflow(modelName string, retrie
 		GuardrailId: guardrailId,
 	}
 
-	var res map[string]string
+	var res newModelResponse
 	err := c.Post("/api/v2/workflow/enterprise-search").Json(body).Do(&res)
 	if err != nil {
 		return nil, err
@@ -235,7 +237,7 @@ func (c *PlatformClient) CreateEnterpriseSearchWorkflow(modelName string, retrie
 	return &EnterpriseSearchClient{
 		ModelClient{
 			baseClient: c.baseClient,
-			modelId:    res["model_id"],
+			modelId:    res.ModelId,
 		},
 	}, nil
 }
@@ -252,7 +254,7 @@ func (c *PlatformClient) CreateKnowledgeExtractionWorkflow(modelName string, que
 		LlmProvider: llmProvider,
 	}
 
-	var res map[string]string
+	var res newModelResponse
 	err := c.Post("/api/v2/workflow/knowledge-extraction").Json(body).Do(&res)
 	if err != nil {
 		return nil, err
@@ -261,7 +263,7 @@ func (c *PlatformClient) CreateKnowledgeExtractionWorkflow(modelName string, que
 	return &KnowledgeExtractionClient{
 		ModelClient{
 			baseClient: c.baseClient,
-			modelId:    res["model_id"],
+			modelId:    res.ModelId,
 		},
 	}, nil
 }
@@ -302,7 +304,7 @@ func (c *PlatformClient) UploadModel(modelName, modelType, path string) (interfa
 		chunkIdx++
 	}
 
-	var res map[string]string
+	var res newModelResponse
 	err = c.Post("/api/v2/model/upload/commit").Auth(uploadToken["token"]).Do(&res)
 	if err != nil {
 		return nil, fmt.Errorf("error committing model upload: %w", err)
@@ -312,14 +314,14 @@ func (c *PlatformClient) UploadModel(modelName, modelType, path string) (interfa
 		return &NlpTextClient{
 			ModelClient{
 				baseClient: c.baseClient,
-				modelId:    res["model_id"],
+				modelId:    res.ModelId,
 			},
 		}, nil
 	} else if modelType == "nlp-token" {
 		return &NlpTokenClient{
 			ModelClient{
 				baseClient: c.baseClient,
-				modelId:    res["model_id"],
+				modelId:    res.ModelId,
 			},
 		}, nil
 	} else {

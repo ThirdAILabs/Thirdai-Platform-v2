@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"thirdai_platform/model_bazaar/schema"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -203,15 +205,15 @@ func (opts *NlpTrainOptions) Validate() error {
 }
 
 type TrainConfig struct {
-	ModelId             string  `json:"model_id"`
-	ModelType           string  `json:"model_type"`
-	ModelBazaarDir      string  `json:"model_bazaar_dir"`
-	ModelBazaarEndpoint string  `json:"model_bazaar_endpoint"`
-	JobAuthToken        string  `json:"job_auth_token"`
-	LicenseKey          string  `json:"license_key"`
-	BaseModelId         *string `json:"base_model_id"`
+	ModelId             uuid.UUID  `json:"model_id"`
+	ModelType           string     `json:"model_type"`
+	ModelBazaarDir      string     `json:"model_bazaar_dir"`
+	ModelBazaarEndpoint string     `json:"model_bazaar_endpoint"`
+	JobAuthToken        string     `json:"job_auth_token"`
+	LicenseKey          string     `json:"license_key"`
+	BaseModelId         *uuid.UUID `json:"base_model_id"`
 
-	UserId string `json:"user_id"`
+	UserId uuid.UUID `json:"user_id"`
 
 	ModelOptions interface{} `json:"model_options"`
 	Data         interface{} `json:"data"`

@@ -19,7 +19,7 @@ import (
 
 type NlpTokenTrainRequest struct {
 	ModelName    string                  `json:"model_name"`
-	BaseModelId  *string                 `json:"base_model_id"`
+	BaseModelId  *uuid.UUID              `json:"base_model_id"`
 	ModelOptions *config.NlpTokenOptions `json:"model_options"`
 	Data         config.NlpData          `json:"data"`
 	TrainOptions config.NlpTrainOptions  `json:"train_options"`
@@ -75,7 +75,7 @@ func (s *TrainService) TrainNlpToken(w http.ResponseWriter, r *http.Request) {
 
 type NlpTextTrainRequest struct {
 	ModelName    string                 `json:"model_name"`
-	BaseModelId  *string                `json:"base_model_id"`
+	BaseModelId  *uuid.UUID             `json:"base_model_id"`
 	ModelOptions *config.NlpTextOptions `json:"model_options"`
 	Data         config.NlpData         `json:"data"`
 	TrainOptions config.NlpTrainOptions `json:"train_options"`
@@ -130,8 +130,8 @@ func (s *TrainService) TrainNlpText(w http.ResponseWriter, r *http.Request) {
 }
 
 type NlpTrainDatagenRequest struct {
-	ModelName   string  `json:"model_name"`
-	BaseModelId *string `json:"base_model_id"`
+	ModelName   string     `json:"model_name"`
+	BaseModelId *uuid.UUID `json:"base_model_id"`
 
 	TaskPrompt  string  `json:"task_prompt"`
 	LlmProvider string  `json:"llm_provider"`
@@ -218,7 +218,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	modelId := uuid.New().String()
+	modelId := uuid.New()
 
 	slog.Info("starting datagen training", "model_type", params.modelType(), "model_id", modelId, "model_name", params.ModelName)
 
@@ -228,7 +228,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jobToken, err := s.jobAuth.CreateToken("model_id", modelId, time.Hour*1000*24)
+	jobToken, err := s.jobAuth.CreateModelJwt(modelId, time.Hour*1000*24)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
 		return
@@ -281,14 +281,14 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJsonResponse(w, map[string]string{"model_id": modelId})
-
 	slog.Info("started datagen training successfully", "model_type", params.modelType(), "model_id", modelId, "model_name", params.ModelName)
+
+	utils.WriteJsonResponse(w, trainResponse{ModelId: modelId})
 }
 
 type NlpTokenRetrainRequest struct {
-	ModelName   string `json:"model_name"`
-	BaseModelId string `json:"base_model_id"`
+	ModelName   string    `json:"model_name"`
+	BaseModelId uuid.UUID `json:"base_model_id"`
 
 	LlmProvider string  `json:"llm_provider"`
 	TestSize    float32 `json:"test_size"`
@@ -302,10 +302,6 @@ func (opts *NlpTokenRetrainRequest) validate() error {
 
 	if opts.ModelName == "" {
 		allErrors = append(allErrors, fmt.Errorf("model name must be specified"))
-	}
-
-	if opts.BaseModelId == "" {
-		allErrors = append(allErrors, fmt.Errorf("base_model_id must be specified"))
 	}
 
 	if opts.LlmProvider == "" {
@@ -338,7 +334,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	modelId := uuid.New().String()
+	modelId := uuid.New()
 
 	slog.Info("starting datagen retraining", "model_type", schema.NlpTokenModel, "model_id", modelId, "model_name", params.ModelName)
 
@@ -348,7 +344,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jobToken, err := s.jobAuth.CreateToken("model_id", modelId, time.Hour*1000*24)
+	jobToken, err := s.jobAuth.CreateModelJwt(modelId, time.Hour*1000*24)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
 		return
@@ -403,9 +399,9 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJsonResponse(w, map[string]string{"model_id": modelId})
-
 	slog.Info("started datagen retraining successfully", "model_type", schema.NlpTokenModel, "model_id", modelId, "model_name", params.ModelName)
+
+	utils.WriteJsonResponse(w, trainResponse{ModelId: modelId})
 }
 
 func (s *TrainService) createModelAndStartDatagenTraining(
@@ -447,7 +443,7 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 	return s.saveModelAndStartJob(model, user, job)
 }
 
-func (s *TrainService) getDatagenData(modelId string) (string, config.NlpData, error) {
+func (s *TrainService) getDatagenData(modelId uuid.UUID) (string, config.NlpData, error) {
 	// TODO(Any): this is needed because the train/deployment jobs do not use the storage interface
 	// in the future once this is standardized it will not be needed
 	storageDir := filepath.Join(s.storage.Location(), storage.ModelPath(modelId), "generated_data")

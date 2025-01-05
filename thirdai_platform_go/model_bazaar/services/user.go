@@ -8,6 +8,7 @@ import (
 	"thirdai_platform/model_bazaar/utils"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -56,7 +57,7 @@ type signupRequest struct {
 }
 
 type signupResponse struct {
-	UserId string `json:"user_id"`
+	UserId uuid.UUID `json:"user_id"`
 }
 
 func (s *UserService) Signup(w http.ResponseWriter, r *http.Request) {
@@ -86,8 +87,8 @@ type loginWithEmailRequest struct {
 }
 
 type loginResponse struct {
-	UserId      string `json:"user_id"`
-	AccessToken string `json:"access_token"`
+	UserId      uuid.UUID `json:"user_id"`
+	AccessToken string    `json:"access_token"`
 }
 
 func (s *UserService) LoginWithEmail(w http.ResponseWriter, r *http.Request) {
@@ -127,7 +128,7 @@ func (s *UserService) LoginWithToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *UserService) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	userId, err := utils.URLParam(r, "user_id")
+	userId, err := utils.URLParamUUID(r, "user_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -242,13 +243,13 @@ func (s *UserService) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 type UserTeamInfo struct {
-	TeamId    string `json:"team_id"`
-	TeamName  string `json:"team_name"`
-	TeamAdmin bool   `json:"team_admin"`
+	TeamId    uuid.UUID `json:"team_id"`
+	TeamName  string    `json:"team_name"`
+	TeamAdmin bool      `json:"team_admin"`
 }
 
 type UserInfo struct {
-	Id       string         `json:"id"`
+	Id       uuid.UUID      `json:"id"`
 	Username string         `json:"username"`
 	Email    string         `json:"email"`
 	Admin    bool           `json:"admin"`
@@ -347,7 +348,7 @@ func (s *UserService) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *UserService) VerifyUser(w http.ResponseWriter, r *http.Request) {
-	userId, err := utils.URLParam(r, "user_id")
+	userId, err := utils.URLParamUUID(r, "user_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

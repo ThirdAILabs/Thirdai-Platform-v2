@@ -53,7 +53,7 @@ func (c *KnowledgeExtractionClient) CreateReport(files []config.FileInfo) (strin
 	}
 
 	var res createReportResponse
-	err = c.Post(fmt.Sprintf("/%v/report/create", c.modelId)).Header("Content-Type", writer.FormDataContentType()).Body(body).Do(&res)
+	err = c.Post(fmt.Sprintf("/%v/report/create", c.deploymentId())).Header("Content-Type", writer.FormDataContentType()).Body(body).Do(&res)
 	if err != nil {
 		return "", err
 	}
@@ -82,7 +82,7 @@ type wrappedData[T any] struct {
 
 func (c *KnowledgeExtractionClient) GetReport(reportId string) (Report, error) {
 	var res wrappedData[Report]
-	err := c.Get(fmt.Sprintf("/%v/report/%v", c.modelId, reportId)).Do(&res)
+	err := c.Get(fmt.Sprintf("/%v/report/%v", c.deploymentId(), reportId)).Do(&res)
 	return res.Data, err
 }
 
@@ -107,7 +107,7 @@ func (c *KnowledgeExtractionClient) AwaitReport(reportId string, timeout time.Du
 }
 
 func (c *KnowledgeExtractionClient) DeleteReport(reportId string) error {
-	return c.Delete(fmt.Sprintf("/%v/report/%v", c.modelId, reportId)).Do(nil)
+	return c.Delete(fmt.Sprintf("/%v/report/%v", c.deploymentId(), reportId)).Do(nil)
 }
 
 type Question struct {
@@ -118,18 +118,18 @@ type Question struct {
 
 func (c *KnowledgeExtractionClient) ListQuestions() ([]Question, error) {
 	var res wrappedData[[]Question]
-	err := c.Get(fmt.Sprintf("/%v/questions", c.modelId)).Do(&res)
+	err := c.Get(fmt.Sprintf("/%v/questions", c.deploymentId())).Do(&res)
 	return res.Data, err
 }
 
 func (c *KnowledgeExtractionClient) AddQuestion(question string) error {
-	return c.Post(fmt.Sprintf("/%v/questions", c.modelId)).Param("question", question).Do(nil)
+	return c.Post(fmt.Sprintf("/%v/questions", c.deploymentId())).Param("question", question).Do(nil)
 }
 
 func (c *KnowledgeExtractionClient) DeleteQuestion(questionId string) error {
-	return c.Delete(fmt.Sprintf("/%v/questions/%v", c.modelId, questionId)).Do(nil)
+	return c.Delete(fmt.Sprintf("/%v/questions/%v", c.deploymentId(), questionId)).Do(nil)
 }
 
 func (c *KnowledgeExtractionClient) AddKeywords(questionId string, keywords []string) error {
-	return c.Post(fmt.Sprintf("/%v/questions/%v/keywords", c.modelId, questionId)).Json(keywords).Do(nil)
+	return c.Post(fmt.Sprintf("/%v/questions/%v/keywords", c.deploymentId(), questionId)).Json(keywords).Do(nil)
 }

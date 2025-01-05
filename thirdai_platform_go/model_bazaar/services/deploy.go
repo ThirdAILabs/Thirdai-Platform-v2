@@ -71,7 +71,7 @@ func (s *DeployService) Routes() chi.Router {
 	return r
 }
 
-func getDeploymentMemory(modelId string, userSpecified int, attrs map[string]string) int {
+func getDeploymentMemory(modelId uuid.UUID, userSpecified int, attrs map[string]string) int {
 	if userSpecified > 500 {
 		slog.Info("using user specified memory for deployment memory", "model_id", modelId, "memory", userSpecified)
 		return userSpecified
@@ -101,7 +101,7 @@ func getDeploymentMemory(modelId string, userSpecified int, attrs map[string]str
 	return 1000
 }
 
-func (s *DeployService) deployModel(modelId string, user schema.User, autoscaling bool, autoscalingMin, autoscalingMax int, memory int, deploymentName string) error {
+func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autoscaling bool, autoscalingMin, autoscalingMax int, memory int, deploymentName string) error {
 	slog.Info("deploying model", "model_id", modelId, "autoscaling", autoscaling, "autoscalingMax", autoscalingMax, "memory", memory, "deployment_name", deploymentName)
 
 	requiresOnPremLlm := false
@@ -143,7 +143,7 @@ func (s *DeployService) deployModel(modelId string, user schema.User, autoscalin
 			return err
 		}
 
-		token, err := s.jobAuth.CreateToken("model_id", modelId, time.Hour*1000*24)
+		token, err := s.jobAuth.CreateModelJwt(modelId, time.Hour*1000*24)
 		if err != nil {
 			return fmt.Errorf("error creating job token: %v", err)
 		}
@@ -184,7 +184,7 @@ func (s *DeployService) deployModel(modelId string, user schema.User, autoscalin
 		nomadErr = s.nomad.StartJob(
 			nomad.DeployJob{
 				JobName:            model.DeployJobName(),
-				ModelId:            model.Id,
+				ModelId:            model.Id.String(),
 				ConfigPath:         configPath,
 				DeploymentName:     deploymentName,
 				AutoscalingEnabled: autoscaling,
@@ -244,7 +244,7 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	modelId, err := utils.URLParam(r, "model_id")
+	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -280,7 +280,7 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
-	modelId, err := utils.URLParam(r, "model_id")
+	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -326,7 +326,7 @@ func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *DeployService) GetStatusInternal(w http.ResponseWriter, r *http.Request) {
-	modelId, err := auth.ValueFromContext(r, "model_id")
+	modelId, err := auth.ModelIdFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -335,7 +335,7 @@ func (s *DeployService) GetStatusInternal(w http.ResponseWriter, r *http.Request
 }
 
 func (s *DeployService) GetStatus(w http.ResponseWriter, r *http.Request) {
-	modelId, err := utils.URLParam(r, "model_id")
+	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -359,6 +359,11 @@ type saveDeployedRequest struct {
 	ModelName string `json:"model_name"`
 }
 
+type saveDeployedResponse struct {
+	ModelId     uuid.UUID `json:"model_id"`
+	UpdateToken string    `json:"update_token"`
+}
+
 func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r)
 	if err != nil {
@@ -371,13 +376,13 @@ func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	baseModelId, err := utils.URLParam(r, "model_id")
+	baseModelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	newModelId := uuid.New().String()
+	newModelId := uuid.New()
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
 		baseModel, err := schema.GetModel(baseModelId, txn, true, true, false)
@@ -423,11 +428,11 @@ func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updateToken, err := s.jobAuth.CreateToken("model_id", newModelId, time.Hour)
+	updateToken, err := s.jobAuth.CreateModelJwt(newModelId, time.Hour)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	utils.WriteJsonResponse(w, map[string]string{"model_id": newModelId, "update_token": updateToken})
+	utils.WriteJsonResponse(w, saveDeployedResponse{ModelId: newModelId, UpdateToken: updateToken})
 }

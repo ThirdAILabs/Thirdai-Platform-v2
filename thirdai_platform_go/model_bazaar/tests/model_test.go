@@ -27,7 +27,7 @@ func TestModelInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if info.ModelId != model || info.ModelName != "test_model" || info.TeamId != nil || info.Type != "ndb" {
+	if info.ModelId.String() != model || info.ModelName != "test_model" || info.TeamId != nil || info.Type != "ndb" {
 		t.Fatalf("invalid model info %v", info)
 	}
 }
@@ -235,7 +235,7 @@ func TestListModels(t *testing.T) {
 		t.Fatal(err)
 	}
 	sortModelList(models1)
-	if len(models1) != 2 || models1[0].ModelId != model1 || models1[1].ModelId != model2 {
+	if len(models1) != 2 || models1[0].ModelId.String() != model1 || models1[1].ModelId.String() != model2 {
 		t.Fatalf("wrong models returned %v", models1)
 	}
 
@@ -243,7 +243,7 @@ func TestListModels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(models2) != 1 || models2[0].ModelId != model3 {
+	if len(models2) != 1 || models2[0].ModelId.String() != model3 {
 		t.Fatalf("wrong models returned %v", models2)
 	}
 
@@ -252,7 +252,7 @@ func TestListModels(t *testing.T) {
 		t.Fatal(err)
 	}
 	sortModelList(models3)
-	if len(models3) != 3 || models3[0].ModelId != model1 || models3[1].ModelId != model2 || models3[2].ModelId != model3 {
+	if len(models3) != 3 || models3[0].ModelId.String() != model1 || models3[1].ModelId.String() != model2 || models3[2].ModelId.String() != model3 {
 		t.Fatalf("wrong models returned %v", models3)
 	}
 
@@ -266,7 +266,7 @@ func TestListModels(t *testing.T) {
 		t.Fatal(err)
 	}
 	sortModelList(models4)
-	if len(models4) != 3 || models4[0].ModelId != model1 || models4[1].ModelId != model2 || models4[2].ModelId != model3 {
+	if len(models4) != 3 || models4[0].ModelId.String() != model1 || models4[1].ModelId.String() != model2 || models4[2].ModelId.String() != model3 {
 		t.Fatalf("wrong models returned %v", models4)
 	}
 }
@@ -303,7 +303,7 @@ func TestDeleteModel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(models) != 1 || models[0].ModelId != model {
+	if len(models) != 1 || models[0].ModelId.String() != model {
 		t.Fatal("expected a single model")
 	}
 

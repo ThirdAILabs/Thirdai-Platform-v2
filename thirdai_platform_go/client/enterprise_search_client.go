@@ -25,7 +25,7 @@ func (c *EnterpriseSearchClient) Search(query string, topk int) (EnterpriseSearc
 	body := ndbSearchParams{Query: query, Topk: topk}
 
 	var res enterpriseSearchResultsWrapped
-	err := c.Post(fmt.Sprintf("/%v/search", c.modelId)).Json(body).Do(&res)
+	err := c.Post(fmt.Sprintf("/%v/search", c.deploymentId())).Json(body).Do(&res)
 	if err != nil {
 		return EnterpriseSearchResults{}, err
 	}
@@ -48,7 +48,7 @@ func (c *EnterpriseSearchClient) Unredact(text string, piiEntities []PiiEntity) 
 	body := unredactParams{Text: text, PiiEntities: piiEntities}
 
 	var res unredactResults
-	err := c.Post(fmt.Sprintf("/%v/unredact", c.modelId)).Json(body).Do(&res)
+	err := c.Post(fmt.Sprintf("/%v/unredact", c.deploymentId())).Json(body).Do(&res)
 	if err != nil {
 		return "", err
 	}

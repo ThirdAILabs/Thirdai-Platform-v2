@@ -6,6 +6,7 @@ import (
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/utils"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -29,7 +30,7 @@ func AdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 	}
 }
 
-func isTeamAdmin(teamId, userId string, db *gorm.DB) bool {
+func isTeamAdmin(teamId, userId uuid.UUID, db *gorm.DB) bool {
 	userTeam, err := schema.GetUserTeam(teamId, userId, db)
 	if err != nil || userTeam == nil {
 		return false
@@ -41,7 +42,7 @@ func isTeamAdmin(teamId, userId string, db *gorm.DB) bool {
 func AdminOrTeamAdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
-			teamId, err := utils.URLParam(r, "team_id")
+			teamId, err := utils.URLParamUUID(r, "team_id")
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -64,7 +65,7 @@ func AdminOrTeamAdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 	}
 }
 
-func isTeamMember(teamId, userId string, db *gorm.DB) bool {
+func isTeamMember(teamId, userId uuid.UUID, db *gorm.DB) bool {
 	userTeam, err := schema.GetUserTeam(teamId, userId, db)
 	if err != nil || userTeam == nil {
 		return false
@@ -76,7 +77,7 @@ func isTeamMember(teamId, userId string, db *gorm.DB) bool {
 func TeamMemberOnly(db *gorm.DB) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
-			teamId, err := utils.URLParam(r, "team_id")
+			teamId, err := utils.URLParamUUID(r, "team_id")
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -123,7 +124,7 @@ func modelPermissionToString(perm modelPermission) string {
 	}
 }
 
-func GetModelPermissions(modelId string, user schema.User, db *gorm.DB) (modelPermission, error) {
+func GetModelPermissions(modelId uuid.UUID, user schema.User, db *gorm.DB) (modelPermission, error) {
 	if user.IsAdmin {
 		return OwnerPermission, nil
 	}
@@ -166,7 +167,7 @@ func GetModelPermissions(modelId string, user schema.User, db *gorm.DB) (modelPe
 func ModelPermissionOnly(db *gorm.DB, minPermission modelPermission) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
-			modelId, err := utils.URLParam(r, "model_id")
+			modelId, err := utils.URLParamUUID(r, "model_id")
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return

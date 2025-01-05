@@ -37,17 +37,17 @@ func (s *WorkflowService) Routes() chi.Router {
 }
 
 type EnterpriseSearchRequest struct {
-	ModelName       string  `json:"model_name"`
-	RetrievalId     string  `json:"retrieval_id"`
-	GuardrailId     *string `json:"guardrail_id"`
-	LlmProvider     *string `json:"llm_provider"`
-	NlpClassifierId *string `json:"nlp_classifier_id"`
-	DefaultMode     *string `json:"default_mode"`
+	ModelName       string     `json:"model_name"`
+	RetrievalId     uuid.UUID  `json:"retrieval_id"`
+	GuardrailId     *uuid.UUID `json:"guardrail_id"`
+	LlmProvider     *string    `json:"llm_provider"`
+	NlpClassifierId *uuid.UUID `json:"nlp_classifier_id"`
+	DefaultMode     *string    `json:"default_mode"`
 }
 
 type searchComponent struct {
 	component    string
-	id           string
+	id           uuid.UUID
 	expectedType string
 }
 
@@ -74,7 +74,7 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	modelId := uuid.New().String()
+	modelId := uuid.New()
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
 		err := checkForDuplicateModel(txn, params.ModelName, user.Id)
@@ -105,7 +105,7 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 			}
 
 			deps = append(deps, schema.ModelDependency{ModelId: modelId, DependencyId: model.Id})
-			attrs = append(attrs, schema.ModelAttribute{ModelId: modelId, Key: component.component, Value: model.Id})
+			attrs = append(attrs, schema.ModelAttribute{ModelId: modelId, Key: component.component, Value: component.id.String()})
 		}
 
 		if params.LlmProvider != nil {
@@ -133,7 +133,7 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	utils.WriteJsonResponse(w, map[string]string{"model_id": modelId})
+	utils.WriteJsonResponse(w, trainResponse{ModelId: modelId})
 }
 
 type QuestionKeywords struct {
@@ -231,7 +231,7 @@ func populateQuestions(dbPath string, questions []QuestionKeywords) error {
 	return nil
 }
 
-func (s *WorkflowService) createQuestionDb(modelId string, questions []QuestionKeywords) error {
+func (s *WorkflowService) createQuestionDb(modelId uuid.UUID, questions []QuestionKeywords) error {
 	dbPath := fmt.Sprintf("%v_metadata.db", modelId)
 
 	defer func() {
@@ -276,7 +276,7 @@ func (s *WorkflowService) KnowledgeExtraction(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	modelId := uuid.New().String()
+	modelId := uuid.New()
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
 		err := checkForDuplicateModel(txn, params.ModelName, user.Id)
@@ -318,5 +318,5 @@ func (s *WorkflowService) KnowledgeExtraction(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	utils.WriteJsonResponse(w, map[string]string{"model_id": modelId})
+	utils.WriteJsonResponse(w, trainResponse{ModelId: modelId})
 }

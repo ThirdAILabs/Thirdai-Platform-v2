@@ -73,23 +73,23 @@ func (s *ModelService) Routes() chi.Router {
 }
 
 type ModelDependency struct {
-	ModelId   string `json:"model_id"`
-	ModelName string `json:"model_name"`
-	Type      string `json:"type"`
-	Username  string `json:"username"`
+	ModelId   uuid.UUID `json:"model_id"`
+	ModelName string    `json:"model_name"`
+	Type      string    `json:"type"`
+	Username  string    `json:"username"`
 }
 
 type ModelInfo struct {
-	ModelId      string  `json:"model_id"`
-	ModelName    string  `json:"model_name"`
-	Type         string  `json:"type"`
-	Access       string  `json:"access"`
-	TrainStatus  string  `json:"train_status"`
-	DeployStatus string  `json:"deploy_status"`
-	PublishDate  string  `json:"publish_date"`
-	UserEmail    string  `json:"user_email"`
-	Username     string  `json:"Username"`
-	TeamId       *string `json:"team_id"`
+	ModelId      uuid.UUID  `json:"model_id"`
+	ModelName    string     `json:"model_name"`
+	Type         string     `json:"type"`
+	Access       string     `json:"access"`
+	TrainStatus  string     `json:"train_status"`
+	DeployStatus string     `json:"deploy_status"`
+	PublishDate  string     `json:"publish_date"`
+	UserEmail    string     `json:"user_email"`
+	Username     string     `json:"Username"`
+	TeamId       *uuid.UUID `json:"team_id"`
 
 	Attributes map[string]string `json:"attributes"`
 
@@ -114,10 +114,10 @@ func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 	deps := make([]ModelDependency, 0, len(model.Dependencies))
 	for _, dep := range model.Dependencies {
 		deps = append(deps, ModelDependency{
-			ModelId:   dep.ModelId,
-			ModelName: dep.Model.Name,
-			Type:      dep.Model.Type,
-			Username:  dep.Model.User.Username,
+			ModelId:   dep.DependencyId,
+			ModelName: dep.Dependency.Name,
+			Type:      dep.Dependency.Type,
+			Username:  dep.Dependency.User.Username,
 		})
 	}
 
@@ -138,7 +138,7 @@ func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 }
 
 func (s *ModelService) Info(w http.ResponseWriter, r *http.Request) {
-	modelId, err := utils.URLParam(r, "model_id")
+	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -169,7 +169,7 @@ func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 	var models []schema.Model
 	var result *gorm.DB
 	if user.IsAdmin {
-		result = s.db.Preload("Dependencies").Preload("Attributes").Preload("User").Find(&models)
+		result = s.db.Preload("Dependencies").Preload("Dependencies.Dependency").Preload("Attributes").Preload("User").Find(&models)
 	} else {
 		userTeams, err := schema.GetUserTeamIds(user.Id, s.db)
 		if err != nil {
@@ -177,7 +177,7 @@ func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		result = s.db.
-			Preload("Dependencies").Preload("Attributes").Preload("User").
+			Preload("Dependencies").Preload("Dependencies.Dependency").Preload("Attributes").Preload("User").
 			Where("access = ?", schema.Public).
 			Or("access = ? AND user_id = ?", schema.Private, user.Id).
 			Or("access = ? AND team_id IN ?", schema.Protected, userTeams).
@@ -212,7 +212,7 @@ type ModelPermissions struct {
 }
 
 func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
-	modelId, err := utils.URLParam(r, "model_id")
+	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -240,13 +240,13 @@ func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
 		Read:     permission >= auth.ReadPermission,
 		Write:    permission >= auth.WritePermission,
 		Owner:    permission >= auth.OwnerPermission,
-		Username: user.Id, // TODO(nicholas): store user info in context for audit logging
+		Username: user.Username,
 		Exp:      expiration,
 	}
 	utils.WriteJsonResponse(w, res)
 }
 
-func countTrainingChildModels(db *gorm.DB, modelId string) (int64, error) {
+func countTrainingChildModels(db *gorm.DB, modelId uuid.UUID) (int64, error) {
 	var childModels int64
 	result := db.Model(&schema.Model{}).
 		Where("base_model_id = ?", modelId).
@@ -260,7 +260,7 @@ func countTrainingChildModels(db *gorm.DB, modelId string) (int64, error) {
 }
 
 func (s *ModelService) Delete(w http.ResponseWriter, r *http.Request) {
-	modelId, err := utils.URLParam(r, "model_id")
+	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -352,7 +352,7 @@ func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	model := schema.Model{
-		Id:                uuid.New().String(),
+		Id:                uuid.New(),
 		Name:              params.ModelName,
 		Type:              params.ModelType,
 		PublishedDate:     time.Now(),
@@ -382,7 +382,7 @@ func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uploadToken, err := s.uploadSessionAuth.CreateToken("model_id", model.Id, 10*time.Minute)
+	uploadToken, err := s.uploadSessionAuth.CreateModelJwt(model.Id, 10*time.Minute)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error creating upload token for model %v: %v", model.Name, err), http.StatusBadRequest)
 		return
@@ -403,7 +403,7 @@ func (s *ModelService) UploadChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	modelId, err := auth.ValueFromContext(r, "model_id")
+	modelId, err := auth.ModelIdFromContext(r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error retrieving model id from request: %v", err), http.StatusBadRequest)
 		return
@@ -431,8 +431,12 @@ func modelExtension(modelType string) string {
 	return "model"
 }
 
+type uploadCommitResponse struct {
+	ModelId uuid.UUID `json:"model_id"`
+}
+
 func (s *ModelService) UploadCommit(w http.ResponseWriter, r *http.Request) {
-	modelId, err := auth.ValueFromContext(r, "model_id")
+	modelId, err := auth.ModelIdFromContext(r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error retrieving model id from request: %v", err), http.StatusBadRequest)
 		return
@@ -494,11 +498,11 @@ func (s *ModelService) UploadCommit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJsonResponse(w, map[string]string{"model_id": model.Id})
+	utils.WriteJsonResponse(w, uploadCommitResponse{ModelId: model.Id})
 }
 
 func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
-	modelId, err := utils.URLParam(r, "model_id")
+	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -565,7 +569,7 @@ type updateAccessRequest struct {
 }
 
 func (s *ModelService) UpdateAccess(w http.ResponseWriter, r *http.Request) {
-	modelId, err := utils.URLParam(r, "model_id")
+	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -600,7 +604,7 @@ type updateDefaultPermissionRequest struct {
 }
 
 func (s *ModelService) UpdateDefaultPermission(w http.ResponseWriter, r *http.Request) {
-	modelId, err := utils.URLParam(r, "model_id")
+	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

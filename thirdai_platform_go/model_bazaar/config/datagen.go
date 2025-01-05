@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"thirdai_platform/model_bazaar/schema"
+
+	"github.com/google/uuid"
 )
 
 type LabelEntity struct {
@@ -124,10 +126,10 @@ func (opts *NlpTextDatagenOptions) GetModelOptions() interface{} {
 }
 
 type DatagenConfig struct {
-	ModelId        string  `json:"model_id"`
-	BaseModelId    *string `json:"base_model_id"`
-	ModelBazaarDir string  `json:"model_bazaar_dir"`
-	StorageDir     string  `json:"storage_dir"`
+	ModelId        uuid.UUID  `json:"model_id"`
+	BaseModelId    *uuid.UUID `json:"base_model_id"`
+	ModelBazaarDir string     `json:"model_bazaar_dir"`
+	StorageDir     string     `json:"storage_dir"`
 
 	ModelBazaarEndpoint string `json:"model_bazaar_endpoint"`
 

@@ -76,12 +76,16 @@ func (s *TrainService) Routes() chi.Router {
 type basicTrainArgs struct {
 	modelName    string
 	modelType    string
-	baseModelId  *string
+	baseModelId  *uuid.UUID
 	modelOptions interface{}
 	data         interface{}
 	trainOptions interface{}
 	jobOptions   config.JobOptions
 	retraining   bool
+}
+
+type trainResponse struct {
+	ModelId uuid.UUID `json:"model_id"`
 }
 
 func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, args basicTrainArgs) {
@@ -91,7 +95,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 		return
 	}
 
-	model := createModel(uuid.NewString(), args.modelName, args.modelType, args.baseModelId, user.Id)
+	model := createModel(uuid.New(), args.modelName, args.modelType, args.baseModelId, user.Id)
 
 	slog.Info("starting training", "model_type", args.modelType, "model_id", model.Id, "model_name", args.modelName)
 
@@ -101,7 +105,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 		return
 	}
 
-	jobToken, err := s.jobAuth.CreateToken("model_id", model.Id, time.Hour*1000*24)
+	jobToken, err := s.jobAuth.CreateModelJwt(model.Id, time.Hour*1000*24)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
 		return
@@ -149,7 +153,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 
 	slog.Info("started training succesfully", "model_type", args.modelType, "model_id", model.Id, "model_name", args.modelName)
 
-	utils.WriteJsonResponse(w, map[string]string{"model_id": model.Id})
+	utils.WriteJsonResponse(w, trainResponse{ModelId: model.Id})
 }
 
 func (s *TrainService) saveModelAndStartJob(model schema.Model, user schema.User, job nomad.Job) error {
@@ -236,7 +240,7 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 
 	reader := multipart.NewReader(r.Body, boundary)
 
-	artifactDir := storage.DataPath(uuid.New().String())
+	artifactDir := storage.DataPath(uuid.New())
 
 	for {
 		part, err := reader.NextPart()
@@ -271,7 +275,7 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TrainService) GetStatus(w http.ResponseWriter, r *http.Request) {
-	modelId, err := utils.URLParam(r, "model_id")
+	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -292,7 +296,7 @@ func (s *TrainService) JobLog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TrainService) TrainReport(w http.ResponseWriter, r *http.Request) {
-	modelId, err := utils.URLParam(r, "model_id")
+	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

@@ -34,7 +34,7 @@ func NewBasicIdentityProvider(db *gorm.DB, auditLog AuditLogger, args BasicProvi
 		return nil, fmt.Errorf("error encrypting admin password: %w", err)
 	}
 
-	err = addInitialAdminToDb(db, uuid.New().String(), args.AdminUsername, args.AdminEmail, hashedPwd)
+	err = addInitialAdminToDb(db, uuid.New(), args.AdminUsername, args.AdminEmail, hashedPwd)
 	if err != nil {
 		return nil, fmt.Errorf("error adding inital admin to db: %w", err)
 	}
@@ -105,13 +105,13 @@ func (auth *BasicIdentityProvider) LoginWithToken(accessToken string) (LoginResu
 	return LoginResult{}, fmt.Errorf("login with token is not supported for this identity provider")
 }
 
-func (auth *BasicIdentityProvider) CreateUser(username, email, password string) (string, error) {
+func (auth *BasicIdentityProvider) CreateUser(username, email, password string) (uuid.UUID, error) {
 	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	if err != nil {
-		return "", fmt.Errorf("error encrypting password: %w", err)
+		return uuid.UUID{}, fmt.Errorf("error encrypting password: %w", err)
 	}
 
-	newUser := schema.User{Id: uuid.New().String(), Username: username, Email: email, Password: hashedPwd, IsAdmin: false}
+	newUser := schema.User{Id: uuid.New(), Username: username, Email: email, Password: hashedPwd, IsAdmin: false}
 
 	err = auth.db.Transaction(func(txn *gorm.DB) error {
 		var existingUser schema.User
@@ -136,17 +136,17 @@ func (auth *BasicIdentityProvider) CreateUser(username, email, password string) 
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("error creating new user: %w", err)
+		return uuid.UUID{}, fmt.Errorf("error creating new user: %w", err)
 	}
 
 	return newUser.Id, nil
 }
 
-func (auth *BasicIdentityProvider) VerifyUser(userId string) error {
+func (auth *BasicIdentityProvider) VerifyUser(userId uuid.UUID) error {
 	return nil
 }
 
-func (auth *BasicIdentityProvider) DeleteUser(userId string) error {
+func (auth *BasicIdentityProvider) DeleteUser(userId uuid.UUID) error {
 	return nil
 }
 

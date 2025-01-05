@@ -11,6 +11,8 @@ import (
 	"testing"
 	"thirdai_platform/model_bazaar/storage"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func TestTrain(t *testing.T) {
@@ -166,7 +168,7 @@ func TestTrainReport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = env.storage.Write(filepath.Join(storage.ModelPath(model), "train_reports", "1.json"), strings.NewReader(`"the first report"`))
+	err = env.storage.Write(filepath.Join(storage.ModelPath(uuid.MustParse(model)), "train_reports", "1.json"), strings.NewReader(`"the first report"`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +181,7 @@ func TestTrainReport(t *testing.T) {
 		t.Fatal("invalid report data")
 	}
 
-	err = env.storage.Write(filepath.Join(storage.ModelPath(model), "train_reports", "1.json"), strings.NewReader(`"the second report"`))
+	err = env.storage.Write(filepath.Join(storage.ModelPath(uuid.MustParse(model)), "train_reports", "1.json"), strings.NewReader(`"the second report"`))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -29,7 +29,7 @@ func (c *NlpTokenClient) Predict(text string, topk int) (NlpTokenPredictions, er
 	body := nlpPredictParams{Text: text, Topk: topk}
 
 	var res nlpPredictResults[NlpTokenPredictions]
-	err := c.Post(fmt.Sprintf("/%v/predict", c.modelId)).Json(body).Do(&res)
+	err := c.Post(fmt.Sprintf("/%v/predict", c.deploymentId())).Json(body).Do(&res)
 	if err != nil {
 		return NlpTokenPredictions{}, err
 	}
@@ -40,7 +40,7 @@ func (c *NlpTokenClient) Predict(text string, topk int) (NlpTokenPredictions, er
 func (c *NlpTokenClient) AddSample(tokens, tags []string) error {
 	body := map[string][]string{"tokens": tokens, "tags": tags}
 
-	return c.Post(fmt.Sprintf("/%v/insert_sample", c.modelId)).Json(body).Do(nil)
+	return c.Post(fmt.Sprintf("/%v/insert_sample", c.deploymentId())).Json(body).Do(nil)
 }
 
 type newLabel struct {
@@ -54,7 +54,7 @@ func (c *NlpTokenClient) AddLabel(label, description string, examples []string) 
 		"tags": {{Name: label, Description: description, Examples: examples}},
 	}
 
-	return c.Post(fmt.Sprintf("/%v/add_labels", c.modelId)).Json(body).Do(nil)
+	return c.Post(fmt.Sprintf("/%v/add_labels", c.deploymentId())).Json(body).Do(nil)
 }
 
 func (c *NlpTokenClient) Retrain(name string) (*NlpTokenClient, error) {
@@ -63,7 +63,7 @@ func (c *NlpTokenClient) Retrain(name string) (*NlpTokenClient, error) {
 		BaseModelId: c.modelId,
 	}
 
-	var res map[string]string
+	var res newModelResponse
 	err := c.Post("/api/v2/train/nlp-token-retrain").Json(body).Do(&res)
 	if err != nil {
 		return nil, err
@@ -72,7 +72,7 @@ func (c *NlpTokenClient) Retrain(name string) (*NlpTokenClient, error) {
 	return &NlpTokenClient{
 		ModelClient{
 			baseClient: c.baseClient,
-			modelId:    res["model_id"],
+			modelId:    res.ModelId,
 		},
 	}, nil
 }
@@ -94,7 +94,7 @@ func (c *NlpTextClient) Predict(text string, topk int) (NlpTextPredictions, erro
 	body := nlpPredictParams{Text: text, Topk: topk}
 
 	var res nlpPredictResults[NlpTextPredictions]
-	err := c.Post(fmt.Sprintf("/%v/predict", c.modelId)).Json(body).Do(&res)
+	err := c.Post(fmt.Sprintf("/%v/predict", c.deploymentId())).Json(body).Do(&res)
 	if err != nil {
 		return NlpTextPredictions{}, err
 	}

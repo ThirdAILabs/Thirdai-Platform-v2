@@ -13,6 +13,7 @@ import (
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/jwtauth/v5"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -276,7 +277,12 @@ func NewKeycloakIdentityProvider(db *gorm.DB, auditLog AuditLogger, args Keycloa
 	}
 	slog.Info("KEYCLOAK: new admin creation successful")
 
-	err = addInitialAdminToDb(db, userId, args.AdminUsername, args.AdminEmail, nil)
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid uuid '%v' returned from keycloak: %w", userId, err)
+	}
+
+	err = addInitialAdminToDb(db, userUUID, args.AdminUsername, args.AdminEmail, nil)
 	if err != nil {
 		slog.Error("KEYCLOAK: adding new admin to db failed", "error", err)
 		return nil, err
@@ -396,17 +402,26 @@ func (auth *KeycloakIdentityProvider) LoginWithToken(accessToken string) (LoginR
 		return LoginResult{}, fmt.Errorf("failed to authenticate user with keycloak: %w", err)
 	}
 
+	if userInfo.Sub == nil || userInfo.Email == nil || userInfo.PreferredUsername == nil {
+		return LoginResult{}, fmt.Errorf("invalid user info from keycloak, missing required fields")
+	}
+
+	userId, err := uuid.Parse(*userInfo.Sub)
+	if err != nil {
+		return LoginResult{}, fmt.Errorf("invalid uuid '%v' returned from keycloak: %w", *userInfo.Sub, err)
+	}
+
 	var user schema.User
 
 	err = auth.db.Transaction(func(txn *gorm.DB) error {
-		findUserResult := txn.Limit(1).Find(&user, "email = ?", userInfo.Email)
+		findUserResult := txn.Limit(1).Find(&user, "email = ?", *userInfo.Email)
 		if findUserResult.Error != nil {
 			return schema.NewDbError("locate user by email", findUserResult.Error)
 		}
 
 		if findUserResult.RowsAffected != 1 {
 			user = schema.User{
-				Id:       *userInfo.Sub,
+				Id:       userId,
 				Username: *userInfo.PreferredUsername,
 				Email:    *userInfo.Email,
 				IsAdmin:  false,
@@ -444,15 +459,15 @@ func (auth *KeycloakIdentityProvider) checkExistingUsers(field string, params go
 	return nil
 }
 
-func (auth *KeycloakIdentityProvider) CreateUser(username, email, password string) (string, error) {
+func (auth *KeycloakIdentityProvider) CreateUser(username, email, password string) (uuid.UUID, error) {
 	existingUsername := auth.checkExistingUsers("username", gocloak.GetUsersParams{Username: &username})
 	if existingUsername != nil {
-		return "", existingUsername
+		return uuid.UUID{}, existingUsername
 	}
 
 	existingEmail := auth.checkExistingUsers("email", gocloak.GetUsersParams{Email: &email})
 	if existingEmail != nil {
-		return "", existingEmail
+		return uuid.UUID{}, existingEmail
 	}
 
 	trueArg := true
@@ -474,11 +489,16 @@ func (auth *KeycloakIdentityProvider) CreateUser(username, email, password strin
 
 	userId, err := auth.keycloak.CreateUser(ctx, auth.adminToken, auth.realm, keycloakUser)
 	if err != nil {
-		return "", fmt.Errorf("error creating new user in keycloak: %w", err)
+		return uuid.UUID{}, fmt.Errorf("error creating new user in keycloak: %w", err)
+	}
+
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("invalid uuid '%v' returned from keycloak: %w", userId, err)
 	}
 
 	user := schema.User{
-		Id:       userId,
+		Id:       userUUID,
 		Username: username,
 		Email:    email,
 		IsAdmin:  false,
@@ -486,18 +506,20 @@ func (auth *KeycloakIdentityProvider) CreateUser(username, email, password strin
 
 	result := auth.db.Create(&user)
 	if result.Error != nil {
-		return "", schema.NewDbError("creating user", result.Error)
+		return uuid.UUID{}, schema.NewDbError("creating user", result.Error)
 	}
 
-	return userId, nil
+	return userUUID, nil
 }
 
-func (auth *KeycloakIdentityProvider) VerifyUser(userId string) error {
+func (auth *KeycloakIdentityProvider) VerifyUser(userId uuid.UUID) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
+	userIdStr := userId.String()
 	verified := true
 	err := auth.keycloak.UpdateUser(ctx, auth.adminToken, auth.realm, gocloak.User{
+		ID:            &userIdStr,
 		EmailVerified: &verified,
 	})
 	if err != nil {
@@ -508,11 +530,11 @@ func (auth *KeycloakIdentityProvider) VerifyUser(userId string) error {
 	return nil
 }
 
-func (auth *KeycloakIdentityProvider) DeleteUser(userId string) error {
+func (auth *KeycloakIdentityProvider) DeleteUser(userId uuid.UUID) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	err := auth.keycloak.DeleteUser(ctx, auth.adminToken, auth.realm, userId)
+	err := auth.keycloak.DeleteUser(ctx, auth.adminToken, auth.realm, userId.String())
 	if err != nil {
 		slog.Error("failed to delete user with keycloak", "user_id", userId, "error", err)
 		return fmt.Errorf("failed to delete user with keycloak: %w", err)

@@ -4,15 +4,25 @@ import (
 	"fmt"
 	"thirdai_platform/model_bazaar/services"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type ModelClient struct {
 	baseClient
-	modelId string
+	modelId        uuid.UUID
+	deploymentName *string
+}
+
+func (c *ModelClient) deploymentId() string {
+	if c.deploymentName != nil {
+		return *c.deploymentName
+	}
+	return c.modelId.String()
 }
 
 func (c *ModelClient) DeploymentHealthy() bool {
-	err := c.Get(fmt.Sprintf("/%v/health", c.modelId)).Do(nil)
+	err := c.Get(fmt.Sprintf("/%v/health", c.deploymentId())).Do(nil)
 	return err == nil
 }
 
@@ -98,7 +108,6 @@ func (c *ModelClient) DeployWithName(autoscaling bool, name string) error {
 	}
 
 	return c.Post(fmt.Sprintf("/api/v2/deploy/%v", c.modelId)).Json(body).Do(nil)
-
 }
 
 func (c *ModelClient) Undeploy() error {
@@ -107,4 +116,8 @@ func (c *ModelClient) Undeploy() error {
 
 func (c *ModelClient) DeleteModel() error {
 	return c.Delete(fmt.Sprintf("/api/v2/model/%v", c.modelId)).Do(nil)
+}
+
+type newModelResponse struct {
+	ModelId uuid.UUID `json:"model_id"`
 }

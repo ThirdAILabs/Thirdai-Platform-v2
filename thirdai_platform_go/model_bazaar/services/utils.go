@@ -19,13 +19,13 @@ import (
 	"gorm.io/gorm"
 )
 
-func listModelDependencies(modelId string, db *gorm.DB) ([]schema.Model, error) {
-	visited := map[string]struct{}{}
+func listModelDependencies(modelId uuid.UUID, db *gorm.DB) ([]schema.Model, error) {
+	visited := map[uuid.UUID]struct{}{}
 	models := []schema.Model{}
 
-	var recurse func(string) error
+	var recurse func(uuid.UUID) error
 
-	recurse = func(m string) error {
+	recurse = func(m uuid.UUID) error {
 		if _, ok := visited[m]; ok {
 			return nil
 		}
@@ -102,7 +102,7 @@ func getModelStatus(model schema.Model, db *gorm.DB, trainStatus bool) (string, 
 	return "", nil, fmt.Errorf("error finding statuses")
 }
 
-func countDownstreamModels(modelId string, db *gorm.DB, activeOnly bool) (int64, error) {
+func countDownstreamModels(modelId uuid.UUID, db *gorm.DB, activeOnly bool) (int64, error) {
 	query := db.Model(&schema.ModelDependency{}).Where("dependency_id = ?", modelId)
 	if activeOnly {
 		query = query.Joins("Model").Where("deploy_status IN ?", []string{schema.Starting, schema.InProgress, schema.Complete})
@@ -117,13 +117,13 @@ func countDownstreamModels(modelId string, db *gorm.DB, activeOnly bool) (int64,
 	return count, nil
 }
 
-func getJobLogs(db *gorm.DB, modelId, job string) ([]string, []string, error) {
+func getJobLogs(db *gorm.DB, modelId uuid.UUID, job string) ([]string, []string, error) {
 	deps, err := listModelDependencies(modelId, db)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error retrieving job logs: %w", err)
 	}
 
-	depIds := make([]string, 0, len(deps))
+	depIds := make([]uuid.UUID, 0, len(deps))
 	for _, dep := range deps {
 		depIds = append(depIds, dep.Id)
 	}
@@ -154,7 +154,7 @@ type StatusResponse struct {
 	Warnings []string `json:"warnings"`
 }
 
-func getStatusHandler(w http.ResponseWriter, modelId string, db *gorm.DB, job string) {
+func getStatusHandler(w http.ResponseWriter, modelId uuid.UUID, db *gorm.DB, job string) {
 	slog.Info("getting status for model", "job", job, "model_id", modelId)
 
 	var res StatusResponse
@@ -197,7 +197,7 @@ type updateStatusRequest struct {
 }
 
 func updateStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job string) {
-	modelId, err := auth.ValueFromContext(r, "model_id")
+	modelId, err := auth.ModelIdFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -248,7 +248,7 @@ type jobLogRequest struct {
 }
 
 func jobLogHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job string) {
-	modelId, err := auth.ValueFromContext(r, "model_id")
+	modelId, err := auth.ModelIdFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -264,7 +264,7 @@ func jobLogHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job stri
 		return
 	}
 
-	log := schema.JobLog{Id: uuid.New().String(), ModelId: modelId, Job: job, Level: params.Level, Message: params.Message}
+	log := schema.JobLog{Id: uuid.New(), ModelId: modelId, Job: job, Level: params.Level, Message: params.Message}
 	result := db.Create(&log)
 	if result.Error != nil {
 		err := schema.NewDbError("creating job log", result.Error)
@@ -276,7 +276,7 @@ func jobLogHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job stri
 }
 
 func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad.NomadClient, job string) {
-	modelId, err := utils.URLParam(r, "model_id")
+	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -304,7 +304,7 @@ func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad
 	utils.WriteJsonResponse(w, logs)
 }
 
-func saveConfig(modelId string, jobType string, config interface{}, store storage.Storage) (string, error) {
+func saveConfig(modelId uuid.UUID, jobType string, config interface{}, store storage.Storage) (string, error) {
 	trainConfigData, err := json.MarshalIndent(config, "", "    ")
 	if err != nil {
 		return "", fmt.Errorf("error encoding train config: %w", err)
@@ -336,7 +336,7 @@ func verifyLicenseForNewJob(nomad nomad.NomadClient, license *licensing.LicenseV
 	return licenseData.BoltLicenseKey, nil
 }
 
-func checkForDuplicateModel(db *gorm.DB, modelName, userId string) error {
+func checkForDuplicateModel(db *gorm.DB, modelName string, userId uuid.UUID) error {
 	var duplicateModel schema.Model
 	result := db.Limit(1).Find(&duplicateModel, "user_id = ? AND name = ?", userId, modelName)
 	if result.Error != nil {
@@ -348,7 +348,7 @@ func checkForDuplicateModel(db *gorm.DB, modelName, userId string) error {
 	return nil
 }
 
-func createModel(modelId, modelName, modelType string, baseModelId *string, userId string) schema.Model {
+func createModel(modelId uuid.UUID, modelName, modelType string, baseModelId *uuid.UUID, userId uuid.UUID) schema.Model {
 	return schema.Model{
 		Id:                modelId,
 		Name:              modelName,

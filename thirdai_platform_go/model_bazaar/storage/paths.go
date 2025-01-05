@@ -2,12 +2,14 @@ package storage
 
 import (
 	"path/filepath"
+
+	"github.com/google/uuid"
 )
 
-func ModelPath(modelId string) string {
-	return filepath.Join("models", modelId)
+func ModelPath(modelId uuid.UUID) string {
+	return filepath.Join("models", modelId.String())
 }
 
-func DataPath(modelId string) string {
-	return filepath.Join("data", modelId)
+func DataPath(modelId uuid.UUID) string {
+	return filepath.Join("data", modelId.String())
 }

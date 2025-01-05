@@ -13,11 +13,13 @@ import (
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/model_bazaar/utils"
+
+	"github.com/google/uuid"
 )
 
 type NdbTrainRequest struct {
 	ModelName    string             `json:"model_name"`
-	BaseModelId  *string            `json:"base_model_id"`
+	BaseModelId  *uuid.UUID         `json:"base_model_id"`
 	ModelOptions *config.NdbOptions `json:"model_options"`
 	Data         config.NDBData     `json:"data"`
 	JobOptions   config.JobOptions  `json:"job_options"`
@@ -108,7 +110,7 @@ type ndbDeletionLog struct {
 	DocIds []string `json:"doc_ids"`
 }
 
-func (s *TrainService) getNdbRetrainingData(baseModelId string) (config.NDBData, error) {
+func (s *TrainService) getNdbRetrainingData(baseModelId uuid.UUID) (config.NDBData, error) {
 	deploymentDir := filepath.Join(storage.ModelPath(baseModelId), "deployments/data")
 
 	data := config.NDBData{
@@ -142,7 +144,7 @@ func (s *TrainService) getNdbRetrainingData(baseModelId string) (config.NDBData,
 
 type NdbRetrainRequest struct {
 	ModelName   string            `json:"model_name"`
-	BaseModelId string            `json:"base_model_id"`
+	BaseModelId uuid.UUID         `json:"base_model_id"`
 	JobOptions  config.JobOptions `json:"job_options"`
 }
 
@@ -151,10 +153,6 @@ func (opts *NdbRetrainRequest) validate() error {
 
 	if opts.ModelName == "" {
 		allErrors = append(allErrors, fmt.Errorf("model name must be specified"))
-	}
-
-	if opts.BaseModelId == "" {
-		allErrors = append(allErrors, fmt.Errorf("base model id must be specified"))
 	}
 
 	allErrors = append(allErrors, opts.JobOptions.Validate())

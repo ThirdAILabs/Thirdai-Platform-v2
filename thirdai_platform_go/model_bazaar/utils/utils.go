@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 )
 
 func ParseRequestBody(w http.ResponseWriter, r *http.Request, dest interface{}) bool {
@@ -40,4 +41,18 @@ func URLParam(r *http.Request, key string) (string, error) {
 		return "", fmt.Errorf("missing {%v} url parameter", key)
 	}
 	return param, nil
+}
+
+func URLParamUUID(r *http.Request, key string) (uuid.UUID, error) {
+	param := chi.URLParam(r, key)
+	if len(param) == 0 {
+		return uuid.UUID{}, fmt.Errorf("missing {%v} url parameter", key)
+	}
+
+	id, err := uuid.Parse(param)
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("invalid uuid '%v' provided: %w", param, err)
+	}
+
+	return id, nil
 }

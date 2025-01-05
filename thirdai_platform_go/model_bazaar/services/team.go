@@ -58,6 +58,10 @@ type createTeamRequest struct {
 	Name string `json:"name"`
 }
 
+type createTeamResponse struct {
+	TeamId uuid.UUID `json:"team_id"`
+}
+
 func (s *TeamService) CreateTeam(w http.ResponseWriter, r *http.Request) {
 	var params createTeamRequest
 	if !utils.ParseRequestBody(w, r, &params) {
@@ -68,7 +72,7 @@ func (s *TeamService) CreateTeam(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Team name must be specified", http.StatusBadRequest)
 	}
 
-	newTeam := schema.Team{Id: uuid.New().String(), Name: params.Name}
+	newTeam := schema.Team{Id: uuid.New(), Name: params.Name}
 
 	err := s.db.Transaction(func(txn *gorm.DB) error {
 		var existingTeam schema.Team
@@ -93,11 +97,11 @@ func (s *TeamService) CreateTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJsonResponse(w, map[string]string{"team_id": newTeam.Id})
+	utils.WriteJsonResponse(w, createTeamResponse{TeamId: newTeam.Id})
 }
 
 func (s *TeamService) DeleteTeam(w http.ResponseWriter, r *http.Request) {
-	teamId, err := utils.URLParam(r, "team_id")
+	teamId, err := utils.URLParamUUID(r, "team_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -136,12 +140,12 @@ func (s *TeamService) DeleteTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) AddUserToTeam(w http.ResponseWriter, r *http.Request) {
-	teamId, err := utils.URLParam(r, "team_id")
+	teamId, err := utils.URLParamUUID(r, "team_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	userId, err := utils.URLParam(r, "user_id")
+	userId, err := utils.URLParamUUID(r, "user_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -183,12 +187,12 @@ func (s *TeamService) AddUserToTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) RemoveUserFromTeam(w http.ResponseWriter, r *http.Request) {
-	teamId, err := utils.URLParam(r, "team_id")
+	teamId, err := utils.URLParamUUID(r, "team_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	userId, err := utils.URLParam(r, "user_id")
+	userId, err := utils.URLParamUUID(r, "user_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -233,12 +237,12 @@ func (s *TeamService) RemoveUserFromTeam(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *TeamService) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
-	teamId, err := utils.URLParam(r, "team_id")
+	teamId, err := utils.URLParamUUID(r, "team_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	modelId, err := utils.URLParam(r, "model_id")
+	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -289,12 +293,12 @@ func (s *TeamService) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) RemoveModelFromTeam(w http.ResponseWriter, r *http.Request) {
-	teamId, err := utils.URLParam(r, "team_id")
+	teamId, err := utils.URLParamUUID(r, "team_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	modelId, err := utils.URLParam(r, "model_id")
+	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -334,12 +338,12 @@ func (s *TeamService) RemoveModelFromTeam(w http.ResponseWriter, r *http.Request
 }
 
 func (s *TeamService) AddTeamAdmin(w http.ResponseWriter, r *http.Request) {
-	teamId, err := utils.URLParam(r, "team_id")
+	teamId, err := utils.URLParamUUID(r, "team_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	userId, err := utils.URLParam(r, "user_id")
+	userId, err := utils.URLParamUUID(r, "user_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -379,12 +383,12 @@ func (s *TeamService) AddTeamAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) RemoveTeamAdmin(w http.ResponseWriter, r *http.Request) {
-	teamId, err := utils.URLParam(r, "team_id")
+	teamId, err := utils.URLParamUUID(r, "team_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	userId, err := utils.URLParam(r, "user_id")
+	userId, err := utils.URLParamUUID(r, "user_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -424,8 +428,8 @@ func (s *TeamService) RemoveTeamAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 type TeamInfo struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
+	Id   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
 }
 
 func (s *TeamService) List(w http.ResponseWriter, r *http.Request) {
@@ -463,14 +467,14 @@ func (s *TeamService) List(w http.ResponseWriter, r *http.Request) {
 }
 
 type TeamUserInfo struct {
-	UserId    string `json:"user_id"`
-	Username  string `json:"username"`
-	Email     string `json:"email"`
-	TeamAdmin bool   `json:"team_admin"`
+	UserId    uuid.UUID `json:"user_id"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	TeamAdmin bool      `json:"team_admin"`
 }
 
 func (s *TeamService) TeamUsers(w http.ResponseWriter, r *http.Request) {
-	teamId, err := utils.URLParam(r, "team_id")
+	teamId, err := utils.URLParamUUID(r, "team_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -508,7 +512,7 @@ func (s *TeamService) TeamUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) TeamModels(w http.ResponseWriter, r *http.Request) {
-	teamId, err := utils.URLParam(r, "team_id")
+	teamId, err := utils.URLParamUUID(r, "team_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

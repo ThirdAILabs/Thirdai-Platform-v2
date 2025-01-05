@@ -1,8 +1,10 @@
 package config
 
+import "github.com/google/uuid"
+
 type DeployConfig struct {
-	ModelId             string            `json:"model_id"`
-	UserId              string            `json:"user_id"`
+	ModelId             uuid.UUID         `json:"model_id"`
+	UserId              uuid.UUID         `json:"user_id"`
 	ModelType           string            `json:"model_type"`
 	ModelBazaarDir      string            `json:"model_bazaar_dir"`
 	HostDir             string            `json:"host_dir"`

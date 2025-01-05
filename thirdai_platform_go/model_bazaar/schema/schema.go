@@ -3,10 +3,12 @@ package schema
 import (
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Model struct {
-	Id string `gorm:"primaryKey"`
+	Id uuid.UUID `gorm:"type:uuid;primaryKey"`
 
 	Name string
 	Type string
@@ -22,13 +24,13 @@ type Model struct {
 	Attributes   []ModelAttribute  `gorm:"constraint:OnDelete:CASCADE;"`
 	Dependencies []ModelDependency `gorm:"foreignKey:ModelId;constraint:OnDelete:CASCADE;"`
 
-	BaseModelId *string
-	BaseModel   *Model `gorm:"constraint:OnDelete:SET NULL;"`
+	BaseModelId *uuid.UUID `gorm:"type:uuid"`
+	BaseModel   *Model     `gorm:"constraint:OnDelete:SET NULL;"`
 
-	UserId string
+	UserId uuid.UUID `gorm:"type:uuid"`
 	User   *User
 
-	TeamId *string
+	TeamId *uuid.UUID `gorm:"type:uuid"`
 	Team   *Team
 }
 
@@ -41,21 +43,21 @@ func (m *Model) GetAttributes() map[string]string {
 }
 
 type ModelAttribute struct {
-	ModelId string `gorm:"primaryKey"`
-	Key     string `gorm:"primaryKey"`
+	ModelId uuid.UUID `gorm:"type:uuid;primaryKey"`
+	Key     string    `gorm:"primaryKey"`
 	Value   string
 }
 
 type ModelDependency struct {
-	ModelId      string `gorm:"primaryKey"`
-	DependencyId string `gorm:"primaryKey"`
+	ModelId      uuid.UUID `gorm:"type:uuid;primaryKey"`
+	DependencyId uuid.UUID `gorm:"type:uuid;primaryKey"`
 
 	Model      *Model `gorm:"foreignKey:ModelId"`
 	Dependency *Model `gorm:"foreignKey:DependencyId"`
 }
 
 type User struct {
-	Id string `gorm:"primaryKey"`
+	Id uuid.UUID `gorm:"type:uuid;primaryKey"`
 
 	Username string `gorm:"uniqueIndex"`
 	Email    string `gorm:"uniqueIndex"`
@@ -68,13 +70,13 @@ type User struct {
 }
 
 type Team struct {
-	Id   string `gorm:"primaryKey"`
-	Name string `gorm:"uniqueIndex"`
+	Id   uuid.UUID `gorm:"type:uuid;primaryKey"`
+	Name string    `gorm:"uniqueIndex"`
 }
 
 type UserTeam struct {
-	UserId      string `gorm:"primaryKey;constraint:OnDelete:CASCADE;"`
-	TeamId      string `gorm:"primaryKey;constraint:OnDelete:CASCADE;"`
+	UserId      uuid.UUID `gorm:"type:uuid;primaryKey;constraint:OnDelete:CASCADE;"`
+	TeamId      uuid.UUID `gorm:"type:uuid;primaryKey;constraint:OnDelete:CASCADE;"`
 	IsTeamAdmin bool
 
 	User *User
@@ -82,8 +84,8 @@ type UserTeam struct {
 }
 
 type JobLog struct {
-	Id      string `gorm:"primaryKey"`
-	ModelId string `gorm:"index"`
+	Id      uuid.UUID `gorm:"type:uuid;primaryKey"`
+	ModelId uuid.UUID `gorm:"type:uuid;index"`
 	Job     string
 	Level   string
 	Message string

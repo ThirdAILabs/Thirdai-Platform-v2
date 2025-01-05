@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -40,12 +41,12 @@ func GetUser(userId string, db *gorm.DB) (User, error) {
 	return user, nil
 }
 
-func GetModel(modelId string, db *gorm.DB, loadDeps, loadAttrs, loadUser bool) (Model, error) {
+func GetModel(modelId uuid.UUID, db *gorm.DB, loadDeps, loadAttrs, loadUser bool) (Model, error) {
 	var model Model
 
 	var result *gorm.DB = db
 	if loadDeps {
-		result = result.Preload("Dependencies")
+		result = result.Preload("Dependencies").Preload("Dependencies.Dependency")
 	}
 	if loadAttrs {
 		result = result.Preload("Attributes")
@@ -65,20 +66,20 @@ func GetModel(modelId string, db *gorm.DB, loadDeps, loadAttrs, loadUser bool) (
 	return model, nil
 }
 
-func GetUserTeamIds(userId string, db *gorm.DB) ([]string, error) {
+func GetUserTeamIds(userId uuid.UUID, db *gorm.DB) ([]uuid.UUID, error) {
 	var teams []UserTeam
 	result := db.Find(&teams, "user_id = ?", userId)
 	if result.Error != nil {
 		return nil, NewDbError("retrieving user_team entries", result.Error)
 	}
-	ids := make([]string, 0, len(teams))
+	ids := make([]uuid.UUID, 0, len(teams))
 	for _, team := range teams {
 		ids = append(ids, team.TeamId)
 	}
 	return ids, nil
 }
 
-func GetUserTeam(teamId, userId string, db *gorm.DB) (*UserTeam, error) {
+func GetUserTeam(teamId, userId uuid.UUID, db *gorm.DB) (*UserTeam, error) {
 	var team UserTeam
 	result := db.First(&team, "team_id = ? and user_id = ?", teamId, userId)
 	if result.Error != nil {
@@ -91,7 +92,7 @@ func GetUserTeam(teamId, userId string, db *gorm.DB) (*UserTeam, error) {
 	return &team, nil
 }
 
-func ModelExists(db *gorm.DB, modelId string) (bool, error) {
+func ModelExists(db *gorm.DB, modelId uuid.UUID) (bool, error) {
 	var model Model
 	result := db.First(&model, "id = ?", modelId)
 	if result.Error != nil {
@@ -103,7 +104,7 @@ func ModelExists(db *gorm.DB, modelId string) (bool, error) {
 	return true, nil
 }
 
-func UserExists(db *gorm.DB, userId string) (bool, error) {
+func UserExists(db *gorm.DB, userId uuid.UUID) (bool, error) {
 	var user User
 	result := db.First(&user, "id = ?", userId)
 	if result.Error != nil {
@@ -115,7 +116,7 @@ func UserExists(db *gorm.DB, userId string) (bool, error) {
 	return true, nil
 }
 
-func TeamExists(db *gorm.DB, teamId string) (bool, error) {
+func TeamExists(db *gorm.DB, teamId uuid.UUID) (bool, error) {
 	var team Team
 	result := db.First(&team, "id = ?", teamId)
 	if result.Error != nil {

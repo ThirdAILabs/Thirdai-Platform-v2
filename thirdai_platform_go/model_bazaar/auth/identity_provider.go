@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type LoginResult struct {
-	UserId      string
+	UserId      uuid.UUID
 	AccessToken string
 }
 
@@ -24,16 +25,16 @@ type IdentityProvider interface {
 
 	LoginWithToken(accessToken string) (LoginResult, error)
 
-	CreateUser(username, email, password string) (string, error)
+	CreateUser(username, email, password string) (uuid.UUID, error)
 
-	VerifyUser(userId string) error
+	VerifyUser(userId uuid.UUID) error
 
-	DeleteUser(userId string) error
+	DeleteUser(userId uuid.UUID) error
 
 	GetTokenExpiration(r *http.Request) (time.Time, error)
 }
 
-func addInitialAdminToDb(db *gorm.DB, userId, username, email string, password []byte) error {
+func addInitialAdminToDb(db *gorm.DB, userId uuid.UUID, username, email string, password []byte) error {
 	user := schema.User{
 		Id:       userId,
 		Username: username,

@@ -43,7 +43,7 @@ jobs:
             image_version="${{ github.event.release.tag_name }}"
           fi
 
-          echo "Next version: $version"
+          echo "Next version: $image_version"
 
           # removing prefix 'v' from the version (if present)
           echo "image_version=${image_version#v}" >> $GITHUB_OUTPUT
@@ -129,16 +129,29 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-  Latest_build_and_push_images:
+  Latest_image_migration:
     needs: [Gather_facts, Versioned_build_and_push_images, package, tests_on_ec2]
     if: ${{ always() && needs.Versioned_build_and_push_images.result == 'success' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'release' && needs.tests_on_ec2.result == 'success'))}}
     # push the latest images if the event is 'workflow_dispatch' (irrespective of passing or failing the test) OR the event is 'release' and tests are passed
-    uses: ./.github/workflows/build_and_push_images.yml
-    with:
-      docker_image_branch_name: ${{ needs.Gather_facts.outputs.docker_image_branch_name }}
-      docker_image_version: ${{ needs.Gather_facts.outputs.image_version }}
-      base_encoded_docker_registry_push_password: ${{ needs.Versioned_build_and_push_images.outputs.b64_encoded_docker_registry_push_password }}
-      base_encoded_docker_registry_pull_password: ${{ needs.Versioned_build_and_push_images.outputs.b64_encoded_docker_registry_pull_password }}
-      dont_update_latest: false
-    secrets:
-      azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
+    runs-on: ubuntu-latest-8-cores
+    steps:
+      - name: "Azure Login"
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      # TODO(anyone): use `docker_constant.py` to identify the images thats needed to be migrated to 'latest' tag instead of hardcoding to two images
+      - name: Update the latest tagged image for the specified branch-image
+        run: |
+          az acr import \
+            --name thirdaiplatform \
+            --source thirdaiplatform.azurecr.io/thirdai_platform_${{ needs.Gather_facts.outputs.docker_image_branch_name }}:v${{ needs.Gather_facts.outputs.image_version }} \
+            --image thirdai_platform_${{ needs.Gather_facts.outputs.docker_image_branch_name }}:latest \
+            --force
+          
+          az acr import \
+            --name thirdaiplatform \
+            --source thirdaiplatform.azurecr.io/frontend_${{ needs.Gather_facts.outputs.docker_image_branch_name }}:v${{ needs.Gather_facts.outputs.image_version }} \
+            --image frontend_${{ needs.Gather_facts.outputs.docker_image_branch_name }}:latest \
+            --force
+          

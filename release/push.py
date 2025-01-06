@@ -172,7 +172,7 @@ def build_images(
                 nocache,
                 image.dockerfile_path,
                 image.context_path,
-                prod
+                prod,
             )
         )
 
@@ -180,7 +180,11 @@ def build_images(
 
 
 def verify_tag(
-    provider: CloudProviderInterface, image_ids: Dict[str, str], tag: str, branch: str, prod: bool
+    provider: CloudProviderInterface,
+    image_ids: Dict[str, str],
+    tag: str,
+    branch: str,
+    prod: bool,
 ) -> None:
     """
     Verify that the Docker image tag matches the checksum of the built image.
@@ -222,7 +226,9 @@ def push_images(
     :param dont_update_latest: Whether to update the 'latest' tag
     """
     for name, image_id in image_ids.items():
-        provider.push_image(image_id, provider.get_full_image_name(name, branch, tag, prod))
+        provider.push_image(
+            image_id, provider.get_full_image_name(name, branch, tag, prod)
+        )
         if not dont_update_latest:
             provider.push_image(
                 image_id, provider.get_full_image_name(name, branch, "latest", prod)
@@ -258,11 +264,13 @@ def main() -> None:
             print("Building production release")
 
         if (not args.prod and not args.branch) or (args.prod and args.branch):
-            raise Exception("Please either provide a branch name, or build a production release")
+            raise Exception(
+                "Please either provide a branch name, or build a production release"
+            )
 
         if args.prod and "production" not in config["azure"]:
             raise Exception("Please provide production credentials in the config")
-        
+
         if args.branch:
 
             # Ensure branch configuration exists
@@ -284,7 +292,11 @@ def main() -> None:
             azure_config = config["azure"]
             credentials_config = azure_config["production"]
 
-        tag = "v" + args.version if args.version else get_tag(args.branch, config, args.prod)
+        tag = (
+            "v" + args.version
+            if args.version
+            else get_tag(args.branch, config, args.prod)
+        )
 
         provider = AzureProvider(registry=azure_config["registry"])
         push_credentials = credentials_config.get("push_credentials", {})
@@ -375,11 +387,19 @@ def main() -> None:
 
         # Build images
         image_ids = build_images(
-            provider, args.branch, tag, pull_username, pull_password, args.no_cache, args.prod
+            provider,
+            args.branch,
+            tag,
+            pull_username,
+            pull_password,
+            args.no_cache,
+            args.prod,
         )
 
         verify_tag(provider, image_ids, tag, args.branch, args.prod)
-        push_images(provider, image_ids, tag, args.branch, args.dont_update_latest, args.prod)
+        push_images(
+            provider, image_ids, tag, args.branch, args.dont_update_latest, args.prod
+        )
 
 
 if __name__ == "__main__":

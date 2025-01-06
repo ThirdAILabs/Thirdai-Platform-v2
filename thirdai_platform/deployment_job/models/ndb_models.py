@@ -4,6 +4,7 @@ Defines NDB model classes for the application.
 
 import ast
 import os
+import random
 import shutil
 import tempfile
 import traceback
@@ -26,6 +27,9 @@ from platform_common.ndb.utils import delete_docs_and_remove_files
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.core.types import Chunk
+
+CHUNK_THRESHOLD = 200
+UNIQUE_VALUE_THRESHOLD = 0.25
 
 
 class NDBModel(Model):
@@ -182,6 +186,51 @@ class NDBModel(Model):
             ],
             key=lambda x: x["source"],
         )
+
+    def summarize_values(self, values):
+        return {
+            "min": min(values),
+            "max": max(values),
+            "unique_count": len(values),
+            "examples": list(values)[:10],
+        }
+
+    def get_metadata(self, doc_id: str, doc_version: int):
+        with self.db_lock:
+            chunk_ids = self.db.chunk_store.get_doc_chunks(
+                doc_id=doc_id, before_version=doc_version + 1
+            )
+            # Check if the number of chunks exceeds the threshold
+            if len(chunk_ids) > CHUNK_THRESHOLD:
+                chunk_ids = random.sample(chunk_ids, CHUNK_THRESHOLD)
+            chunks = self.db.chunk_store.get_chunks(chunk_ids)
+
+        doc_type = Path(chunks[0].document).suffix.lower() if chunks else None
+        metadata_aggregator = {}
+
+        if doc_type not in [".csv", ".docx", ".html", ".pdf"]:
+            raise ValueError(f"{doc_type} is not supported.")
+        is_pdf = doc_type == ".pdf"
+
+        for chunk in chunks:
+            if chunk.metadata:
+                for key, value in chunk.metadata.items():
+                    if is_pdf and key in {"highlight", "page", "chunk_boxes"}:
+                        continue
+                    if key not in metadata_aggregator:
+                        metadata_aggregator[key] = set()
+                    metadata_aggregator[key].add(value)
+
+        result = {}
+        for key, values in metadata_aggregator.items():
+            if len(values) > UNIQUE_VALUE_THRESHOLD * CHUNK_THRESHOLD:
+                # Summarize high-cardinality columns
+                result[key] = self.summarize_values(values)
+            else:
+                # For low-cardinality columns, return as a list
+                result[key] = list(values)
+
+        return result
 
     def highlight_v1(self, chunk: Chunk) -> Tuple[str, Optional[bytes]]:
         source = self.full_source_path(chunk.document)

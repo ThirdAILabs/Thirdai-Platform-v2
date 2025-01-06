@@ -40,7 +40,11 @@ logger = logging.getLogger("llm-cache")
 
 permissions = Permissions()
 
-cache: Cache = NDBSemanticCache(model_dir=model_dir, logger=logger)
+cache: Cache = NDBSemanticCache(
+    cache_ndb_path=os.path.join(model_dir, "llm_cache", "llm_cache.ndb"),
+    log_dir=model_dir,
+    logger=logger,
+)
 
 
 @app.middleware("http")

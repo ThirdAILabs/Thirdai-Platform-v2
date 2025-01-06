@@ -1,4 +1,5 @@
 import os
+from typing import List
 
 from pydantic import BaseModel
 
@@ -6,8 +7,7 @@ from pydantic import BaseModel
 class InsertLog(BaseModel):
     query: str
     llm_res: str
-    reference_hash: int
-    num_references: int
+    reference_ids: List[int]
 
 
 class UpdateLogger:

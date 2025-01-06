@@ -273,7 +273,7 @@ async def deploy_single_model(
             detail=f"Unsupported model type '{model.type}'.",
         )
 
-    if autoscaling_enabled:
+    if autoscaling_enabled and model.type == ModelType.NDB:
         try:
             await start_llm_cache_job(
                 model_id=str(model_id),

@@ -27,20 +27,19 @@ def token_similarity(query_tokens: Set[str], cached_query: str) -> float:
 
 
 class NDBSemanticCache(Cache):
-    def __init__(self, model_dir: str, logger: Logger):
+    def __init__(self, cache_ndb_path: str, log_dir: str, logger: Logger):
         self.logger = logger
-        self.cache_ndb_path = os.path.join(model_dir, "llm_cache", "llm_cache.ndb")
-        self.logger.info(f"cache ndb at {self.cache_ndb_path}")
-        if os.path.exists(self.cache_ndb_path):
+        self.logger.info(f"cache ndb at {cache_ndb_path}")
+        if os.path.exists(cache_ndb_path):
             try:
-                self.db = ndb.NeuralDB.load(self.cache_ndb_path)
+                self.db = ndb.NeuralDB.load(cache_ndb_path)
                 self.logger.info("Loaded existing cache model from disk.")
             except Exception as e:
                 self.logger.error("Failed to load cache model", exc_info=True)
                 raise e
         else:
             try:
-                self.db = ndb.NeuralDB(save_path=self.cache_ndb_path)
+                self.db = ndb.NeuralDB(save_path=cache_ndb_path)
                 self.logger.info("Initialized new cache model.")
             except Exception as e:
                 self.logger.error("Failed to initialize new cache model", exc_info=True)
@@ -49,7 +48,7 @@ class NDBSemanticCache(Cache):
         self.logger.info(f"Cache threshold set to {self.threshold}")
 
         self.insertion_logger = UpdateLogger(
-            os.path.join(model_dir, "llm_cache", "insertions")
+            os.path.join(log_dir, "llm_cache", "insertions")
         )
 
     def suggestions(self, query: str) -> List[Dict[str, Any]]:
@@ -108,16 +107,20 @@ class NDBSemanticCache(Cache):
             )
         )
 
-    def insert(self, insert_log: InsertLog):
-        self.db.insert(
-            [
-                ndb.InMemoryText(
-                    document_name="",
-                    text=insert_log.query,
-                    doc_metadata={
-                        "llm_res": insert_log.llm_res,
-                        "reference_ids": insert_log.reference_ids,
-                    },
-                )
-            ]
-        )
+    def insert(self, insertions: List[InsertLog], batch_size: int = 2000):
+        i = 0
+        while i < len(insertions):
+            self.db.insert(
+                [
+                    ndb.InMemoryText(
+                        document_name="",
+                        text=insert_log.query,
+                        doc_metadata={
+                            "llm_res": insert_log.llm_res,
+                            "reference_ids": insert_log.reference_ids,
+                        },
+                    )
+                ]
+                for insert_log in insertions[i : i + batch_size]
+            )
+            i += batch_size

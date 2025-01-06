@@ -18,6 +18,7 @@ from backend.utils import (
     create_classification_csv,
     delete_nomad_job,
     get_job_logs,
+    get_job_messages,
     get_model,
     get_model_from_identifier,
     get_model_status,
@@ -40,8 +41,6 @@ from database.session import get_session
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from platform_common.dependencies import is_on_low_disk
 from platform_common.file_handler import download_local_files
-
-pass
 from platform_common.pii.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.pydantic_models.feedback_logs import DeleteLog, InsertLog
 from platform_common.pydantic_models.training import (
@@ -417,7 +416,7 @@ def retrain_ndb(
 
 
 @train_router.post("/refresh-llm-cache", dependencies=[Depends(is_on_low_disk())])
-def retrain_ndb(
+def refresh_llm_cache(
     model_identifier: str,
     job_options: str = Form(default="{}"),
     session: Session = Depends(get_session),
@@ -439,6 +438,22 @@ def retrain_ndb(
             message=str(error),
         )
 
+    if model.type != ModelType.NDB:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Can only refresh cache for NDB model types.",
+        )
+
+    if model.deploy_status in [
+        schema.Status.starting,
+        schema.Status.in_progress,
+        schema.Status.complete,
+    ]:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Cannot refresh cache while its deployed.",
+        )
+
     cache_insertions_dir = os.listdir(
         os.path.join(
             model_bazaar_path(), "models", str(model.id), "llm_cache", "insertions"
@@ -449,18 +464,6 @@ def retrain_ndb(
             status_code=status.HTTP_200_OK,
             message=f"No cache insertions left for model: {model.id}. Cache is up to date.",
         )
-
-    nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
-    llm_cache_job_id = f"llm-cache-{model.id}"
-    # TODO what happens if someone calls deploy when its still refreshing?
-    # if nomad_job_exists(llm_cache_job_id, nomad_endpoint):
-    #     # TODO(david) we should make sure no one deploys while its refreshing
-    #     # refreshing while deployed can be done in a future PR by copying the
-    #     # ndb, running the refresh in the background, and hotswapping
-    #     return response(
-    #         status_code=status.HTTP_400_BAD_REQUEST,
-    #         message="Cannot refresh the cache job if deployment still active.",
-    #     )
 
     license_info = validate_license_info()
 
@@ -502,6 +505,97 @@ def retrain_ndb(
     return response(
         status_code=status.HTTP_200_OK,
         message=f"Successfully refreshed LLM Cache for model: {model.id}",
+    )
+
+
+@train_router.post("/update-cache-status")
+def update_cache_status(
+    model_id: str,
+    new_status: schema.Status,
+    message: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
+    """
+    Update the training status of a model.
+
+    Parameters:
+    - model_id: The ID of the model.
+    - status: The new status for the cache (e.g., "failed", "in_progress").
+    - message: A message describing the update.
+        - Example:
+        ```json
+        {
+            "model_id": "123e4567-e89b-12d3-a456-426614174000",
+            "status": "failed",
+            "message": "Training failed due to insufficient data."
+        }
+        ```
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response indicating the update status.
+    """
+    model: schema.Model = (
+        session.query(schema.Model).filter(schema.Model.id == model_id).first()
+    )
+
+    if not model:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"No model with id {model_id}.",
+        )
+
+    model.cache_status = new_status
+    if new_status == schema.Status.failed and message:
+        session.add(
+            schema.JobMessage(
+                model_id=model.id,
+                job_type="cache",
+                level=schema.Level.error,
+                message=message,
+            )
+        )
+    session.commit()
+
+    return {"message": f"successfully updated with following {message}"}
+
+
+@train_router.get("/cache-status", dependencies=[Depends(verify_model_read_access)])
+def cache_status(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+):
+    """
+    Get the status of a NeuralDB.
+
+    Parameters:
+    - model_identifier: The identifier of the model to retrieve info about.
+    - session: The database session (dependency).
+    - authenticated_user: The authenticated user (dependency).
+
+    Returns:
+    - A JSON response with the model status.
+    """
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    messages = get_job_messages(session, model.id, "cache", limit=1)
+    warnings, errors = get_warnings_and_errors(session, model, job_type="cache")
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the train status.",
+        data={
+            "model_identifier": model_identifier,
+            "cache_status": model.cache_status,
+            "messages": messages,
+            "warnings": warnings,
+            "errors": errors,
+        },
     )
 
 

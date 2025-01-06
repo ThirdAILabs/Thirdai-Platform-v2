@@ -34,6 +34,7 @@ def test_llm_cache():
         }
 
     model_id = base_model.model_id
+    time.sleep(10)
 
     cache_health_url = f"http://127.0.0.1:80/{model_id}/cache/health"
     response = requests.get(cache_health_url)
@@ -65,7 +66,7 @@ def test_llm_cache():
     insertion_url = f"http://127.0.0.1:80/{model_id}/cache/insert"
     insertion_response = requests.post(
         insertion_url,
-        json={"query": "lol", "llm_res": "response", "references": ["something"]},
+        json={"query": "lol", "llm_res": "response", "reference_ids": [0]},
         headers={"Authorization": f"Bearer {cache_token}"},
     )
     assert insertion_response.status_code == 200
@@ -77,7 +78,7 @@ def test_llm_cache():
     assert len(matching_files) > 0
 
     admin_client.undeploy(ndb_client)
-    time.sleep(10)
+    time.sleep(10)  # we have this because we don't have status checks for undeploy
 
     stopped_response = requests.get(cache_health_url)
     assert stopped_response.status_code != 200
@@ -89,8 +90,6 @@ def test_llm_cache():
         headers=auth_header(),
     )
     assert refresh_response.status_code == 200
-    # TODO add a status check for when its done refreshing
-    time.sleep(20)
 
     pattern = os.path.join(
         model_bazaar_dir, "models", model_id, "llm_cache", "insertions", "*.jsonl"

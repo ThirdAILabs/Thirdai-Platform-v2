@@ -154,6 +154,7 @@ async def generate(generate_args: GenerateArgs):
                 generated_response,
                 generate_args.cache_access_token,
                 [ref.ref_id for ref in generate_args.references],
+                model_id=workflow_id,
             )
 
     return StreamingResponse(generate_stream(), media_type="text/plain")
@@ -166,10 +167,15 @@ async def insert_into_cache(
     generated_response: str,
     cache_access_token: str,
     reference_ids: List[int],
+    model_id: str,
 ):
+    if "I cannot answer" in generated_response:
+        logger.warning(f"Not caching generated response: {generated_response}")
+        return
+
     try:
         res = requests.post(
-            urljoin(os.environ["MODEL_BAZAAR_ENDPOINT"], "/cache/insert"),
+            urljoin(os.environ["MODEL_BAZAAR_ENDPOINT"], f"/{model_id}/cache/insert"),
             json={
                 "query": original_query,
                 "llm_res": generated_response,

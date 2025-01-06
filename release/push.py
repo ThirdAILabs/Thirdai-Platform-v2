@@ -19,12 +19,12 @@ def get_args() -> argparse.Namespace:
     parser.add_argument(
         "-b",
         "--branch",
-        help="The branch to push docker images to. E.g. 'prod', 'test', etc.",
+        help="The branch to push docker images to. E.g. 'dev', 'test', etc. branch='prod' will build a production release",
     )
     parser.add_argument(
         "--prod",
         action="store_true",
-        help="Release a production build",
+        help="Release a production build. Same behavior as setting branch='prod'.",
     )
     parser.add_argument(
         "--config",
@@ -251,6 +251,11 @@ def main() -> None:
     if provider_name == "azure":
         if not config["azure"]["registry"]:
             config["azure"]["registry"] = "thirdaiplatform.azurecr.io"
+
+        if args.branch == "prod":
+            args.branch = ""
+            args.prod = True
+            print("Building production release")
 
         if (not args.prod and not args.branch) or (args.prod and args.branch):
             raise Exception("Please either provide a branch name, or build a production release")

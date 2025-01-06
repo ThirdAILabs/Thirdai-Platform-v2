@@ -458,8 +458,7 @@ export default function Interact() {
       let isTextXml = true;
       try {
         parseXML(text);
-      }
-      catch (error) {
+      } catch (error) {
         isTextXml = false;
       }
 
@@ -878,7 +877,7 @@ export default function Interact() {
       const parsedXml = parseXML(cleanXml);
       const parser = new DOMParser();
       const xmlDom = parser.parseFromString(cleanXml, 'application/xml');
-      console.log("XmlAnnotations: ", xmlAnnotations);
+      console.log('XmlAnnotations: ', xmlAnnotations);
       return (
         <XMLRenderer
           data={parsedXml}
@@ -982,7 +981,11 @@ export default function Interact() {
       <div style={{ flex: 2, marginRight: '20px' }}>
         <Box display="flex" flexDirection="column" width="100%">
           <Box display="flex" justifyContent="center" alignItems="center" width="100%">
-            <ExpandingInput onSubmit={handleRun} onFileChange={handleFileChange} onInputChange={handleInputChange} />
+            <ExpandingInput
+              onSubmit={handleRun}
+              onFileChange={handleFileChange}
+              onInputChange={handleInputChange}
+            />
           </Box>
 
           {fileError && (
@@ -1012,7 +1015,7 @@ export default function Interact() {
             <CircularProgress />
           </Box>
         ) : (
-          (logType !== undefined) && (
+          logType !== undefined && (
             <Box mt={4}>
               <Card
                 className="p-7 text-start"
@@ -1065,7 +1068,11 @@ export default function Interact() {
           </Card>
         )}
         {logType === 'xml' && (
-          <FeedbackDashboardXML selections={selections} onDeleteSelection={handleDeleteSelection} xmlString='' />
+          <FeedbackDashboardXML
+            selections={selections}
+            onDeleteSelection={handleDeleteSelection}
+            xmlString=""
+          />
         )}
       </div>
     </Container>

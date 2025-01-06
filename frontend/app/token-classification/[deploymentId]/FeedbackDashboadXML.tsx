@@ -63,8 +63,8 @@ export function FeedbackDashboard({
   const submitFeedbacks = async () => {
     try {
       const url = new URL(window.location.href);
-      const deploymentURL = url?.origin + "/" + url?.pathname?.split('/')?.slice(-1);
-      console.log("deploymentURL ", deploymentURL);
+      const deploymentURL = url?.origin + '/' + url?.pathname?.split('/')?.slice(-1);
+      console.log('deploymentURL ', deploymentURL);
       setIsSubmitting(true);
 
       // Transform selections into XMLUserFeedback structure
@@ -77,15 +77,15 @@ export function FeedbackDashboard({
         })),
       };
       const accessToken = localStorage.getItem('accessToken');
-      console.log("feedback data: ", feedbackData);
+      console.log('feedback data: ', feedbackData);
       // Call backend API
       const response = await fetch(`${deploymentURL}/insert_sample`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`, // Add this if required
+          Authorization: `Bearer ${accessToken}`, // Add this if required
         },
-        body: JSON.stringify({ tokens: ["ram", "shyam"], tags: ["name", "name"] }), //this is just for checking purpose.
+        body: JSON.stringify({ tokens: ['ram', 'shyam'], tags: ['name', 'name'] }), //this is just for checking purpose.
         // body: JSON.stringify(feedbackData), //It will work after the merge of "xml-feedback-support" this branch.
       });
 

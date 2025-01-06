@@ -111,5 +111,4 @@ const ExpandingInput: React.FC<EnhancedInputProps> = ({
   );
 };
 
-
 export default ExpandingInput;

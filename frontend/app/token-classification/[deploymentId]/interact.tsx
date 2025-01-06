@@ -454,8 +454,16 @@ export default function Interact() {
     try {
       const result = await predict(text);
       setProcessingTime(result.time_taken);
+      //for detecting whether the text is xml or not.
+      let isTextXml = true;
+      try {
+        parseXML(text);
+      }
+      catch (error) {
+        isTextXml = false;
+      }
 
-      if (!parseXML(text)) {
+      if (!isTextXml) {
         console.log('this is not xml');
         setLogType('unstructured');
         updateTagColors(result.prediction_results.predicted_tags);
@@ -870,7 +878,7 @@ export default function Interact() {
       const parsedXml = parseXML(cleanXml);
       const parser = new DOMParser();
       const xmlDom = parser.parseFromString(cleanXml, 'application/xml');
-      console.log('xmlDom1: ', xmlDom);
+      console.log("XmlAnnotations: ", xmlAnnotations);
       return (
         <XMLRenderer
           data={parsedXml}
@@ -974,7 +982,7 @@ export default function Interact() {
       <div style={{ flex: 2, marginRight: '20px' }}>
         <Box display="flex" flexDirection="column" width="100%">
           <Box display="flex" justifyContent="center" alignItems="center" width="100%">
-            <ExpandingInput onSubmit={handleRun} onFileChange={handleFileChange} />
+            <ExpandingInput onSubmit={handleRun} onFileChange={handleFileChange} onInputChange={handleInputChange} />
           </Box>
 
           {fileError && (
@@ -1004,7 +1012,7 @@ export default function Interact() {
             <CircularProgress />
           </Box>
         ) : (
-          (annotations.length > 0 || logType === 'xml') && (
+          (logType !== undefined) && (
             <Box mt={4}>
               <Card
                 className="p-7 text-start"
@@ -1029,7 +1037,7 @@ export default function Interact() {
           marginTop: '4.7cm', // This will push the FeedbackDashboard 1cm lower
         }}
       >
-        {processingTime !== undefined && (annotations.length || logType === 'xml') && (
+        {processingTime !== undefined && logType !== undefined && (
           <div className="mb-4">
             {' '}
             {annotations.length ? (
@@ -1046,7 +1054,7 @@ export default function Interact() {
           </div>
         )}
 
-        {annotations.length !== 0 && (
+        {logType === 'unstructured' && (
           <Card className="p-7 text-start">
             <FeedbackDashboard
               cachedTags={cachedTags}
@@ -1056,8 +1064,8 @@ export default function Interact() {
             />
           </Card>
         )}
-        {xmlAnnotations !== undefined && xmlAnnotations.length !== 0 && (
-          <FeedbackDashboardXML selections={selections} onDeleteSelection={handleDeleteSelection} />
+        {logType === 'xml' && (
+          <FeedbackDashboardXML selections={selections} onDeleteSelection={handleDeleteSelection} xmlString='' />
         )}
       </div>
     </Container>

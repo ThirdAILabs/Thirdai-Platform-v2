@@ -605,7 +605,7 @@ export function trainTextClassifierWithCSV({
             reject(
               new Error(
                 (axiosError.response.data as any).detail ||
-                  'Failed to train text classification model'
+                'Failed to train text classification model'
               )
             );
           } else {
@@ -737,7 +737,7 @@ export function trainTokenClassifierWithCSV({
             reject(
               new Error(
                 (axiosError.response.data as any).detail ||
-                  'Failed to train token classification model'
+                'Failed to train token classification model'
               )
             );
           } else {
@@ -916,7 +916,7 @@ export function trainTokenClassifierFromCSV({
             reject(
               new Error(
                 (axiosError.response.data as any).detail ||
-                  'Failed to train token classification model'
+                'Failed to train token classification model'
               )
             );
           } else {
@@ -1669,7 +1669,7 @@ export function useTokenClassificationEndpoints() {
       const response = await axios.post(`${deploymentUrl}/predict`, {
         text: query,
         top_k: 1,
-        data_type: 'unstructured',
+        data_type: "unstructured",
       });
       return response.data.data;
     } catch (error) {

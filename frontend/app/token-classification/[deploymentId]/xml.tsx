@@ -340,6 +340,8 @@ function XMLValueRenderer({
       // Query the XML
       const node: any = SelectXPath(prediction.location.xpath_location.xpath, xmlDom);
       const nodeValue = node[0]?.firstChild?.data;
+      const tempNode: any = SelectXPath("Event/System/Provider", xmlDom);
+      console.log("tempNode: ", tempNode, " and tempNodeVlaue: ", tempNode[0]?.firstChild?.data);
       console.log(`node: ${node} and ${node[0]?.firstChild?.data}`);
       if (data?.toString() === nodeValue?.trim()) {
         const { start: startI, end: endI } = prediction.location.local_char_span;
@@ -348,16 +350,16 @@ function XMLValueRenderer({
           const nextPrediction = predictions[j];
           const { start: startJ, end: endJ } = nextPrediction.location.local_char_span;
 
-          const predictionNode: any = Xpath.select(
+          const predictionNode: any = SelectXPath(
             prediction.location.xpath_location.xpath,
             xmlDom
           );
-          const nextPredictionNode: any = Xpath.select(
+          const nextPredictionNode: any = SelectXPath(
             nextPrediction.location.xpath_location.xpath,
             xmlDom
           );
 
-          if (predictionNode[0].firstChild.data === nextPredictionNode[0].firstChild.data) {
+          if (predictionNode[0]?.firstChild?.data === nextPredictionNode[0]?.firstChild?.data) {
             // Check for intersection
             if (!(endI < startJ || startI > endJ)) {
               hasIntersection = true;
@@ -442,9 +444,9 @@ function XMLValueRenderer({
         });
 
         return (
-          <>
+          <div key={index}>
             <span
-              key={index}
+
               onMouseDown={() => handleMouseDown(index)}
               onMouseEnter={() => handleMouseEnter(index)}
               onMouseUp={handleMouseUp}
@@ -480,7 +482,7 @@ function XMLValueRenderer({
               }
               return null;
             })}
-          </>
+          </div>
         );
       })}
 

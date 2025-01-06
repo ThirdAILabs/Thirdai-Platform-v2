@@ -714,6 +714,8 @@ class NDBRouter:
                 yield chunk
                 if not chunk.startswith("context: "):
                     conversation_response += chunk
+                else:
+                    reformulated_query = json.loads(chunk.split('context: ', 1)[1])[0]['query']
             end_time = time.time()
             chat_response_time.observe(end_time - start_time)
 
@@ -726,7 +728,8 @@ class NDBRouter:
                 response_time=datetime.fromtimestamp(end_time).strftime(
                     "%Y-%m-%d %H:%M:%S"
                 ),
-                query_text=input.user_input,
+                query_text=reformulated_query,
+                user_input = input.user_input,
                 response_text=conversation_response,
             )
 
@@ -756,8 +759,9 @@ class NDBRouter:
             data = json.loads(line)
             chat_history[data["session_id"]].append(
                 {
+                    "user_input": data["user_input"],       # un-reformulated query
                     "query_time": data["query_time"],
-                    "query_text": data["query_text"],
+                    "query_text": data["query_text"],       # reformulated query
                     "response_time": data["response_time"],
                     "response_text": data["response_text"],
                 }

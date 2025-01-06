@@ -5,6 +5,7 @@ import { Button } from '@mui/material';
 interface ConversationData {
   query_time: string;
   query_text: string;
+  user_input: string,
   response_time: string;
   response_text: string;
 }
@@ -88,7 +89,7 @@ const Conversations: React.FC = () => {
                 {/* Query Section */}
                 <div className="flex justify-center">
                   <div className="border py-2 px-4 rounded-lg w-[90%]">
-                    <div className="text-gray-700">{conversation.query_text}</div>
+                    <div className="text-gray-700">{conversation.user_input}/{conversation.query_text}</div>
                     <div className="text-xs text-gray-500">{conversation.query_time}</div>
                   </div>
                 </div>

@@ -7,7 +7,7 @@ import shutil
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 from auth.jwt import AuthenticatedUser, verify_access_token
@@ -1105,7 +1105,7 @@ import aiofiles.tempfile
 
 async def validate_text_classification_csv_format(
     file: UploadFile,
-) -> Tuple[bool, str, set[str] | None]:  # Changed return type annotation
+) -> Tuple[bool, str, Set[str], None]:  # Changed return type annotation
     """
     Validates the CSV file format for text classification asynchronously using aiofiles.
     Returns (is_valid, error_message, extracted_labels).
@@ -1205,7 +1205,7 @@ async def validate_text_classification_csv(
 
 def validate_token_classification_csv_format(
     file: UploadFile,
-) -> tuple[bool, str, set[str] | None]:
+) -> tuple[bool, str, Set[str], None]:
     """
     Validates the CSV file format for token classification.
     Returns (is_valid, error_message, extracted_labels).

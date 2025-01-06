@@ -1,4 +1,3 @@
-pass
 from typing import Dict, Optional
 from urllib.parse import urljoin
 

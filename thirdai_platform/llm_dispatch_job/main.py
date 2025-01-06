@@ -154,7 +154,8 @@ async def generate(generate_args: GenerateArgs):
                 generated_response,
                 generate_args.cache_access_token,
                 [ref.ref_id for ref in generate_args.references],
-                model_id=workflow_id,
+                # TODO is this id the enterprise search or the underlying model id?
+                model_id=generate_args.workflow_id,
             )
 
     return StreamingResponse(generate_stream(), media_type="text/plain")

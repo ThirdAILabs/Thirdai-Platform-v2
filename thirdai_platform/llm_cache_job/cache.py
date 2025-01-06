@@ -108,6 +108,7 @@ class NDBSemanticCache(Cache):
         )
 
     def insert(self, insertions: List[InsertLog], batch_size: int = 2000):
+        print("NUM INSERTIONS:", len(insertions))
         i = 0
         while i < len(insertions):
             self.db.insert(
@@ -123,4 +124,7 @@ class NDBSemanticCache(Cache):
                 ]
                 for insert_log in insertions[i : i + batch_size]
             )
+            print("INSERTED")
             i += batch_size
+        print(insertions[0].query)
+        print(self.db.search(insertions[0].query))

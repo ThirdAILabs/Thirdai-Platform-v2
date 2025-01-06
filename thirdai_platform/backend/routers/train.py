@@ -467,8 +467,6 @@ def refresh_llm_cache(
 
     license_info = validate_license_info()
 
-    # TODO add status reporting logic to the refresh
-
     try:
         submit_nomad_job(
             str(
@@ -488,12 +486,13 @@ def refresh_llm_cache(
             llm_cache_script="llm_cache_job.refresh_llm_cache",
             model_id=str(model.id),
             share_dir=os.getenv("SHARE_DIR", None),
+            model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
             python_path=get_python_path(),
             allocation_cores=job_options.allocation_cores,
             allocation_memory=job_options.allocation_memory,
             license_key=license_info["boltLicenseKey"],
             # TODO(David): Find a more graceful way to handle memory allocation for
-            # larger training jobs
+            # larger cache jobs
             allocation_memory_max=60_000,
         )
     except Exception as err:

@@ -23,6 +23,7 @@ job "llm-cache-refresh-{{ model_id }}" {
         {% endif %}
         MODEL_ID = "{{ model_id }}"
         LICENSE_KEY = "{{ license_key }}"
+        MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"
       }
 
       config {

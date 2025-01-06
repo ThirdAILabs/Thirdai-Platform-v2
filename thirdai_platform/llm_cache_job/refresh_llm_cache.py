@@ -24,10 +24,12 @@ insertions_folder = os.path.join(model_dir, "llm_cache", "insertions")
 def list_insertions() -> List[InsertLog]:
     insertions = []
     for logfile in os.listdir(insertions_folder):
-        if os.path.isfile(logfile) and logfile.endswith(".jsonl"):
-            with open(os.path.join(logfile)) as f:
+        filepath = os.path.join(insertions_folder, logfile)
+        if os.path.isfile(filepath) and logfile.endswith(".jsonl"):
+            with open(filepath) as f:
                 for line in f.readlines():
-                    insertions.extend(InsertLog.model_validate_json(line))
+                    log = InsertLog.model_validate_json(line)
+                    insertions.append(log)
     return insertions
 
 
@@ -67,9 +69,10 @@ def main():
             ignore=shutil.ignore_patterns("*.tmpdb"),
             dirs_exist_ok=True,
         )
-        os.remove(new_cache_ndb_path)
+        shutil.rmtree(new_cache_ndb_path)
     except Exception as e:
         reporter.report_status(model_id, "failed", str(e))
+        raise
 
     reporter.report_status(model_id, "complete")
 

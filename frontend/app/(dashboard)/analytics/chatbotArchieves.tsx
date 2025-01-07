@@ -145,7 +145,8 @@ const Conversations: React.FC = () => {
                       {/* Query Section */}
                       <div className="flex justify-center">
                         {(selectedCategories[conversation.user_input_category] === true || !getSelectedCategories().join(', ')) && <div className="border py-2 px-4 rounded-lg w-[90%]">
-                          <div className="text-gray-700">{conversation.user_input}</div>
+                          <div className="text-gray-700 flex flex-wrap"> <strong>User Query: </strong>{" " + conversation.user_input}</div>
+                          <div className="text-gray-700"><strong>Reformulated Query:</strong>{" " + conversation.query_text}</div>
                           <div className="text-xs text-gray-500">{conversation.query_time}</div>
                         </div>}
                       </div>

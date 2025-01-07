@@ -70,6 +70,10 @@ func (c *PlatformClient) uploadFiles(files []config.FileInfo) ([]config.FileInfo
 }
 
 func (c *PlatformClient) TrainNdb(name string, unsupervised []config.FileInfo, supervised []config.FileInfo, jobOptions config.JobOptions) (*NdbClient, error) {
+	return c.TrainNdbWithBaseModel(name, nil, unsupervised, supervised, jobOptions)
+}
+
+func (c *PlatformClient) TrainNdbWithBaseModel(name string, baseModel *NdbClient, unsupervised []config.FileInfo, supervised []config.FileInfo, jobOptions config.JobOptions) (*NdbClient, error) {
 	unsupervisedFiles, err := c.uploadFiles(unsupervised)
 	if err != nil {
 		return nil, fmt.Errorf("error uploading unsupervised files for training: %w", err)
@@ -80,9 +84,19 @@ func (c *PlatformClient) TrainNdb(name string, unsupervised []config.FileInfo, s
 		return nil, fmt.Errorf("error uploading supervised files for training: %w", err)
 	}
 
+	var baseModelId *uuid.UUID
+	if baseModel != nil {
+		baseModelId = &baseModel.modelId
+	}
+	var modelOptions *config.NdbOptions
+	if baseModel == nil {
+		modelOptions = &config.NdbOptions{}
+	}
+
 	body := services.NdbTrainRequest{
 		ModelName:    name,
-		ModelOptions: &config.NdbOptions{},
+		BaseModelId:  baseModelId,
+		ModelOptions: modelOptions,
 		Data: config.NDBData{
 			UnsupervisedFiles: unsupervisedFiles,
 			SupervisedFiles:   supervisedFiles,

@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"thirdai_platform/model_bazaar/config"
+	"time"
 )
 
 type httpRequest struct {
@@ -99,11 +101,17 @@ func (r *httpRequest) Do(result interface{}) error {
 		req.URL.RawQuery = query.Encode()
 	}
 
+	start := time.Now()
+
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending %v request to endpoint %v: %w", r.method, r.endpoint, err)
 	}
 	defer res.Body.Close()
+
+	end := time.Now()
+
+	slog.Debug("thirdai platform client", "method", r.method, "endpoint", r.endpoint, "status", res.StatusCode, "duration", end.Sub(start).String())
 
 	if res.StatusCode != http.StatusOK {
 		content, err := io.ReadAll(res.Body)

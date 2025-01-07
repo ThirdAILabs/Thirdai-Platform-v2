@@ -176,6 +176,10 @@ func (s *TrainService) saveModelAndStartJob(model schema.Model, user schema.User
 				return fmt.Errorf("user %v does not have permission to access base model %v", model.UserId, baseModel.Id)
 			}
 
+			if baseModel.TrainStatus != schema.Complete {
+				return fmt.Errorf("base model training is not complete, training must be completed before use as base model")
+			}
+
 			// TODO(Nicholas): Copy dependencies/attributes from base model
 		}
 

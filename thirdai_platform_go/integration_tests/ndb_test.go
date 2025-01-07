@@ -305,6 +305,76 @@ func TestNdbProdMode(t *testing.T) {
 	checkSources(retrainedNdb, t, []string{"articles.csv", "articles.csv", "four_english_words.docx", "mutual_nda.pdf"})
 }
 
+func TestNdbTrainingFromBaseModel(t *testing.T) {
+	client := getClient(t)
+
+	ndb, err := client.TrainNdb(
+		randomName("ndb"),
+		[]config.FileInfo{{
+			Path: "./data/four_english_words.docx", Location: "local",
+		}},
+		nil,
+		config.JobOptions{AllocationMemory: 600},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ndb.AwaitTrain(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ndb2, err := client.TrainNdbWithBaseModel(
+		randomName("ndb2"),
+		ndb,
+		[]config.FileInfo{{
+			Path: "./data/articles.csv", Location: "local",
+		}},
+		[]config.FileInfo{{
+			Path: "./data/supervised.csv", Location: "local",
+			Options: map[string]interface{}{
+				"csv_query_column": "text",
+				"csv_id_column":    "labels",
+			},
+		}},
+		config.JobOptions{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ndb2.AwaitTrain(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ndb2.Deploy(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() {
+		err := ndb2.Undeploy()
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	err = ndb2.AwaitDeploy(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(getResult(ndb2, t, "manufacturing faster chips").Text, "AMD And IBM Boosts Chip Performance") {
+		t.Fatal("incorrect document result")
+	}
+
+	if getResult(ndb2, t, "here is a new query that needs answering").Id != 4 {
+		t.Fatal("incorrect supervised result")
+	}
+}
+
 func createNdbAndInsert(t *testing.T, autoscaling bool) (*client.NdbClient, []client.Source, []client.Source) {
 	ndb := createAndDeployNdb(t, autoscaling)
 

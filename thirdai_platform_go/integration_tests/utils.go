@@ -1,6 +1,7 @@
 package integrationtests
 
 import (
+	"log/slog"
 	"testing"
 	"thirdai_platform/client"
 
@@ -8,6 +9,8 @@ import (
 )
 
 func getClient(t *testing.T) *client.PlatformClient {
+	slog.SetLogLoggerLevel(slog.LevelDebug)
+
 	client := client.New("http://localhost:80")
 	err := client.Login("admin@mail.com", "password")
 	if err != nil {

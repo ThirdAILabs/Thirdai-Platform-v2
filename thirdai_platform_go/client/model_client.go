@@ -34,7 +34,7 @@ func (c *ModelClient) getStatus(job string) (services.StatusResponse, error) {
 }
 
 func (c *ModelClient) awaitJob(job string, timeout time.Duration) error {
-	check := time.Tick(time.Second)
+	check := time.Tick(2 * time.Second)
 	stop := time.Tick(timeout)
 	for {
 		select {
@@ -47,7 +47,7 @@ func (c *ModelClient) awaitJob(job string, timeout time.Duration) error {
 				return fmt.Errorf("%v has status: %v", job, status.Status)
 			}
 			if status.Status == "complete" {
-				if c.DeploymentHealthy() || job == "train" {
+				if job == "train" || c.DeploymentHealthy() {
 					return nil
 				}
 			}

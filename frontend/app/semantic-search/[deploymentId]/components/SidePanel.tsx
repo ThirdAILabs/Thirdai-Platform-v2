@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import SaveButton from './buttons/SaveButton';
 import Teach from './Teach';
+import ConstraintSearch from './ConstraintSearch';
 import { HiChevronLeft } from 'react-icons/hi';
 
 const PanelContainer = styled.div<{ $isVisible: boolean }>`
@@ -130,14 +131,12 @@ const SidePanel: React.FC<SidePanelProps> = ({
               <div className="flex items-center">
                 <button
                   onClick={() => setCacheEnabled(!cacheEnabled)}
-                  className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-300 focus:outline-none ${
-                    cacheEnabled ? 'bg-[rgb(16,33,150)]' : 'bg-gray-300'
-                  }`}
+                  className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-300 focus:outline-none ${cacheEnabled ? 'bg-[rgb(16,33,150)]' : 'bg-gray-300'
+                    }`}
                 >
                   <span
-                    className={`transform transition-transform duration-300 inline-block w-4 h-4 bg-white rounded-full ${
-                      cacheEnabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
+                    className={`transform transition-transform duration-300 inline-block w-4 h-4 bg-white rounded-full ${cacheEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
                   />
                 </button>
               </div>
@@ -152,14 +151,12 @@ const SidePanel: React.FC<SidePanelProps> = ({
             <div className="flex items-center">
               <button
                 onClick={() => setReRankingEnabled(!reRankingEnabled)}
-                className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-300 focus:outline-none ${
-                  reRankingEnabled ? 'bg-[rgb(16,33,150)]' : 'bg-gray-300'
-                }`}
+                className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-300 focus:outline-none ${reRankingEnabled ? 'bg-[rgb(16,33,150)]' : 'bg-gray-300'
+                  }`}
               >
                 <span
-                  className={`transform transition-transform duration-300 inline-block w-4 h-4 bg-white rounded-full ${
-                    reRankingEnabled ? 'translate-x-6' : 'translate-x-1'
-                  }`}
+                  className={`transform transition-transform duration-300 inline-block w-4 h-4 bg-white rounded-full ${reRankingEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
                 />
               </button>
             </div>
@@ -182,6 +179,15 @@ const SidePanel: React.FC<SidePanelProps> = ({
             <SectionText>Associate phrases to teach the model</SectionText>
             <ButtonContainer>
               <Teach />
+            </ButtonContainer>
+          </SectionContent>
+        </SectionContainer>
+        <SectionContainer>
+          <SectionTitle>Filter</SectionTitle>
+          <SectionContent>
+            <SectionText>Add constraints for better results</SectionText>
+            <ButtonContainer>
+              <ConstraintSearch />
             </ButtonContainer>
           </SectionContent>
         </SectionContainer>

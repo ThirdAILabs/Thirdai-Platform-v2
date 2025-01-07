@@ -51,6 +51,7 @@ export interface ChatResponse {
 export interface Source {
   source: string;
   source_id: string;
+  version: number;
 }
 
 export interface PIIDetectionResult {

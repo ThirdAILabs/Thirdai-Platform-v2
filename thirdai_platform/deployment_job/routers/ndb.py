@@ -154,6 +154,7 @@ class NDBRouter:
         self.router.add_api_route(
             "/get-signed-url", self.get_signed_url, methods=["GET"]
         )
+        self.router.add_api_route("/get-metadata", self.get_metadata, methods=["GET"])
 
         # Only enable task queue in dev mode
         if not self.config.autoscaling_enabled:
@@ -713,6 +714,8 @@ class NDBRouter:
                 yield chunk
                 if not chunk.startswith("context: "):
                     conversation_response += chunk
+                else:
+                    reformulated_query = json.loads(chunk.split('context: ', 1)[1])[0]['query']
             end_time = time.time()
             chat_response_time.observe(end_time - start_time)
 
@@ -725,7 +728,8 @@ class NDBRouter:
                 response_time=datetime.fromtimestamp(end_time).strftime(
                     "%Y-%m-%d %H:%M:%S"
                 ),
-                query_text=input.user_input,
+                query_text=reformulated_query,
+                user_input = input.user_input,
                 response_text=conversation_response,
             )
 
@@ -755,8 +759,9 @@ class NDBRouter:
             data = json.loads(line)
             chat_history[data["session_id"]].append(
                 {
+                    "user_input": data["user_input"],       # un-reformulated query
                     "query_time": data["query_time"],
-                    "query_text": data["query_text"],
+                    "query_text": data["query_text"],       # reformulated query
                     "response_time": data["response_time"],
                     "response_text": data["response_text"],
                 }
@@ -979,6 +984,21 @@ class NDBRouter:
             data={},
         )
 
+    def get_metadata(
+        self,
+        source_id: str,
+        version: str,
+        token: str = Depends(Permissions.verify_permission("read")),
+    ):
+
+        metadata = self.model.get_metadata(doc_id=source_id, doc_version=int(version))
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully got metadata.",
+            data=jsonable_encoder(metadata),
+        )
+
     def get_tasks(
         self,
         task_id: Optional[str] = None,
@@ -1040,7 +1060,7 @@ class NDBRouter:
                     self.tasks[task_id].status = TaskStatus.FAILED
                     self.tasks[task_id].message = str(traceback.format_exc())
                     self.tasks[task_id].last_modified = now()
-                    logging.error(
+                    self.logger.error(
                         f"Task {task_id} with data {self.tasks[task_id]} failed: {str(traceback.format_exc())}"
                     )
 

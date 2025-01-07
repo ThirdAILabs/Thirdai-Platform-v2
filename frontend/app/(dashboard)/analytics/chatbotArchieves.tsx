@@ -5,6 +5,7 @@ import { Button, Divider } from '@mui/material';
 interface ConversationData {
   query_time: string;
   query_text: string;
+  user_input: string,
   response_time: string;
   response_text: string;
 }
@@ -122,11 +123,10 @@ const Conversations: React.FC = () => {
                       key={`${category}-${index}`}
                       onClick={() => handleCategoryToggle(category)}
                       className={`border rounded-3xl p-1 px-4 transition-colors
-              ${
-                selectedCategories[category]
-                  ? 'bg-blue-900 text-white'
-                  : 'hover:bg-green-500 hover:text-white'
-              }`}
+              ${selectedCategories[category]
+                          ? 'bg-blue-900 text-white'
+                          : 'hover:bg-green-500 hover:text-white'
+                        }`}
                     >
                       {category}
                     </button>

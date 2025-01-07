@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getAllChatHistory } from '@/lib/backend';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@mui/material';
+import { Button, Divider } from '@mui/material';
 interface ConversationData {
   query_time: string;
   query_text: string;
@@ -70,7 +70,25 @@ const Conversations: React.FC = () => {
   if (!chatHistory) {
     return <div className="p-4 text-center">Loading chat history...</div>;
   }
+  const categoryList = ["Category-1", "Category-2", "Category-3", "Category-4", "Category-5", "Category-6", "Category-7", "Category-8", "Category-9", "Category-10", "Category-11", "Category-12"];
+  const [selectedCategories, setSelectedCategories] = useState(
+    Object.fromEntries(categoryList.map(category => [category, false]))
+  );
 
+  // Toggle handler for category selection
+  const handleCategoryToggle = (category: string) => {
+    setSelectedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
+
+  // Get list of currently selected categories
+  const getSelectedCategories = () => {
+    return Object.entries(selectedCategories)
+      .filter(([_, isSelected]) => isSelected)
+      .map(([category]) => category);
+  };
   return (
     <div className='p-4'>
       <Card style={{ width: '70%', maxHeight: '65rem' }} className="pb-4">
@@ -81,28 +99,53 @@ const Conversations: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent style={{ overflowY: 'auto', maxHeight: '45rem' }}>
-          {(chatHistory).map((conversation, index) => {
-            return (index < numberOfQuestions) && <div key={`${conversation.query_time}-${conversation.response_time}`}
-              className="mb-1">
-              <div className="flex flex-col">
-                {/* Query Section */}
-                <div className="flex justify-center">
-                  <div className="border py-2 px-4 rounded-lg w-[90%]">
-                    <div className="text-gray-700">{conversation.query_text}</div>
-                    <div className="text-xs text-gray-500">{conversation.query_time}</div>
+          <>
+            <div className='mb-2 justify-start ml-[5%] mr-[5%]'>
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  {categoryList.map((category, index) => (
+                    <button
+                      key={`${category}-${index}`}
+                      onClick={() => handleCategoryToggle(category)}
+                      className={`border rounded-3xl p-1 px-4 transition-colors
+              ${selectedCategories[category]
+                          ? 'bg-blue-900 text-white'
+                          : 'hover:bg-green-500 hover:text-white'}`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="text-sm text-gray-600">
+                  Selected categories: {getSelectedCategories().join(', ') || 'None'}
+                </div>
+              </div>
+              <Divider />
+            </div>
+            {(chatHistory).map((conversation, index) => {
+              return (index < numberOfQuestions) && <div key={`${conversation.query_time}-${conversation.response_time}`}
+                className="mb-1">
+                <div className="flex flex-col">
+                  {/* Query Section */}
+                  <div className="flex justify-center">
+                    <div className="border py-2 px-4 rounded-lg w-[90%]">
+                      <div className="text-gray-700">{conversation.query_text}</div>
+                      <div className="text-xs text-gray-500">{conversation.query_time}</div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          })}
-          {(numberOfQuestions < chatHistory.length) && <div className="flex justify-center mt-2">
-            <Button
-              variant='contained'
-              onClick={handleShowMore}
-            >
-              Show More
-            </Button>
-          </div>}
+            })}
+            {(numberOfQuestions < chatHistory.length) && <div className="flex justify-center mt-2">
+              <Button
+                variant='contained'
+                onClick={handleShowMore}
+              >
+                Show More
+              </Button>
+            </div>}
+          </>
         </CardContent>
       </Card>
     </div>

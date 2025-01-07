@@ -174,11 +174,10 @@ interface VoteButtonProps {
 const VoteButton: React.FC<VoteButtonProps> = ({ onClick, icon: Icon, active = false }) => (
   <button
     onClick={onClick}
-    className={`p-2 rounded-full transition-colors flex items-center justify-center w-8 h-8 ${
-      active 
-        ? 'bg-[#3B52DD] text-white' 
-        : 'text-gray-500 hover:bg-gray-100'
-    }`}
+    className={`p-2 rounded-full transition-colors flex items-center justify-center w-8 h-8 ${active
+      ? 'bg-[#3B52DD] text-white'
+      : 'text-gray-500 hover:bg-gray-100'
+      }`}
   >
     <Icon size={16} />
   </button>
@@ -226,12 +225,12 @@ const ReferenceItem: React.FC<ReferenceItemProps> = ({
           {reference.sourceName}
         </button>
         <div className="flex items-center gap-1">
-          <VoteButton 
+          <VoteButton
             onClick={handleVote('up')}
             icon={ThumbsUp}
             active={activeVote === 'up'}
           />
-          <VoteButton 
+          <VoteButton
             onClick={handleVote('down')}
             icon={ThumbsDown}
             active={activeVote === 'down'}
@@ -302,7 +301,7 @@ function ChatBox({
   }
 
   // Check if this is the welcome message
-  const isWelcomeMessage = message.sender === 'AI' && 
+  const isWelcomeMessage = message.sender === 'AI' &&
     message.content.startsWith("Welcome! I'm here to assist you");
 
   return (
@@ -322,8 +321,8 @@ function ChatBox({
           ) : (
             <ReactMarkdown>{message.content}</ReactMarkdown>
           )}
-          {showFeedback && message.sender === 'AI' && !isWelcomeMessage && <div className='flex mt-4'>
-            <div className='flex items-center justify-center space-x-4 py-1 px-6 bg-gray-50 border rounded-full w-fit'>
+          {showFeedback && message.sender === 'AI' && !isWelcomeMessage && <div className='flex mt-4 justify-center'>
+            <div className='flex items-center justify-center space-x-4 px-4 bg-gray-50 border rounded-xl w-fit'>
               <p className="text-sm font-medium text-gray-700">Was this helpful?</p>
               <button
                 onClick={handleUpvote}
@@ -355,7 +354,7 @@ function ChatBox({
 
         {showReferences && references.length > 0 && message.sender === 'AI' && (
           <div className="mt-2">
-            <button 
+            <button
               onClick={() => setIsExpanded(!isExpanded)}
               className="flex items-center text-sm text-gray-600 hover:text-gray-800"
             >

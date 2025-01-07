@@ -176,7 +176,7 @@ class OnPremLLM(LLMBase):
 
 
 class SelfHostedLLM(OpenAILLM):
-    def __init__(self, api_key: str, access_token: str):
+    def __init__(self, access_token: str):
         # TODO(david) figure out another way for internal service to service
         # communication that doesn't require forwarding JWT access tokens
         self.backend_endpoint = os.getenv("MODEL_BAZAAR_ENDPOINT")
@@ -205,18 +205,25 @@ model_classes = {
 
 class LLMFactory:
     @staticmethod
-    def create(provider: str, api_key: str, access_token: Optional[str], logger):
+    def create(
+        provider: str, api_key: Optional[str], access_token: Optional[str], logger
+    ):
         if provider in model_classes:
+            if provider in ["openai", "cohere"] and api_key is None:
+                logger.error("No generative AI key provided")
+                raise HTTPException(
+                    status_code=400, detail="No generative AI key provided"
+                )
             return model_classes[provider](api_key=api_key)
 
         if provider == "self-host":
             if access_token is None:
                 raise HTTPException(
                     status_code=401,
-                    detail="Unauthorized. Need access token in addition to api_key for self-hosted LLM",
+                    detail="Unauthorized. Need access token for self-hosted LLM",
                 )
 
-            return SelfHostedLLM(api_key=api_key, access_token=access_token)
+            return SelfHostedLLM(access_token=access_token)
 
         logger.error(f"Unsupported provider '{provider.lower()}'")
         raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")

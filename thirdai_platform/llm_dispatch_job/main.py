@@ -117,14 +117,9 @@ async def generate(
     - If `original_query` and `cache_access_token` are provided, the generated content will be cached after completion.
     """
 
-    key = generate_args.key
-    if not key:
-        logger.error("No generative AI key provided")
-        raise HTTPException(status_code=400, detail="No generative AI key provided")
-
     llm: LLMBase = LLMFactory.create(
         provider=generate_args.provider.lower(),
-        api_key=key,
+        api_key=generate_args.key,
         access_token=token,
         logger=logger,
     )

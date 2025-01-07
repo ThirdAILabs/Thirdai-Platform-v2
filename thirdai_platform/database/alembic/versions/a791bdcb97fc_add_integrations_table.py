@@ -23,6 +23,8 @@ depends_on: Union[str, Sequence[str], None] = None
 class IntegrationType(str, enum.Enum):
     openai = "openai"
     self_hosted = "self_hosted"
+    anthropic = "anthropic"
+    cohere = "cohere"
 
 
 def upgrade():
@@ -37,7 +39,7 @@ def upgrade():
             primary_key=True,
             server_default=sa.text("gen_random_uuid()"),
         ),
-        sa.Column("type", integration_type_enum, nullable=False, unique=True),
+        sa.Column("type", integration_type_enum, nullable=False),
         sa.Column("data", sa.JSON(), nullable=True),
     )
 

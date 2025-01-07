@@ -697,6 +697,9 @@ class NDBRouter:
                 )
         else:
             session_id = input.session_id
+        
+        # get the query category
+        user_input_category = chat.categorize_query(user_input = input.user_input)
 
         async def generate_response() -> AsyncGenerator[str, None]:
             start_time = time.time()
@@ -731,6 +734,7 @@ class NDBRouter:
                 query_text=reformulated_query,
                 user_input = input.user_input,
                 response_text=conversation_response,
+                user_input_category = user_input_category
             )
 
         return StreamingResponse(generate_response(), media_type="text/plain")
@@ -760,6 +764,7 @@ class NDBRouter:
             chat_history[data["session_id"]].append(
                 {
                     "user_input": data["user_input"],       # un-reformulated query
+                    "user_input_category": data["user_input_category"],
                     "query_time": data["query_time"],
                     "query_text": data["query_text"],       # reformulated query
                     "response_time": data["response_time"],

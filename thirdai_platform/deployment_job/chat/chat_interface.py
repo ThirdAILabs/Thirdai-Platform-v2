@@ -12,14 +12,12 @@ from langchain.docstore.document import Document
 from langchain.vectorstores import NeuralDBVectorStore
 from langchain_community.chat_message_histories import SQLChatMessageHistory
 from langchain_core.language_models.llms import LLM
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableBranch, RunnablePassthrough
 from thirdai import neural_db as ndb
 from thirdai import neural_db_v2 as ndbv2
-
-LTI_categories = set()
 
 class ChatInterface(ABC):
     def __init__(
@@ -33,6 +31,7 @@ class ChatInterface(ABC):
     ):
         self.chat_history_sql_uri = chat_history_sql_uri
         self.top_k = top_k
+        self.query_categories = set()
 
         # Store vectorstore
         if isinstance(db, ndb.NeuralDB):
@@ -49,6 +48,15 @@ class ChatInterface(ABC):
                 ("user", query_reformulation_prompt),
             ]
         )
+        
+        # reformulation prompts
+        self.query_transformation_chain = RunnableBranch(
+            (
+                lambda x: len(x.get("messages", [])) == 1,
+                (lambda x: x["messages"][-1].content),
+            ),
+            self.query_transform_prompt | self.llm() | StrOutputParser(),
+        )
 
         self.question_answering_prompt = ChatPromptTemplate.from_messages(
             [
@@ -60,10 +68,14 @@ class ChatInterface(ABC):
         # query categorization prompt
         self.query_categorization_prompt = ChatPromptTemplate(
             [
-                ("system", f"Given the below query, categorize it into one of the following categories {LTI_categories}. \nIf none of the categories are suited for the query, create a new category"),
-                MessagesPlaceholder(variable_name="query")
+                ("system", 
+                "**Your task is to categorize the given query into one of the following predefined categories:**\n\n"
+                "{categories}\n\n"
+                "If none of the provided categories are appropriate for the query, create a new general category.\n\n"
+                "***Only output the category name.***"),
+                ("user", "{query}")
             ]
-        )
+        ) | self.llm() | StrOutputParser()
 
         # Store document chain
         self.document_chain = create_stuff_documents_chain(
@@ -75,6 +87,14 @@ class ChatInterface(ABC):
     @abstractmethod
     def llm(self) -> LLM:
         raise NotImplementedError()
+    
+    def categorize_query(self, user_input: str):
+        response: str = self.query_categorization_prompt.invoke(
+            {"categories": ", ". join(self.query_categories), "query": user_input}
+        )
+        category = response.lower()
+        self.query_categories.add(category)
+        return category
 
     @staticmethod
     def parse_retriever_output(documents: List[Document]):
@@ -142,16 +162,8 @@ class ChatInterface(ABC):
             )
         )
 
-        query_transforming_retriever_chain = RunnableBranch(
-            (
-                lambda x: len(x.get("messages", [])) == 1,
-                (lambda x: x["messages"][-1].content) | retriever,
-            ),
-            self.query_transform_prompt | self.llm() | StrOutputParser() | retriever,
-        )
-
         self.conversational_retrieval_chain = RunnablePassthrough.assign(
-            context=query_transforming_retriever_chain | self.parse_retriever_output,
+            context=self.query_transformation_chain | retriever | self.parse_retriever_output,
         ).assign(
             answer=self.document_chain,
         )
@@ -179,16 +191,8 @@ class ChatInterface(ABC):
 
         retriever = self.get_retriever(constraints)
 
-        query_transforming_retriever_chain = RunnableBranch(
-            (
-                lambda x: len(x.get("messages", [])) == 1,
-                (lambda x: x["messages"][-1].content) | retriever,
-            ),
-            self.query_transform_prompt | self.llm() | StrOutputParser() | retriever,
-        )
-
         self.conversational_retrieval_chain = RunnablePassthrough.assign(
-            context=query_transforming_retriever_chain | self.parse_retriever_output,
+            context=self.query_transformation_chain | retriever | self.parse_retriever_output,
         ).assign(
             answer=self.document_chain,
         )

@@ -45,6 +45,8 @@ func main() {
 		{
 			ID:      "1",
 			Migrate: versions.Migration_1_initial_migration,
+			// Rollback is not supported for this migration since the migration is more
+			// complicated and not intended to be reversed
 		},
 	})
 

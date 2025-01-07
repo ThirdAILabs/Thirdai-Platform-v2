@@ -39,7 +39,7 @@ export default function Page() {
   const [isLoading, setIsLoading] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
-  const [processingTime, setProcessingTime] = useState<number | undefined>();
+  const [processingTime, setProcessingTime] = useState<number | null>(null);
   const [folderResults, setFolderResults] = useState<FileResult[]>([]);
   const [processingFolder, setProcessingFolder] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -62,7 +62,7 @@ export default function Page() {
     setProcessingFolder(true);
     setFolderResults([]);
     setPredictions([]);
-    setProcessingTime(undefined);
+    setProcessingTime(null);
     setInputText('');
     setSkippedFiles([]); // Reset skipped files
 
@@ -266,7 +266,7 @@ export default function Page() {
         </div>
 
         <div style={{ flex: 1 }}>
-          {processingTime !== undefined && <InferenceTimeDisplay processingTime={processingTime} />}
+          {processingTime !== null && <InferenceTimeDisplay processingTime={processingTime} />}
         </div>
       </Box>
     );

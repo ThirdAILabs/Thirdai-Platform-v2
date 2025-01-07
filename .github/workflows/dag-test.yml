@@ -190,8 +190,6 @@ jobs:
         cat nomad.log
         echo "Traefik Logs:"
         cat local_setup/traefik.log
-        echo "Vault Logs:"
-        cat vault.log
         echo "Uvicorn Logs:"
         cat $GITHUB_WORKSPACE/thirdai_platform/uvicorn.log
 

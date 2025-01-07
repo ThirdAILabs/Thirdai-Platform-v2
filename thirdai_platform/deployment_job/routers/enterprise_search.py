@@ -69,6 +69,10 @@ class EnterpriseSearchRouter:
                 f"Failed retrieval request with status code {res.status_code}. Response: {res.text}",
                 code=LogCode.MODEL_PREDICT,
             )
+            self.logger.error(
+                urljoin(self.retrieval_endpoint, "search"),
+                code=LogCode.MODEL_PREDICT,
+            )
             return response(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 message="Unable to get resutls from retrieval model: " + str(res),

@@ -174,10 +174,9 @@ interface VoteButtonProps {
 const VoteButton: React.FC<VoteButtonProps> = ({ onClick, icon: Icon, active = false }) => (
   <button
     onClick={onClick}
-    className={`p-2 rounded-full transition-colors flex items-center justify-center w-8 h-8 ${active
-      ? 'bg-[#3B52DD] text-white'
-      : 'text-gray-500 hover:bg-gray-100'
-      }`}
+    className={`p-2 rounded-full transition-colors flex items-center justify-center w-8 h-8 ${
+      active ? 'bg-[#3B52DD] text-white' : 'text-gray-500 hover:bg-gray-100'
+    }`}
   >
     <Icon size={16} />
   </button>
@@ -203,7 +202,7 @@ const ReferenceItem: React.FC<ReferenceItemProps> = ({
   reference,
   query,
   onVote,
-  onReferenceClick
+  onReferenceClick,
 }) => {
   const [activeVote, setActiveVote] = useState<'up' | 'down' | null>(null);
 
@@ -225,11 +224,7 @@ const ReferenceItem: React.FC<ReferenceItemProps> = ({
           {reference.sourceName}
         </button>
         <div className="flex items-center gap-1">
-          <VoteButton
-            onClick={handleVote('up')}
-            icon={ThumbsUp}
-            active={activeVote === 'up'}
-          />
+          <VoteButton onClick={handleVote('up')} icon={ThumbsUp} active={activeVote === 'up'} />
           <VoteButton
             onClick={handleVote('down')}
             icon={ThumbsDown}
@@ -295,14 +290,14 @@ function ChatBox({
 
   const handleUpvote = () => {
     modelService?.recordGeneratedResponseFeedback(true);
-  }
+  };
   const handleDownvote = () => {
     modelService?.recordGeneratedResponseFeedback(false);
-  }
+  };
 
   // Check if this is the welcome message
-  const isWelcomeMessage = message.sender === 'AI' &&
-    message.content.startsWith("Welcome! I'm here to assist you");
+  const isWelcomeMessage =
+    message.sender === 'AI' && message.content.startsWith("Welcome! I'm here to assist you");
 
   return (
     <ChatBoxContainer>
@@ -321,23 +316,25 @@ function ChatBox({
           ) : (
             <ReactMarkdown>{message.content}</ReactMarkdown>
           )}
-          {showFeedback && message.sender === 'AI' && !isWelcomeMessage && <div className='flex mt-4 justify-center'>
-            <div className='flex items-center justify-center space-x-4 px-4 bg-gray-50 border rounded-xl w-fit'>
-              <p className="text-sm font-medium text-gray-700">Was this helpful?</p>
-              <button
-                onClick={handleUpvote}
-                className="flex items-center justify-center w-8 h-8 text-gray-800 rounded-full hover:bg-gray-200 focus:bg-blue-700"
-              >
-                <ThumbsUp className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleDownvote}
-                className="flex items-center justify-center w-8 h-8 text-gray-800 rounded-full hover:bg-gray-200 focus:bg-blue-700"
-              >
-                <ThumbsDown className="w-4 h-4" />
-              </button>
+          {showFeedback && message.sender === 'AI' && !isWelcomeMessage && (
+            <div className="flex mt-4 justify-center">
+              <div className="flex items-center justify-center space-x-4 px-4 bg-gray-50 border rounded-xl w-fit">
+                <p className="text-sm font-medium text-gray-700">Was this helpful?</p>
+                <button
+                  onClick={handleUpvote}
+                  className="flex items-center justify-center w-8 h-8 text-gray-800 rounded-full hover:bg-gray-200 focus:bg-blue-700"
+                >
+                  <ThumbsUp className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleDownvote}
+                  className="flex items-center justify-center w-8 h-8 text-gray-800 rounded-full hover:bg-gray-200 focus:bg-blue-700"
+                >
+                  <ThumbsDown className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>}
+          )}
           {message.sender === 'human' && sentiment && (
             <span
               style={{
@@ -358,7 +355,11 @@ function ChatBox({
               onClick={() => setIsExpanded(!isExpanded)}
               className="flex items-center text-sm text-gray-600 hover:text-gray-800"
             >
-              <span className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
+              <span
+                className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
+              >
+                ▶
+              </span>
               <span className="ml-1 font-medium">References ({references.length})</span>
             </button>
             {isExpanded && (
@@ -370,9 +371,9 @@ function ChatBox({
                     query={ref.query}
                     onVote={(refId, content, voteType) => {
                       if (voteType === 'up') {
-                        modelService?.upvote("null", ref.query, refId, content);
+                        modelService?.upvote('null', ref.query, refId, content);
                       } else {
-                        modelService?.downvote("null", ref.query, refId, content);
+                        modelService?.downvote('null', ref.query, refId, content);
                       }
                     }}
                     onReferenceClick={handleReferenceClick}
@@ -553,7 +554,7 @@ export default function Chat({
       // Add human message
       const humanMessage: ChatMessage = {
         sender: 'human',
-        content: lastTextInput
+        content: lastTextInput,
       };
       const newHistory = [...chatHistory, humanMessage];
       setChatHistory(newHistory);
@@ -573,7 +574,7 @@ export default function Chat({
         // Handle PII detection
         if (piiWorkflowId) {
           const humanTransformed = await performPIIDetection(lastTextInput);
-          setTransformedMessages(prev => ({
+          setTransformedMessages((prev) => ({
             ...prev,
             [currentIndex]: humanTransformed,
           }));
@@ -596,7 +597,7 @@ export default function Chat({
         }
 
         // Initialize AI message in chat history
-        setChatHistory(prev => [...prev, { sender: 'AI', content: '' }]);
+        setChatHistory((prev) => [...prev, { sender: 'AI', content: '' }]);
 
         // Start chat with streaming
         await modelService?.chat(
@@ -616,9 +617,9 @@ export default function Chat({
 
                 try {
                   const contextJson = JSON.parse(contextBuffer.current);
-                  setContextData(prev => ({
+                  setContextData((prev) => ({
                     ...prev,
-                    [aiIndex]: contextJson
+                    [aiIndex]: contextJson,
                   }));
                   isCollectingContext.current = false;
                   contextBuffer.current = '';
@@ -634,14 +635,14 @@ export default function Chat({
               responseBuffer.current += newData;
 
               // Update chat history with new content
-              setChatHistory(prev => {
+              setChatHistory((prev) => {
                 const updatedHistory = [...prev];
                 const lastMessage = updatedHistory[updatedHistory.length - 1];
 
                 if (lastMessage?.sender === 'AI') {
                   return [
                     ...updatedHistory.slice(0, -1),
-                    { ...lastMessage, content: responseBuffer.current }
+                    { ...lastMessage, content: responseBuffer.current },
                   ];
                 }
                 return updatedHistory;
@@ -652,15 +653,12 @@ export default function Chat({
             // Final callback - ensure message persists
             const finalContent = responseBuffer.current;
 
-            setChatHistory(prev => {
+            setChatHistory((prev) => {
               const updatedHistory = [...prev];
               const lastMessage = updatedHistory[updatedHistory.length - 1];
 
               if (lastMessage?.sender === 'AI') {
-                return [
-                  ...updatedHistory.slice(0, -1),
-                  { ...lastMessage, content: finalContent }
-                ];
+                return [...updatedHistory.slice(0, -1), { ...lastMessage, content: finalContent }];
               }
               // If no AI message exists, add it
               return [...updatedHistory, { sender: 'AI', content: finalContent }];
@@ -678,14 +676,17 @@ export default function Chat({
       } catch (error) {
         console.error('Chat error:', error);
         // Handle error state
-        setChatHistory(prev => {
+        setChatHistory((prev) => {
           const updatedHistory = [...prev];
           const lastMessage = updatedHistory[updatedHistory.length - 1];
 
           if (lastMessage?.sender === 'AI') {
             return [
               ...updatedHistory.slice(0, -1),
-              { ...lastMessage, content: responseBuffer.current || 'An error occurred during the response.' }
+              {
+                ...lastMessage,
+                content: responseBuffer.current || 'An error occurred during the response.',
+              },
             ];
           }
           return updatedHistory;
@@ -748,7 +749,8 @@ export default function Chat({
           <ChatBox
             message={{
               sender: 'AI',
-              content: "Welcome! I'm here to assist you with any questions or issues related to air-conditioners.\n\nFeel free to share the BRAND and MODEL_NUMBER of your air-conditioner if you have it handy. Don't worry if you don't. Just tell me what you need, and I'll do my best to answer!"
+              content:
+                "Welcome! I'm here to assist you with any questions or issues related to air-conditioners.\n\nFeel free to share the BRAND and MODEL_NUMBER of your air-conditioner if you have it handy. Don't worry if you don't. Just tell me what you need, and I'll do my best to answer!",
             }}
             modelService={modelService}
             onOpenPdf={handleOpenPdf}

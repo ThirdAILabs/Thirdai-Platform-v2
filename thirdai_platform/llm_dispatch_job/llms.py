@@ -1,11 +1,12 @@
 import json
 import os
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator, List
+from typing import AsyncGenerator, List, Optional
 from urllib.parse import urljoin
 
 import aiohttp
 import requests
+from fastapi import HTTPException
 from llm_dispatch_job.utils import Reference, make_prompt
 
 
@@ -175,13 +176,12 @@ class OnPremLLM(LLMBase):
 
 
 class SelfHostedLLM(OpenAILLM):
-    def __init__(self, api_key: str):
-        # TODO(david) figure out another way for internal service to service 
+    def __init__(self, api_key: str, access_token: str):
+        # TODO(david) figure out another way for internal service to service
         # communication that doesn't require forwarding JWT access tokens
         self.backend_endpoint = os.getenv("MODEL_BAZAAR_ENDPOINT")
         response = requests.get(
             urljoin(self.backend_endpoint, "/api/integrations/self-hosted-llm"),
-            # TODO(david) forward the access_token
             headers={"Authorization": f"Bearer {access_token}"},
         )
         if response.status_code != 200:
@@ -200,12 +200,23 @@ model_classes = {
     "openai": OpenAILLM,
     "cohere": CohereLLM,
     "on-prem": OnPremLLM,
-    "self-host": SelfHostedLLM,
 }
 
-default_keys = {
-    "openai": os.getenv("OPENAI_KEY", ""),
-    "cohere": os.getenv("COHERE_KEY", ""),
-    "on-prem": "no key",  # TODO(david) add authentication to the service
-    "self-host": "no key",
-}
+
+class LLMFactory:
+    @staticmethod
+    def create(provider: str, api_key: str, access_token: Optional[str], logger):
+        if provider in model_classes:
+            return model_classes[provider](api_key=api_key)
+
+        if provider == "self-host":
+            if access_token is None:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Unauthorized. Need access token in addition to api_key for self-hosted LLM",
+                )
+
+            return SelfHostedLLM(api_key=api_key, access_token=access_token)
+
+        logger.error(f"Unsupported provider '{provider.lower()}'")
+        raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")

@@ -56,6 +56,18 @@ func sortModelList(models []services.ModelInfo) {
 	})
 }
 
+func sortModelDeps(model services.ModelInfo) {
+	slices.SortFunc(model.Dependencies, func(a, b services.ModelDependency) int {
+		if a.ModelName == b.ModelName {
+			return 0
+		}
+		if a.ModelName < b.ModelName {
+			return -1
+		}
+		return 1
+	})
+}
+
 func sortUserList(users []services.UserInfo) {
 	slices.SortFunc(users, func(a, b services.UserInfo) int {
 		if a.Username == b.Username {
@@ -82,4 +94,8 @@ func getJobAuthToken(env *testEnv, t *testing.T, model string) string {
 	}
 
 	return params["job_auth_token"].(string)
+}
+
+func updatTrainStatus(client client, jobToken, status string) error {
+	return client.Post("/train/update-status").Auth(jobToken).Json(map[string]string{"status": status}).Do(nil)
 }

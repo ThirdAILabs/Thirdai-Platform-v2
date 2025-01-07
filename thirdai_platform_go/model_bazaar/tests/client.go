@@ -303,6 +303,35 @@ func (c *client) trainNdb(name string) (string, error) {
 	return res["model_id"], err
 }
 
+func (c *client) trainNlpToken(name string) (string, error) {
+	body := services.NlpTokenTrainRequest{
+		ModelName: name,
+		ModelOptions: &config.NlpTokenOptions{
+			TargetLabels: []string{"NAME", "EMAIL"},
+			SourceColumn: "source",
+			TargetColumn: "target",
+			DefaultTag:   "O",
+		},
+		Data: config.NlpData{
+			SupervisedFiles: []config.FileInfo{{Path: "a.txt", Location: "local"}},
+		},
+	}
+
+	var res map[string]string
+	err := c.Post("/train/nlp-token").Json(body).Do(&res)
+	return res["model_id"], err
+}
+
+func (c *client) createEnterpriseSearch(name, ndb, guardrail string) (string, error) {
+	body := map[string]string{
+		"model_name": name, "retrieval_id": ndb, "guardrail_id": guardrail,
+	}
+
+	var res map[string]string
+	err := c.Post("/workflow/enterprise-search").Json(body).Do(&res)
+	return res["model_id"], err
+}
+
 func zipDir(path string) (string, error) {
 	newPath := path + ".zip"
 	file, err := os.Create(newPath)

@@ -59,7 +59,7 @@ func TestTrain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = client.Post("/train/update-status").Auth(jobToken).Json(map[string]string{"status": "in_progress"}).Do(nil)
+	err = updatTrainStatus(client, jobToken, "in_progress")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +163,7 @@ func TestTrainReport(t *testing.T) {
 
 	jobToken := getJobAuthToken(env, t, model)
 
-	err = client.Post("/train/update-status").Auth(jobToken).Json(map[string]string{"status": "complete"}).Do(nil)
+	err = updatTrainStatus(client, jobToken, "complete")
 	if err != nil {
 		t.Fatal(err)
 	}

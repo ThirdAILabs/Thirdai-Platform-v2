@@ -5,8 +5,10 @@ import (
 	"crypto/rand"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"thirdai_platform/model_bazaar/schema"
+	"thirdai_platform/model_bazaar/services"
 )
 
 func TestModelInfo(t *testing.T) {
@@ -425,4 +427,93 @@ func TestUploadDownloadNdb(t *testing.T) {
 			t.Fatal("model bytes are different")
 		}
 	}
+}
+
+func TestModelWithDeps(t *testing.T) {
+	env := setupTestEnv(t)
+
+	user, err := env.newUser("abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ndb, err := user.trainNdb("ndb-model")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	nlp, err := user.trainNlpToken("nlp-token-model")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	es, err := user.createEnterpriseSearch("search", ndb, nlp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = user.deleteModel(ndb)
+	if err == nil || !strings.Contains(err.Error(), "it is used as a dependency by 1 other model") {
+		t.Fatal("cannot delete child model")
+	}
+
+	checkSearchDeps := func(model services.ModelInfo) {
+		sortModelDeps(model)
+		if len(model.Dependencies) != 2 || model.Dependencies[0].ModelId.String() != ndb || model.Dependencies[1].ModelId.String() != nlp {
+			t.Fatalf("invalid dependencies: %v", model.Dependencies)
+		}
+	}
+
+	info, err := user.modelInfo(es)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	checkSearchDeps(info)
+
+	models, err := user.listModels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sortModelList(models)
+
+	if len(models) != 3 || models[0].ModelId.String() != ndb || models[1].ModelId.String() != nlp || models[2].ModelId.String() != es {
+		t.Fatalf("invalid models: %v", models)
+	}
+
+	checkSearchDeps(models[2])
+
+	ndbToken := getJobAuthToken(env, t, ndb)
+	nlpToken := getJobAuthToken(env, t, nlp)
+
+	checkStatus := func(expected string) {
+		status, err := user.trainStatus(es)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if status.Status != expected {
+			t.Fatalf("expected status %s got %s", expected, status.Status)
+		}
+	}
+
+	checkStatus("starting")
+
+	err = updatTrainStatus(user, ndbToken, "failed")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	checkStatus("failed")
+
+	err = updatTrainStatus(user, nlpToken, "complete")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = updatTrainStatus(user, ndbToken, "complete")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	checkStatus("complete")
 }

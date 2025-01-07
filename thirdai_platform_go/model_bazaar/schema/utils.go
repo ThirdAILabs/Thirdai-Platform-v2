@@ -46,7 +46,7 @@ func GetModel(modelId uuid.UUID, db *gorm.DB, loadDeps, loadAttrs, loadUser bool
 
 	var result *gorm.DB = db
 	if loadDeps {
-		result = result.Preload("Dependencies").Preload("Dependencies.Dependency")
+		result = result.Preload("Dependencies").Preload("Dependencies.Dependency").Preload("Dependencies.Dependency.User")
 	}
 	if loadAttrs {
 		result = result.Preload("Attributes")

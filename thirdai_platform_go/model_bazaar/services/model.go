@@ -177,7 +177,11 @@ func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		result = s.db.
-			Preload("Dependencies").Preload("Dependencies.Dependency").Preload("Attributes").Preload("User").
+			Preload("Dependencies").
+			Preload("Dependencies.Dependency").
+			Preload("Dependencies.Dependency.User").
+			Preload("Attributes").
+			Preload("User").
 			Where("access = ?", schema.Public).
 			Or("access = ? AND user_id = ?", schema.Private, user.Id).
 			Or("access = ? AND team_id IN ?", schema.Protected, userTeams).

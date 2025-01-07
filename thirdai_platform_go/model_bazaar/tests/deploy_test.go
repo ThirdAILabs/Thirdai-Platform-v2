@@ -22,7 +22,7 @@ func TestDeploy(t *testing.T) {
 
 	jobToken := getJobAuthToken(env, t, model)
 
-	err = client.Post("/train/update-status").Auth(jobToken).Json(map[string]string{"status": "complete"}).Do(nil)
+	err = updatTrainStatus(client, jobToken, "complete")
 	if err != nil {
 		t.Fatal(err)
 	}

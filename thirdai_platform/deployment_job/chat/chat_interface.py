@@ -19,6 +19,7 @@ from langchain_core.runnables import RunnableBranch, RunnablePassthrough
 from thirdai import neural_db as ndb
 from thirdai import neural_db_v2 as ndbv2
 
+LTI_categories = set()
 
 class ChatInterface(ABC):
     def __init__(
@@ -53,6 +54,14 @@ class ChatInterface(ABC):
             [
                 ("system", chat_prompt + "\n\n{context}"),
                 MessagesPlaceholder(variable_name="messages"),
+            ]
+        )
+
+        # query categorization prompt
+        self.query_categorization_prompt = ChatPromptTemplate(
+            [
+                ("system", f"Given the below query, categorize it into one of the following categories {LTI_categories}. \nIf none of the categories are suited for the query, create a new category"),
+                MessagesPlaceholder(variable_name="query")
             ]
         )
 

@@ -311,7 +311,7 @@ func TestNdbTrainingFromBaseModel(t *testing.T) {
 	ndb, err := client.TrainNdb(
 		randomName("ndb"),
 		[]config.FileInfo{{
-			Path: "./data/four_english_words.docx", Location: "local",
+			Path: "./data/articles.csv", Location: "local",
 		}},
 		nil,
 		config.JobOptions{AllocationMemory: 600},
@@ -329,7 +329,7 @@ func TestNdbTrainingFromBaseModel(t *testing.T) {
 		randomName("ndb2"),
 		ndb,
 		[]config.FileInfo{{
-			Path: "./data/articles.csv", Location: "local",
+			Path: "./data/four_english_words.docx", Location: "local",
 		}},
 		[]config.FileInfo{{
 			Path: "./data/supervised.csv", Location: "local",

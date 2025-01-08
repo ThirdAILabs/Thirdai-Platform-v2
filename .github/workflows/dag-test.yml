@@ -160,6 +160,7 @@ jobs:
         echo "HASHICORP_VAULT_TOKEN=00000000-0000-0000-0000-000000000000" >> $GITHUB_WORKSPACE/.env
         echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_WORKSPACE/.env
         echo "PYTHON_PATH=${{ github.workspace }}/venv/bin/python" >> $GITHUB_WORKSPACE/.env
+        echo "PLATFORM_DIR=${{ github.workspace }}/thirdai_platform" >> $GITHUB_WORKSPACE/.env
         echo "AZURE_ACCOUNT_NAME=${{ secrets.AZURE_ACCOUNT_NAME }}" >> $GITHUB_WORKSPACE/.env
         echo "AZURE_ACCOUNT_KEY=${{ secrets.AZURE_ACCOUNT_KEY }}" >> $GITHUB_WORKSPACE/.env
         echo "GCP_CREDENTIALS_FILE=$HOME/nfs/dir/google_license.json" >> $GITHUB_WORKSPACE/.env
@@ -175,12 +176,13 @@ jobs:
 
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
-      
+
     - name: Launch Backend
       run: |
         source ${{ github.workspace }}/venv/bin/activate
         cd $GITHUB_WORKSPACE/thirdai_platform_go
-        nohup sudo go run cmd/model_bazaar/main.go --env ../.env --skip_telemetry --skip_cache > model_bazaar_log.log 2>&1 &
+        go build cmd/model_bazaar/main.go
+        nohup sudo ./main --env ../.env --skip_telemetry --skip_cache > model_bazaar_log.log 2>&1 &
     
     - name: List files in local_setup
       run: ls -la local_setup

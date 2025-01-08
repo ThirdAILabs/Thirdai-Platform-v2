@@ -10,8 +10,8 @@ from deployment_job.routers.udt import UDTRouterTokenClassification
 from fastapi.testclient import TestClient
 from licensing.verify import verify_license
 from platform_common.logging import JobLogger
-from platform_common.pydantic_models.training import ModelType
 from platform_common.pydantic_models.deployment import DeploymentConfig
+from platform_common.pydantic_models.training import ModelType
 from thirdai import bolt
 
 DEPLOYMENT_ID = "123"

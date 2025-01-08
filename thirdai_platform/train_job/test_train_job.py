@@ -20,9 +20,9 @@ from platform_common.pydantic_models.training import (
     NDBOptions,
     NlpTextOptions,
     NlpTokenOptions,
+    NlpTrainOptions,
     TrainConfig,
     UDTData,
-    NlpTrainOptions,
 )
 from thirdai import bolt
 from thirdai import neural_db as ndb

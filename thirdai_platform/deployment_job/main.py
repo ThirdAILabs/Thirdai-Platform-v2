@@ -23,8 +23,6 @@ try:
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import JSONResponse
     from licensing.verify import verify_license
-    from platform_common.logging import setup_logger
-    from platform_common.pydantic_models.deployment import DeploymentConfig
     from platform_common.logging import JobLogger, LogCode, setup_logger
     from platform_common.pydantic_models.deployment import DeploymentConfig
     from platform_common.pydantic_models.training import ModelType

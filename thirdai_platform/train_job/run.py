@@ -11,14 +11,9 @@ try:
 
     import argparse
 
-    from platform_common.pydantic_models.training import ModelType, TrainConfig
     from platform_common.logging import JobLogger, LogCode
-    from platform_common.pydantic_models.training import (
-        ModelType,
-        TrainConfig,
-    )
+    from platform_common.pydantic_models.training import ModelType, TrainConfig
     from train_job.models.classification_models import (
-        DocClassificationModel,
         TextClassificationModel,
         TokenClassificationModel,
     )

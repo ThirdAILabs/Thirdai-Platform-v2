@@ -18,7 +18,6 @@ from fastapi.encoders import jsonable_encoder
 from platform_common.dependencies import is_on_low_disk
 from platform_common.logging import JobLogger, LogCode
 from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
-from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pii.data_types import (
     UnstructuredTokenClassificationResults,
     XMLTokenClassificationResults,

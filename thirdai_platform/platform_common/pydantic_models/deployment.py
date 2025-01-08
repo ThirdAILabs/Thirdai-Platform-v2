@@ -1,7 +1,6 @@
 import os
-from typing import Any, Dict
 import uuid
-from typing import Literal, Optional
+from typing import Any, Dict, Literal, Optional
 
 from platform_common.pydantic_models.training import ModelType
 from pydantic import BaseModel, Field

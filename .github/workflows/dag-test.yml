@@ -1,4 +1,4 @@
-name: Run DAG Tests
+name: Run Integration Tests
 
 on:
   push:
@@ -90,7 +90,7 @@ jobs:
           sudo apt-get update && \
           sudo apt-get install -y postgresql-client-17
 
-    - name: Setup `nomad`
+    - name: Setup Nomad
       uses: hashicorp/setup-nomad@main
       id: setup
       with:
@@ -171,7 +171,7 @@ jobs:
       run: |
         source ${{ github.workspace }}/venv/bin/activate
         cd $GITHUB_WORKSPACE/thirdai_platform_go
-        nohup sudo go run cmd/model_bazaar/main.go --env cmd/model_bazaar/.env > model_bazaar_log.log 2>&1 &
+        nohup sudo go run cmd/model_bazaar/main.go --env ../.env > model_bazaar_log.log 2>&1 &
     
     - name: List files in local_setup
       run: ls -la local_setup

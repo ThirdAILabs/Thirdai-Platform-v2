@@ -1,7 +1,6 @@
 package integrationtests
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 	"thirdai_platform/model_bazaar/config"
@@ -93,8 +92,6 @@ func TestKnowledgeExtraction(t *testing.T) {
 	for _, res := range report.Content.Results {
 		questionToAnswer[res.Question] = res.Answer
 	}
-
-	fmt.Println(questionToAnswer)
 
 	if len(questionToAnswer) != len(expectedAnswers) {
 		t.Fatal("incorrect number of questions answered")

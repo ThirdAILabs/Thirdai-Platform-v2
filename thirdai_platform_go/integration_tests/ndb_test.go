@@ -16,12 +16,6 @@ func getResult(ndb *client.NdbClient, t *testing.T, query string) client.NdbSear
 		t.Fatal(err)
 	}
 
-	t.Logf("results for query %s", query)
-
-	for i, res := range results {
-		t.Logf("\tRESULT %d: id=%d text=\"%s\"\n\n", i, res.Id, res.Text)
-	}
-
 	if len(results) < 1 {
 		t.Fatal("no results returned for query")
 	}
@@ -29,9 +23,16 @@ func getResult(ndb *client.NdbClient, t *testing.T, query string) client.NdbSear
 	return results[0]
 }
 
-func checkQuery(ndb *client.NdbClient, t *testing.T) {
-	if getResult(ndb, t, "manufacturing faster chips").Id != 27 {
-		t.Fatal("incorrect results returned")
+func checkQuery(ndb *client.NdbClient, t *testing.T, checkId bool) {
+	expectedText := "New Technology From AMD And IBM Boosts Chip Performance The manufacturing technology can result in faster chips"
+
+	result := getResult(ndb, t, "manufacturing faster chips")
+	if !strings.HasPrefix(result.Text, expectedText) {
+		t.Fatal("incorrect result text returned")
+	}
+
+	if checkId && result.Id != 27 {
+		t.Fatal("incorrect result id returned")
 	}
 }
 
@@ -158,7 +159,7 @@ func checkSave(ndb *client.NdbClient, t *testing.T) {
 		t.Fatal(err)
 	}
 
-	checkQuery(newNdb, t)
+	checkQuery(newNdb, t, false)
 }
 
 func createAndDeployNdb(t *testing.T, autoscaling bool) *client.NdbClient {
@@ -204,7 +205,7 @@ func createAndDeployNdb(t *testing.T, autoscaling bool) *client.NdbClient {
 func TestNdbDevMode(t *testing.T) {
 	ndb := createAndDeployNdb(t, false)
 
-	checkQuery(ndb, t)
+	checkQuery(ndb, t, true)
 
 	checkNoUpvote(ndb, t)
 	doUpvote(ndb, t)
@@ -262,7 +263,7 @@ func TestNdbProdMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	checkQuery(baseNdb, t)
+	checkQuery(baseNdb, t, true)
 
 	checkNoUpvote(baseNdb, t)
 	doUpvote(baseNdb, t)
@@ -305,7 +306,7 @@ func TestNdbProdMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	checkQuery(retrainedNdb, t)
+	checkQuery(retrainedNdb, t, false)
 	checkUpvote(retrainedNdb, t)
 	checkAssociate(retrainedNdb, t)
 	checkSources(retrainedNdb, t, []string{"articles.csv", "articles.csv", "four_english_words.docx", "mutual_nda.pdf"})

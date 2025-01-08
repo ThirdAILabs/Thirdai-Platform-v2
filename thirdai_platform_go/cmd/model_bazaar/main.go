@@ -262,7 +262,11 @@ func getHostname(u string) string {
 
 func main() {
 	envFile := flag.String("env", "", "File to load env variables from")
-	skipJobRestart := flag.Bool("skip_job_restart", false, "If true will not restart llm-cache, llm-dispatch, and telemetry jobs")
+	skipAll := flag.Bool("skip_all", false, "If true will not restart llm-cache, llm-dispatch, and telemetry jobs")
+	skipCache := flag.Bool("skip_cache", false, "If true will not restart llm-cache job")
+	skipDispatch := flag.Bool("skip_dispatch", false, "If true will not restart llm-dispatch job")
+	skipTelemetry := flag.Bool("skip_telemetry", false, "If true will not restart telemetry job")
+
 	port := flag.Int("port", 8000, "Port to run server on")
 
 	flag.Parse()
@@ -358,17 +362,21 @@ func main() {
 		[]byte(env.JwtSecret),
 	)
 
-	if !*skipJobRestart {
+	if !*skipAll && !*skipCache {
 		err = jobs.StartLlmCacheJob(nomadClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
 		if err != nil {
 			log.Fatalf("failed to start llm cache job: %v", err)
 		}
+	}
 
+	if !*skipAll && !*skipDispatch {
 		err = jobs.StartLlmDispatchJob(nomadClient, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
 		if err != nil {
 			log.Fatalf("failed to start llm dispatch job: %v", err)
 		}
+	}
 
+	if !*skipAll && !*skipTelemetry {
 		telemetryArgs := jobs.TelemetryJobArgs{
 			IsLocal:             env.BackendImage == "",
 			ModelBazaarEndpoint: env.PrivateModelBazaarEndpoint,

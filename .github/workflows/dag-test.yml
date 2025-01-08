@@ -167,12 +167,17 @@ jobs:
         echo "AWS_ACCESS_SECRET=${{ secrets.AWS_ACCESS_SECRET }}" >> $GITHUB_WORKSPACE/.env
         echo "AWS_REGION_NAME=us-east-2" >> $GITHUB_WORKSPACE/.env
         echo "TASK_RUNNER_TOKEN=N/A" >> $GITHUB_WORKSPACE/.env
+        echo "IDENTITY_PROVIDER=default" >> $GITHUB_WORKSPACE/.env
+        echo "DOCKER_REGISTRY=none" >> $GITHUB_WORKSPACE/.env
+        echo "DOCKER_USERNAME=none" >> $GITHUB_WORKSPACE/.env
+        echo "DOCKER_PASSWORD=none" >> $GITHUB_WORKSPACE/.env
+        echo "GRAFANA_DB_URL=none" >> $GITHUB_WORKSPACE/.env
 
     - name: Launch Backend
       run: |
         source ${{ github.workspace }}/venv/bin/activate
         cd $GITHUB_WORKSPACE/thirdai_platform_go
-        nohup sudo go run cmd/model_bazaar/main.go --env ../.env > model_bazaar_log.log 2>&1 &
+        nohup sudo go run cmd/model_bazaar/main.go --env ../.env --skip_telemetry --skip_cache > model_bazaar_log.log 2>&1 &
     
     - name: List files in local_setup
       run: ls -la local_setup

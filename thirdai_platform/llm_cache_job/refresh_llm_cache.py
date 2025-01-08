@@ -1,6 +1,7 @@
 import logging
 import os
-import shutil
+
+pass
 from pathlib import Path
 from typing import List
 
@@ -44,16 +45,9 @@ def main():
 
     try:
         # TODO does this work while deploying?
-        original_cache_ndb_path = os.path.join(model_dir, "llm_cache", "llm_cache.ndb")
-        new_cache_ndb_path = os.path.join(model_dir, "llm_cache", "new_llm_cache.ndb")
-        shutil.copytree(
-            original_cache_ndb_path,
-            new_cache_ndb_path,
-            ignore=shutil.ignore_patterns("*.tmpdb"),
-            dirs_exist_ok=True,
-        )
+        cache_ndb_path = os.path.join(model_dir, "llm_cache", "llm_cache.ndb")
         cache: Cache = NDBSemanticCache(
-            cache_ndb_path=new_cache_ndb_path, log_dir=model_dir, logger=logger
+            cache_ndb_path=cache_ndb_path, log_dir=model_dir, logger=logger
         )
 
         insertions = list_insertions()
@@ -62,14 +56,6 @@ def main():
 
         for logfile in os.listdir(insertions_folder):
             os.remove(os.path.join(insertions_folder, logfile))
-
-        shutil.copytree(
-            new_cache_ndb_path,
-            original_cache_ndb_path,
-            ignore=shutil.ignore_patterns("*.tmpdb"),
-            dirs_exist_ok=True,
-        )
-        shutil.rmtree(new_cache_ndb_path)
     except Exception as e:
         reporter.report_status(model_id, "failed", str(e))
         raise

@@ -57,11 +57,14 @@ func checkUpvote(ndb *client.NdbClient, t *testing.T) {
 	}
 }
 
-const associateQuery = "premier league teams in england"
+const (
+	associateQuery  = "premier league teams in england"
+	associateAnswer = "Eriksson: No Man Utd Arsenal rifts in squad England boss Sven Goran Eriksson insists"
+)
 
 func checkNoAssociate(ndb *client.NdbClient, t *testing.T) {
-	if getResult(ndb, t, associateQuery).Id == 16 {
-		t.Fatal("query should not map to upvoted id before upvote")
+	if strings.Contains(getResult(ndb, t, associateQuery).Text, associateAnswer) {
+		t.Fatal("query should not map to associate text before associate")
 	}
 }
 
@@ -74,8 +77,8 @@ func doAssociate(ndb *client.NdbClient, t *testing.T) {
 }
 
 func checkAssociate(ndb *client.NdbClient, t *testing.T) {
-	if getResult(ndb, t, associateQuery).Id != 16 {
-		t.Fatal("query should map to upvoted id after upvote")
+	if !strings.Contains(getResult(ndb, t, associateQuery).Text, associateAnswer) {
+		t.Fatal("query should map to associated text after associate")
 	}
 }
 

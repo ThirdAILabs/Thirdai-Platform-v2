@@ -14,18 +14,15 @@ from platform_common.pydantic_models.feedback_logs import (
     UpvoteLog,
 )
 from platform_common.pydantic_models.training import (
-    DatagenOptions,
     FileInfo,
     JobOptions,
     NDBData,
     NDBOptions,
-    TextClassificationOptions,
-    TokenClassificationDatagenOptions,
-    TokenClassificationOptions,
+    NlpTextOptions,
+    NlpTokenOptions,
     TrainConfig,
     UDTData,
-    UDTOptions,
-    UDTTrainOptions,
+    NlpTrainOptions,
 )
 from thirdai import bolt
 from thirdai import neural_db as ndb
@@ -96,6 +93,7 @@ def run_ndb_train_job(extra_supervised_files=[], on_disk=True):
     ).hash
 
     config = TrainConfig(
+        model_type="ndb",
         user_id="user_123",
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
@@ -140,6 +138,7 @@ def run_ndb_train_job(extra_supervised_files=[], on_disk=True):
             ],
         ),
         job_options=JobOptions(),
+        job_auth_token="",
     )
 
     model = get_model(config, DummyReporter(), logger)
@@ -194,16 +193,15 @@ def test_udt_text_train():
 
     os.environ["AZURE_ACCOUNT_NAME"] = "csg100320028d93f3bc"
     config = TrainConfig(
+        model_type="nlp-text",
         user_id="user_123",
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
         model_bazaar_endpoint="",
         model_id="udt_123",
         data_id="data_123",
-        model_options=UDTOptions(
-            udt_options=TextClassificationOptions(
-                text_column="text", label_column="id", n_target_classes=100
-            ),
+        model_options=NlpTextOptions(
+            text_column="text", label_column="id", n_target_classes=100
         ),
         data=UDTData(
             supervised_files=[
@@ -226,6 +224,7 @@ def test_udt_text_train():
             ],
         ),
         job_options=JobOptions(),
+        job_auth_token="",
     )
 
     model = get_model(config, DummyReporter(), logger)
@@ -243,21 +242,20 @@ def test_udt_token_train(test_split):
 
     os.environ["AZURE_ACCOUNT_NAME"] = "csg100320028d93f3bc"
     config = TrainConfig(
+        model_type="nlp-token",
         user_id="user_123",
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
         model_bazaar_endpoint="",
         model_id="udt_123",
         data_id="data_123",
-        model_options=UDTOptions(
-            udt_options=TokenClassificationOptions(
-                target_labels=["NAME", "EMAIL"],
-                source_column="text",
-                target_column="tags",
-                default_tag="O",
-            ),
-            train_options=UDTTrainOptions(test_split=test_split),
+        model_options=NlpTokenOptions(
+            target_labels=["NAME", "EMAIL"],
+            source_column="text",
+            target_column="tags",
+            default_tag="O",
         ),
+        train_options=NlpTrainOptions(test_split=test_split),
         data=UDTData(
             supervised_files=[
                 FileInfo(path=os.path.join(file_dir(), "ner.csv"), location="local"),
@@ -275,31 +273,7 @@ def test_udt_token_train(test_split):
             ],
         ),
         job_options=JobOptions(),
-        datagen_options=DatagenOptions(
-            task_prompt="token classification",
-            llm_provider="openai",
-            datagen_options=TokenClassificationDatagenOptions(
-                sub_type="token",
-                tags=[
-                    {
-                        "name": "NAME",
-                        "examples": ["shubh"],
-                        "description": "name of person",
-                        "status": "uninserted",
-                    },
-                    {
-                        "name": "EMAIL",
-                        "examples": ["shubh@gmail.com"],
-                        "description": "email of person",
-                        "status": "uninserted",
-                    },
-                ],
-                num_sentences_to_generate=1000,
-                num_samples_per_tag=None,
-                samples=None,
-                templates_per_sample=10,
-            ),
-        ),
+        job_auth_token="",
     )
 
     model = get_model(config, DummyReporter(), logger)
@@ -319,43 +293,29 @@ def test_udt_token_train_with_balancing(dummy_ner_file):
     verify_license.verify_and_activate(THIRDAI_LICENSE)
 
     config = TrainConfig(
+        model_type="nlp-token",
         user_id="user_123",
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
         model_bazaar_endpoint="",
         model_id="udt_123",
         data_id="data_123",
-        model_options=UDTOptions(
-            udt_options=TokenClassificationOptions(
-                target_labels=["NAME", "EMAIL"],
-                source_column="text",
-                target_column="tags",
-                default_tag="O",
-            ),
+        model_options=NlpTokenOptions(
+            target_labels=["NAME", "EMAIL"],
+            source_column="text",
+            target_column="tags",
+            default_tag="O",
         ),
         data=UDTData(
             supervised_files=[FileInfo(path=dummy_ner_file, location="local")],
         ),
         job_options=JobOptions(),
-        datagen_options=DatagenOptions(
-            task_prompt="token classification",
-            datagen_options=TokenClassificationDatagenOptions(
-                sub_type="token",
-                tags=[
-                    {
-                        "name": "NAME",
-                    },
-                    {
-                        "name": "EMAIL",
-                    },
-                ],
-            ),
-        ),
+        job_auth_token="",
     )
 
     model: TokenClassificationModel = get_model(config, DummyReporter(), logger)
     assert (
-        model.find_and_save_balancing_samples() is None
+        model.find_and_save_balancing_samples("text", "tags") is None
     ), "No Balancing Samples without training"
 
     model.train()
@@ -363,7 +323,7 @@ def test_udt_token_train_with_balancing(dummy_ner_file):
     storage = model.data_storage
     assert storage.connector.get_sample_count("ner") == 100_000
 
-    model.find_and_save_balancing_samples()
+    model.find_and_save_balancing_samples("text", "tags")
     assert os.path.exists(
         model._balancing_samples_path
     ), "Balancing Samples Path does not exist"

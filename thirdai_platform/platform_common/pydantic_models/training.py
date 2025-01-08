@@ -279,7 +279,7 @@ class TrainConfig(BaseModel):
     # datagen_options: Optional[DatagenOptions] = None
     job_options: JobOptions
 
-    train_options: NlpTrainOptions = NlpTrainOptions()
+    train_options: Optional[NlpTrainOptions] = NlpTrainOptions()
 
     data: Union[NDBData, UDTData, UDTGeneratedData] = Field(
         ..., discriminator="model_data_type"

@@ -384,6 +384,7 @@ func checkSufficientStorage(storage storage.Storage) func(http.Handler) http.Han
 	return func(next http.Handler) http.Handler {
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			if err := checkDiskUsage(storage); err != nil {
+				slog.Error(err.Error())
 				http.Error(w, err.Error(), http.StatusInsufficientStorage)
 				return
 			}

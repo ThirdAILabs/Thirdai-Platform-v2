@@ -119,19 +119,37 @@ func (c *PlatformClient) TrainNdbWithBaseModel(name string, baseModel *NdbClient
 }
 
 func (c *PlatformClient) TrainNlpToken(name string, labels []string, files []config.FileInfo, trainOptions config.NlpTrainOptions) (*NlpTokenClient, error) {
+	return c.trainNlpTokenHelper(name, nil, labels, files, trainOptions)
+}
+
+func (c *PlatformClient) TrainNlpTokenWithBaseModel(name string, baseModel *NlpTokenClient, files []config.FileInfo, trainOptions config.NlpTrainOptions) (*NlpTokenClient, error) {
+	return c.trainNlpTokenHelper(name, baseModel, nil, files, trainOptions)
+}
+
+func (c *PlatformClient) trainNlpTokenHelper(name string, baseModel *NlpTokenClient, labels []string, files []config.FileInfo, trainOptions config.NlpTrainOptions) (*NlpTokenClient, error) {
 	uploadFiles, err := c.uploadFiles(files)
 	if err != nil {
 		return nil, fmt.Errorf("error uploading files for training: %w", err)
 	}
 
-	body := services.NlpTokenTrainRequest{
-		ModelName: name,
-		ModelOptions: &config.NlpTokenOptions{
+	var baseModelId *uuid.UUID
+	if baseModel != nil {
+		baseModelId = &baseModel.modelId
+	}
+	var modelOptions *config.NlpTokenOptions
+	if baseModel == nil {
+		modelOptions = &config.NlpTokenOptions{
 			TargetLabels: labels,
 			SourceColumn: "source",
 			TargetColumn: "target",
 			DefaultTag:   "O",
-		},
+		}
+	}
+
+	body := services.NlpTokenTrainRequest{
+		ModelName:    name,
+		BaseModelId:  baseModelId,
+		ModelOptions: modelOptions,
 		Data: config.NlpData{
 			SupervisedFiles: uploadFiles,
 		},
@@ -153,19 +171,37 @@ func (c *PlatformClient) TrainNlpToken(name string, labels []string, files []con
 }
 
 func (c *PlatformClient) TrainNlpText(name string, nTargetClasses int, files []config.FileInfo, trainOptions config.NlpTrainOptions) (*NlpTextClient, error) {
+	return c.trainNlpTextHelper(name, nil, nTargetClasses, files, trainOptions)
+}
+
+func (c *PlatformClient) TrainNlpTextWithBaseModel(name string, baseModel *NlpTextClient, files []config.FileInfo, trainOptions config.NlpTrainOptions) (*NlpTextClient, error) {
+	return c.trainNlpTextHelper(name, baseModel, -1, files, trainOptions)
+}
+
+func (c *PlatformClient) trainNlpTextHelper(name string, baseModel *NlpTextClient, nTargetClasses int, files []config.FileInfo, trainOptions config.NlpTrainOptions) (*NlpTextClient, error) {
 	uploadFiles, err := c.uploadFiles(files)
 	if err != nil {
 		return nil, fmt.Errorf("error uploading files for training: %w", err)
 	}
 
-	body := services.NlpTextTrainRequest{
-		ModelName: name,
-		ModelOptions: &config.NlpTextOptions{
+	var baseModelId *uuid.UUID
+	if baseModel != nil {
+		baseModelId = &baseModel.modelId
+	}
+	var modelOptions *config.NlpTextOptions
+	if baseModel == nil {
+		modelOptions = &config.NlpTextOptions{
 			NTargetClasses: nTargetClasses,
 			TextColumn:     "text",
 			LabelColumn:    "labels",
 			Delimiter:      ",",
-		},
+		}
+	}
+
+	body := services.NlpTextTrainRequest{
+		ModelName:    name,
+		BaseModelId:  baseModelId,
+		ModelOptions: modelOptions,
 		Data: config.NlpData{
 			SupervisedFiles: uploadFiles,
 		},

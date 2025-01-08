@@ -167,10 +167,6 @@ class ClassificationModel(Model):
         self.logger.debug(f"UDT path for model {model_id}: {udt_path}")
         return udt_path
 
-    @abstractmethod
-    def load_model(self, model_id, base_model_id):
-        pass
-
     def save_model(self, model):
         try:
             model.save(str(self.model_save_path))
@@ -199,7 +195,9 @@ class ClassificationModel(Model):
                     f"Loading base model with model_id: {self.config.base_model_id}",
                     code=LogCode.MODEL_LOAD,
                 )
-                return self.load_model(self.config.base_model_id)
+                return bolt.UniversalDeepTransformer.load(
+                    str(self.get_udt_path(self.config.base_model_id))
+                )
 
             # initialize the model from scratch if the model does not exist or if there is not base model
             self.logger.info(
@@ -259,9 +257,6 @@ class TextClassificationModel(ClassificationModel):
                 f"Failed to initialize model with error {e}", code=LogCode.MODEL_INIT
             )
             raise e
-
-    def load_model(self, model_id, base_model_id):
-        return bolt.UniversalDeepTransformer.load(str(self.get_udt_path(base_model_id)))
 
     def train(self, **kwargs):
         try:
@@ -598,15 +593,16 @@ class TokenClassificationModel(ClassificationModel):
         data_storage.remove_untrained_samples("ner")
         data_storage.rollback_metadata("tags_and_status")
 
-    def load_model(self, model_id, base_model_id):
-        if not os.path.exists(self.data_storage_path(model_id)):
-            self.copy_data_storage(old_model_id=base_model_id, new_model_id=model_id)
-            self.remove_unused_samples(new_model_id=model_id)
-        return bolt.UniversalDeepTransformer.load(str(self.get_udt_path(base_model_id)))
-
     def load_storage(self):
         data_storage_path = self.data_dir / "data_storage.db"
         self.logger.debug(f"Loading data storage from {data_storage_path}.")
+        if not os.path.exists(data_storage_path) and self.config.base_model_id:
+            self.logger.info("Existing data storage not found, copying from base model")
+            self.copy_data_storage(
+                old_model_id=self.config.base_model_id,
+                new_model_id=self.config.model_id,
+            )
+            self.remove_unused_samples(model_id=self.config.model_id)
         # connector will instantiate an sqlite db at the specified path if it doesn't exist
         self.data_storage = DataStorage(
             connector=SQLiteConnector(db_path=data_storage_path)

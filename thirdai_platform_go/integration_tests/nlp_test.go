@@ -268,3 +268,66 @@ func TestNlpTokenRetrain(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestNlpTokenTrainingFromBaseModel(t *testing.T) {
+	client := getClient(t)
+
+	nlp, err := client.TrainNlpToken(
+		randomName("nlp"),
+		[]string{"EMAIL", "NAME"},
+		[]config.FileInfo{{Path: "./data/ner.csv", Location: "local"}},
+		config.NlpTrainOptions{Epochs: 10},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = nlp.AwaitTrain(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	nlp2, err := client.TrainNlpTokenWithBaseModel(
+		randomName("nlp2"),
+		nlp,
+		[]config.FileInfo{{Path: "./data/ner.csv", Location: "local"}},
+		config.NlpTrainOptions{},
+	)
+
+	err = nlp2.AwaitTrain(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNlpTextTrainingFromBaseModel(t *testing.T) {
+	client := getClient(t)
+
+	nlp, err := client.TrainNlpText(
+		randomName("nlp"),
+		3,
+		[]config.FileInfo{{Path: "./data/supervised.csv", Location: "local"}},
+		config.NlpTrainOptions{Epochs: 10},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = nlp.AwaitTrain(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	nlp2, err := client.TrainNlpTextWithBaseModel(
+		randomName("nlp2"),
+		nlp,
+		[]config.FileInfo{{Path: "./data/supervised.csv", Location: "local"}},
+		config.NlpTrainOptions{},
+	)
+
+	err = nlp2.AwaitTrain(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+		
+	}
+}

@@ -11,10 +11,8 @@ from deployment_job.permissions import Permissions
 from fastapi.testclient import TestClient
 from licensing.verify import verify_license
 from platform_common.logging import JobLogger
-from platform_common.pydantic_models.deployment import (
-    DeploymentConfig,
-    NDBDeploymentOptions,
-)
+from platform_common.pydantic_models.deployment import DeploymentConfig
+from platform_common.pydantic_models.training import ModelType
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.chunk_stores import PandasChunkStore
 from thirdai.neural_db_v2.retrievers import FinetunableRetriever
@@ -100,12 +98,14 @@ def create_config(tmp_dir: str, autoscaling: bool, on_disk: bool):
         deployment_id=DEPLOYMENT_ID,
         user_id=USER_ID,
         model_id=MODEL_ID,
+        model_type=ModelType.NDB,
         model_bazaar_endpoint="",
         model_bazaar_dir=tmp_dir,
         host_dir=os.path.join(tmp_dir, "host_dir"),
         license_key=license_info["boltLicenseKey"],
         autoscaling_enabled=autoscaling,
-        model_options=NDBDeploymentOptions(),
+        job_auth_token="",
+        options={},
     )
 
 
@@ -341,7 +341,7 @@ def check_upvote_prod_mode(client: TestClient):
             ]
         },
     )
-    assert res.status_code == 202
+    assert res.status_code == 200
 
     assert get_query_result(client, random_query) == original_result
 
@@ -358,7 +358,7 @@ def check_associate_prod_mode(client: TestClient):
             ]
         },
     )
-    assert res.status_code == 202
+    assert res.status_code == 200
 
     assert get_query_result(client, query) == orignal_result
 
@@ -387,7 +387,7 @@ def check_insertion_prod_mode(client: TestClient):
         "/insert",
         files=files,
     )
-    assert res.status_code == 202
+    assert res.status_code == 200
 
     res = client.get("/sources")
     assert res.status_code == 200
@@ -405,7 +405,7 @@ def check_deletion_prod_mode(client: TestClient):
     ][0]
 
     res = client.post("/delete", json={"source_ids": [source_id]})
-    assert res.status_code == 202
+    assert res.status_code == 200
 
     res = client.get("/sources")
     assert res.status_code == 200

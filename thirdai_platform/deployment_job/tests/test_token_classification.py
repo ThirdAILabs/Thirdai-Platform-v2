@@ -10,11 +10,8 @@ from deployment_job.routers.udt import UDTRouterTokenClassification
 from fastapi.testclient import TestClient
 from licensing.verify import verify_license
 from platform_common.logging import JobLogger
-from platform_common.pydantic_models.deployment import (
-    DeploymentConfig,
-    UDTDeploymentOptions,
-    UDTSubType,
-)
+from platform_common.pydantic_models.training import ModelType
+from platform_common.pydantic_models.deployment import DeploymentConfig
 from thirdai import bolt
 
 DEPLOYMENT_ID = "123"
@@ -87,7 +84,7 @@ def mock_deployment_permissions(token):
     return {
         "read": True,
         "write": True,
-        "override": True,
+        "owner": True,
         "username": "test",
         "exp": datetime.datetime.now(datetime.timezone.utc)
         + datetime.timedelta(minutes=5),
@@ -103,11 +100,13 @@ def create_config(tmp_dir: str):
         deployment_id=DEPLOYMENT_ID,
         user_id=USER_ID,
         model_id=MODEL_ID,
+        model_type=ModelType.NLP_TOKEN,
         model_bazaar_endpoint="",
         model_bazaar_dir=tmp_dir,
         host_dir=os.path.join(tmp_dir, "host_dir"),
         license_key=license_info["boltLicenseKey"],
-        model_options=UDTDeploymentOptions(udt_sub_type=UDTSubType.token),
+        job_auth_token="",
+        options={},
     )
 
 

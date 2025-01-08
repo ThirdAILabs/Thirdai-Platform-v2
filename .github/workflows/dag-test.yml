@@ -166,6 +166,7 @@ jobs:
         echo "AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY }}" >> $GITHUB_WORKSPACE/.env
         echo "AWS_ACCESS_SECRET=${{ secrets.AWS_ACCESS_SECRET }}" >> $GITHUB_WORKSPACE/.env
         echo "AWS_REGION_NAME=us-east-2" >> $GITHUB_WORKSPACE/.env
+        echo "TASK_RUNNER_TOKEN=N/A" >> $GITHUB_WORKSPACE/.env
 
     - name: Launch Backend
       run: |

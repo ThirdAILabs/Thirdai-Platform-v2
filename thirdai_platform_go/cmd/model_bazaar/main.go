@@ -85,14 +85,6 @@ func intEnvVar(key string, defaultValue int) int {
 	return i
 }
 
-func requiredEnv(key string) string {
-	env := os.Getenv(key)
-	if env == "" {
-		log.Fatalf("Missing required env variable %v", key)
-	}
-	return env
-}
-
 func optionalEnv(key string) string {
 	return os.Getenv(key)
 }
@@ -114,6 +106,17 @@ func loadEnvFile(envFile string) {
  * ==========================================================================
  */
 func loadEnv() modelBazaarEnv {
+	missingEnvs := []string{}
+
+	requiredEnv := func(key string) string {
+		env := os.Getenv(key)
+		if env == "" {
+			missingEnvs = append(missingEnvs, key)
+			slog.Error("missing required env variable", "key", key)
+		}
+		return env
+	}
+
 	env := modelBazaarEnv{
 		PublicModelBazaarEndpoint:  requiredEnv("PUBLIC_MODEL_BAZAAR_ENDPOINT"),
 		PrivateModelBazaarEndpoint: requiredEnv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
@@ -158,6 +161,10 @@ func loadEnv() modelBazaarEnv {
 			AzureAccountKey:    optionalEnv("AZURE_ACCOUNT_KEY"),
 			GcpCredentialsFile: optionalEnv("GCP_CREDENTIALS_FILE"),
 		},
+	}
+
+	if len(missingEnvs) > 0 {
+		log.Fatalf("The following required env vars are missing: %s", strings.Join(missingEnvs, ", "))
 	}
 
 	if env.BackendImage == "" && (env.PythonPath == "" || env.PlatformDir == "") {

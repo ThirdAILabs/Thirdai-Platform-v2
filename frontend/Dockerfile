@@ -6,7 +6,7 @@ WORKDIR /app
 
 FROM base AS prod-deps
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --network-timeout 100000 --network-concurrency 4
+RUN pnpm install --frozen-lockfile
 RUN pnpm add sharp @svgr/webpack  # Install the missing dependencies, needed for efficient building
 
 FROM base

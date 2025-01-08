@@ -16,8 +16,14 @@ func getResult(ndb *client.NdbClient, t *testing.T, query string) client.NdbSear
 		t.Fatal(err)
 	}
 
+	t.Logf("results for query %s", query)
+
+	for i, res := range results {
+		t.Logf("\tRESULT %d: id=%d text=\"%s\"\n\n", i, res.Id, res.Text)
+	}
+
 	if len(results) < 1 {
-		t.Fatal("incorrect results returned")
+		t.Fatal("no results returned for query")
 	}
 
 	return results[0]

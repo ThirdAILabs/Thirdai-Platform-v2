@@ -18,13 +18,11 @@ func TestNlpTokenSupervised(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("training started")
 
 	err = model.AwaitTrain(100 * time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("training complete")
 
 	err = model.Deploy(false)
 	if err != nil {
@@ -36,13 +34,11 @@ func TestNlpTokenSupervised(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	t.Log("deployment started")
 
 	err = model.AwaitDeploy(100 * time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("deployment complete")
 
 	_, err = model.Predict("jonas is my name", 3)
 	if err != nil {
@@ -62,13 +58,11 @@ func TestNlpTextSupervised(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("training started")
 
 	err = model.AwaitTrain(100 * time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("training complete")
 
 	err = model.Deploy(false)
 	if err != nil {
@@ -80,13 +74,11 @@ func TestNlpTextSupervised(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	t.Log("deployment started")
 
 	err = model.AwaitDeploy(100 * time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("deployment complete")
 
 	_, err = model.Predict("what is the answer to my question", 3)
 	if err != nil {
@@ -112,13 +104,11 @@ func TestNlpTokenDatagen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("training started")
 
 	err = model.AwaitTrain(100 * time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("training complete")
 
 	err = model.Deploy(false)
 	if err != nil {
@@ -130,13 +120,11 @@ func TestNlpTokenDatagen(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	t.Log("deployment started")
 
 	err = model.AwaitDeploy(100 * time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("deployment complete")
 
 	_, err = model.Predict("jonas is my name", 3)
 	if err != nil {
@@ -162,13 +150,11 @@ func TestNlpTextDatagen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("training started")
 
 	err = model.AwaitTrain(100 * time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("training complete")
 
 	err = model.Deploy(false)
 	if err != nil {
@@ -180,13 +166,11 @@ func TestNlpTextDatagen(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	t.Log("deployment started")
 
 	err = model.AwaitDeploy(100 * time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("deployment complete")
 
 	_, err = model.Predict("i really like to eat apples", 3)
 	if err != nil {
@@ -206,13 +190,11 @@ func TestNlpTokenRetrain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("training started")
 
 	err = model.AwaitTrain(100 * time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("training complete")
 
 	err = model.Deploy(false)
 	if err != nil {
@@ -224,13 +206,11 @@ func TestNlpTokenRetrain(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	t.Log("deployment started")
 
 	err = model.AwaitDeploy(100 * time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("deployment complete")
 
 	_, err = model.Predict("jonas is my name", 3)
 	if err != nil {
@@ -328,6 +308,5 @@ func TestNlpTextTrainingFromBaseModel(t *testing.T) {
 	err = nlp2.AwaitTrain(100 * time.Second)
 	if err != nil {
 		t.Fatal(err)
-		
 	}
 }

@@ -207,7 +207,7 @@
 # Sync keycloak user in platform
 
 **Description**: Synchronizes user in platform registered via keycloak.
-In other words, this endpoint ensures that users registered via Keycloak exists in the platform's database. It verifies using the token directly in this function and returns user info.
+In other words, this endpoint ensures that users registered via Keycloak also exists in the platform's database. It verifies using the token directly in this function and returns user info.
 
 **Request Body**:
 ```json

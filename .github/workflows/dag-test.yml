@@ -174,9 +174,6 @@ jobs:
         echo "DOCKER_PASSWORD=none" >> $GITHUB_WORKSPACE/.env
         echo "GRAFANA_DB_URL=none" >> $GITHUB_WORKSPACE/.env
 
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v3
-
     - name: Launch Backend
       run: |
         source ${{ github.workspace }}/venv/bin/activate

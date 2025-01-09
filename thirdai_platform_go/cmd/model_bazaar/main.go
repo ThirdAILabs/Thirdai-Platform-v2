@@ -261,11 +261,11 @@ func getHostname(u string) string {
 }
 
 func main() {
-	envFile := flag.String("env", "", "File to load env variables from")
-	skipAll := flag.Bool("skip_all", false, "If true will not restart llm-cache, llm-dispatch, and telemetry jobs")
-	skipCache := flag.Bool("skip_cache", false, "If true will not restart llm-cache job")
-	skipDispatch := flag.Bool("skip_dispatch", false, "If true will not restart llm-dispatch job")
-	skipTelemetry := flag.Bool("skip_telemetry", false, "If true will not restart telemetry job")
+	envFile := flag.String("env", "", "File to load env variables from. If not specified will just load them from the environment variables already defined.")
+	skipAll := flag.Bool("skip_all", false, "If specified will not restart llm-cache, llm-dispatch, and telemetry jobs.")
+	skipCache := flag.Bool("skip_cache", false, "If specified will not restart llm-cache job.")
+	skipDispatch := flag.Bool("skip_dispatch", false, "If specified will not restart llm-dispatch job.")
+	skipTelemetry := flag.Bool("skip_telemetry", false, "If specified will not restart telemetry job.")
 
 	port := flag.Int("port", 8000, "Port to run server on")
 

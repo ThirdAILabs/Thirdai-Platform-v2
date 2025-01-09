@@ -79,7 +79,6 @@ func getDeploymentMemory(modelId uuid.UUID, userSpecified int, attrs map[string]
 		slog.Error("user specified memory is to low", "model_id", modelId, "memory", userSpecified)
 	}
 
-	slog.Info("attributes", "stuff", attrs)
 	metadataJson, ok := attrs["metadata"]
 	if ok {
 		var metadata map[string]interface{}

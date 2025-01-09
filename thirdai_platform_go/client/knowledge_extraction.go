@@ -62,8 +62,10 @@ func (c *KnowledgeExtractionClient) CreateReport(files []config.FileInfo) (strin
 }
 
 type Report struct {
-	Status  string `json:"status"`
-	Content struct {
+	ReportId string `json:"report_id"`
+	Status   string `json:"status"`
+	Msg      string `json:"msg"`
+	Content  struct {
 		Results []struct {
 			QuestionId string `json:"question_id"`
 			Question   string `json:"question"`
@@ -87,7 +89,7 @@ func (c *KnowledgeExtractionClient) GetReport(reportId string) (Report, error) {
 }
 
 func (c *KnowledgeExtractionClient) AwaitReport(reportId string, timeout time.Duration) (Report, error) {
-	check := time.Tick(time.Second)
+	check := time.Tick(2 * time.Second)
 	stop := time.Tick(timeout)
 
 	for {
@@ -108,6 +110,12 @@ func (c *KnowledgeExtractionClient) AwaitReport(reportId string, timeout time.Du
 
 func (c *KnowledgeExtractionClient) DeleteReport(reportId string) error {
 	return c.Delete(fmt.Sprintf("/%v/report/%v", c.deploymentId(), reportId)).Do(nil)
+}
+
+func (c *KnowledgeExtractionClient) ListReports() ([]Report, error) {
+	var res wrappedData[[]Report]
+	err := c.Get(fmt.Sprintf("/%v/reports", c.deploymentId())).Do(&res)
+	return res.Data, err
 }
 
 type Question struct {

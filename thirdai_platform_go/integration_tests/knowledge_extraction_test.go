@@ -75,6 +75,15 @@ func TestKnowledgeExtraction(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	reports, err := client.ListReports()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(reports) != 1 || reports[0].ReportId != reportId {
+		t.Fatalf("incorrect reports returned: %v", reports)
+	}
+
 	report, err := client.AwaitReport(reportId, 200*time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -109,5 +118,22 @@ func TestKnowledgeExtraction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// TODO: check 404 for report
+	_, err = client.GetReport(reportId)
+	if err == nil || !strings.Contains(err.Error(), "status 404") {
+		t.Fatal("report should return 404")
+	}
+
+	badReportId, err := client.CreateReport([]config.FileInfo{
+		{Path: "./utils.go", Location: "local"},
+	})
+
+	badReport, err := client.AwaitReport(badReportId, 20*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedMsg := "Error processing report: Unable to process document 'utils.go'. Please ensure that document is a supported type (pdf, docx, csv, html) and has correct extension."
+	if badReport.Status != "failed" || badReport.Msg != expectedMsg {
+		t.Fatal("invalid contents of failed report")
+	}
 }

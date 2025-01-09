@@ -241,21 +241,24 @@ def test_udt_text_train():
 def doc_classification_files():
     base_dir = os.path.join(file_dir(), "doc_classification_test_data")
     file_list = []
-    
-    for label in ['positive', 'neutral', 'negative']:
+
+    for label in ["positive", "neutral", "negative"]:
         label_dir = os.path.join(base_dir, label)
         for file in os.listdir(label_dir):
-            if file.endswith('.pdf'):
-                file_list.append(FileInfo(
-                    path=os.path.join(label_dir, file),
-                    location="local",
-                    metadata={"label": label}
-                ))
+            if file.endswith(".pdf"):
+                file_list.append(
+                    FileInfo(
+                        path=os.path.join(label_dir, file),
+                        location="local",
+                        metadata={"label": label},
+                    )
+                )
     return file_list
+
 
 def test_udt_document_classification(doc_classification_files):
     verify_license.verify_and_activate(THIRDAI_LICENSE)
-    
+
     config = TrainConfig(
         user_id="user_123",
         model_bazaar_dir=MODEL_BAZAAR_DIR,
@@ -269,17 +272,12 @@ def test_udt_document_classification(doc_classification_files):
                 label_column="label",
                 n_target_classes=3,
                 word_limit=1000,
-                udt_sub_type="document"
+                udt_sub_type="document",
             ),
-            train_options=UDTTrainOptions(test_split=0.1)
+            train_options=UDTTrainOptions(test_split=0.1),
         ),
-        data=UDTData(
-            supervised_files=doc_classification_files
-        ),
-        job_options=JobOptions(
-            allocation_cores=2,
-            allocation_memory=16000
-        ),
+        data=UDTData(supervised_files=doc_classification_files),
+        job_options=JobOptions(allocation_cores=2, allocation_memory=16000),
     )
 
     model = get_model(config, DummyReporter(), logger)

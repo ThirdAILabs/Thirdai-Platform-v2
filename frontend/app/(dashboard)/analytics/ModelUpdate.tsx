@@ -47,6 +47,136 @@ const MetricCell = ({ value }: { value: number | string }) => {
   return <td className="px-6 py-4 whitespace-nowrap text-gray-500">{value}</td>;
 };
 
+// Token highlighting component
+const TokenHighlight: React.FC<{
+  text: string;
+  index: number;
+  highlightIndex: number;
+  type: 'tp' | 'fp' | 'fn';
+}> = ({ text, index, highlightIndex, type }) => {
+  const isHighlighted = index === highlightIndex;
+
+  const getHighlightColor = () => {
+    if (!isHighlighted) return 'bg-transparent';
+    switch (type) {
+      case 'tp':
+        return 'bg-green-100 border-green-400';
+      case 'fp':
+        return 'bg-red-100 border-red-400';
+      case 'fn':
+        return 'bg-yellow-100 border-yellow-400';
+      default:
+        return 'bg-transparent';
+    }
+  };
+
+  return (
+    <span
+      className={`px-1 py-0.5 rounded ${getHighlightColor()} ${isHighlighted ? 'border-2' : ''}`}
+    >
+      {text}
+    </span>
+  );
+};
+
+// Example display component
+const ExamplePair: React.FC<{
+  example: {
+    source: string;
+    target: string;
+    predictions: string;
+    index: number;
+  };
+  type: 'tp' | 'fp' | 'fn';
+}> = ({ example, type }) => {
+  const sourceTokens = example.source.split(' ');
+  const targetTokens = example.target.split(' ');
+  const predictionTokens = example.predictions.split(' ');
+
+  const getTypeLabel = () => {
+    switch (type) {
+      case 'tp':
+        return 'True Positive';
+      case 'fp':
+        return 'False Positive';
+      case 'fn':
+        return 'False Negative';
+    }
+  };
+
+  const getTypeColor = () => {
+    switch (type) {
+      case 'tp':
+        return 'text-green-700 bg-green-50';
+      case 'fp':
+        return 'text-red-700 bg-red-50';
+      case 'fn':
+        return 'text-yellow-700 bg-yellow-50';
+    }
+  };
+
+  return (
+    <div className="border rounded-lg p-4 space-y-3">
+      <div className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getTypeColor()}`}>
+        {getTypeLabel()}
+      </div>
+
+      <div className="space-y-2">
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-gray-500">Input</div>
+          <div className="p-2 bg-gray-50 rounded">
+            {sourceTokens.map((token, idx) => (
+              <React.Fragment key={idx}>
+                <TokenHighlight
+                  text={token}
+                  index={idx}
+                  highlightIndex={example.index}
+                  type={type}
+                />
+                {idx < sourceTokens.length - 1 && ' '}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-gray-500">Ground Truth</div>
+          <div className="p-2 bg-gray-50 rounded">
+            {targetTokens.map((token, idx) => (
+              <React.Fragment key={idx}>
+                <TokenHighlight
+                  text={token}
+                  index={idx}
+                  highlightIndex={example.index}
+                  type={type}
+                />
+                {idx < targetTokens.length - 1 && ' '}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-gray-500">Prediction</div>
+          <div className="p-2 bg-gray-50 rounded">
+            {predictionTokens.map((token, idx) => (
+              <React.Fragment key={idx}>
+                <TokenHighlight
+                  text={token}
+                  index={idx}
+                  highlightIndex={example.index}
+                  type={type}
+                />
+                {idx < predictionTokens.length - 1 && ' '}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function ModelUpdate({
   username,
   modelName,
@@ -408,6 +538,18 @@ export default function ModelUpdate({
     getTags();
   }, []);
 
+  const [selectedLabel, setSelectedLabel] = useState<string>('');
+  const [selectedType, setSelectedType] = useState<'tp' | 'fp' | 'fn'>('tp');
+
+  useEffect(() => {
+    if (evalResults?.metrics) {
+      const labels = Object.keys(evalResults.metrics);
+      if (labels.length > 0 && !labels.includes(selectedLabel)) {
+        setSelectedLabel(labels[0]);
+      }
+    }
+  }, [evalResults]);
+
   return (
     <div className="space-y-6 px-1">
       {/* Training Report Section */}
@@ -477,138 +619,139 @@ export default function ModelUpdate({
       </Button>
 
       {evalResults && (
-        <div className="mt-6 space-y-4">
-          <Typography variant="h6">Evaluation Results</Typography>
-          
-          {/* Metrics Table */}
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Label
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Precision
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Recall
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    F1 Score
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {Object.entries(evalResults.metrics).map(([label, metrics]) => (
-                  <tr key={label} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                      {label}
-                    </td>
-                    <MetricCell value={metrics.precision} />
-                    <MetricCell value={metrics.recall} />
-                    <MetricCell value={metrics.fmeasure} />
+        <div className="space-y-8">
+          {/* Metrics Dashboard */}
+          <div className="mt-6">
+            <Typography variant="h6" className="mb-4">Performance Dashboard</Typography>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Label
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Precision
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Recall
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      F1 Score
+                    </th>
                   </tr>
-                ))}
-                {/* Average row */}
-                <tr className="bg-gray-50 font-medium">
-                  <td className="px-6 py-4 whitespace-nowrap">Average</td>
-                  {['precision', 'recall', 'fmeasure'].map((metric) => {
-                    const values = Object.values(evalResults.metrics)
-                      .map((m) => m[metric as keyof typeof m])
-                      .filter((value): value is number => typeof value === 'number');
-                    const average = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
-                    return <MetricCell key={metric} value={average} />;
-                  })}
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {Object.entries(evalResults.metrics).map(([label, metrics]) => (
+                    <tr key={label} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                        {label}
+                      </td>
+                      <MetricCell value={metrics.precision} />
+                      <MetricCell value={metrics.recall} />
+                      <MetricCell value={metrics.fmeasure} />
+                    </tr>
+                  ))}
+                  {/* Average row */}
+                  <tr className="bg-gray-50 font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap">Average</td>
+                    {['precision', 'recall', 'fmeasure'].map((metric) => {
+                      const values = Object.values(evalResults.metrics)
+                        .map((m) => m[metric as keyof typeof m])
+                        .filter((value): value is number => typeof value === 'number');
+                      const average = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+                      return <MetricCell key={metric} value={average} />;
+                    })}
+                  </tr>
+                </tbody>
+              </table>
 
-            {/* Add a legend below the table */}
-            <div className="mt-4 flex gap-6 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="inline-block w-3 h-3 bg-green-600 rounded-full" />
-                <span>Excellent (≥95%)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-block w-3 h-3 bg-yellow-600 rounded-full" />
-                <span>Good (85-94%)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-block w-3 h-3 bg-red-600 rounded-full" />
-                <span>Needs Improvement (Below 85%)</span>
+              {/* Legend */}
+              <div className="mt-4 flex gap-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-3 h-3 bg-green-600 rounded-full" />
+                  <span>Excellent (≥95%)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-3 h-3 bg-yellow-600 rounded-full" />
+                  <span>Good (85-94%)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-3 h-3 bg-red-600 rounded-full" />
+                  <span>Needs Improvement (Below 85%)</span>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Example Cases */}
-          <div className="mt-6">
-            <Typography variant="h6">Example Cases</Typography>
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMore />}>
-                <Typography>True Positives</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                {Object.entries(evalResults.examples.true_positives).map(([label, examples]) => (
-                  <div key={label} className="mb-4">
-                    <Typography variant="subtitle1" className="font-bold">
-                      {label}
-                    </Typography>
-                    {examples.map((example, idx) => (
-                      <div key={idx} className="ml-4 mb-2">
-                        <div>Source: {example.source}</div>
-                        <div>Target: {example.target}</div>
-                        <div>Predictions: {example.predictions}</div>
-                      </div>
-                    ))}
-                  </div>
+          {/* Examples Section */}
+          <div className="mt-8">
+            <Typography variant="h6" className="mb-4">Example Cases</Typography>
+            
+            {/* Label Selection */}
+            <div className="space-y-2 mt-4">
+              <div className="text-sm font-medium text-gray-500">Select Label</div>
+              <div className="flex flex-wrap gap-2">
+                {Object.keys(evalResults.metrics).map((label) => (
+                  <button
+                    key={label}
+                    onClick={() => setSelectedLabel(label)}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors
+                      ${
+                        selectedLabel === label
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                  >
+                    {label}
+                  </button>
                 ))}
-              </AccordionDetails>
-            </Accordion>
+              </div>
+            </div>
 
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMore />}>
-                <Typography>False Positives</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                {Object.entries(evalResults.examples.false_positives).map(([label, examples]) => (
-                  <div key={label} className="mb-4">
-                    <Typography variant="subtitle1" className="font-bold">
-                      {label}
-                    </Typography>
-                    {examples.map((example, idx) => (
-                      <div key={idx} className="ml-4 mb-2">
-                        <div>Source: {example.source}</div>
-                        <div>Target: {example.target}</div>
-                        <div>Predictions: {example.predictions}</div>
-                      </div>
-                    ))}
-                  </div>
+            {/* Prediction Type Selection */}
+            <div className="space-y-2 mt-4">
+              <div className="text-sm font-medium text-gray-500">Select Prediction Type</div>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'tp', label: 'True Positives', color: 'bg-green-100 hover:bg-green-200' },
+                  { id: 'fp', label: 'False Positives', color: 'bg-red-100 hover:bg-red-200' },
+                  { id: 'fn', label: 'False Negatives', color: 'bg-yellow-100 hover:bg-yellow-200' },
+                ].map(({ id, label, color }) => (
+                  <button
+                    key={id}
+                    onClick={() => setSelectedType(id as 'tp' | 'fp' | 'fn')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors
+                      ${selectedType === id ? color : 'bg-gray-100 hover:bg-gray-200'}`}
+                  >
+                    {label}
+                  </button>
                 ))}
-              </AccordionDetails>
-            </Accordion>
+              </div>
+            </div>
 
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMore />}>
-                <Typography>False Negatives</Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                {Object.entries(evalResults.examples.false_negatives).map(([label, examples]) => (
-                  <div key={label} className="mb-4">
-                    <Typography variant="subtitle1" className="font-bold">
-                      {label}
-                    </Typography>
-                    {examples.map((example, idx) => (
-                      <div key={idx} className="ml-4 mb-2">
-                        <div>Source: {example.source}</div>
-                        <div>Target: {example.target}</div>
-                        <div>Predictions: {example.predictions}</div>
-                      </div>
-                    ))}
-                  </div>
+            {/* Examples Display */}
+            {selectedLabel && (
+              <div className="space-y-4 mt-6">
+                {(selectedType === 'tp'
+                  ? evalResults.examples.true_positives[selectedLabel] || []
+                  : selectedType === 'fp'
+                  ? evalResults.examples.false_positives[selectedLabel] || []
+                  : evalResults.examples.false_negatives[selectedLabel] || []
+                ).map((example, idx) => (
+                  <ExamplePair key={idx} example={example} type={selectedType} />
                 ))}
-              </AccordionDetails>
-            </Accordion>
+                {(selectedType === 'tp'
+                  ? !evalResults.examples.true_positives[selectedLabel]?.length
+                  : selectedType === 'fp'
+                  ? !evalResults.examples.false_positives[selectedLabel]?.length
+                  : !evalResults.examples.false_negatives[selectedLabel]?.length) && (
+                  <div className="text-center py-8 text-gray-500">
+                    No examples found for this combination
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

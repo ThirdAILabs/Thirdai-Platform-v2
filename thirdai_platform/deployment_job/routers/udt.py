@@ -32,6 +32,9 @@ from platform_common.thirdai_storage.data_types import (
 from platform_common.utils import response
 from prometheus_client import Summary
 from thirdai import neural_db as ndb
+from dataclasses import dataclass
+from typing import Any, Dict, List, Tuple
+from collections import defaultdict
 
 udt_predict_metric = Summary("udt_predict", "UDT predictions")
 
@@ -259,6 +262,13 @@ class UDTRouterTextClassification(UDTBaseRouter):
             data=jsonable_encoder(recent_samples),
         )
 
+@dataclass
+class PerTagMetrics:
+    metrics: Dict[str, Dict[str, float]]
+
+    true_positives: List[Dict[str, Any]]
+    false_positives: List[Dict[str, Any]]
+    false_negatives: List[Dict[str, Any]]
 
 class UDTRouterTokenClassification(UDTBaseRouter):
     def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: JobLogger):
@@ -277,6 +287,177 @@ class UDTRouterTokenClassification(UDTBaseRouter):
             "/get_recent_samples", self.get_recent_samples, methods=["GET"]
         )
         self.router.add_api_route("/predict", self.predict, methods=["POST"])
+        self.router.add_api_route("/evaluate", self.evaluate, methods=["POST"])
+
+    def evaluate_model(
+        self,
+        model,
+        test_file: str,
+        samples_to_collect: int = 5
+    ) -> PerTagMetrics:
+        """
+        Evaluates the model performance using the provided test file.
+        
+        Args:
+            model: The NER model to evaluate
+            test_file: Path to the test CSV file
+            samples_to_collect: Number of example samples to collect for each metric
+            
+        Returns:
+            PerTagMetrics containing precision, recall, F1 scores and example samples
+        """
+        true_positives = defaultdict(int)
+        false_positives = defaultdict(int)
+        false_negatives = defaultdict(int)
+
+        true_positive_samples = defaultdict(list)
+        false_positive_samples = defaultdict(list)
+        false_negative_samples = defaultdict(list)
+
+        source_col, target_col = model.source_target_columns()
+
+        df = pd.read_csv(test_file)
+        for row in df.itertuples():
+            source = getattr(row, source_col)
+            target = getattr(row, target_col)
+
+            preds = model.predict({source_col: source}, top_k=1)
+            predictions = " ".join(p[0][0] for p in preds)
+            labels = target.split()
+            
+            for i, (pred, label) in enumerate(zip(preds, labels)):
+                tag = pred[0][0]
+                if tag == label:
+                    true_positives[label] += 1
+                    if len(true_positive_samples[label]) < samples_to_collect:
+                        true_positive_samples[label].append(
+                            {
+                                "source": source,
+                                "target": target,
+                                "predictions": predictions,
+                                "index": i,
+                            }
+                        )
+                else:
+                    false_positives[tag] += 1
+                    if len(false_positive_samples[tag]) < samples_to_collect:
+                        false_positive_samples[tag].append(
+                            {
+                                "source": source,
+                                "target": target,
+                                "predictions": predictions,
+                                "index": i,
+                            }
+                        )
+                    false_negatives[label] += 1
+                    if len(false_negative_samples[label]) < samples_to_collect:
+                        false_negative_samples[label].append(
+                            {
+                                "source": source,
+                                "target": target,
+                                "predictions": predictions,
+                                "index": i,
+                            }
+                        )
+
+        metric_summary = {}
+        for tag in model.list_ner_tags():
+            if tag == "O":
+                continue
+
+            tp = true_positives[tag]
+
+            if tp + false_positives[tag] == 0:
+                precision = float("nan")
+            else:
+                precision = tp / (tp + false_positives[tag])
+
+            if tp + false_negatives[tag] == 0:
+                recall = float("nan")
+            else:
+                recall = tp / (tp + false_negatives[tag])
+
+            if precision + recall == 0:
+                fmeasure = float("nan")
+            else:
+                fmeasure = 2 * precision * recall / (precision + recall)
+
+            metric_summary[tag] = {
+                "precision": "NaN" if math.isnan(precision) else round(precision, 3),
+                "recall": "NaN" if math.isnan(recall) else round(recall, 3),
+                "fmeasure": "NaN" if math.isnan(fmeasure) else round(fmeasure, 3),
+            }
+
+        def remove_null_tag(samples: Dict[str, Any]) -> Dict[str, Any]:
+            return {k: v for k, v in samples.items() if k != "O"}
+
+        return PerTagMetrics(
+            metrics=metric_summary,
+            true_positives=remove_null_tag(true_positive_samples),
+            false_positives=remove_null_tag(false_positive_samples),
+            false_negatives=remove_null_tag(false_negative_samples),
+        )
+
+    async def evaluate(
+        self,
+        file: UploadFile,
+        samples_to_collect: int = 5,
+        token=Depends(Permissions.verify_permission("read")),
+    ):
+        """
+        Evaluates the NER model performance using a provided test file.
+        
+        Parameters:
+        - file: UploadFile - CSV file containing test data
+        - samples_to_collect: int - Number of example samples to collect for each metric (default: 5)
+        - token: str - Authorization token (inferred from permissions dependency)
+        
+        Returns:
+        - JSONResponse: Evaluation metrics and example samples
+        """
+        try:
+            # Save uploaded file temporarily
+            destination_path = self.model.data_dir / file.filename
+            with open(destination_path, "wb") as f:
+                contents = await file.read()
+                f.write(contents)
+
+            self.logger.info(
+                f"Starting evaluation on file: {file.filename}",
+                code=LogCode.MODEL_TRAIN  # Using MODEL_TRAIN code for now since it exists
+            )
+
+            # Evaluate the model
+            evaluation_results = self.evaluate_model(
+                model=self.model,
+                test_file=str(destination_path),
+                samples_to_collect=samples_to_collect
+            )
+
+            # Clean up the temporary file
+            destination_path.unlink()
+
+            return response(
+                status_code=status.HTTP_200_OK,
+                message="Evaluation completed successfully",
+                data={
+                    "metrics": evaluation_results.metrics,
+                    "examples": {
+                        "true_positives": evaluation_results.true_positives,
+                        "false_positives": evaluation_results.false_positives,
+                        "false_negatives": evaluation_results.false_negatives,
+                    }
+                }
+            )
+
+        except Exception as e:
+            self.logger.error(
+                f"Error during model evaluation: {str(e)}",
+                code=LogCode.MODEL_TRAIN  # Using MODEL_TRAIN code for now since it exists
+            )
+            if destination_path.exists():
+                destination_path.unlink()
+            raise e
 
     @staticmethod
     def get_model(config: DeploymentConfig, logger: JobLogger) -> ClassificationModel:

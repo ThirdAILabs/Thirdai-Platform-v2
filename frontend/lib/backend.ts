@@ -1601,6 +1601,64 @@ export interface InsertSamplePayload {
   tags: string[];
 }
 
+// Interfaces for evaluation response
+export interface EvaluationMetrics {
+  [labelName: string]: MetricValues;
+}
+
+export interface EvaluationExamples {
+  true_positives: LabelExamples;
+  false_positives: LabelExamples;
+  false_negatives: LabelExamples;
+}
+
+export interface EvaluationData {
+  metrics: EvaluationMetrics;
+  examples: EvaluationExamples;
+}
+
+export interface EvaluationResponse {
+  status: string;
+  message: string;
+  data: EvaluationData;
+}
+
+/**
+ * Evaluates a model using a provided test file
+ * @param deploymentUrl - The deployment URL for the model
+ * @param file - The CSV file containing test data
+ * @param samplesToCollect - Optional number of samples to collect for each category (default: 5)
+ * @returns Promise containing evaluation metrics and examples
+ */
+export async function evaluateModel(
+  deploymentUrl: string,
+  file: File,
+  samplesToCollect: number = 5
+): Promise<EvaluationData> {
+  axios.defaults.headers.common.Authorization = `Bearer ${getAccessToken()}`;
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await axios.post(
+      `${deploymentUrl}/evaluate`,
+      formData,
+      {
+        params: { samples_to_collect: samplesToCollect },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data.data;
+  } catch (error) {
+    console.error('Error evaluating model:', error);
+    alert('Error evaluating model: ' + error);
+    throw new Error('Failed to evaluate model');
+  }
+}
+
+
 export function useTokenClassificationEndpoints() {
   const accessToken = useAccessToken();
   const params = useParams();

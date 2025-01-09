@@ -7,12 +7,19 @@ import {
   trainUDTWithCSV,
   getTrainReport,
   getAccessToken,
-  useTokenClassificationEndpoints,
+  evaluateModel,
+  EvaluationData
 } from '@/lib/backend';
 import RecentSamples from './samples';
 import { TrainingResults } from './MetricsChart';
 import type { TrainReportData } from '@/lib/backend';
 import axios from 'axios';
+import {
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+} from '@mui/material';
+import { ExpandMore } from '@mui/icons-material';
 
 interface ModelUpdateProps {
   username: string;
@@ -317,6 +324,53 @@ export default function ModelUpdate({
     }
   };
 
+  const [evalFile, setEvalFile] = useState<File | null>(null);
+  const [isEvaluating, setIsEvaluating] = useState(false);
+  const [evalError, setEvalError] = useState('');
+  const [evalResults, setEvalResults] = useState<EvaluationData | null>(null);
+  
+  // Add this handler function:
+  const handleEvalFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.type !== 'text/csv') {
+        setEvalError('Please upload a CSV file');
+        setEvalFile(null);
+        return;
+      }
+  
+      if (file.size > MAX_FILE_SIZE) {
+        setEvalError('File size must be less than 500MB');
+        setEvalFile(null);
+        return;
+      }
+  
+      setEvalFile(file);
+      setEvalError('');
+    }
+  };
+  
+  const handleEvaluate = async () => {
+    if (!evalFile) {
+      setEvalError('Please select a CSV file first');
+      return;
+    }
+  
+    setIsEvaluating(true);
+    setEvalError('');
+    setEvalResults(null);
+  
+    try {
+      const results = await evaluateModel(deploymentUrl, evalFile);
+      setEvalResults(results);
+    } catch (error) {
+      setEvalError(error instanceof Error ? error.message : 'Failed to evaluate model');
+    } finally {
+      setIsEvaluating(false);
+    }
+  };
+  
+
   useEffect(() => {
     async function getTags() {
       try {
@@ -351,6 +405,181 @@ export default function ModelUpdate({
       ) : (
         trainReport && <TrainingResults report={trainReport} />
       )}
+
+<Card>
+  <CardHeader>
+    <CardTitle>Evaluate Model Performance</CardTitle>
+    <CardDescription>
+      Upload a test CSV file to evaluate the model's performance. The CSV should follow the same format
+      as training data:
+      <br />
+      <br />
+      {`• Two columns: 'source' and 'target'`}
+      <br />
+      {`• Source column: Contains full text`}
+      <br />
+      {`• Target column: Space-separated labels matching each word/token from source`}
+    </CardDescription>
+  </CardHeader>
+  <CardContent>
+    <div className="space-y-4">
+      <div
+        className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors"
+        onClick={() => document.getElementById('eval-file-input')?.click()}
+      >
+        <input
+          type="file"
+          id="eval-file-input"
+          className="hidden"
+          accept=".csv"
+          onChange={handleEvalFileInput}
+        />
+        <Upload className="mx-auto mb-2 text-gray-400" size={24} />
+        {evalFile ? (
+          <p className="text-green-600">Selected: {evalFile.name}</p>
+        ) : (
+          <p className="text-gray-600">Click to select a test CSV file</p>
+        )}
+      </div>
+
+      {evalError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {evalError}
+        </Alert>
+      )}
+
+      <Button
+        onClick={handleEvaluate}
+        disabled={isEvaluating || !evalFile}
+        variant="contained"
+        color="primary"
+        fullWidth
+      >
+        {isEvaluating ? 'Evaluating...' : 'Evaluate Model'}
+      </Button>
+
+      {evalResults && (
+        <div className="mt-6 space-y-4">
+          <Typography variant="h6">Evaluation Results</Typography>
+          
+          {/* Metrics Table */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Label
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Precision
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Recall
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    F1 Score
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {Object.entries(evalResults.metrics).map(([label, metrics]) => (
+                  <tr key={label}>
+                    <td className="px-6 py-4 whitespace-nowrap">{label}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {typeof metrics.precision === 'number' 
+                        ? (metrics.precision * 100).toFixed(1) + '%' 
+                        : metrics.precision}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {typeof metrics.recall === 'number'
+                        ? (metrics.recall * 100).toFixed(1) + '%'
+                        : metrics.recall}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {typeof metrics.fmeasure === 'number'
+                        ? (metrics.fmeasure * 100).toFixed(1) + '%'
+                        : metrics.fmeasure}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Example Cases */}
+          <div className="mt-6">
+            <Typography variant="h6">Example Cases</Typography>
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMore />}>
+                <Typography>True Positives</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                {Object.entries(evalResults.examples.true_positives).map(([label, examples]) => (
+                  <div key={label} className="mb-4">
+                    <Typography variant="subtitle1" className="font-bold">
+                      {label}
+                    </Typography>
+                    {examples.map((example, idx) => (
+                      <div key={idx} className="ml-4 mb-2">
+                        <div>Source: {example.source}</div>
+                        <div>Target: {example.target}</div>
+                        <div>Predictions: {example.predictions}</div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </AccordionDetails>
+            </Accordion>
+
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMore />}>
+                <Typography>False Positives</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                {Object.entries(evalResults.examples.false_positives).map(([label, examples]) => (
+                  <div key={label} className="mb-4">
+                    <Typography variant="subtitle1" className="font-bold">
+                      {label}
+                    </Typography>
+                    {examples.map((example, idx) => (
+                      <div key={idx} className="ml-4 mb-2">
+                        <div>Source: {example.source}</div>
+                        <div>Target: {example.target}</div>
+                        <div>Predictions: {example.predictions}</div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </AccordionDetails>
+            </Accordion>
+
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMore />}>
+                <Typography>False Negatives</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                {Object.entries(evalResults.examples.false_negatives).map(([label, examples]) => (
+                  <div key={label} className="mb-4">
+                    <Typography variant="subtitle1" className="font-bold">
+                      {label}
+                    </Typography>
+                    {examples.map((example, idx) => (
+                      <div key={idx} className="ml-4 mb-2">
+                        <div>Source: {example.source}</div>
+                        <div>Target: {example.target}</div>
+                        <div>Predictions: {example.predictions}</div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </AccordionDetails>
+            </Accordion>
+          </div>
+        </div>
+      )}
+    </div>
+  </CardContent>
+</Card>
 
       {/* CSV Upload Section */}
       <Card>

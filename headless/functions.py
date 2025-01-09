@@ -309,6 +309,10 @@ class NDBFunctions:
 
                 logging.info(f"OpenAI Chat history {chat_history}")
 
+                deployment.update_chat_settings(provider="openai", temperature=0.3)
+
+                logging.info(f"OpenAI Chat settings updated")
+
             if on_prem:
                 flow.bazaar_client.start_on_prem(
                     autoscaling_enabled=False, cores_per_allocation=config.on_prem_cores
@@ -340,6 +344,10 @@ class NDBFunctions:
                 )
 
                 logging.info(f"On prem Chat history {chat_history}")
+
+                deployment.update_chat_settings(provider="on-prem", temperature=0.3)
+
+                logging.info(f"On Prem Chat settings updated")
 
     @staticmethod
     def check_unsupervised(inputs: Dict[str, Any]) -> Any:

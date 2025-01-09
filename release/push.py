@@ -140,14 +140,10 @@ def build_images(
                 "docker_registry": provider.get_registry_name(),
                 "docker_username": username,
                 "docker_password": password,
-                "export_image_names_command": (
-                    " ".join(
-                        [
-                            f"export {image.key}={image_name_for_branch(image.name, branch)}"
-                            for image in images_to_build
-                        ]
-                    )
-                ),
+                **{
+                    image.key: image_name_for_branch(image.name, branch)
+                    for image in images_to_build
+                },
             }
 
         image_ids.update(

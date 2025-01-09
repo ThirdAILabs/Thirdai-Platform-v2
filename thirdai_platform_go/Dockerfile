@@ -19,14 +19,14 @@ ARG tag
 ARG docker_registry
 ARG docker_username
 ARG docker_password
-ARG thirdai_platform_image_name
-ARG frontend_image_name
+ARG thirdai_platform_jobs
+ARG thirdai_platform_frontend
 
 ENV TAG=$tag
 ENV DOCKER_REGISTRY=$docker_registry
 ENV DOCKER_USERNAME=$docker_username
 ENV DOCKER_PASSWORD=$docker_password
-ENV THIRDAI_PLATFORM_IMAGE_NAME=$thirdai_platform_image_name
-ENV FRONTEND_IMAGE_NAME=$frontend_image_name
+ENV JOBS_IMAGE_NAME=$thirdai_platform_jobs
+ENV FRONTEND_IMAGE_NAME=$thirdai_platform_frontend
 
 CMD ["./model_bazaar"]

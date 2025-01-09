@@ -144,7 +144,7 @@ func loadEnv() modelBazaarEnv {
 		DockerUsername: requiredEnv("DOCKER_USERNAME"),
 		DockerPassword: requiredEnv("DOCKER_PASSWORD"),
 		Tag:            optionalEnv("TAG"),
-		BackendImage:   optionalEnv("THIRDAI_PLATFORM_IMAGE_NAME"),
+		BackendImage:   optionalEnv("JOBS_IMAGE_NAME"),
 		FrontendImage:  optionalEnv("FRONTEND_IMAGE_NAME"),
 
 		PythonPath:  optionalEnv("PYTHON_PATH"),
@@ -168,9 +168,9 @@ func loadEnv() modelBazaarEnv {
 	}
 
 	if env.BackendImage == "" && (env.PythonPath == "" || env.PlatformDir == "") {
-		log.Fatal("If THIRDAI_PLATFORM_IMAGE_NAME env var is not specified then PYTHON_PATH and PLATFORM_DIR env vars must be provided.")
+		log.Fatal("If JOBS_IMAGE_NAME env var is not specified then PYTHON_PATH and PLATFORM_DIR env vars must be provided.")
 	} else if (env.BackendImage != "" || env.FrontendImage != "") && env.Tag == "" {
-		log.Fatal("If THIRDAI_PLATFORM_IMAGE_NAME or FRONTEND_IMAGE_NAME env vars are specified then TAG must be specified as well.")
+		log.Fatal("If JOBS_IMAGE_NAME or FRONTEND_IMAGE_NAME env vars are specified then TAG must be specified as well.")
 	}
 
 	return env

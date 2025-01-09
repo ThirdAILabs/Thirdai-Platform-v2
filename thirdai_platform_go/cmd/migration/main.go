@@ -27,8 +27,15 @@ func postgresDsn(uri string) string {
 	return fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=%v", parts.Hostname(), parts.User.Username(), pwd, dbname, parts.Port())
 }
 
+func isFirstMigrationFromOldBackend(db *gorm.DB) bool {
+	fromOldBackend := db.Migrator().HasTable("alembic_version")
+	isFirstMigration := !db.Migrator().HasTable(gormigrate.DefaultOptions.TableName)
+	return fromOldBackend && isFirstMigration
+}
+
 func main() {
 	dbUri := flag.String("db_uri", "", "Database URI")
+	rollbackLast := flag.Bool("rollback_last", false, "Instead of updating the schema, this flag indicates that it should undo the last migration.")
 	flag.Parse()
 
 	db, err := gorm.Open(postgres.Open(postgresDsn(*dbUri)), &gorm.Config{})
@@ -39,16 +46,35 @@ func main() {
 	migration := gormigrate.New(db, gormigrate.DefaultOptions, []*gormigrate.Migration{
 		{
 			// This is a placeholder to represent the state from the previous backend db schema.
-			ID:      "0",
-			Migrate: func(*gorm.DB) error { return nil },
+			// The reason for this is that gormigrate looks for a some migration entry in the
+			// migrations table to indicate that it is not a clean DB. Having this placeholder
+			// means that we can distinguish between having a clean DB, or a DB that has been
+			// initialized with the old backend, and thus  needs to be migrated, rather than
+			// initialized from scratch.
+			ID: "PLACEHOLDER",
+			Migrate: func(*gorm.DB) error {
+				log.Println("running placeholder migration")
+				return nil
+			},
 		},
 		{
-			ID:      "1",
-			Migrate: versions.Migration_1_initial_migration,
+			ID:      "0",
+			Migrate: versions.Migration_0_initial_migration,
 			// Rollback is not supported for this migration since the migration is more
 			// complicated and not intended to be reversed
 		},
 	})
+
+	if isFirstMigrationFromOldBackend(db) {
+		// This needs to be done before specifying the InitSchema option, becuase otherwise
+		// when gormigrate detects that no migration has ran, it will attemp to run the
+		// InitSchema, which is incorrect here because the db is initialized, just not
+		// by gormigrate.
+		log.Println("migration is detected as the first migration from the old backend schema")
+		if err := migration.MigrateTo("PLACEHOLDER"); err != nil {
+			log.Fatalf("unable to perform placeholder migration: %v", err)
+		}
+	}
 
 	migration.InitSchema(func(txn *gorm.DB) error {
 		log.Println("clean database detected, running full schema initialization")
@@ -59,9 +85,17 @@ func main() {
 		)
 	})
 
-	if err := migration.Migrate(); err != nil {
-		log.Fatalf("migration failed: %v", err)
-	}
+	if *rollbackLast {
+		if err := migration.RollbackLast(); err != nil {
+			log.Fatalf("rollback failed: %v", err)
+		}
 
-	log.Println("migration completed successfully")
+		log.Println("rollback completed successfully")
+	} else {
+		if err := migration.Migrate(); err != nil {
+			log.Fatalf("migration failed: %v", err)
+		}
+
+		log.Println("migration completed successfully")
+	}
 }

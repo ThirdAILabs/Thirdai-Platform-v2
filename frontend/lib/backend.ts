@@ -1259,23 +1259,23 @@ export function userEmailLogin(
   });
 }
 
-export function userEmailLoginWithAccessToken(
+export function SyncKeycloakUser(
   accessToken: string,
   setAccessToken: (token: string) => void
 ): Promise<any> {
-  console.debug('userEmailLogin called with accessToken:', accessToken);
+  console.debug('Sync keycloak user in platform with access token', accessToken);
 
   return new Promise((resolve, reject) => {
-    console.debug('Sending request to /api/user/email-login-with-keycloak with payload:', {
+    console.debug('Sending request to /api/user/keycloak-user-sync with payload:', {
       access_token: accessToken,
     });
 
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/user/email-login-with-keycloak`, {
+      .post(`${thirdaiPlatformBaseUrl}/api/user/keycloak-user-sync`, {
         access_token: accessToken,
       })
       .then((res) => {
-        console.debug('Response from email-login-with-keycloak:', res);
+        console.debug('Response from keycloak-user-sync:', res);
 
         const accessToken = res.data.data.access_token;
         const username = res.data.data.user.username;

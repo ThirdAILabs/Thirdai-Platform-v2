@@ -78,10 +78,6 @@ type Report struct {
 	} `json:"content"`
 }
 
-type wrappedData[T any] struct {
-	Data T `json:"data"`
-}
-
 func (c *KnowledgeExtractionClient) GetReport(reportId string) (Report, error) {
 	var res wrappedData[Report]
 	err := c.Get(fmt.Sprintf("/%v/report/%v", c.deploymentId(), reportId)).Do(&res)

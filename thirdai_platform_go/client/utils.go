@@ -207,3 +207,7 @@ func updateLocalFilePrefixes(files []config.FileInfo, prefix string) []config.Fi
 
 	return newFiles
 }
+
+type wrappedData[T any] struct {
+	Data T `json:"data"`
+}

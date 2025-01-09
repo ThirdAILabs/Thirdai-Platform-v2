@@ -30,15 +30,13 @@ type NdbSearchResult struct {
 }
 
 type ndbSearchResults struct {
-	Data struct {
-		References []NdbSearchResult `json:"references"`
-	} `json:"data"`
+	References []NdbSearchResult `json:"references"`
 }
 
 func (c *NdbClient) Search(query string, topk int) ([]NdbSearchResult, error) {
 	body := ndbSearchParams{Query: query, Topk: topk}
 
-	var res ndbSearchResults
+	var res wrappedData[ndbSearchResults]
 	err := c.Post(fmt.Sprintf("/%v/search", c.deploymentId())).Json(body).Do(&res)
 	if err != nil {
 		return nil, err
@@ -131,12 +129,8 @@ type Source struct {
 	Version  int    `json:"version"`
 }
 
-type sourcesResponse struct {
-	Data []Source `json:"data"`
-}
-
 func (c *NdbClient) Sources() ([]Source, error) {
-	var res sourcesResponse
+	var res wrappedData[[]Source]
 	err := c.Get(fmt.Sprintf("/%v/sources", c.deploymentId())).Do(&res)
 	if err != nil {
 		return nil, err
@@ -170,15 +164,13 @@ type saveRequest struct {
 }
 
 type saveReponse struct {
-	Data struct {
-		NewModelId uuid.UUID `json:"new_model_id"`
-	} `json:"data"`
+	NewModelId uuid.UUID `json:"new_model_id"`
 }
 
 func (c *NdbClient) Save(newModelName string) (*NdbClient, error) {
 	body := saveRequest{Override: false, ModelName: newModelName}
 
-	var res saveReponse
+	var res wrappedData[saveReponse]
 	err := c.Post(fmt.Sprintf("/%v/save", c.deploymentId())).Json(body).Do(&res)
 	if err != nil {
 		return nil, err
@@ -190,6 +182,16 @@ func (c *NdbClient) Save(newModelName string) (*NdbClient, error) {
 			modelId:    res.Data.NewModelId,
 		},
 	}, nil
+}
+
+type signedUrlResponse struct {
+	SignedUrl string `json:"signed_url"`
+}
+
+func (c *NdbClient) GetSignedUrl(source, provider string) (string, error) {
+	var res wrappedData[signedUrlResponse]
+	err := c.Get(fmt.Sprintf("/%v/get-signed-url", c.deploymentId())).Param("source", source).Param("provider", provider).Do(&res)
+	return res.Data.SignedUrl, err
 }
 
 func (c *NdbClient) ClientForDeployment(name string) *NdbClient {

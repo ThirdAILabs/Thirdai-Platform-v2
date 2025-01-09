@@ -29,6 +29,24 @@ interface ModelUpdateProps {
   deployStatus: string;
 }
 
+const getMetricColor = (value: number) => {
+  if (value >= 95) return 'text-green-600 font-semibold';
+  if (value >= 85) return 'text-yellow-600 font-semibold';
+  return 'text-red-600 font-semibold';
+};
+
+const MetricCell = ({ value }: { value: number | string }) => {
+  if (typeof value === 'number') {
+    const percentage = value * 100;
+    return (
+      <td className={`px-6 py-4 whitespace-nowrap ${getMetricColor(percentage)}`}>
+        {percentage.toFixed(1)}%
+      </td>
+    );
+  }
+  return <td className="px-6 py-4 whitespace-nowrap text-gray-500">{value}</td>;
+};
+
 export default function ModelUpdate({
   username,
   modelName,
@@ -483,27 +501,44 @@ export default function ModelUpdate({
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {Object.entries(evalResults.metrics).map(([label, metrics]) => (
-                  <tr key={label}>
-                    <td className="px-6 py-4 whitespace-nowrap">{label}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {typeof metrics.precision === 'number' 
-                        ? (metrics.precision * 100).toFixed(1) + '%' 
-                        : metrics.precision}
+                  <tr key={label} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                      {label}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {typeof metrics.recall === 'number'
-                        ? (metrics.recall * 100).toFixed(1) + '%'
-                        : metrics.recall}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {typeof metrics.fmeasure === 'number'
-                        ? (metrics.fmeasure * 100).toFixed(1) + '%'
-                        : metrics.fmeasure}
-                    </td>
+                    <MetricCell value={metrics.precision} />
+                    <MetricCell value={metrics.recall} />
+                    <MetricCell value={metrics.fmeasure} />
                   </tr>
                 ))}
+                {/* Average row */}
+                <tr className="bg-gray-50 font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap">Average</td>
+                  {['precision', 'recall', 'fmeasure'].map((metric) => {
+                    const values = Object.values(evalResults.metrics)
+                      .map((m) => m[metric as keyof typeof m])
+                      .filter((value): value is number => typeof value === 'number');
+                    const average = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+                    return <MetricCell key={metric} value={average} />;
+                  })}
+                </tr>
               </tbody>
             </table>
+
+            {/* Add a legend below the table */}
+            <div className="mt-4 flex gap-6 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="inline-block w-3 h-3 bg-green-600 rounded-full" />
+                <span>Excellent (≥95%)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-block w-3 h-3 bg-yellow-600 rounded-full" />
+                <span>Good (85-94%)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-block w-3 h-3 bg-red-600 rounded-full" />
+                <span>Needs Improvement (Below 85%)</span>
+              </div>
+            </div>
           </div>
 
           {/* Example Cases */}

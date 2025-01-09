@@ -22,8 +22,8 @@ type KeycloakIdentityProvider struct {
 	db       *gorm.DB
 	auditLog AuditLogger
 
-	realm      string
-	adminToken string
+	realm                        string
+	adminUsername, adminPassword string
 }
 
 func isConflict(err error) bool {
@@ -328,11 +328,12 @@ func NewKeycloakIdentityProvider(db *gorm.DB, auditLog AuditLogger, args Keycloa
 	slog.Info("KEYCLOAK: client creation successful")
 
 	return &KeycloakIdentityProvider{
-		keycloak:   client,
-		db:         db,
-		auditLog:   auditLog,
-		realm:      realm,
-		adminToken: adminToken,
+		keycloak:      client,
+		db:            db,
+		auditLog:      auditLog,
+		realm:         realm,
+		adminUsername: args.AdminUsername,
+		adminPassword: args.AdminPassword,
 	}, nil
 }
 
@@ -443,11 +444,12 @@ func (auth *KeycloakIdentityProvider) LoginWithToken(accessToken string) (LoginR
 	return LoginResult{UserId: user.Id, AccessToken: accessToken}, nil
 }
 
-func (auth *KeycloakIdentityProvider) checkExistingUsers(field string, params gocloak.GetUsersParams) error {
+func (auth *KeycloakIdentityProvider) checkExistingUsers(adminToken, field string, params gocloak.GetUsersParams) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	users, err := auth.keycloak.GetUsers(ctx, auth.adminToken, auth.realm, params)
+	params.Max = intArg(1) // Limit number of results
+	users, err := auth.keycloak.GetUsers(ctx, adminToken, auth.realm, params)
 	if err != nil {
 		return fmt.Errorf("unable to get users: %w", err)
 	}
@@ -460,12 +462,17 @@ func (auth *KeycloakIdentityProvider) checkExistingUsers(field string, params go
 }
 
 func (auth *KeycloakIdentityProvider) CreateUser(username, email, password string) (uuid.UUID, error) {
-	existingUsername := auth.checkExistingUsers("username", gocloak.GetUsersParams{Username: &username})
+	adminToken, err := adminLogin(auth.keycloak, auth.adminUsername, auth.adminPassword)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+
+	existingUsername := auth.checkExistingUsers(adminToken, "username", gocloak.GetUsersParams{Username: &username})
 	if existingUsername != nil {
 		return uuid.UUID{}, existingUsername
 	}
 
-	existingEmail := auth.checkExistingUsers("email", gocloak.GetUsersParams{Email: &email})
+	existingEmail := auth.checkExistingUsers(adminToken, "email", gocloak.GetUsersParams{Email: &email})
 	if existingEmail != nil {
 		return uuid.UUID{}, existingEmail
 	}
@@ -487,7 +494,7 @@ func (auth *KeycloakIdentityProvider) CreateUser(username, email, password strin
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	userId, err := auth.keycloak.CreateUser(ctx, auth.adminToken, auth.realm, keycloakUser)
+	userId, err := auth.keycloak.CreateUser(ctx, adminToken, auth.realm, keycloakUser)
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("error creating new user in keycloak: %w", err)
 	}
@@ -513,12 +520,17 @@ func (auth *KeycloakIdentityProvider) CreateUser(username, email, password strin
 }
 
 func (auth *KeycloakIdentityProvider) VerifyUser(userId uuid.UUID) error {
+	adminToken, err := adminLogin(auth.keycloak, auth.adminUsername, auth.adminPassword)
+	if err != nil {
+		return err
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	userIdStr := userId.String()
 	verified := true
-	err := auth.keycloak.UpdateUser(ctx, auth.adminToken, auth.realm, gocloak.User{
+	err = auth.keycloak.UpdateUser(ctx, adminToken, auth.realm, gocloak.User{
 		ID:            &userIdStr,
 		EmailVerified: &verified,
 	})
@@ -531,10 +543,15 @@ func (auth *KeycloakIdentityProvider) VerifyUser(userId uuid.UUID) error {
 }
 
 func (auth *KeycloakIdentityProvider) DeleteUser(userId uuid.UUID) error {
+	adminToken, err := adminLogin(auth.keycloak, auth.adminUsername, auth.adminPassword)
+	if err != nil {
+		return err
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	err := auth.keycloak.DeleteUser(ctx, auth.adminToken, auth.realm, userId.String())
+	err = auth.keycloak.DeleteUser(ctx, adminToken, auth.realm, userId.String())
 	if err != nil {
 		slog.Error("failed to delete user with keycloak", "user_id", userId, "error", err)
 		return fmt.Errorf("failed to delete user with keycloak: %w", err)

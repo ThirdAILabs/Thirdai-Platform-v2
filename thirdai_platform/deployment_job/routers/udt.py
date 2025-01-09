@@ -1,8 +1,11 @@
+import math
 import os
 import time
-import math
-import pandas as pd
+from collections import defaultdict
+from dataclasses import dataclass
+from typing import Any, Dict, List
 
+import pandas as pd
 from deployment_job.models.classification_models import (
     ClassificationModel,
     TextClassificationModel,
@@ -34,9 +37,6 @@ from platform_common.thirdai_storage.data_types import (
 from platform_common.utils import response
 from prometheus_client import Summary
 from thirdai import neural_db as ndb
-from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
-from collections import defaultdict
 
 udt_predict_metric = Summary("udt_predict", "UDT predictions")
 
@@ -264,6 +264,7 @@ class UDTRouterTextClassification(UDTBaseRouter):
             data=jsonable_encoder(recent_samples),
         )
 
+
 @dataclass
 class PerTagMetrics:
     metrics: Dict[str, Dict[str, float]]
@@ -271,6 +272,7 @@ class PerTagMetrics:
     true_positives: List[Dict[str, Any]]
     false_positives: List[Dict[str, Any]]
     false_negatives: List[Dict[str, Any]]
+
 
 class UDTRouterTokenClassification(UDTBaseRouter):
     def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: JobLogger):
@@ -292,19 +294,16 @@ class UDTRouterTokenClassification(UDTBaseRouter):
         self.router.add_api_route("/evaluate", self.evaluate, methods=["POST"])
 
     def evaluate_model(
-        self,
-        model,
-        test_file: str,
-        samples_to_collect: int = 5
+        self, model, test_file: str, samples_to_collect: int = 5
     ) -> PerTagMetrics:
         """
         Evaluates the model performance using the provided test file.
-        
+
         Args:
             model: The NER model to evaluate
             test_file: Path to the test CSV file
             samples_to_collect: Number of example samples to collect for each metric
-            
+
         Returns:
             PerTagMetrics containing precision, recall, F1 scores and example samples
         """
@@ -326,7 +325,7 @@ class UDTRouterTokenClassification(UDTBaseRouter):
             preds = model.predict({source_col: source}, top_k=1)
             predictions = " ".join(p[0][0] for p in preds)
             labels = target.split()
-            
+
             for i, (pred, label) in enumerate(zip(preds, labels)):
                 tag = pred[0][0]
                 if tag == label:
@@ -409,12 +408,12 @@ class UDTRouterTokenClassification(UDTBaseRouter):
     ):
         """
         Evaluates the NER model performance using a provided test file.
-        
+
         Parameters:
         - file: UploadFile - CSV file containing test data
         - samples_to_collect: int - Number of example samples to collect for each metric (default: 5)
         - token: str - Authorization token (inferred from permissions dependency)
-        
+
         Returns:
         - JSONResponse: Evaluation metrics and example samples
         """
@@ -427,14 +426,14 @@ class UDTRouterTokenClassification(UDTBaseRouter):
 
             self.logger.info(
                 f"Starting evaluation on file: {file.filename}",
-                code=LogCode.MODEL_TRAIN  # Using MODEL_TRAIN code for now since it exists
+                code=LogCode.MODEL_TRAIN,  # Using MODEL_TRAIN code for now since it exists
             )
 
             # Evaluate the model
             evaluation_results = self.evaluate_model(
                 model=self.model.model,
                 test_file=str(destination_path),
-                samples_to_collect=samples_to_collect
+                samples_to_collect=samples_to_collect,
             )
 
             # Clean up the temporary file
@@ -449,14 +448,14 @@ class UDTRouterTokenClassification(UDTBaseRouter):
                         "true_positives": evaluation_results.true_positives,
                         "false_positives": evaluation_results.false_positives,
                         "false_negatives": evaluation_results.false_negatives,
-                    }
-                }
+                    },
+                },
             )
 
         except Exception as e:
             self.logger.error(
                 f"Error during model evaluation: {str(e)}",
-                code=LogCode.MODEL_TRAIN  # Using MODEL_TRAIN code for now since it exists
+                code=LogCode.MODEL_TRAIN,  # Using MODEL_TRAIN code for now since it exists
             )
             if destination_path.exists():
                 destination_path.unlink()

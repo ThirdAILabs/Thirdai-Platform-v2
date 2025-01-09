@@ -8,17 +8,13 @@ import {
   getTrainReport,
   getAccessToken,
   evaluateModel,
-  EvaluationData
+  EvaluationData,
 } from '@/lib/backend';
 import RecentSamples from './samples';
 import { TrainingResults } from './MetricsChart';
 import type { TrainReportData } from '@/lib/backend';
 import axios from 'axios';
-import {
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-} from '@mui/material';
+import { Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import { ExpandMore } from '@mui/icons-material';
 
 interface ModelUpdateProps {
@@ -476,7 +472,7 @@ export default function ModelUpdate({
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evalError, setEvalError] = useState('');
   const [evalResults, setEvalResults] = useState<EvaluationData | null>(null);
-  
+
   // Add this handler function:
   const handleEvalFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -486,28 +482,28 @@ export default function ModelUpdate({
         setEvalFile(null);
         return;
       }
-  
+
       if (file.size > MAX_FILE_SIZE) {
         setEvalError('File size must be less than 500MB');
         setEvalFile(null);
         return;
       }
-  
+
       setEvalFile(file);
       setEvalError('');
     }
   };
-  
+
   const handleEvaluate = async () => {
     if (!evalFile) {
       setEvalError('Please select a CSV file first');
       return;
     }
-  
+
     setIsEvaluating(true);
     setEvalError('');
     setEvalResults(null);
-  
+
     try {
       const results = await evaluateModel(deploymentUrl, evalFile);
       setEvalResults(results);
@@ -517,7 +513,6 @@ export default function ModelUpdate({
       setIsEvaluating(false);
     }
   };
-  
 
   useEffect(() => {
     async function getTags() {
@@ -566,198 +561,216 @@ export default function ModelUpdate({
         trainReport && <TrainingResults report={trainReport} />
       )}
 
-<Card>
-  <CardHeader>
-    <CardTitle>Evaluate Model Performance</CardTitle>
-    <CardDescription>
-      Upload a test CSV file to evaluate the model's performance. The CSV should follow the same format
-      as training data:
-      <br />
-      <br />
-      {`• Two columns: 'source' and 'target'`}
-      <br />
-      {`• Source column: Contains full text`}
-      <br />
-      {`• Target column: Space-separated labels matching each word/token from source`}
-    </CardDescription>
-  </CardHeader>
-  <CardContent>
-    <div className="space-y-4">
-      <div
-        className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors"
-        onClick={() => document.getElementById('eval-file-input')?.click()}
-      >
-        <input
-          type="file"
-          id="eval-file-input"
-          className="hidden"
-          accept=".csv"
-          onChange={handleEvalFileInput}
-        />
-        <Upload className="mx-auto mb-2 text-gray-400" size={24} />
-        {evalFile ? (
-          <p className="text-green-600">Selected: {evalFile.name}</p>
-        ) : (
-          <p className="text-gray-600">Click to select a test CSV file</p>
-        )}
-      </div>
-
-      {evalError && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {evalError}
-        </Alert>
-      )}
-
-      <Button
-        onClick={handleEvaluate}
-        disabled={isEvaluating || !evalFile}
-        variant="contained"
-        color="primary"
-        fullWidth
-      >
-        {isEvaluating ? 'Evaluating...' : 'Evaluate Model'}
-      </Button>
-
-      {evalResults && (
-        <div className="space-y-8">
-          {/* Metrics Dashboard */}
-          <div className="mt-6">
-            <Typography variant="h6" className="mb-4">Performance Dashboard</Typography>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Label
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Precision
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Recall
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      F1 Score
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {Object.entries(evalResults.metrics).map(([label, metrics]) => (
-                    <tr key={label} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                        {label}
-                      </td>
-                      <MetricCell value={metrics.precision} />
-                      <MetricCell value={metrics.recall} />
-                      <MetricCell value={metrics.fmeasure} />
-                    </tr>
-                  ))}
-                  {/* Average row */}
-                  <tr className="bg-gray-50 font-medium">
-                    <td className="px-6 py-4 whitespace-nowrap">Average</td>
-                    {['precision', 'recall', 'fmeasure'].map((metric) => {
-                      const values = Object.values(evalResults.metrics)
-                        .map((m) => m[metric as keyof typeof m])
-                        .filter((value): value is number => typeof value === 'number');
-                      const average = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
-                      return <MetricCell key={metric} value={average} />;
-                    })}
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* Legend */}
-              <div className="mt-4 flex gap-6 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="inline-block w-3 h-3 bg-green-600 rounded-full" />
-                  <span>Excellent (≥95%)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-block w-3 h-3 bg-yellow-600 rounded-full" />
-                  <span>Good (85-94%)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-block w-3 h-3 bg-red-600 rounded-full" />
-                  <span>Needs Improvement (Below 85%)</span>
-                </div>
-              </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Evaluate Model Performance</CardTitle>
+          <CardDescription>
+            Upload a test CSV file to evaluate the model's performance. The CSV should follow the
+            same format as training data:
+            <br />
+            <br />
+            {`• Two columns: 'source' and 'target'`}
+            <br />
+            {`• Source column: Contains full text`}
+            <br />
+            {`• Target column: Space-separated labels matching each word/token from source`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div
+              className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors"
+              onClick={() => document.getElementById('eval-file-input')?.click()}
+            >
+              <input
+                type="file"
+                id="eval-file-input"
+                className="hidden"
+                accept=".csv"
+                onChange={handleEvalFileInput}
+              />
+              <Upload className="mx-auto mb-2 text-gray-400" size={24} />
+              {evalFile ? (
+                <p className="text-green-600">Selected: {evalFile.name}</p>
+              ) : (
+                <p className="text-gray-600">Click to select a test CSV file</p>
+              )}
             </div>
-          </div>
 
-          {/* Examples Section */}
-          <div className="mt-8">
-            <Typography variant="h6" className="mb-4">Example Cases</Typography>
-            
-            {/* Label Selection */}
-            <div className="space-y-2 mt-4">
-              <div className="text-sm font-medium text-gray-500">Select Label</div>
-              <div className="flex flex-wrap gap-2">
-                {Object.keys(evalResults.metrics).map((label) => (
-                  <button
-                    key={label}
-                    onClick={() => setSelectedLabel(label)}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors
+            {evalError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {evalError}
+              </Alert>
+            )}
+
+            <Button
+              onClick={handleEvaluate}
+              disabled={isEvaluating || !evalFile}
+              variant="contained"
+              color="primary"
+              fullWidth
+            >
+              {isEvaluating ? 'Evaluating...' : 'Evaluate Model'}
+            </Button>
+
+            {evalResults && (
+              <div className="space-y-8">
+                {/* Metrics Dashboard */}
+                <div className="mt-6">
+                  <Typography variant="h6" className="mb-4">
+                    Performance Dashboard
+                  </Typography>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Label
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Precision
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Recall
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            F1 Score
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {Object.entries(evalResults.metrics).map(([label, metrics]) => (
+                          <tr key={label} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                              {label}
+                            </td>
+                            <MetricCell value={metrics.precision} />
+                            <MetricCell value={metrics.recall} />
+                            <MetricCell value={metrics.fmeasure} />
+                          </tr>
+                        ))}
+                        {/* Average row */}
+                        <tr className="bg-gray-50 font-medium">
+                          <td className="px-6 py-4 whitespace-nowrap">Average</td>
+                          {['precision', 'recall', 'fmeasure'].map((metric) => {
+                            const values = Object.values(evalResults.metrics)
+                              .map((m) => m[metric as keyof typeof m])
+                              .filter((value): value is number => typeof value === 'number');
+                            const average = values.length
+                              ? values.reduce((a, b) => a + b, 0) / values.length
+                              : 0;
+                            return <MetricCell key={metric} value={average} />;
+                          })}
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    {/* Legend */}
+                    <div className="mt-4 flex gap-6 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block w-3 h-3 bg-green-600 rounded-full" />
+                        <span>Excellent (≥95%)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block w-3 h-3 bg-yellow-600 rounded-full" />
+                        <span>Good (85-94%)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block w-3 h-3 bg-red-600 rounded-full" />
+                        <span>Needs Improvement (Below 85%)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Examples Section */}
+                <div className="mt-8">
+                  <Typography variant="h6" className="mb-4">
+                    Example Cases
+                  </Typography>
+
+                  {/* Label Selection */}
+                  <div className="space-y-2 mt-4">
+                    <div className="text-sm font-medium text-gray-500">Select Label</div>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.keys(evalResults.metrics).map((label) => (
+                        <button
+                          key={label}
+                          onClick={() => setSelectedLabel(label)}
+                          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors
                       ${
                         selectedLabel === label
                           ? 'bg-blue-100 text-blue-800'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Prediction Type Selection */}
-            <div className="space-y-2 mt-4">
-              <div className="text-sm font-medium text-gray-500">Select Prediction Type</div>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { id: 'tp', label: 'True Positives', color: 'bg-green-100 hover:bg-green-200' },
-                  { id: 'fp', label: 'False Positives', color: 'bg-red-100 hover:bg-red-200' },
-                  { id: 'fn', label: 'False Negatives', color: 'bg-yellow-100 hover:bg-yellow-200' },
-                ].map(({ id, label, color }) => (
-                  <button
-                    key={id}
-                    onClick={() => setSelectedType(id as 'tp' | 'fp' | 'fn')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors
-                      ${selectedType === id ? color : 'bg-gray-100 hover:bg-gray-200'}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Examples Display */}
-            {selectedLabel && (
-              <div className="space-y-4 mt-6">
-                {(selectedType === 'tp'
-                  ? evalResults.examples.true_positives[selectedLabel] || []
-                  : selectedType === 'fp'
-                  ? evalResults.examples.false_positives[selectedLabel] || []
-                  : evalResults.examples.false_negatives[selectedLabel] || []
-                ).map((example, idx) => (
-                  <ExamplePair key={idx} example={example} type={selectedType} />
-                ))}
-                {(selectedType === 'tp'
-                  ? !evalResults.examples.true_positives[selectedLabel]?.length
-                  : selectedType === 'fp'
-                  ? !evalResults.examples.false_positives[selectedLabel]?.length
-                  : !evalResults.examples.false_negatives[selectedLabel]?.length) && (
-                  <div className="text-center py-8 text-gray-500">
-                    No examples found for this combination
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                )}
+
+                  {/* Prediction Type Selection */}
+                  <div className="space-y-2 mt-4">
+                    <div className="text-sm font-medium text-gray-500">Select Prediction Type</div>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        {
+                          id: 'tp',
+                          label: 'True Positives',
+                          color: 'bg-green-100 hover:bg-green-200',
+                        },
+                        {
+                          id: 'fp',
+                          label: 'False Positives',
+                          color: 'bg-red-100 hover:bg-red-200',
+                        },
+                        {
+                          id: 'fn',
+                          label: 'False Negatives',
+                          color: 'bg-yellow-100 hover:bg-yellow-200',
+                        },
+                      ].map(({ id, label, color }) => (
+                        <button
+                          key={id}
+                          onClick={() => setSelectedType(id as 'tp' | 'fp' | 'fn')}
+                          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors
+                      ${selectedType === id ? color : 'bg-gray-100 hover:bg-gray-200'}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Examples Display */}
+                  {selectedLabel && (
+                    <div className="space-y-4 mt-6">
+                      {(selectedType === 'tp'
+                        ? evalResults.examples.true_positives[selectedLabel] || []
+                        : selectedType === 'fp'
+                          ? evalResults.examples.false_positives[selectedLabel] || []
+                          : evalResults.examples.false_negatives[selectedLabel] || []
+                      ).map((example, idx) => (
+                        <ExamplePair key={idx} example={example} type={selectedType} />
+                      ))}
+                      {(selectedType === 'tp'
+                        ? !evalResults.examples.true_positives[selectedLabel]?.length
+                        : selectedType === 'fp'
+                          ? !evalResults.examples.false_positives[selectedLabel]?.length
+                          : !evalResults.examples.false_negatives[selectedLabel]?.length) && (
+                        <div className="text-center py-8 text-gray-500">
+                          No examples found for this combination
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
-        </div>
-      )}
-    </div>
-  </CardContent>
-</Card>
+        </CardContent>
+      </Card>
 
       {/* CSV Upload Section */}
       <Card>

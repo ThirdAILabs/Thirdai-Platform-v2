@@ -1640,16 +1640,12 @@ export async function evaluateModel(
   formData.append('file', file);
 
   try {
-    const response = await axios.post(
-      `${deploymentUrl}/evaluate`,
-      formData,
-      {
-        params: { samples_to_collect: samplesToCollect },
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
+    const response = await axios.post(`${deploymentUrl}/evaluate`, formData, {
+      params: { samples_to_collect: samplesToCollect },
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data.data;
   } catch (error) {
     console.error('Error evaluating model:', error);
@@ -1657,7 +1653,6 @@ export async function evaluateModel(
     throw new Error('Failed to evaluate model');
   }
 }
-
 
 export function useTokenClassificationEndpoints() {
   const accessToken = useAccessToken();

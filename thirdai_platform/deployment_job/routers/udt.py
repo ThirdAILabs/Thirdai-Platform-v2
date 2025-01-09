@@ -1,5 +1,7 @@
 import os
 import time
+import math
+import pandas as pd
 
 from deployment_job.models.classification_models import (
     ClassificationModel,
@@ -314,14 +316,15 @@ class UDTRouterTokenClassification(UDTBaseRouter):
         false_positive_samples = defaultdict(list)
         false_negative_samples = defaultdict(list)
 
-        source_col, target_col = model.source_target_columns()
+        # Use hardcoded column names as specified in the API documentation
+        source_col, target_col = 'source', 'target'
 
         df = pd.read_csv(test_file)
         for row in df.itertuples():
             source = getattr(row, source_col)
             target = getattr(row, target_col)
 
-            preds = model.predict({source_col: source}, top_k=1)
+            preds = model.predict(text=source, top_k=1, data_type="unstructured")
             predictions = " ".join(p[0][0] for p in preds)
             labels = target.split()
             
@@ -361,7 +364,8 @@ class UDTRouterTokenClassification(UDTBaseRouter):
                         )
 
         metric_summary = {}
-        for tag in model.list_ner_tags():
+        tags = model.get_labels()
+        for tag in tags:
             if tag == "O":
                 continue
 

@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"crypto/rand"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -96,17 +95,4 @@ func UserFromContext(r *http.Request) (schema.User, error) {
 		return schema.User{}, fmt.Errorf("invalid value for user field")
 	}
 	return user, nil
-}
-
-func getSecret() []byte {
-	// This is only used for jwt secrets, if the server restarts the only issue is any
-	// tokens issued before the restart (that aren't yet expired) will be invalidated.
-	b := make([]byte, 16)
-
-	_, err := rand.Read(b)
-	if err != nil {
-		panic(err)
-	}
-
-	return b
 }

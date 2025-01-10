@@ -210,6 +210,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 
 	if err := params.validate(); err != nil {
 		http.Error(w, fmt.Sprintf("unable to start nlp-token training, found the following errors: %v", err), http.StatusBadRequest)
+		return
 	}
 
 	user, err := auth.UserFromContext(r)
@@ -326,6 +327,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 
 	if err := params.validate(); err != nil {
 		http.Error(w, fmt.Sprintf("unable to start nlp-token training, found the following errors: %v", err), http.StatusBadRequest)
+		return
 	}
 
 	user, err := auth.UserFromContext(r)

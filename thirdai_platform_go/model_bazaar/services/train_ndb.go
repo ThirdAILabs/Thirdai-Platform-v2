@@ -176,6 +176,7 @@ func (s *TrainService) NdbRetrain(w http.ResponseWriter, r *http.Request) {
 	data, err := s.getNdbRetrainingData(options.BaseModelId)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error collecting retraining data: %v", err), http.StatusBadRequest)
+		return
 	}
 
 	if err := data.Validate(); err != nil {

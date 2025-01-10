@@ -414,21 +414,22 @@ class DocClassificationModel(TextClassificationModel):
             with open(file_path, "rb") as f:
                 pdf_reader = PyPDF2.PdfReader(f)
                 return " ".join(page.extract_text() for page in pdf_reader.pages)
-        
+
         def extract_text_from_docx(file_path: str) -> str:
             import docx
+
             doc = docx.Document(file_path)
             return " ".join(paragraph.text for paragraph in doc.paragraphs)
-        
+
         def extract_text_from_txt(file_path: str) -> str:
             with open(file_path, "r", encoding="utf-8") as f:
                 return f.read()
-                
+
         extractors = {
             ".pdf": extract_text_from_pdf,
             ".docx": extract_text_from_docx,
             ".doc": extract_text_from_docx,  # Note: May need additional handling for older .doc files
-            ".txt": extract_text_from_txt
+            ".txt": extract_text_from_txt,
         }
 
         for file_info in files:

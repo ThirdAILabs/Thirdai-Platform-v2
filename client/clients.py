@@ -388,14 +388,10 @@ class NeuralDBClient(BaseClient):
         return response.json()["data"]
 
     @check_deployment_decorator
-    def update_chat_settings(self, provider: str = "openai", **kwargs):
-        kwargs["provider"] = provider
-        # Validate and construct ChatSettings object from kwargs
-        try:
-            settings = ChatSettings(**kwargs)
-        except ValueError as e:
-            raise e
-
+    def update_chat_settings(self, settings: ChatSettings):
+        """
+        Update chat settings using a pre-constructed ChatSettings object.
+        """
         response = http_post_with_error(
             urljoin(self.base_url, "update-chat-settings"),
             json=settings.model_dump(),

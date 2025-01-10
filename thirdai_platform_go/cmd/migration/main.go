@@ -35,15 +35,11 @@ func isFirstMigrationFromOldBackend(db *gorm.DB) bool {
 
 func main() {
 	dbUri := flag.String("db_uri", "", "Database URI")
-	rollbackLast := flag.Bool("rollback_last", false, "Instead of updating the schema, this flag indicates that it should undo the last migration.")
+	printLatestVersion := flag.Bool("print_latest", false, "Just print out the latest version and return")
+	rollbackTo := flag.String("rollback_to", "", "Instead of updating the schema, this flag indicates that it should be rolled back to the given version.")
 	flag.Parse()
 
-	db, err := gorm.Open(postgres.Open(postgresDsn(*dbUri)), &gorm.Config{})
-	if err != nil {
-		log.Fatalf("error opening database connection: %v", err)
-	}
-
-	migration := gormigrate.New(db, gormigrate.DefaultOptions, []*gormigrate.Migration{
+	migrations := []*gormigrate.Migration{
 		{
 			// This is a placeholder to represent the state from the previous backend db schema.
 			// The reason for this is that gormigrate looks for a some migration entry in the
@@ -63,7 +59,19 @@ func main() {
 			// Rollback is not supported for this migration since the migration is more
 			// complicated and not intended to be reversed
 		},
-	})
+	}
+
+	if *printLatestVersion {
+		fmt.Println(migrations[len(migrations)-1].ID)
+		return
+	}
+
+	db, err := gorm.Open(postgres.Open(postgresDsn(*dbUri)), &gorm.Config{})
+	if err != nil {
+		log.Fatalf("error opening database connection: %v", err)
+	}
+
+	migrator := gormigrate.New(db, gormigrate.DefaultOptions, migrations)
 
 	if isFirstMigrationFromOldBackend(db) {
 		// This needs to be done before specifying the InitSchema option, becuase otherwise
@@ -71,12 +79,12 @@ func main() {
 		// InitSchema, which is incorrect here because the db is initialized, just not
 		// by gormigrate.
 		log.Println("migration is detected as the first migration from the old backend schema")
-		if err := migration.MigrateTo("PLACEHOLDER"); err != nil {
+		if err := migrator.MigrateTo("PLACEHOLDER"); err != nil {
 			log.Fatalf("unable to perform placeholder migration: %v", err)
 		}
 	}
 
-	migration.InitSchema(func(txn *gorm.DB) error {
+	migrator.InitSchema(func(txn *gorm.DB) error {
 		log.Println("clean database detected, running full schema initialization")
 
 		return db.AutoMigrate(
@@ -85,14 +93,14 @@ func main() {
 		)
 	})
 
-	if *rollbackLast {
-		if err := migration.RollbackLast(); err != nil {
+	if *rollbackTo != "" {
+		if err := migrator.RollbackTo(*rollbackTo); err != nil {
 			log.Fatalf("rollback failed: %v", err)
 		}
 
 		log.Println("rollback completed successfully")
 	} else {
-		if err := migration.Migrate(); err != nil {
+		if err := migrator.Migrate(); err != nil {
 			log.Fatalf("migration failed: %v", err)
 		}
 

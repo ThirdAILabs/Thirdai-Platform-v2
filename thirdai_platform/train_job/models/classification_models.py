@@ -410,24 +410,47 @@ class DocClassificationModel(TextClassificationModel):
         processed_docs = []
         categories = set()
 
+        def extract_text_from_pdf(file_path: str) -> str:
+            with open(file_path, "rb") as f:
+                pdf_reader = PyPDF2.PdfReader(f)
+                return " ".join(page.extract_text() for page in pdf_reader.pages)
+        
+        def extract_text_from_docx(file_path: str) -> str:
+            import docx
+            doc = docx.Document(file_path)
+            return " ".join(paragraph.text for paragraph in doc.paragraphs)
+        
+        def extract_text_from_txt(file_path: str) -> str:
+            with open(file_path, "r", encoding="utf-8") as f:
+                return f.read()
+                
+        extractors = {
+            ".pdf": extract_text_from_pdf,
+            ".docx": extract_text_from_docx,
+            ".doc": extract_text_from_docx,  # Note: May need additional handling for older .doc files
+            ".txt": extract_text_from_txt
+        }
+
         for file_info in files:
             try:
                 file_path = file_info.path
+                file_ext = os.path.splitext(file_path)[1].lower()
+
+                if file_ext not in extractors:
+                    self.logger.warning(f"Unsupported file type: {file_ext}")
+                    continue
+
                 # Extract category from parent directory name
                 category = os.path.basename(os.path.dirname(file_path))
                 categories.add(category)
 
-                # Read PDF file using PyPDF2
-                with open(file_path, "rb") as f:  # Note: 'rb' for binary reading
-                    pdf_reader = PyPDF2.PdfReader(f)
-                    text = ""
-                    for page in pdf_reader.pages:
-                        text += page.extract_text() + " "
+                # Extract text using appropriate extractor
+                text = extractors[file_ext](file_path)
 
-                    # Truncate if needed
-                    word_limit = getattr(self.txt_cls_vars, "word_limit", 1000)
-                    words = text.split()[:word_limit]
-                    truncated_text = " ".join(words)
+                # Truncate if needed
+                word_limit = getattr(self.txt_cls_vars, "word_limit", 1000)
+                words = text.split()[:word_limit]
+                truncated_text = " ".join(words)
 
                 processed_docs.append({"text": truncated_text, "label": category})
             except Exception as e:

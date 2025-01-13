@@ -354,7 +354,7 @@ func createModel(modelId uuid.UUID, modelName, modelType string, baseModelId *uu
 		Id:                modelId,
 		Name:              modelName,
 		Type:              modelType,
-		PublishedDate:     time.Now(),
+		PublishedDate:     time.Now().UTC(),
 		TrainStatus:       schema.NotStarted,
 		DeployStatus:      schema.NotStarted,
 		Access:            schema.Private,

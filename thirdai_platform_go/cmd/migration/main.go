@@ -90,6 +90,7 @@ func main() {
 		return db.AutoMigrate(
 			&schema.Model{}, &schema.ModelAttribute{}, &schema.ModelDependency{},
 			&schema.User{}, &schema.Team{}, &schema.UserTeam{}, &schema.JobLog{},
+			&schema.Upload{},
 		)
 	})
 

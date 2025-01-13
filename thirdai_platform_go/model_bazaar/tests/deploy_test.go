@@ -15,7 +15,7 @@ func TestDeploy(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	model, err := client.trainNdb("xyz")
+	model, err := client.trainNdbDummyFile("xyz")
 	if err != nil {
 		t.Fatal(err)
 	}

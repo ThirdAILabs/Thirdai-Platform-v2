@@ -289,12 +289,16 @@ func (c *client) modelPermissions(modelId string) (services.ModelPermissions, er
 	return res, err
 }
 
-func (c *client) trainNdb(name string) (string, error) {
+func (c *client) trainNdbDummyFile(name string) (string, error) {
+	return c.trainNdb(name, config.FileInfo{Path: "n/a", Location: "s3"})
+}
+
+func (c *client) trainNdb(name string, file config.FileInfo) (string, error) {
 	body := services.NdbTrainRequest{
 		ModelName:    name,
 		ModelOptions: &config.NdbOptions{},
 		Data: config.NDBData{
-			UnsupervisedFiles: []config.FileInfo{{Path: "a.txt", Location: "local"}},
+			UnsupervisedFiles: []config.FileInfo{file},
 		},
 	}
 

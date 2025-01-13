@@ -292,17 +292,17 @@ func TestDeleteUser(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m1, err := user.trainNdb("m1")
+	m1, err := user.trainNdbDummyFile("m1")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	m2, err := user.trainNdb("m2")
+	m2, err := user.trainNdbDummyFile("m2")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	m3, err := user.trainNdb("m3")
+	m3, err := user.trainNdbDummyFile("m3")
 	if err != nil {
 		t.Fatal(err)
 	}

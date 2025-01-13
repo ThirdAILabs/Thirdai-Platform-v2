@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
@@ -56,6 +57,22 @@ func (s *TrainService) TrainNdb(w http.ResponseWriter, r *http.Request) {
 
 	if err := options.validate(); err != nil {
 		http.Error(w, fmt.Sprintf("unable to start ndb training, found the following errors: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	user, err := auth.UserFromContext(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.validateUploads(user.Id, options.Data.UnsupervisedFiles); err != nil {
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.validateUploads(user.Id, options.Data.SupervisedFiles); err != nil {
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), http.StatusBadRequest)
 		return
 	}
 

@@ -91,6 +91,16 @@ type JobLog struct {
 	Message string
 }
 
+type Upload struct {
+	Id     uuid.UUID `gorm:"type:uuid;primaryKey"`
+	UserId uuid.UUID `gorm:"type:uuid"`
+
+	UploadDate time.Time
+	Files      string
+
+	User *User `gorm:"constraint:OnDelete:CASCADE"`
+}
+
 func (m *Model) TrainJobName() string {
 	return fmt.Sprintf("train-%v-%v", m.Type, m.Id)
 }

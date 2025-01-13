@@ -8,10 +8,11 @@ import (
 )
 
 const (
-	FileLocLocal = "local"
-	FileLocS3    = "s3"
-	FileLocAzure = "azure"
-	FileLocGcp   = "gcp"
+	FileLocUpload = "upload"
+	FileLocLocal  = "local"
+	FileLocS3     = "s3"
+	FileLocAzure  = "azure"
+	FileLocGcp    = "gcp"
 )
 
 const (
@@ -32,8 +33,8 @@ func validateFileInfo(files []FileInfo) error {
 		if file.Path == "" {
 			return fmt.Errorf("file path cannot be empty")
 		}
-		if file.Location != FileLocLocal && file.Location != FileLocS3 && file.Location != FileLocAzure && file.Location != FileLocGcp {
-			return fmt.Errorf("invalid file location '%v', must be 'local', 's3', 'azure', or 'gcp'", file.Location)
+		if file.Location != FileLocUpload && file.Location != FileLocS3 && file.Location != FileLocAzure && file.Location != FileLocGcp {
+			return fmt.Errorf("invalid file location '%v', must be 'upload', 's3', 'azure', or 'gcp'", file.Location)
 		}
 		if file.Options == nil {
 			files[i].Options = map[string]interface{}{}

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/storage"
 	"time"
 
@@ -23,7 +24,7 @@ func TestTrain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	model, err := client.trainNdb("xyz")
+	model, err := client.trainNdbDummyFile("xyz")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,6 +89,28 @@ func TestTrain(t *testing.T) {
 	}
 }
 
+func createUploadBody(t *testing.T, files []struct{ name, data string }) (io.Reader, string) {
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+
+	for _, file := range files {
+		part, err := writer.CreateFormFile("files", file.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := part.Write([]byte(file.data)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	return body, writer.FormDataContentType()
+}
+
 func TestFileUpload(t *testing.T) {
 	env := setupTestEnv(t)
 
@@ -95,9 +118,6 @@ func TestFileUpload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	body := new(bytes.Buffer)
-	writer := multipart.NewWriter(body)
 
 	files := []struct {
 		name, data string
@@ -107,44 +127,88 @@ func TestFileUpload(t *testing.T) {
 		{"c.csv", "a,b\n1,2\n3,4"},
 	}
 
-	for _, file := range files {
-		part, err := writer.CreateFormFile("files", file.name)
+	checkFiles := func(dir string) {
+		for _, file := range files {
+			obj, err := os.Open(filepath.Join(dir, file.name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer obj.Close()
+
+			data, err := io.ReadAll(obj)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !bytes.Equal(data, []byte(file.data)) {
+				t.Fatal("invalid file contents")
+			}
+		}
+	}
+
+	{ // Basic upload
+		body, contentType := createUploadBody(t, files)
+		var res map[string]string
+		err := client.Post("/train/upload-data").Header("Content-Type", contentType).Body(body).Do(&res)
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = part.Write([]byte(file.data))
+		checkFiles(filepath.Join(env.storage.Location(), "uploads", res["upload_id"]))
+	}
+
+	{ // Sub dir
+		body, contentType := createUploadBody(t, files)
+		var res map[string]string
+		err := client.Post("/train/upload-data?sub_dir=abc").Header("Content-Type", contentType).Body(body).Do(&res)
 		if err != nil {
+			t.Fatal(err)
+		}
+		checkFiles(filepath.Join(env.storage.Location(), "uploads", res["upload_id"], "abc"))
+	}
+
+	{ // Invalid sub dir name
+		body, contentType := createUploadBody(t, files)
+		var res map[string]string
+		err := client.Post("/train/upload-data?sub_dir=a/b").Header("Content-Type", contentType).Body(body).Do(&res)
+		if err == nil || !strings.Contains(err.Error(), "status 400") {
 			t.Fatal(err)
 		}
 	}
-	err = writer.Close()
+}
+
+func TestUseUploadInTrain(t *testing.T) {
+	env := setupTestEnv(t)
+
+	user1, err := env.newUser("abc")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var res map[string]string
-	err = client.Post("/train/upload-data").Header("Content-Type", writer.FormDataContentType()).Body(body).Do(&res)
+	user2, err := env.newUser("xyz")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	artifactPath := res["artifact_path"]
+	_, err = user1.trainNdb("bad-upload", config.FileInfo{Location: "upload", Path: uuid.NewString()})
+	if err == nil || !strings.Contains(err.Error(), "does not exist") {
+		t.Fatal("upload should not exist")
+	}
 
-	for _, file := range files {
-		obj, err := os.Open(filepath.Join(artifactPath, file.name))
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer obj.Close()
+	body, contentType := createUploadBody(t, []struct{ name, data string }{{"a.pdf", "some random text"}})
+	var uploadRes map[string]string
+	err = user1.Post("/train/upload-data").Header("Content-Type", contentType).Body(body).Do(&uploadRes)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		data, err := io.ReadAll(obj)
-		if err != nil {
-			t.Fatal(err)
-		}
+	_, err = user2.trainNdb("bad-upload", config.FileInfo{Location: "upload", Path: uploadRes["upload_id"]})
+	if err == nil || !strings.Contains(err.Error(), "does not have permission to access upload") {
+		t.Fatal("user cannot access another user's upload")
+	}
 
-		if !bytes.Equal(data, []byte(file.data)) {
-			t.Fatal("invalid file contents")
-		}
+	_, err = user1.trainNdb("bad-upload", config.FileInfo{Location: "upload", Path: uploadRes["upload_id"]})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -156,7 +220,7 @@ func TestTrainReport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	model, err := client.trainNdb("xyz")
+	model, err := client.trainNdbDummyFile("xyz")
 	if err != nil {
 		t.Fatal(err)
 	}

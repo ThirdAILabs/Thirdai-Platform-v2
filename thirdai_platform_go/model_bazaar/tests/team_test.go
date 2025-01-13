@@ -368,7 +368,7 @@ func TestTeamModels(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	model1, err := user1.trainNdb("searchy")
+	model1, err := user1.trainNdbDummyFile("searchy")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -414,7 +414,7 @@ func TestTeamModels(t *testing.T) {
 		t.Fatalf("wrong team models %v", models)
 	}
 
-	model2, err := user2.trainNdb("retrievy")
+	model2, err := user2.trainNdbDummyFile("retrievy")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -368,6 +368,7 @@ func Migration_0_initial_migration(txn *gorm.DB) error {
 	err := txn.Migrator().AutoMigrate(
 		&schema.Model{}, &schema.ModelAttribute{}, &schema.ModelDependency{},
 		&schema.User{}, &schema.Team{}, &schema.UserTeam{}, &schema.JobLog{},
+		&schema.Upload{},
 	)
 	if err != nil {
 		return err

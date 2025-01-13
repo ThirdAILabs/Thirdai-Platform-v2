@@ -63,6 +63,22 @@ func (s *TrainService) TrainNlpToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user, err := auth.UserFromContext(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.validateUploads(user.Id, options.Data.SupervisedFiles); err != nil {
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.validateUploads(user.Id, options.Data.TestFiles); err != nil {
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), http.StatusBadRequest)
+		return
+	}
+
 	s.basicTraining(w, r, basicTrainArgs{
 		modelName:    options.ModelName,
 		modelType:    schema.NlpTokenModel,
@@ -117,6 +133,22 @@ func (s *TrainService) TrainNlpText(w http.ResponseWriter, r *http.Request) {
 
 	if err := options.validate(); err != nil {
 		http.Error(w, fmt.Sprintf("unable to start nlp-text training, found the following errors: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	user, err := auth.UserFromContext(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.validateUploads(user.Id, options.Data.SupervisedFiles); err != nil {
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.validateUploads(user.Id, options.Data.TestFiles); err != nil {
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), http.StatusBadRequest)
 		return
 	}
 

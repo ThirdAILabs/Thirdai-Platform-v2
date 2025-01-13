@@ -317,7 +317,7 @@ func (c *client) trainNlpToken(name string) (string, error) {
 			DefaultTag:   "O",
 		},
 		Data: config.NlpData{
-			SupervisedFiles: []config.FileInfo{{Path: "a.txt", Location: "local"}},
+			SupervisedFiles: []config.FileInfo{{Path: "a.txt", Location: "s3"}},
 		},
 	}
 

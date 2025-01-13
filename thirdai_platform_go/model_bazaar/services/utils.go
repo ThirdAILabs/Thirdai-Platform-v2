@@ -407,31 +407,16 @@ func GenerateApiKey(db *gorm.DB) (string, string, string, error) {
 		return "", "", "", err
 	}
 
-	// Ensure prefix is unique in DB
-	// (If collisions are unlikely, you may skip or do minimal checks)
 	if err := ensurePrefixIsUnique(db, prefix); err != nil {
 		return "", "", "", err
 	}
 
-	// 2) Generate the random secret
-	secret, err := generateRandomString(32) // e.g., 32 chars
+	secret, err := generateRandomString(32)
 	if err != nil {
 		return "", "", "", err
 	}
 
-	// 3) Hash the secret
 	secretHash := hashSecret(secret)
-
-	// 4) Store in DB
-	// record := schema.ApiKeyRecord{
-	// 	ID:         uuid.New(),
-	// 	Prefix:     prefix,
-	// 	SecretHash: secretHash,
-	// 	CreatedAt:  schema.GetNow(), // or time.Now()
-	// }
-	// if err := db.Create(&record).Error; err != nil {
-	// 	return "", fmt.Errorf("failed to insert api key record: %w", err)
-	// }
 
 	fullKey := fmt.Sprintf("%s.%s", prefix, secret)
 	return prefix, fullKey, secretHash, nil

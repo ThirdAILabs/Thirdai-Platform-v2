@@ -72,7 +72,6 @@ class NeuralDBV2(Model):
                 "llm_cache.ndb",
             )
 
-            # TODO(david) should we throw here
             if os.path.exists(cache_path):
                 shutil.copytree(
                     cache_path,

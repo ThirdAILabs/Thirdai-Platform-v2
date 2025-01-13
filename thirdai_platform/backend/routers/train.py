@@ -515,7 +515,7 @@ def update_cache_status(
     session: Session = Depends(get_session),
 ):
     """
-    Update the training status of a model.
+    Update the status of the cache job
 
     Parameters:
     - model_id: The ID of the model.

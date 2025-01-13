@@ -1,7 +1,5 @@
 import logging
 import os
-
-pass
 from pathlib import Path
 from typing import List
 

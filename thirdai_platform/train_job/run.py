@@ -14,9 +14,9 @@ try:
     from platform_common.logging import JobLogger, LogCode
     from platform_common.pydantic_models.training import ModelType, TrainConfig
     from train_job.models.classification_models import (
+        DocClassificationModel,
         TextClassificationModel,
         TokenClassificationModel,
-        DocClassificationModel,
     )
     from train_job.models.neural_db_v2 import NeuralDBV2
     from train_job.reporter import HttpReporter, Reporter

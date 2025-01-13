@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"thirdai_platform/model_bazaar/auth"
@@ -51,6 +52,7 @@ func (s *TrainService) Routes() chi.Router {
 		r.Post("/nlp-datagen", s.TrainNlpDatagen)
 		r.Post("/nlp-token-retrain", s.NlpTokenRetrain)
 		r.Post("/upload-data", s.UploadData)
+		r.Post("/verify-doc-dir", s.VerifyDocDir)
 	})
 
 	r.Group(func(r chi.Router) {
@@ -244,7 +246,17 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 
 	reader := multipart.NewReader(r.Body, boundary)
 
-	artifactDir := storage.DataPath(uuid.New())
+	uploadId := uuid.New()
+
+	saveDir := storage.UploadPath(uploadId)
+	if subDir := r.URL.Query().Get("sub_dir"); subDir != "" {
+		ok, err := regexp.MatchString(`^\w+$`, subDir)
+		if err != nil || !ok {
+			http.Error(w, "invalid value for query parameter 'sub_dir', must be alphanumeric or _ characters only", http.StatusBadRequest)
+			return
+		}
+		saveDir = filepath.Join(saveDir, subDir)
+	}
 
 	for {
 		part, err := reader.NextPart()
@@ -262,7 +274,7 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, fmt.Sprintf("invalid filename detected in upload files"), http.StatusBadRequest)
 				return
 			}
-			newFilepath := filepath.Join(artifactDir, part.FileName())
+			newFilepath := filepath.Join(saveDir, part.FileName())
 			err := s.storage.Write(newFilepath, part)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("error saving file '%v': %v", part.FileName(), err), http.StatusBadRequest)
@@ -273,9 +285,9 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 
 	// TODO(Any): this is needed because the train/deployment jobs do not use the storage interface
 	// in the future once this is standardized it will not be needed
-	artifactDir = filepath.Join(s.storage.Location(), artifactDir)
+	uploadDir := filepath.Join(s.storage.Location(), storage.UploadPath(uploadId))
 
-	utils.WriteJsonResponse(w, map[string]string{"artifact_path": artifactDir})
+	utils.WriteJsonResponse(w, map[string]string{"artifact_path": uploadDir})
 }
 
 func (s *TrainService) GetStatus(w http.ResponseWriter, r *http.Request) {

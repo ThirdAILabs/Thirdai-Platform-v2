@@ -146,21 +146,7 @@ func checkSave(ndb *client.NdbClient, t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = newNdb.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		err := newNdb.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = newNdb.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &newNdb.ModelClient, false)
 
 	checkQuery(newNdb, t, false)
 }
@@ -185,22 +171,7 @@ func createAndDeployNdb(t *testing.T, autoscaling bool) *client.NdbClient {
 		t.Fatal(err)
 	}
 
-	err = ndb.Deploy(autoscaling)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Cleanup(func() {
-		err := ndb.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = ndb.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &ndb.ModelClient, autoscaling)
 
 	return ndb
 }
@@ -249,22 +220,7 @@ func TestNdbProdMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = baseNdb.Deploy(true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Cleanup(func() {
-		err := baseNdb.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = baseNdb.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &baseNdb.ModelClient, true)
 
 	checkQuery(baseNdb, t, true)
 
@@ -359,22 +315,7 @@ func TestNdbTrainingFromBaseModel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ndb2.Deploy(true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Cleanup(func() {
-		err := ndb2.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = ndb2.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &ndb2.ModelClient, true)
 
 	if !strings.Contains(getResult(ndb2, t, "manufacturing faster chips").Text, "AMD And IBM Boosts Chip Performance") {
 		t.Fatal("incorrect document result")
@@ -448,21 +389,7 @@ func TestNdbUpsertProdMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = retrainedNdb.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		err := retrainedNdb.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = retrainedNdb.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &retrainedNdb.ModelClient, false)
 
 	retrainedSources, err := retrainedNdb.Sources()
 	if err != nil {

@@ -40,22 +40,7 @@ func verifyNdbWorksWithFile(t *testing.T, url, provider, query string) {
 		t.Fatal(err)
 	}
 
-	err = ndb.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Cleanup(func() {
-		err := ndb.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = ndb.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &ndb.ModelClient, false)
 
 	res, err := ndb.Search(query, 4)
 	if err != nil {

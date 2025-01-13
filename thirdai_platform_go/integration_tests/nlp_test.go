@@ -24,21 +24,7 @@ func TestNlpTokenSupervised(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = model.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		err := model.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = model.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &model.ModelClient, false)
 
 	_, err = model.Predict("jonas is my name", 3)
 	if err != nil {
@@ -64,25 +50,40 @@ func TestNlpTextSupervised(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = model.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		err := model.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = model.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &model.ModelClient, false)
 
 	_, err = model.Predict("what is the answer to my question", 3)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestNlpDocSupervised(t *testing.T) {
+	client := getClient(t)
+
+	model, err := client.TrainNlpDoc(
+		randomName("nlp-doc"),
+		"./data/doc_classification_data",
+		config.NlpTrainOptions{Epochs: 10},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = model.AwaitTrain(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deployModel(t, &model.ModelClient, false)
+
+	result, err := model.Predict("The product exceeded my expectations!", 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result.PredictedClasses[0].Class != "positive" {
+		t.Fatalf("invalid predicted class %v", result.PredictedClasses)
 	}
 }
 
@@ -110,21 +111,7 @@ func TestNlpTokenDatagen(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = model.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		err := model.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = model.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &model.ModelClient, false)
 
 	_, err = model.Predict("jonas is my name", 3)
 	if err != nil {
@@ -156,21 +143,7 @@ func TestNlpTextDatagen(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = model.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		err := model.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = model.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &model.ModelClient, false)
 
 	_, err = model.Predict("i really like to eat apples", 3)
 	if err != nil {
@@ -196,21 +169,7 @@ func TestNlpTokenRetrain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = model.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		err := model.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = model.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &model.ModelClient, false)
 
 	_, err = model.Predict("jonas is my name", 3)
 	if err != nil {

@@ -13,6 +13,7 @@ class ModelType(str, Enum):
     NDB = "ndb"
     NLP_TOKEN = "nlp-token"
     NLP_TEXT = "nlp-text"
+    NLP_DOC = "nlp-doc"
     ENTERPRISE_SEARCH = "enterprise-search"
     KNOWLEDGE_EXTRACTION = "ke"
 

@@ -136,7 +136,7 @@ if config.model_type == ModelType.NDB:
 elif config.model_type == ModelType.NLP_TOKEN:
     backend_router_factory = UDTRouterTokenClassification
     logger.info("Initializing UDT Token Classification router", code=LogCode.MODEL_INIT)
-elif config.model_type == ModelType.NLP_TEXT:
+elif config.model_type == ModelType.NLP_TEXT or config.model_type == ModelType.NLP_DOC:
     backend_router_factory = UDTRouterTextClassification
     logger.info("Initializing UDT Text Classification router", code=LogCode.MODEL_INIT)
 elif config.model_type == ModelType.ENTERPRISE_SEARCH:

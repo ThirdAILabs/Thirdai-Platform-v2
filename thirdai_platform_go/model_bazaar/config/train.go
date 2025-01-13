@@ -126,15 +126,23 @@ type NlpTextOptions struct {
 	Delimiter      string `json:"delimiter"`
 }
 
-func (opts *NlpTextOptions) Validate() error {
+func (opts *NlpTextOptions) Validate(docClassification bool) error {
 	opts.ModelType = schema.NlpTextModel
 
 	if opts.TextColumn == "" {
-		return fmt.Errorf("text_column must be specified")
+		if docClassification {
+			opts.TextColumn = "text"
+		} else {
+			return fmt.Errorf("text_column must be specified")
+		}
 	}
 
 	if opts.LabelColumn == "" {
-		return fmt.Errorf("label_column must be specified")
+		if docClassification {
+			opts.LabelColumn = "labels"
+		} else {
+			return fmt.Errorf("label_column must be specified")
+		}
 	}
 
 	if opts.NTargetClasses <= 0 {

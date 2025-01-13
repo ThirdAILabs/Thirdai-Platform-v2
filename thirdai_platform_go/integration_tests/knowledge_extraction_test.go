@@ -21,21 +21,7 @@ func TestKnowledgeExtraction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = client.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		err := client.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	err = client.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &client.ModelClient, false)
 
 	err = client.AddQuestion("what were the EPS in 2022")
 	if err != nil {

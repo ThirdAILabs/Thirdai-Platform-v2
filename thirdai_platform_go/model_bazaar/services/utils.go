@@ -401,25 +401,20 @@ func checkSufficientStorage(storage storage.Storage) func(http.Handler) http.Han
 	}
 }
 
-func GenerateApiKey(db *gorm.DB) (string, string, string, error) {
-	prefix, err := generateRandomString(8)
-	if err != nil {
-		return "", "", "", err
-	}
-
+func GenerateApiKey(db *gorm.DB, prefix string) (string, string, error) {
 	if err := ensurePrefixIsUnique(db, prefix); err != nil {
-		return "", "", "", err
+		return "", "", err
 	}
 
 	secret, err := generateRandomString(32)
 	if err != nil {
-		return "", "", "", err
+		return "", "", err
 	}
 
 	secretHash := hashSecret(secret)
 
 	fullKey := fmt.Sprintf("%s.%s", prefix, secret)
-	return prefix, fullKey, secretHash, nil
+	return fullKey, secretHash, nil
 }
 
 func generateRandomString(n int) (string, error) {

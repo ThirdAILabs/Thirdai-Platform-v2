@@ -267,6 +267,12 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	name, err := auth.ValueFromContext(r, "name")
+	if err != nil {
+		http.Error(w, "failed to name of the key", http.StatusInternalServerError)
+		return
+	}
+
 	unixTime, err := time.Parse(time.RFC3339, expiry)
 	if err != nil {
 		http.Error(w, "invalid expiry format", http.StatusBadRequest)
@@ -286,7 +292,7 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prefix, apiKey, hashKey, err := GenerateApiKey(s.db)
+	apiKey, hashKey, err := GenerateApiKey(s.db, name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -295,7 +301,7 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	newAPIKey := schema.UserAPIKey{
 		Id:            uuid.New(),
 		HashKey:       hashKey,
-		Prefix:        prefix,
+		Prefix:        name,
 		Models:        models,
 		GeneratedTime: time.Now(),
 		ExpiryTime:    unixTime,

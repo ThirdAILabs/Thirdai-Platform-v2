@@ -3,6 +3,7 @@ package services
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -14,6 +15,11 @@ import (
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/model_bazaar/utils"
 	"time"
+
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -393,4 +399,70 @@ func checkSufficientStorage(storage storage.Storage) func(http.Handler) http.Han
 
 		return http.HandlerFunc(handler)
 	}
+}
+
+func GenerateApiKey(db *gorm.DB) (string, string, string, error) {
+	prefix, err := generateRandomString(8)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	// Ensure prefix is unique in DB
+	// (If collisions are unlikely, you may skip or do minimal checks)
+	if err := ensurePrefixIsUnique(db, prefix); err != nil {
+		return "", "", "", err
+	}
+
+	// 2) Generate the random secret
+	secret, err := generateRandomString(32) // e.g., 32 chars
+	if err != nil {
+		return "", "", "", err
+	}
+
+	// 3) Hash the secret
+	secretHash := hashSecret(secret)
+
+	// 4) Store in DB
+	// record := schema.ApiKeyRecord{
+	// 	ID:         uuid.New(),
+	// 	Prefix:     prefix,
+	// 	SecretHash: secretHash,
+	// 	CreatedAt:  schema.GetNow(), // or time.Now()
+	// }
+	// if err := db.Create(&record).Error; err != nil {
+	// 	return "", fmt.Errorf("failed to insert api key record: %w", err)
+	// }
+
+	fullKey := fmt.Sprintf("%s.%s", prefix, secret)
+	return prefix, fullKey, secretHash, nil
+}
+
+func generateRandomString(n int) (string, error) {
+	bytes := make([]byte, n)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	str := base64.RawURLEncoding.EncodeToString(bytes)
+	if len(str) < n {
+		return "", errors.New("insufficient length in generated string")
+	}
+	return str[:n], nil
+}
+
+func hashSecret(secret string) string {
+	sum := sha256.Sum256([]byte(secret))
+	return hex.EncodeToString(sum[:])
+}
+
+func ensurePrefixIsUnique(db *gorm.DB, prefix string) error {
+	var count int64
+	if err := db.Model(&schema.UserAPIKey{}).
+		Where("prefix = ?", prefix).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return errors.New("prefix collision, please retry")
+	}
+	return nil
 }

@@ -69,6 +69,19 @@ type User struct {
 	Teams  []UserTeam `gorm:"constraint:OnDelete:CASCADE"`
 }
 
+type UserAPIKey struct {
+	Id uuid.UUID `gorm:"type:uuid;primaryKey"`
+
+	HashKey string `gorm:"unique;size:50;not null"`
+	Prefix  string `gorm:"unique;size:50;not null"`
+	Models  []Model
+
+	GeneratedTime time.Time
+	ExpiryTime    time.Time
+
+	CreatedBy uuid.UUID `gorm:"type:uuid;not null"`
+}
+
 type Team struct {
 	Id   uuid.UUID `gorm:"type:uuid;primaryKey"`
 	Name string    `gorm:"unique;size:100;not null"`

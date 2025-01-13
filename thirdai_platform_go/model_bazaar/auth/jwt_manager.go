@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"thirdai_platform/model_bazaar/schema"
 	"time"
 
@@ -84,6 +85,40 @@ func ModelIdFromContext(r *http.Request) (uuid.UUID, error) {
 		return uuid.UUID{}, fmt.Errorf("invalid uuid '%v' provided: %w", value, err)
 	}
 	return id, nil
+}
+
+func ModelIdsFromContext(r *http.Request) ([]uuid.UUID, error) {
+	modelIDsStr, err := ValueFromContext(r, "model_ids")
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve model_ids from context: %w", err)
+	}
+
+	if strings.TrimSpace(modelIDsStr) == "" {
+		return nil, fmt.Errorf("model_ids claim is empty")
+	}
+
+	modelIDStrs := strings.Split(modelIDsStr, ",")
+
+	var modelIDs []uuid.UUID
+	for _, idStr := range modelIDStrs {
+		idStr = strings.TrimSpace(idStr)
+		if idStr == "" {
+			continue
+		}
+
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid model_id '%s': %w", idStr, err)
+		}
+
+		modelIDs = append(modelIDs, id)
+	}
+
+	if len(modelIDs) == 0 {
+		return nil, fmt.Errorf("no valid model_ids found in claim")
+	}
+
+	return modelIDs, nil
 }
 
 func UserFromContext(r *http.Request) (schema.User, error) {

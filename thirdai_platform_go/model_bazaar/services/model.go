@@ -159,22 +159,19 @@ func (s *ModelService) Info(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJsonResponse(w, info)
 }
 
-func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
-	user, err := auth.UserFromContext(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+func (s *ModelService) ListModelInfo(user schema.User, withWritePermission bool) ([]ModelInfo, error) {
 
 	var models []schema.Model
 	var result *gorm.DB
+
+	infos := make([]ModelInfo, 0, len(models))
+
 	if user.IsAdmin {
 		result = s.db.Preload("Dependencies").Preload("Dependencies.Dependency").Preload("Attributes").Preload("User").Find(&models)
 	} else {
 		userTeams, err := schema.GetUserTeamIds(user.Id, s.db)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			return infos, err
 		}
 		result = s.db.
 			Preload("Dependencies").
@@ -190,21 +187,132 @@ func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 
 	if result.Error != nil {
 		err := schema.NewDbError("listing models", result.Error)
+		return infos, err
+	}
+
+	for _, model := range models {
+		info, err := convertToModelInfo(model, s.db)
+		if err != nil {
+			return infos, err
+		}
+		var shouldAdd bool = true
+
+		if withWritePermission {
+			permission, err := auth.GetModelPermissions(model.Id, user, s.db)
+			if err != nil {
+				return infos, err
+			}
+			if permission < auth.WritePermission {
+				shouldAdd = false
+			}
+		}
+
+		if shouldAdd {
+			infos = append(infos, info)
+		}
+
+	}
+
+	return infos, nil
+}
+
+func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
+	user, err := auth.UserFromContext(r)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	infos := make([]ModelInfo, 0, len(models))
-	for _, model := range models {
-		info, err := convertToModelInfo(model, s.db)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		infos = append(infos, info)
+	infos, err := s.ListModelInfo(user, false)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	utils.WriteJsonResponse(w, infos)
+}
+
+func (s *ModelService) ListModelWithWritePermission(w http.ResponseWriter, r *http.Request) {
+	user, err := auth.UserFromContext(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	infos, err := s.ListModelInfo(user, true)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	utils.WriteJsonResponse(w, infos)
+}
+
+func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
+	modelIDs, err := auth.ModelIdFromContext(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	user, err := auth.UserFromContext(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	expiry, err := auth.ValueFromContext(r, "exp")
+	if err != nil {
+		http.Error(w, "failed to retrieve expiry date", http.StatusInternalServerError)
+		return
+	}
+
+	unixTime, err := time.Parse(time.RFC3339, expiry)
+	if err != nil {
+		http.Error(w, "invalid expiry format", http.StatusBadRequest)
+		return
+	}
+
+	var models []schema.Model
+	err = s.db.Preload("Attributes").
+		Preload("Dependencies").
+		Preload("Dependencies.Dependency").
+		Preload("Dependencies.Dependency.User").
+		Where("id IN ?", modelIDs).
+		Where("user_id = ?", user.Id).
+		Find(&models).Error
+	if err != nil {
+		http.Error(w, "failed to retrieve models", http.StatusInternalServerError)
+		return
+	}
+
+	prefix, apiKey, hashKey, err := GenerateApiKey(s.db)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	newAPIKey := schema.UserAPIKey{
+		Id:            uuid.New(),
+		HashKey:       hashKey,
+		Prefix:        prefix,
+		Models:        models,
+		GeneratedTime: time.Now(),
+		ExpiryTime:    unixTime,
+		CreatedBy:     user.Id,
+	}
+
+	err = s.db.Create(&newAPIKey).Error
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to save API key: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]string{
+		"api_key": apiKey,
+	}
+
+	utils.WriteJsonResponse(w, response)
 }
 
 type ModelPermissions struct {

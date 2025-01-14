@@ -16,7 +16,7 @@ func TestKnowledgeExtraction(t *testing.T) {
 		"a question that should be deleted",
 		"did sales in europe change from 2022 to 2023",
 		"how much did apple spend on research and development in 2021",
-	}, "openai")
+	}, "openai", true)
 	if err != nil {
 		t.Fatal(err)
 	}

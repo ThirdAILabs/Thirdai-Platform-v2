@@ -332,7 +332,7 @@ func randomBytes(n int) []byte {
 	return b
 }
 
-func TestUploadDownloadNlp(t *testing.T) {
+func TestDownloadUpload(t *testing.T) {
 	env := setupTestEnv(t)
 
 	user, err := env.newUser("abc")
@@ -340,92 +340,39 @@ func TestUploadDownloadNlp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tmpDir := t.TempDir()
+	model, err := user.trainNdbDummyFile("xyz")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	uploadFile := filepath.Join(tmpDir, "upload.udt")
-	downloadFile := filepath.Join(tmpDir, "download.udt")
+	if err := updateTrainStatus(user, getJobAuthToken(env, t, model), "complete"); err != nil {
+		t.Fatal(err)
+	}
 
 	modelData := randomBytes(28490)
-	err = os.WriteFile(uploadFile, modelData, 0666)
+	datapath := filepath.Join(env.storage.Location(), "models", model, "model", "model.ndb")
+	if err := os.WriteFile(datapath, modelData, 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := user.downloadModel(model)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	modelId, err := user.uploadModel("custom_model", "nlp-text", uploadFile, 5000)
+	newModel, err := user.uploadModel("xyz-new", data, 5000)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = user.downloadModel(modelId, downloadFile)
+	newDatapath := filepath.Join(env.storage.Location(), "models", newModel, "model", "model.ndb")
+	newData, err := os.ReadFile(newDatapath)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	downloaded, err := os.ReadFile(downloadFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !bytes.Equal(modelData, downloaded) {
-		t.Fatal("model bytes are different")
-	}
-}
-
-func TestUploadDownloadNdb(t *testing.T) {
-	env := setupTestEnv(t)
-
-	user, err := env.newUser("abc")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tmpDir := t.TempDir()
-
-	uploadFile := filepath.Join(tmpDir, "upload.ndb")
-	downloadFile := filepath.Join(tmpDir, "download.ndb")
-
-	files := []struct {
-		path string
-		data []byte
-	}{
-		{"chunkstore", randomBytes(28490)},
-		{"retriever/primary", randomBytes(9024)},
-		{"retriever/secondary", randomBytes(62348)},
-	}
-
-	for _, file := range files {
-		path := filepath.Join(uploadFile, file.path)
-		err := os.MkdirAll(filepath.Dir(path), 0777)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		err = os.WriteFile(path, file.data, 0666)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	modelId, err := user.uploadModel("custom_model", "ndb", uploadFile, 5000)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = user.downloadModel(modelId, downloadFile+".zip")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for _, file := range files {
-		path := filepath.Join(downloadFile, file.path)
-		data, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if !bytes.Equal(data, file.data) {
-			t.Fatal("model bytes are different")
-		}
+	if !bytes.Equal(modelData, newData) {
+		t.Fatal("model data does not match after download and upload")
 	}
 }
 
@@ -498,19 +445,19 @@ func TestModelWithDeps(t *testing.T) {
 
 	checkStatus("starting")
 
-	err = updatTrainStatus(user, ndbToken, "failed")
+	err = updateTrainStatus(user, ndbToken, "failed")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	checkStatus("failed")
 
-	err = updatTrainStatus(user, nlpToken, "complete")
+	err = updateTrainStatus(user, nlpToken, "complete")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = updatTrainStatus(user, ndbToken, "complete")
+	err = updateTrainStatus(user, ndbToken, "complete")
 	if err != nil {
 		t.Fatal(err)
 	}

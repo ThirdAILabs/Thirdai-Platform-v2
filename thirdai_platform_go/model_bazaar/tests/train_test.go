@@ -2,7 +2,6 @@ package tests
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"mime/multipart"
 	"os"
@@ -29,19 +28,7 @@ func TestTrain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	trainConfig, err := env.storage.Read(filepath.Join("models", model, "train_config.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer trainConfig.Close()
-
-	var params map[string]interface{}
-	err = json.NewDecoder(trainConfig).Decode(&params)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	jobToken := params["job_auth_token"].(string)
+	jobToken := getJobAuthToken(env, t, model)
 
 	status, err := client.trainStatus(model)
 	if err != nil {
@@ -60,7 +47,7 @@ func TestTrain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = updatTrainStatus(client, jobToken, "in_progress")
+	err = updateTrainStatus(client, jobToken, "in_progress")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +214,7 @@ func TestTrainReport(t *testing.T) {
 
 	jobToken := getJobAuthToken(env, t, model)
 
-	err = updatTrainStatus(client, jobToken, "complete")
+	err = updateTrainStatus(client, jobToken, "complete")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -369,6 +369,20 @@ type ModelMetadata struct {
 	Attributes map[string]string
 }
 
+func saveModelMetadata(s storage.Storage, model schema.Model) error {
+	metadata := ModelMetadata{Type: model.Type, Attributes: model.GetAttributes()}
+	buf := new(bytes.Buffer)
+	if err := json.NewEncoder(buf).Encode(metadata); err != nil {
+		return fmt.Errorf("error serializing model metadata: %w", err)
+	}
+
+	if err := s.Write(storage.ModelMetadataPath(model.Id), buf); err != nil {
+		return fmt.Errorf("error saving model metadata: %w", err)
+	}
+
+	return nil
+}
+
 func saveModel(txn *gorm.DB, s storage.Storage, model schema.Model, user schema.User) error {
 	if err := checkForDuplicateModel(txn, model.Name, model.UserId); err != nil {
 		return err
@@ -418,14 +432,8 @@ func saveModel(txn *gorm.DB, s storage.Storage, model schema.Model, user schema.
 		}
 	}
 
-	metadata := ModelMetadata{Type: model.Type, Attributes: model.GetAttributes()}
-	buf := new(bytes.Buffer)
-	if err := json.NewEncoder(buf).Encode(metadata); err != nil {
-		return fmt.Errorf("error serializing model metadata: %w", err)
-	}
-
-	if err := s.Write(storage.ModelMetadataPath(model.Id), buf); err != nil {
-		return fmt.Errorf("error saving model metadata: %w", err)
+	if err := saveModelMetadata(s, model); err != nil {
+		return err
 	}
 
 	result := txn.Create(&model)

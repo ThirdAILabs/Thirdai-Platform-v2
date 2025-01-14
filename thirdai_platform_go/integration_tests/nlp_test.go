@@ -65,7 +65,7 @@ func TestNlpDocSupervised(t *testing.T) {
 	model, err := client.TrainNlpDoc(
 		randomName("nlp-doc"),
 		"./data/doc_classification_data",
-		config.NlpTrainOptions{Epochs: 10},
+		config.NlpTrainOptions{Epochs: 20},
 	)
 	if err != nil {
 		t.Fatal(err)

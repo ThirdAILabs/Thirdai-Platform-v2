@@ -56,6 +56,7 @@ const (
 	NlpDocModel         = "nlp-doc"
 	EnterpriseSearch    = "enterprise-search"
 	KnowledgeExtraction = "ke"
+	UploadInProgress    = "uploading"
 )
 
 func CheckValidModelType(modelType string) error {

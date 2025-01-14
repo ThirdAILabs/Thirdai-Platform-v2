@@ -383,16 +383,17 @@ func (c *PlatformClient) CreateEnterpriseSearchWorkflow(modelName string, retrie
 	}, nil
 }
 
-func (c *PlatformClient) CreateKnowledgeExtractionWorkflow(modelName string, questions []string, llmProvider string) (*KnowledgeExtractionClient, error) {
+func (c *PlatformClient) CreateKnowledgeExtractionWorkflow(modelName string, questions []string, llmProvider string, generateAnswers bool) (*KnowledgeExtractionClient, error) {
 	questionKeywords := make([]services.QuestionKeywords, 0, len(questions))
 	for _, q := range questions {
 		questionKeywords = append(questionKeywords, services.QuestionKeywords{Question: q})
 	}
 
 	body := services.KnowledgeExtractionRequest{
-		ModelName:   modelName,
-		Questions:   questionKeywords,
-		LlmProvider: llmProvider,
+		ModelName:       modelName,
+		Questions:       questionKeywords,
+		LlmProvider:     llmProvider,
+		GenerateAnswers: &generateAnswers,
 	}
 
 	var res newModelResponse
@@ -409,16 +410,19 @@ func (c *PlatformClient) CreateKnowledgeExtractionWorkflow(modelName string, que
 	}, nil
 }
 
-func (c *PlatformClient) UploadModel(modelName, modelType, path string) (interface{}, error) {
-	// TODO: path could be a directory for ndb uploads, needs to be zipped
+type uploadResponse struct {
+	ModelId   uuid.UUID `json:"model_id"`
+	ModelType string    `json:"model_type"`
+}
 
+func (c *PlatformClient) UploadModel(modelName, path string) (interface{}, error) {
 	modelFile, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading model file %v: %w", path, err)
 	}
 	defer modelFile.Close()
 
-	body := map[string]string{"model_name": modelName, "model_type": modelType}
+	body := map[string]string{"model_name": modelName}
 	var uploadToken map[string]string
 	err = c.Post("/api/v2/model/upload").Json(body).Do(&uploadToken)
 	if err != nil {
@@ -426,7 +430,7 @@ func (c *PlatformClient) UploadModel(modelName, modelType, path string) (interfa
 	}
 
 	chunkIdx := 0
-	chunk := make([]byte, 1*1024*1024)
+	chunk := make([]byte, 10*1024*1024)
 	for {
 		n, rerr := modelFile.Read(chunk)
 		if rerr != nil && rerr != io.EOF {
@@ -445,28 +449,25 @@ func (c *PlatformClient) UploadModel(modelName, modelType, path string) (interfa
 		chunkIdx++
 	}
 
-	var res newModelResponse
+	var res uploadResponse
 	err = c.Post("/api/v2/model/upload/commit").Auth(uploadToken["token"]).Do(&res)
 	if err != nil {
 		return nil, fmt.Errorf("error committing model upload: %w", err)
 	}
 
-	if modelType == "nlp-text" {
-		return &NlpTextClient{
-			ModelClient{
-				baseClient: c.baseClient,
-				modelId:    res.ModelId,
-			},
-		}, nil
-	} else if modelType == "nlp-token" {
-		return &NlpTokenClient{
-			ModelClient{
-				baseClient: c.baseClient,
-				modelId:    res.ModelId,
-			},
-		}, nil
-	} else {
-		return nil, fmt.Errorf("invalid model type: %v", modelType)
+	modelClient := ModelClient{baseClient: c.baseClient, modelId: res.ModelId}
+
+	switch res.ModelType {
+	case "ndb":
+		return &NdbClient{modelClient}, nil
+	case "nlp-text", "nlp-doc":
+		return &NlpTextClient{modelClient}, nil
+	case "nlp-token":
+		return &NlpTokenClient{modelClient}, nil
+	case "ke":
+		return &KnowledgeExtractionClient{modelClient}, nil
+	default:
+		return nil, fmt.Errorf("invalid model type: %v", res.ModelType)
 	}
 }
 

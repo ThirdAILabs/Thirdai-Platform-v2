@@ -171,7 +171,7 @@ func (s *UserService) DeleteUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *UserService) PromoteAdmin(w http.ResponseWriter, r *http.Request) {
-	userId, err := utils.URLParam(r, "user_id")
+	userId, err := utils.URLParamUUID(r, "user_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -202,7 +202,7 @@ func (s *UserService) PromoteAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *UserService) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
-	userId, err := utils.URLParam(r, "user_id")
+	userId, err := utils.URLParamUUID(r, "user_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

@@ -27,7 +27,7 @@ func (e DbError) Unwrap() error {
 	return e.err
 }
 
-func GetUser(userId string, db *gorm.DB) (User, error) {
+func GetUser(userId uuid.UUID, db *gorm.DB) (User, error) {
 	var user User
 
 	result := db.First(&user, "id = ?", userId)

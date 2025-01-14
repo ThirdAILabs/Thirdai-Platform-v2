@@ -11,9 +11,7 @@ import (
 func TestEnterpriseSearchWithGuardrail(t *testing.T) {
 	c := getClient(t)
 
-	model, err := c.UploadModel(
-		randomName("basic_guardrail"), "nlp-token", "./models/phone_guardrail.udt",
-	)
+	model, err := c.UploadModel(randomName("basic_guardrail"), "./models/phone_guardrail.zip")
 	if err != nil {
 		t.Fatal(err)
 	}

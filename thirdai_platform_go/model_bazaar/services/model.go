@@ -2,12 +2,12 @@ package services
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
@@ -335,17 +335,11 @@ func (s *ModelService) Delete(w http.ResponseWriter, r *http.Request) {
 
 type UploadStartRequest struct {
 	ModelName string `json:"model_name"`
-	ModelType string `json:"model_type"`
 }
 
 func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
 	var params UploadStartRequest
 	if !utils.ParseRequestBody(w, r, &params) {
-		return
-	}
-
-	if err := schema.CheckValidModelType(params.ModelType); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -355,10 +349,19 @@ func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	model := newModel(uuid.New(), params.ModelName, params.ModelType, nil, user.Id)
+	model := newModel(uuid.New(), params.ModelName, schema.UploadInProgress, nil, user.Id)
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
-		return saveModel(txn, s.storage, model, user)
+		if err := checkForDuplicateModel(txn, model.Name, model.UserId); err != nil {
+			return err
+		}
+
+		result := txn.Create(&model)
+		if result.Error != nil {
+			return schema.NewDbError("creating model entry", result.Error)
+		}
+
+		return nil
 	})
 
 	if err != nil {
@@ -404,19 +407,96 @@ func (s *ModelService) UploadChunk(w http.ResponseWriter, r *http.Request) {
 	utils.WriteSuccess(w)
 }
 
-func modelExtension(modelType string) string {
-	switch modelType {
-	case schema.NdbModel:
-		return "ndb.zip"
-	case schema.NlpTextModel:
-	case schema.NlpTokenModel:
-		return "udt"
-	}
-	return "model"
+type uploadCommitResponse struct {
+	ModelId   uuid.UUID `json:"model_id"`
+	ModelType string    `json:"model_type"`
 }
 
-type uploadCommitResponse struct {
-	ModelId uuid.UUID `json:"model_id"`
+func (s *ModelService) combineChunks(modelId uuid.UUID) error {
+	chunks, err := s.storage.List(filepath.Join(storage.ModelPath(modelId), "chunks"))
+	if err != nil {
+		return fmt.Errorf("error listing chunks for model upload: %w", err)
+	}
+
+	chunkSet := make(map[string]bool)
+	for _, chunk := range chunks {
+		chunkSet[chunk] = true
+	}
+
+	modelZipfile := filepath.Join(storage.ModelPath(modelId), "model.zip")
+	for i := 0; i < len(chunks); i++ {
+		chunkPath := strconv.Itoa(i)
+		if !chunkSet[chunkPath] {
+			return fmt.Errorf("chunk %d is missing", i)
+		}
+
+		chunk, err := s.storage.Read(filepath.Join(storage.ModelPath(modelId), "chunks", chunkPath))
+		if err != nil {
+			return fmt.Errorf("error reading chunk %d: %w", i, err)
+		}
+		defer chunk.Close()
+
+		err = s.storage.Append(modelZipfile, chunk)
+		if err != nil {
+			return fmt.Errorf("error writing chunk %d: %w", i, err)
+		}
+	}
+
+	if err := s.storage.Unzip(modelZipfile); err != nil {
+		return fmt.Errorf("error unzipping model, please ensure upload is valid zipfile as returned when downloading a model: %w", err)
+	}
+
+	return nil
+}
+
+func (s *ModelService) loadModelMetadata(modelId uuid.UUID) (ModelMetadata, error) {
+	rawMetadata, err := s.storage.Read(storage.ModelMetadataPath(modelId))
+	defer rawMetadata.Close()
+	if err != nil {
+		return ModelMetadata{}, fmt.Errorf("error opening model metadata: %w", err)
+	}
+
+	var metadata ModelMetadata
+	if err := json.NewDecoder(rawMetadata).Decode(&metadata); err != nil {
+		return ModelMetadata{}, fmt.Errorf("error parsing model metadata: %w", err)
+	}
+
+	return metadata, nil
+}
+
+func (s *ModelService) completeUpload(model *schema.Model) error {
+	metadata, err := s.loadModelMetadata(model.Id)
+	if err != nil {
+		return err
+	}
+
+	model.Type = metadata.Type
+	model.TrainStatus = schema.Complete
+
+	if len(metadata.Attributes) > 0 {
+		model.Attributes = make([]schema.ModelAttribute, 0, len(metadata.Attributes))
+		for key, value := range metadata.Attributes {
+			model.Attributes = append(model.Attributes, schema.ModelAttribute{
+				ModelId: model.Id,
+				Key:     key,
+				Value:   value,
+			})
+		}
+	}
+
+	return s.db.Transaction(func(txn *gorm.DB) error {
+		if err := saveModelMetadata(s.storage, *model); err != nil {
+			return err
+		}
+
+		result := txn.Save(model)
+		if result.Error != nil {
+			err := schema.NewDbError("updating model on upload commit", result.Error)
+			return err
+		}
+
+		return nil
+	})
 }
 
 func (s *ModelService) UploadCommit(w http.ResponseWriter, r *http.Request) {
@@ -432,57 +512,19 @@ func (s *ModelService) UploadCommit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chunks, err := s.storage.List(filepath.Join(storage.ModelPath(modelId), "chunks"))
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error listing chunks for model upload: %v", err), http.StatusBadRequest)
+	if err := s.combineChunks(modelId); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
-	}
-
-	chunkSet := make(map[string]struct{})
-	for _, chunk := range chunks {
-		chunkSet[chunk] = struct{}{}
-	}
-
-	modelPath := filepath.Join(storage.ModelPath(modelId), fmt.Sprintf("model.%v", modelExtension(model.Type)))
-	for i := 0; i < len(chunks); i++ {
-		chunkPath := strconv.Itoa(i)
-		if _, ok := chunkSet[chunkPath]; !ok {
-			http.Error(w, fmt.Sprintf("chunk %d is missing", i), http.StatusBadRequest)
-			return
-		}
-
-		chunk, err := s.storage.Read(filepath.Join(storage.ModelPath(modelId), "chunks", chunkPath))
-		if err != nil {
-			http.Error(w, fmt.Sprintf("error reading chunk %d: %v", i, err), http.StatusBadRequest)
-			return
-		}
-		defer chunk.Close()
-
-		err = s.storage.Append(modelPath, chunk)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("error writing chunk %d: %v", i, err), http.StatusBadRequest)
-			return
-		}
 	}
 
 	// TODO(Anyone): add checksum
 
-	if strings.HasSuffix(modelPath, ".zip") {
-		err := s.storage.Unzip(modelPath)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("error unzipping model, please ensure upload is valid zipfile: %v", err), http.StatusBadRequest)
-			return
-		}
-	}
-
-	result := s.db.Model(&model).Update("train_status", schema.Complete)
-	if result.Error != nil {
-		err := schema.NewDbError("updating status for uploaded model", result.Error)
+	if err := s.completeUpload(&model); err != nil {
 		http.Error(w, fmt.Sprintf("error completing model upload: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	utils.WriteJsonResponse(w, uploadCommitResponse{ModelId: model.Id})
+	utils.WriteJsonResponse(w, uploadCommitResponse{ModelId: model.Id, ModelType: model.Type})
 }
 
 func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
@@ -492,19 +534,26 @@ func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	model, err := schema.GetModel(modelId, s.db, false, false, false)
+	model, err := schema.GetModel(modelId, s.db, true, false, false)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error retrieving model: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	downloadPath := filepath.Join(storage.ModelPath(model.Id), fmt.Sprintf("model.%v", modelExtension(model.Type)))
-	if strings.HasSuffix(downloadPath, ".zip") {
-		err := s.storage.Zip(strings.TrimSuffix(downloadPath, ".zip"))
-		if err != nil {
-			http.Error(w, fmt.Sprintf("error preparing zipfile for model download: %v", err), http.StatusBadRequest)
-			return
-		}
+	if model.TrainStatus != schema.Complete {
+		http.Error(w, fmt.Sprintf("can only download model with successfully completed training, model has train status %s", model.TrainStatus), http.StatusBadRequest)
+		return
+	}
+
+	if len(model.Dependencies) > 0 {
+		http.Error(w, "downloading models with dependencies is not yet supported", http.StatusBadRequest)
+		return
+	}
+
+	downloadPath := filepath.Join(storage.ModelPath(model.Id), "model")
+	if err := s.storage.Zip(downloadPath); err != nil {
+		http.Error(w, fmt.Sprintf("error preparing zipfile for model download: %v", err), http.StatusBadRequest)
+		return
 	}
 
 	flusher, ok := w.(http.Flusher)
@@ -513,7 +562,7 @@ func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, err := s.storage.Read(downloadPath)
+	file, err := s.storage.Read(downloadPath + ".zip")
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error opening model for download: %v", err), http.StatusBadRequest)
 		return

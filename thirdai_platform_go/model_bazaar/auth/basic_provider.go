@@ -55,7 +55,13 @@ func (auth *BasicIdentityProvider) addUserToContext() func(http.Handler) http.Ha
 				return
 			}
 
-			user, err := schema.GetUser(userId, auth.db)
+			userUUID, err := uuid.Parse(userId)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("invalid user uuid '%v': %v'", userId, err), http.StatusUnauthorized)
+				return
+			}
+
+			user, err := schema.GetUser(userUUID, auth.db)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("unable to find user %v: %v", userId, err), http.StatusUnauthorized)
 				return

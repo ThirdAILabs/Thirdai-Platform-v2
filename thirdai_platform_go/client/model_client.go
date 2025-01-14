@@ -2,6 +2,8 @@ package client
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"thirdai_platform/model_bazaar/services"
 	"time"
 
@@ -116,6 +118,20 @@ func (c *ModelClient) Undeploy() error {
 
 func (c *ModelClient) DeleteModel() error {
 	return c.Delete(fmt.Sprintf("/api/v2/model/%v", c.modelId)).Do(nil)
+}
+
+func (c *ModelClient) Download(dstPath string) error {
+	dst, err := os.Create(dstPath)
+	if err != nil {
+		return err
+	}
+
+	return c.Get(fmt.Sprintf("/api/v2/model/%v/download", c.modelId)).Process(
+		func(body io.Reader) error {
+			_, err := io.Copy(dst, body)
+			return err
+		},
+	)
 }
 
 type newModelResponse struct {

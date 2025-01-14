@@ -365,7 +365,18 @@ func (auth *KeycloakIdentityProvider) middleware() func(http.Handler) http.Handl
 				return
 			}
 
-			user, err := schema.GetUser(*userInfo.Sub, auth.db)
+			if userInfo.Sub == nil {
+				http.Error(w, "user identifier missing in keycloak response", http.StatusUnauthorized)
+				return
+			}
+
+			userUUID, err := uuid.Parse(*userInfo.Sub)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("invalid uuid '%v' returned from keycloak: %v", *userInfo.Sub, err), http.StatusUnauthorized)
+				return
+			}
+
+			user, err := schema.GetUser(userUUID, auth.db)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("unable to find user %v: %v", *userInfo.Sub, err), http.StatusUnauthorized)
 				return

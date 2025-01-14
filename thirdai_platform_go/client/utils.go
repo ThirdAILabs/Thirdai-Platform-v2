@@ -76,7 +76,7 @@ func (r *httpRequest) Param(key, value string) *httpRequest {
 	return r
 }
 
-func (r *httpRequest) Do(result interface{}) error {
+func (r *httpRequest) Process(resultHandler func(io.Reader) error) error {
 	fullEndpoint, err := url.JoinPath(r.baseUrl, r.endpoint)
 	if err != nil {
 		return fmt.Errorf("error formatting url for endpoint %v: %w", r.endpoint, err)
@@ -134,14 +134,26 @@ func (r *httpRequest) Do(result interface{}) error {
 		return fmt.Errorf("%v request to endpoint %v returned status %d, content '%v'", r.method, r.endpoint, res.StatusCode, string(content))
 	}
 
-	if result != nil {
-		err := json.NewDecoder(res.Body).Decode(result)
+	if resultHandler != nil {
+		err := resultHandler(res.Body)
 		if err != nil {
-			return fmt.Errorf("error parsing %v response from endpoint %v: %w", r.method, r.endpoint, err)
+			return fmt.Errorf("error processing %v response from endpoint %v: %w", r.method, r.endpoint, err)
 		}
 	}
 
 	return nil
+}
+
+func (r *httpRequest) Do(result interface{}) error {
+	return r.Process(func(body io.Reader) error {
+		if result != nil {
+			err := json.NewDecoder(body).Decode(result)
+			if err != nil {
+				return fmt.Errorf("error parsing %v response from endpoint %v: %w", r.method, r.endpoint, err)
+			}
+		}
+		return nil
+	})
 }
 
 type baseClient struct {

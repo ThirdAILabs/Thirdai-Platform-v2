@@ -22,7 +22,7 @@ func TestDeploy(t *testing.T) {
 
 	jobToken := getJobAuthToken(env, t, model)
 
-	err = updatTrainStatus(client, jobToken, "complete")
+	err = updateTrainStatus(client, jobToken, "complete")
 	if err != nil {
 		t.Fatal(err)
 	}

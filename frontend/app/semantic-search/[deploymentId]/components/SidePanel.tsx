@@ -182,15 +182,6 @@ const SidePanel: React.FC<SidePanelProps> = ({
             </ButtonContainer>
           </SectionContent>
         </SectionContainer>
-        <SectionContainer>
-          <SectionTitle>Filter</SectionTitle>
-          <SectionContent>
-            <SectionText>Add constraints for better results</SectionText>
-            <ButtonContainer>
-              <ConstraintSearch />
-            </ButtonContainer>
-          </SectionContent>
-        </SectionContainer>
       </PanelContainer>
     </>
   );

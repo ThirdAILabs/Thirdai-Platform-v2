@@ -21,6 +21,22 @@ def wait_for_cache(cache_health_url, action):
     raise ValueError("cache job not stopped in expected time")
 
 
+def wait_for_cache_refresh(cache_status_url, model_identifier, auth_header):
+    for _ in range(20):
+        res = requests.get(
+            cache_status_url,
+            params={"model_identifier": model_identifier},
+            headers=auth_header,
+        )
+        if (
+            res.status_code == 200
+            and res.json()["data"]["cache_refresh_status"] == "complete"
+        ):
+            return
+        time.sleep(1)
+    raise ValueError("cache job not refreshed in expected time")
+
+
 @pytest.mark.unit
 def test_llm_cache():
     base_url = "http://127.0.0.1:80/api/"
@@ -45,6 +61,7 @@ def test_llm_cache():
         }
 
     model_id = base_model.model_id
+    model_identifier = base_model.model_identifier
 
     cache_health_url = f"http://127.0.0.1:80/{model_id}/cache/health"
 
@@ -91,6 +108,15 @@ def test_llm_cache():
     admin_client.undeploy(ndb_client)
     wait_for_cache(cache_health_url, action="stop")
 
+    cache_status_url = f"{base_url}train/cache-status"
+    response = requests.get(
+        cache_status_url,
+        params={"model_identifier": model_identifier},
+        headers=auth_header(),
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["cache_refresh_status"] == "not_started"
+
     refresh_url = f"{base_url}train/refresh-llm-cache"
     refresh_response = requests.post(
         refresh_url,
@@ -99,7 +125,7 @@ def test_llm_cache():
     )
     assert refresh_response.status_code == 200
 
-    # TODO wait for llm cache refresh
+    wait_for_cache_refresh(cache_status_url, model_identifier, auth_header())
 
     pattern = os.path.join(
         model_bazaar_dir, "models", model_id, "llm_cache", "insertions", "*.jsonl"

@@ -16,7 +16,6 @@ from backend.utils import (
     copy_data_storage,
     delete_nomad_job,
     get_job_logs,
-    get_job_messages,
     get_model,
     get_model_from_identifier,
     get_model_status,
@@ -449,7 +448,16 @@ def refresh_llm_cache(
     ]:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="Cannot refresh cache while its deployed.",
+            message="Cannot refresh cache while model is deployed.",
+        )
+
+    if model.cache_refresh_status in [
+        schema.Status.starting,
+        schema.Status.in_progress,
+    ]:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Already refreshing LLM Cache.",
         )
 
     cache_insertions_dir = os.listdir(
@@ -493,7 +501,12 @@ def refresh_llm_cache(
             # larger cache jobs
             allocation_memory_max=60_000,
         )
+
+        model.cache_refresh_status = schema.Status.starting
+        session.commit()
     except Exception as err:
+        model.cache_refresh_status = schema.Status.failed
+        session.commit()
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -542,7 +555,7 @@ def update_cache_status(
             message=f"No model with id {model_id}.",
         )
 
-    model.cache_status = new_status
+    model.cache_refresh_status = new_status
     if new_status == schema.Status.failed and message:
         session.add(
             schema.JobMessage(
@@ -563,7 +576,7 @@ def cache_status(
     session: Session = Depends(get_session),
 ):
     """
-    Get the status of a NeuralDB.
+    Get the status of a NeuralDB LLM Cache.
 
     Parameters:
     - model_identifier: The identifier of the model to retrieve info about.
@@ -571,7 +584,7 @@ def cache_status(
     - authenticated_user: The authenticated user (dependency).
 
     Returns:
-    - A JSON response with the model status.
+    - A JSON response with the cache status.
     """
     try:
         model: schema.Model = get_model_from_identifier(model_identifier, session)
@@ -581,15 +594,13 @@ def cache_status(
             message=str(error),
         )
 
-    messages = get_job_messages(session, model.id, "cache", limit=1)
     warnings, errors = get_warnings_and_errors(session, model, job_type="cache")
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully got the train status.",
         data={
             "model_identifier": model_identifier,
-            "cache_status": model.cache_status,
-            "messages": messages,
+            "cache_refresh_status": model.cache_refresh_status,
             "warnings": warnings,
             "errors": errors,
         },

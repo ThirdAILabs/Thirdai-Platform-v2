@@ -313,12 +313,16 @@ func (c *client) modelPermissions(modelId string) (services.ModelPermissions, er
 	return res, err
 }
 
-func (c *client) trainNdb(name string) (string, error) {
+func (c *client) trainNdbDummyFile(name string) (string, error) {
+	return c.trainNdb(name, config.TrainFile{Path: "n/a", Location: "s3"})
+}
+
+func (c *client) trainNdb(name string, file config.TrainFile) (string, error) {
 	body := services.NdbTrainRequest{
 		ModelName:    name,
 		ModelOptions: &config.NdbOptions{},
 		Data: config.NDBData{
-			UnsupervisedFiles: []config.FileInfo{{Path: "a.txt", Location: "local"}},
+			UnsupervisedFiles: []config.TrainFile{file},
 		},
 	}
 
@@ -337,7 +341,7 @@ func (c *client) trainNlpToken(name string) (string, error) {
 			DefaultTag:   "O",
 		},
 		Data: config.NlpData{
-			SupervisedFiles: []config.FileInfo{{Path: "a.txt", Location: "local"}},
+			SupervisedFiles: []config.TrainFile{{Path: "a.txt", Location: "s3"}},
 		},
 	}
 

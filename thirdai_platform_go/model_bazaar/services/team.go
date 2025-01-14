@@ -70,6 +70,7 @@ func (s *TeamService) CreateTeam(w http.ResponseWriter, r *http.Request) {
 
 	if params.Name == "" {
 		http.Error(w, "Team name must be specified", http.StatusBadRequest)
+		return
 	}
 
 	newTeam := schema.Team{Id: uuid.New(), Name: params.Name}

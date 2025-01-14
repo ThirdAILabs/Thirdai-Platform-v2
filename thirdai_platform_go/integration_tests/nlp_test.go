@@ -2,17 +2,18 @@ package integrationtests
 
 import (
 	"testing"
+	"thirdai_platform/client"
 	"thirdai_platform/model_bazaar/config"
 	"time"
 )
 
 func TestNlpTokenSupervised(t *testing.T) {
-	client := getClient(t)
+	c := getClient(t)
 
-	model, err := client.TrainNlpToken(
+	model, err := c.TrainNlpToken(
 		randomName("nlp-token"),
 		[]string{"EMAIL", "NAME"},
-		[]config.FileInfo{{Path: "./data/ner.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./data/ner.csv", Location: "upload"}},
 		config.NlpTrainOptions{Epochs: 10},
 	)
 	if err != nil {
@@ -24,21 +25,7 @@ func TestNlpTokenSupervised(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = model.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		err := model.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = model.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &model.ModelClient, false)
 
 	_, err = model.Predict("jonas is my name", 3)
 	if err != nil {
@@ -47,12 +34,12 @@ func TestNlpTokenSupervised(t *testing.T) {
 }
 
 func TestNlpTextSupervised(t *testing.T) {
-	client := getClient(t)
+	c := getClient(t)
 
-	model, err := client.TrainNlpText(
+	model, err := c.TrainNlpText(
 		randomName("nlp-text"),
 		3,
-		[]config.FileInfo{{Path: "./data/supervised.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./data/supervised.csv", Location: "upload"}},
 		config.NlpTrainOptions{Epochs: 10},
 	)
 	if err != nil {
@@ -64,25 +51,40 @@ func TestNlpTextSupervised(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = model.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		err := model.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = model.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &model.ModelClient, false)
 
 	_, err = model.Predict("what is the answer to my question", 3)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestNlpDocSupervised(t *testing.T) {
+	client := getClient(t)
+
+	model, err := client.TrainNlpDoc(
+		randomName("nlp-doc"),
+		"./data/doc_classification_data",
+		config.NlpTrainOptions{Epochs: 10},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = model.AwaitTrain(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deployModel(t, &model.ModelClient, false)
+
+	result, err := model.Predict("The product exceeded my expectations!", 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result.PredictedClasses[0].Class != "positive" {
+		t.Fatalf("invalid predicted class %v", result.PredictedClasses)
 	}
 }
 
@@ -110,21 +112,7 @@ func TestNlpTokenDatagen(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = model.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		err := model.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = model.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &model.ModelClient, false)
 
 	_, err = model.Predict("jonas is my name", 3)
 	if err != nil {
@@ -156,21 +144,7 @@ func TestNlpTextDatagen(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = model.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		err := model.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = model.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &model.ModelClient, false)
 
 	_, err = model.Predict("i really like to eat apples", 3)
 	if err != nil {
@@ -179,12 +153,12 @@ func TestNlpTextDatagen(t *testing.T) {
 }
 
 func TestNlpTokenRetrain(t *testing.T) {
-	client := getClient(t)
+	c := getClient(t)
 
-	model, err := client.TrainNlpToken(
+	model, err := c.TrainNlpToken(
 		randomName("nlp-token"),
 		[]string{"EMAIL", "NAME"},
-		[]config.FileInfo{{Path: "./data/ner.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./data/ner.csv", Location: "upload"}},
 		config.NlpTrainOptions{Epochs: 10},
 	)
 	if err != nil {
@@ -196,21 +170,7 @@ func TestNlpTokenRetrain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = model.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		err := model.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = model.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &model.ModelClient, false)
 
 	_, err = model.Predict("jonas is my name", 3)
 	if err != nil {
@@ -250,12 +210,12 @@ func TestNlpTokenRetrain(t *testing.T) {
 }
 
 func TestNlpTokenTrainingFromBaseModel(t *testing.T) {
-	client := getClient(t)
+	c := getClient(t)
 
-	nlp, err := client.TrainNlpToken(
+	nlp, err := c.TrainNlpToken(
 		randomName("nlp"),
 		[]string{"EMAIL", "NAME"},
-		[]config.FileInfo{{Path: "./data/ner.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./data/ner.csv", Location: "upload"}},
 		config.NlpTrainOptions{Epochs: 10},
 	)
 	if err != nil {
@@ -267,10 +227,10 @@ func TestNlpTokenTrainingFromBaseModel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	nlp2, err := client.TrainNlpTokenWithBaseModel(
+	nlp2, err := c.TrainNlpTokenWithBaseModel(
 		randomName("nlp2"),
 		nlp,
-		[]config.FileInfo{{Path: "./data/ner.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./data/ner.csv", Location: "upload"}},
 		config.NlpTrainOptions{},
 	)
 
@@ -281,12 +241,12 @@ func TestNlpTokenTrainingFromBaseModel(t *testing.T) {
 }
 
 func TestNlpTextTrainingFromBaseModel(t *testing.T) {
-	client := getClient(t)
+	c := getClient(t)
 
-	nlp, err := client.TrainNlpText(
+	nlp, err := c.TrainNlpText(
 		randomName("nlp"),
 		3,
-		[]config.FileInfo{{Path: "./data/supervised.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./data/supervised.csv", Location: "upload"}},
 		config.NlpTrainOptions{Epochs: 10},
 	)
 	if err != nil {
@@ -298,10 +258,10 @@ func TestNlpTextTrainingFromBaseModel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	nlp2, err := client.TrainNlpTextWithBaseModel(
+	nlp2, err := c.TrainNlpTextWithBaseModel(
 		randomName("nlp2"),
 		nlp,
-		[]config.FileInfo{{Path: "./data/supervised.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./data/supervised.csv", Location: "upload"}},
 		config.NlpTrainOptions{},
 	)
 

@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime/multipart"
 	"os"
+	"path/filepath"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/services"
 
@@ -51,42 +53,70 @@ func (c *PlatformClient) UseApiKey(api_key string) error {
 	return nil
 }
 
-func (c *PlatformClient) uploadFiles(files []config.FileInfo) ([]config.FileInfo, error) {
-	body := new(bytes.Buffer)
-	writer := multipart.NewWriter(body)
-
-	err := addFilesToMultipart(writer, files)
-	if err != nil {
-		return nil, err
-	}
-
-	err = writer.Close()
-	if err != nil {
-		return nil, fmt.Errorf("error closing mutlipart writer: %w", err)
-	}
-
-	var res map[string]string
-	err = c.Post("/api/v2/train/upload-data").Header("Content-Type", writer.FormDataContentType()).Body(body).Do(&res)
-	if err != nil {
-		return nil, err
-	}
-
-	artifactDir := res["artifact_path"]
-
-	return updateLocalFilePrefixes(files, artifactDir), nil
+type FileInfo struct {
+	Path     string                 `json:"path"`
+	Location string                 `json:"location"`
+	SourceId *string                `json:"source_id"`
+	Options  map[string]interface{} `json:"options"`
+	Metadata map[string]interface{} `json:"metadata"`
 }
 
-func (c *PlatformClient) TrainNdb(name string, unsupervised []config.FileInfo, supervised []config.FileInfo, jobOptions config.JobOptions) (*NdbClient, error) {
+func (c *PlatformClient) uploadFiles(files []FileInfo, subDir string) ([]config.TrainFile, error) {
+	updatedFiles := make([]config.TrainFile, 0)
+
+	for _, file := range files {
+		if file.Location == "upload" || file.Location == "local" {
+			body := new(bytes.Buffer)
+			writer := multipart.NewWriter(body)
+
+			err := addFilesToMultipart(writer, []FileInfo{file})
+			if err != nil {
+				return nil, err
+			}
+
+			err = writer.Close()
+			if err != nil {
+				return nil, fmt.Errorf("error closing mutlipart writer: %w", err)
+			}
+
+			var res map[string]string
+			err = c.Post("/api/v2/train/upload-data").Param("sub_dir", subDir).Header("Content-Type", writer.FormDataContentType()).Body(body).Do(&res)
+			if err != nil {
+				return nil, err
+			}
+
+			updatedFiles = append(updatedFiles, config.TrainFile{
+				Location: "upload",
+				Path:     res["upload_id"],
+				SourceId: file.SourceId,
+				Options:  file.Options,
+				Metadata: file.Metadata,
+			})
+		} else {
+			updatedFiles = append(updatedFiles, config.TrainFile{
+				Path:     file.Path,
+				Location: file.Location,
+				SourceId: file.SourceId,
+				Options:  file.Options,
+				Metadata: file.Metadata,
+			})
+		}
+	}
+
+	return updatedFiles, nil
+}
+
+func (c *PlatformClient) TrainNdb(name string, unsupervised []FileInfo, supervised []FileInfo, jobOptions config.JobOptions) (*NdbClient, error) {
 	return c.TrainNdbWithBaseModel(name, nil, unsupervised, supervised, jobOptions)
 }
 
-func (c *PlatformClient) TrainNdbWithBaseModel(name string, baseModel *NdbClient, unsupervised []config.FileInfo, supervised []config.FileInfo, jobOptions config.JobOptions) (*NdbClient, error) {
-	unsupervisedFiles, err := c.uploadFiles(unsupervised)
+func (c *PlatformClient) TrainNdbWithBaseModel(name string, baseModel *NdbClient, unsupervised []FileInfo, supervised []FileInfo, jobOptions config.JobOptions) (*NdbClient, error) {
+	unsupervisedFiles, err := c.uploadFiles(unsupervised, "")
 	if err != nil {
 		return nil, fmt.Errorf("error uploading unsupervised files for training: %w", err)
 	}
 
-	supervisedFiles, err := c.uploadFiles(supervised)
+	supervisedFiles, err := c.uploadFiles(supervised, "")
 	if err != nil {
 		return nil, fmt.Errorf("error uploading supervised files for training: %w", err)
 	}
@@ -125,16 +155,16 @@ func (c *PlatformClient) TrainNdbWithBaseModel(name string, baseModel *NdbClient
 	}, nil
 }
 
-func (c *PlatformClient) TrainNlpToken(name string, labels []string, files []config.FileInfo, trainOptions config.NlpTrainOptions) (*NlpTokenClient, error) {
+func (c *PlatformClient) TrainNlpToken(name string, labels []string, files []FileInfo, trainOptions config.NlpTrainOptions) (*NlpTokenClient, error) {
 	return c.trainNlpTokenHelper(name, nil, labels, files, trainOptions)
 }
 
-func (c *PlatformClient) TrainNlpTokenWithBaseModel(name string, baseModel *NlpTokenClient, files []config.FileInfo, trainOptions config.NlpTrainOptions) (*NlpTokenClient, error) {
+func (c *PlatformClient) TrainNlpTokenWithBaseModel(name string, baseModel *NlpTokenClient, files []FileInfo, trainOptions config.NlpTrainOptions) (*NlpTokenClient, error) {
 	return c.trainNlpTokenHelper(name, baseModel, nil, files, trainOptions)
 }
 
-func (c *PlatformClient) trainNlpTokenHelper(name string, baseModel *NlpTokenClient, labels []string, files []config.FileInfo, trainOptions config.NlpTrainOptions) (*NlpTokenClient, error) {
-	uploadFiles, err := c.uploadFiles(files)
+func (c *PlatformClient) trainNlpTokenHelper(name string, baseModel *NlpTokenClient, labels []string, files []FileInfo, trainOptions config.NlpTrainOptions) (*NlpTokenClient, error) {
+	uploadFiles, err := c.uploadFiles(files, "")
 	if err != nil {
 		return nil, fmt.Errorf("error uploading files for training: %w", err)
 	}
@@ -177,16 +207,16 @@ func (c *PlatformClient) trainNlpTokenHelper(name string, baseModel *NlpTokenCli
 	}, nil
 }
 
-func (c *PlatformClient) TrainNlpText(name string, nTargetClasses int, files []config.FileInfo, trainOptions config.NlpTrainOptions) (*NlpTextClient, error) {
+func (c *PlatformClient) TrainNlpText(name string, nTargetClasses int, files []FileInfo, trainOptions config.NlpTrainOptions) (*NlpTextClient, error) {
 	return c.trainNlpTextHelper(name, nil, nTargetClasses, files, trainOptions)
 }
 
-func (c *PlatformClient) TrainNlpTextWithBaseModel(name string, baseModel *NlpTextClient, files []config.FileInfo, trainOptions config.NlpTrainOptions) (*NlpTextClient, error) {
+func (c *PlatformClient) TrainNlpTextWithBaseModel(name string, baseModel *NlpTextClient, files []FileInfo, trainOptions config.NlpTrainOptions) (*NlpTextClient, error) {
 	return c.trainNlpTextHelper(name, baseModel, -1, files, trainOptions)
 }
 
-func (c *PlatformClient) trainNlpTextHelper(name string, baseModel *NlpTextClient, nTargetClasses int, files []config.FileInfo, trainOptions config.NlpTrainOptions) (*NlpTextClient, error) {
-	uploadFiles, err := c.uploadFiles(files)
+func (c *PlatformClient) trainNlpTextHelper(name string, baseModel *NlpTextClient, nTargetClasses int, files []FileInfo, trainOptions config.NlpTrainOptions) (*NlpTextClient, error) {
+	uploadFiles, err := c.uploadFiles(files, "")
 	if err != nil {
 		return nil, fmt.Errorf("error uploading files for training: %w", err)
 	}
@@ -211,6 +241,69 @@ func (c *PlatformClient) trainNlpTextHelper(name string, baseModel *NlpTextClien
 		ModelOptions: modelOptions,
 		Data: config.NlpData{
 			SupervisedFiles: uploadFiles,
+		},
+		TrainOptions: trainOptions,
+	}
+
+	var res newModelResponse
+	err = c.Post("/api/v2/train/nlp-text").Json(body).Do(&res)
+	if err != nil {
+		return nil, err
+	}
+
+	return &NlpTextClient{
+		ModelClient{
+			baseClient: c.baseClient,
+			modelId:    res.ModelId,
+		},
+	}, nil
+}
+
+func (c *PlatformClient) TrainNlpDoc(name string, directory string, trainOptions config.NlpTrainOptions) (*NlpTextClient, error) {
+	categories := map[string][]FileInfo{}
+
+	err := filepath.WalkDir(directory, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() {
+			return nil
+		}
+
+		category := filepath.Base(filepath.Dir(path))
+
+		if _, ok := categories[category]; !ok {
+			categories[category] = make([]FileInfo, 0)
+		}
+		categories[category] = append(categories[category], FileInfo{Path: path, Location: "upload"})
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	allFiles := []config.TrainFile{}
+	for category, files := range categories {
+		uploadFiles, err := c.uploadFiles(files, category)
+		if err != nil {
+			return nil, fmt.Errorf("error uploading files for training: %w", err)
+		}
+
+		allFiles = append(allFiles, uploadFiles...)
+	}
+
+	body := services.NlpTextTrainRequest{
+		ModelName:         name,
+		BaseModelId:       nil,
+		DocClassification: true,
+		ModelOptions: &config.NlpTextOptions{
+			NTargetClasses: len(categories),
+		},
+		Data: config.NlpData{
+			SupervisedFiles: allFiles,
 		},
 		TrainOptions: trainOptions,
 	}

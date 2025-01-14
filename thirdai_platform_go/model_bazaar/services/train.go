@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -9,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"thirdai_platform/model_bazaar/auth"
@@ -51,6 +53,7 @@ func (s *TrainService) Routes() chi.Router {
 		r.Post("/nlp-datagen", s.TrainNlpDatagen)
 		r.Post("/nlp-token-retrain", s.NlpTokenRetrain)
 		r.Post("/upload-data", s.UploadData)
+		r.Post("/verify-doc-dir", s.VerifyDocDir)
 	})
 
 	r.Group(func(r chi.Router) {
@@ -236,15 +239,44 @@ func getMultipartBoundary(r *http.Request) (string, error) {
 }
 
 func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
+	user, err := auth.UserFromContext(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	boundary, err := getMultipartBoundary(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	uploadId := uuid.New()
+
+	upload := schema.Upload{
+		Id:         uploadId,
+		UserId:     user.Id,
+		UploadDate: time.Now().UTC(),
+	}
+	if err := s.db.Create(&upload).Error; err != nil {
+		err := schema.NewDbError("creating upload entry", err)
+		http.Error(w, fmt.Sprintf("unable to create upload: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	filenames := make([]string, 0)
+
 	reader := multipart.NewReader(r.Body, boundary)
 
-	artifactDir := storage.DataPath(uuid.New())
+	saveDir := storage.UploadPath(uploadId)
+	if subDir := r.URL.Query().Get("sub_dir"); subDir != "" {
+		ok, err := regexp.MatchString(`^\w+$`, subDir)
+		if err != nil || !ok {
+			http.Error(w, "invalid value for query parameter 'sub_dir', must be alphanumeric or _ characters only", http.StatusBadRequest)
+			return
+		}
+		saveDir = filepath.Join(saveDir, subDir)
+	}
 
 	for {
 		part, err := reader.NextPart()
@@ -262,7 +294,10 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, fmt.Sprintf("invalid filename detected in upload files"), http.StatusBadRequest)
 				return
 			}
-			newFilepath := filepath.Join(artifactDir, part.FileName())
+
+			filenames = append(filenames, part.FileName())
+
+			newFilepath := filepath.Join(saveDir, part.FileName())
 			err := s.storage.Write(newFilepath, part)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("error saving file '%v': %v", part.FileName(), err), http.StatusBadRequest)
@@ -271,11 +306,43 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// TODO(Any): this is needed because the train/deployment jobs do not use the storage interface
-	// in the future once this is standardized it will not be needed
-	artifactDir = filepath.Join(s.storage.Location(), artifactDir)
+	upload.Files = strings.Join(filenames, ";")
+	if err := s.db.Save(&upload).Error; err != nil {
+		err := schema.NewDbError("updating upload file list", err)
+		http.Error(w, fmt.Sprintf("unable to create upload: %v", err), http.StatusInternalServerError)
+		return
+	}
 
-	utils.WriteJsonResponse(w, map[string]string{"artifact_path": artifactDir})
+	utils.WriteJsonResponse(w, map[string]uuid.UUID{"upload_id": uploadId})
+}
+
+func (s *TrainService) validateUploads(userId uuid.UUID, files []config.TrainFile) error {
+	for i, file := range files {
+		if file.Location == config.FileLocUpload {
+			uploadId, err := uuid.Parse(file.Path)
+			if err != nil {
+				return fmt.Errorf("invalid upload id: %v", file.Path)
+			}
+
+			var upload schema.Upload
+			result := s.db.First(&upload, "id = ?", uploadId)
+			if result.Error != nil {
+				if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+					return fmt.Errorf("upload %v does not exist", uploadId)
+				}
+				return schema.NewDbError("retrieving upload info", result.Error)
+			}
+
+			if upload.UserId != userId {
+				return fmt.Errorf("user %v does not have permission to access upload %v", userId, uploadId)
+			}
+
+			files[i].Location = config.FileLocLocal
+			files[i].Path = filepath.Join(s.storage.Location(), storage.UploadPath(uploadId))
+		}
+	}
+
+	return nil
 }
 
 func (s *TrainService) GetStatus(w http.ResponseWriter, r *http.Request) {

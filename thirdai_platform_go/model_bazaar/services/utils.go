@@ -311,6 +311,7 @@ func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad
 	utils.WriteJsonResponse(w, logs)
 }
 
+// TODO(Anyone): add logic to cleanup configs for failed jobs
 func saveConfig(modelId uuid.UUID, jobType string, config interface{}, store storage.Storage) (string, error) {
 	trainConfigData, err := json.MarshalIndent(config, "", "    ")
 	if err != nil {
@@ -360,7 +361,7 @@ func createModel(modelId uuid.UUID, modelName, modelType string, baseModelId *uu
 		Id:                modelId,
 		Name:              modelName,
 		Type:              modelType,
-		PublishedDate:     time.Now(),
+		PublishedDate:     time.Now().UTC(),
 		TrainStatus:       schema.NotStarted,
 		DeployStatus:      schema.NotStarted,
 		Access:            schema.Private,

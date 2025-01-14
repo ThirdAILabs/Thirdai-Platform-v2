@@ -8,18 +8,19 @@ import (
 )
 
 const (
-	FileLocLocal = "local"
-	FileLocS3    = "s3"
-	FileLocAzure = "azure"
-	FileLocGcp   = "gcp"
+	FileLocUpload = "upload"
+	FileLocLocal  = "local"
+	FileLocS3     = "s3"
+	FileLocAzure  = "azure"
+	FileLocGcp    = "gcp"
 )
 
 const (
-	ndbDataType = "ndb"
-	nlpDataType = "nlp"
+	NdbDataType = "ndb"
+	NlpDataType = "nlp"
 )
 
-type FileInfo struct {
+type TrainFile struct {
 	Path     string                 `json:"path"`
 	Location string                 `json:"location"`
 	SourceId *string                `json:"source_id"`
@@ -27,13 +28,18 @@ type FileInfo struct {
 	Metadata map[string]interface{} `json:"metadata"`
 }
 
-func validateFileInfo(files []FileInfo) error {
+func validateFileInfo(files []TrainFile) error {
 	for i, file := range files {
 		if file.Path == "" {
 			return fmt.Errorf("file path cannot be empty")
 		}
-		if file.Location != FileLocLocal && file.Location != FileLocS3 && file.Location != FileLocAzure && file.Location != FileLocGcp {
-			return fmt.Errorf("invalid file location '%v', must be 'local', 's3', 'azure', or 'gcp'", file.Location)
+
+		switch file.Location {
+		case FileLocUpload, FileLocS3, FileLocAzure, FileLocGcp:
+			// ok
+		default:
+			return fmt.Errorf("invalid file location '%v', must be 'upload', 's3', 'azure', or 'gcp'", file.Location)
+
 		}
 		if file.Options == nil {
 			files[i].Options = map[string]interface{}{}
@@ -44,32 +50,36 @@ func validateFileInfo(files []FileInfo) error {
 
 type NdbOptions struct {
 	ModelType      string `json:"model_type"`
-	InMemory       bool   `json:"in_memory"`
+	OnDisk         *bool  `json:"on_disk"`
 	AdvancedSearch bool   `json:"advanced_search"`
 }
 
 func (opts *NdbOptions) Validate() error {
 	opts.ModelType = schema.NdbModel
+	trueArg := true
+	if opts.OnDisk == nil {
+		opts.OnDisk = &trueArg
+	}
 	return nil
 }
 
 type NDBData struct {
 	ModelDataType string `json:"model_data_type"`
 
-	UnsupervisedFiles []FileInfo `json:"unsupervised_files"`
-	SupervisedFiles   []FileInfo `json:"supervised_files"`
+	UnsupervisedFiles []TrainFile `json:"unsupervised_files"`
+	SupervisedFiles   []TrainFile `json:"supervised_files"`
 
 	Deletions []string `json:"deletions"`
 }
 
 func (data *NDBData) Validate() error {
-	data.ModelDataType = ndbDataType
+	data.ModelDataType = NdbDataType
 
 	if data.UnsupervisedFiles == nil {
-		data.UnsupervisedFiles = []FileInfo{}
+		data.UnsupervisedFiles = []TrainFile{}
 	}
 	if data.SupervisedFiles == nil {
-		data.SupervisedFiles = []FileInfo{}
+		data.SupervisedFiles = []TrainFile{}
 	}
 	if data.Deletions == nil {
 		data.Deletions = []string{}
@@ -126,15 +136,23 @@ type NlpTextOptions struct {
 	Delimiter      string `json:"delimiter"`
 }
 
-func (opts *NlpTextOptions) Validate() error {
+func (opts *NlpTextOptions) Validate(docClassification bool) error {
 	opts.ModelType = schema.NlpTextModel
 
 	if opts.TextColumn == "" {
-		return fmt.Errorf("text_column must be specified")
+		if docClassification {
+			opts.TextColumn = "text"
+		} else {
+			return fmt.Errorf("text_column must be specified")
+		}
 	}
 
 	if opts.LabelColumn == "" {
-		return fmt.Errorf("label_column must be specified")
+		if docClassification {
+			opts.LabelColumn = "labels"
+		} else {
+			return fmt.Errorf("label_column must be specified")
+		}
 	}
 
 	if opts.NTargetClasses <= 0 {
@@ -151,18 +169,18 @@ func (opts *NlpTextOptions) Validate() error {
 type NlpData struct {
 	ModelDataType string `json:"model_data_type"`
 
-	SupervisedFiles []FileInfo `json:"supervised_files"`
-	TestFiles       []FileInfo `json:"test_files"`
+	SupervisedFiles []TrainFile `json:"supervised_files"`
+	TestFiles       []TrainFile `json:"test_files"`
 }
 
 func (data *NlpData) Validate() error {
-	data.ModelDataType = nlpDataType
+	data.ModelDataType = NlpDataType
 
 	if data.SupervisedFiles == nil {
-		data.SupervisedFiles = []FileInfo{}
+		data.SupervisedFiles = []TrainFile{}
 	}
 	if data.TestFiles == nil {
-		data.TestFiles = []FileInfo{}
+		data.TestFiles = []TrainFile{}
 	}
 
 	if len(data.SupervisedFiles) == 0 {

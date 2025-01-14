@@ -14,6 +14,7 @@ try:
     from platform_common.logging import JobLogger, LogCode
     from platform_common.pydantic_models.training import ModelType, TrainConfig
     from train_job.models.classification_models import (
+        DocClassificationModel,
         TextClassificationModel,
         TokenClassificationModel,
     )
@@ -36,6 +37,9 @@ def get_model(config: TrainConfig, reporter: Reporter, logger: JobLogger):
     elif model_type == ModelType.NLP_TEXT:
         logger.info(f"Creating NLP Text model", code=LogCode.MODEL_INIT)
         return TextClassificationModel(config, reporter, logger)
+    elif model_type == ModelType.NLP_DOC:
+        logger.info(f"Creating NLP Doc model", code=LogCode.MODEL_INIT)
+        return DocClassificationModel(config, reporter, logger)
 
     message = f"Unsupported model type {model_type.value}"
     logger.error(message, code=LogCode.MODEL_INIT)

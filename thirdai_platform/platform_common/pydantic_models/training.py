@@ -13,6 +13,7 @@ class ModelType(str, Enum):
     NDB = "ndb"
     NLP_TOKEN = "nlp-token"
     NLP_TEXT = "nlp-text"
+    NLP_DOC = "nlp-doc"
     ENTERPRISE_SEARCH = "enterprise-search"
     KNOWLEDGE_EXTRACTION = "ke"
 
@@ -121,7 +122,7 @@ class FileInfo(BaseModel):
 class NDBOptions(BaseModel):
     model_type: Literal[ModelType.NDB] = ModelType.NDB
 
-    in_memory: bool = True
+    on_disk: bool = True
     advanced_search: bool = False
 
     class Config:

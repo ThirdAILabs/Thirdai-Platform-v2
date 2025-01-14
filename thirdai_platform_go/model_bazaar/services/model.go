@@ -476,17 +476,7 @@ func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	model := schema.Model{
-		Id:                uuid.New(),
-		Name:              params.ModelName,
-		Type:              params.ModelType,
-		PublishedDate:     time.Now(),
-		TrainStatus:       schema.NotStarted,
-		DeployStatus:      schema.NotStarted,
-		Access:            schema.Private,
-		DefaultPermission: schema.ReadPerm,
-		UserId:            user.Id,
-	}
+	model := createModel(uuid.New(), params.ModelName, params.ModelType, nil, user.Id)
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
 		err := checkForDuplicateModel(txn, model.Name, user.Id)

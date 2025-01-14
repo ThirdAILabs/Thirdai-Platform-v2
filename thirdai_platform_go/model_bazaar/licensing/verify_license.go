@@ -120,7 +120,7 @@ func (v *LicenseVerifier) Verify(currCpuUsage int) (LicensePayload, error) {
 		return LicensePayload{}, err
 	}
 
-	if expiry.Before(time.Now()) {
+	if expiry.Before(time.Now().UTC()) {
 		slog.Error("platform license is expired", "error", err)
 		return LicensePayload{}, fmt.Errorf("license is expired")
 	}

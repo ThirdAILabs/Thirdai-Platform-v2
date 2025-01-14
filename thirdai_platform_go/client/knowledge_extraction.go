@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"mime/multipart"
-	"thirdai_platform/model_bazaar/config"
 	"time"
 )
 
@@ -14,7 +13,7 @@ type KnowledgeExtractionClient struct {
 }
 
 type createReportParams struct {
-	Documents []config.FileInfo `json:"documents"`
+	Documents []FileInfo `json:"documents"`
 }
 
 type createReportResponse struct {
@@ -23,7 +22,7 @@ type createReportResponse struct {
 	} `json:"data"`
 }
 
-func (c *KnowledgeExtractionClient) CreateReport(files []config.FileInfo) (string, error) {
+func (c *KnowledgeExtractionClient) CreateReport(files []FileInfo) (string, error) {
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
 
@@ -38,6 +37,9 @@ func (c *KnowledgeExtractionClient) CreateReport(files []config.FileInfo) (strin
 	}
 	documents := createReportParams{Documents: files}
 	for i := range documents.Documents {
+		if documents.Documents[i].Location == "upload" {
+			documents.Documents[i].Location = "local" // This deployment job needs to be converted to use uploads
+		}
 		if documents.Documents[i].Options == nil {
 			documents.Documents[i].Options = map[string]interface{}{}
 		}

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/nomad"
@@ -62,6 +63,22 @@ func (s *TrainService) TrainNlpToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user, err := auth.UserFromContext(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.validateUploads(user.Id, options.Data.SupervisedFiles); err != nil {
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.validateUploads(user.Id, options.Data.TestFiles); err != nil {
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), http.StatusBadRequest)
+		return
+	}
+
 	s.basicTraining(w, r, basicTrainArgs{
 		modelName:    options.ModelName,
 		modelType:    schema.NlpTokenModel,
@@ -74,12 +91,13 @@ func (s *TrainService) TrainNlpToken(w http.ResponseWriter, r *http.Request) {
 }
 
 type NlpTextTrainRequest struct {
-	ModelName    string                 `json:"model_name"`
-	BaseModelId  *uuid.UUID             `json:"base_model_id"`
-	ModelOptions *config.NlpTextOptions `json:"model_options"`
-	Data         config.NlpData         `json:"data"`
-	TrainOptions config.NlpTrainOptions `json:"train_options"`
-	JobOptions   config.JobOptions      `json:"job_options"`
+	ModelName         string                 `json:"model_name"`
+	BaseModelId       *uuid.UUID             `json:"base_model_id"`
+	DocClassification bool                   `json:"doc_classification"`
+	ModelOptions      *config.NlpTextOptions `json:"model_options"`
+	Data              config.NlpData         `json:"data"`
+	TrainOptions      config.NlpTrainOptions `json:"train_options"`
+	JobOptions        config.JobOptions      `json:"job_options"`
 }
 
 func (opts *NlpTextTrainRequest) validate() error {
@@ -97,7 +115,7 @@ func (opts *NlpTextTrainRequest) validate() error {
 	}
 
 	if opts.ModelOptions != nil {
-		allErrors = append(allErrors, opts.ModelOptions.Validate())
+		allErrors = append(allErrors, opts.ModelOptions.Validate(opts.DocClassification))
 	}
 
 	allErrors = append(allErrors, opts.Data.Validate())
@@ -118,15 +136,134 @@ func (s *TrainService) TrainNlpText(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user, err := auth.UserFromContext(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.validateUploads(user.Id, options.Data.SupervisedFiles); err != nil {
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.validateUploads(user.Id, options.Data.TestFiles); err != nil {
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	var modelType string
+	if options.DocClassification {
+		modelType = schema.NlpDocModel
+	} else {
+		modelType = schema.NlpTextModel
+	}
+
 	s.basicTraining(w, r, basicTrainArgs{
 		modelName:    options.ModelName,
-		modelType:    schema.NlpTextModel,
+		modelType:    modelType,
 		baseModelId:  options.BaseModelId,
 		modelOptions: options.ModelOptions,
 		data:         options.Data,
 		trainOptions: options.TrainOptions,
 		jobOptions:   options.JobOptions,
 	})
+}
+
+type validateDocDirRequest struct {
+	Filenames []string `json:"filenames"`
+}
+
+type validateDocDirResponse struct {
+	IsValid    bool                `json:"is_valid"`
+	Msg        string              `json:"msg"`
+	Categories map[string][]string `json:"categories"`
+}
+
+// TODO(Anyone): this seems like it should just be done in the frontend, not sure why it's in the backend.
+func (s *TrainService) VerifyDocDir(w http.ResponseWriter, r *http.Request) {
+	var params validateDocDirRequest
+	if !utils.ParseRequestBody(w, r, &params) {
+		return
+	}
+
+	invalidFileTypes := []string{}
+	for _, filename := range params.Filenames {
+		ext := filepath.Ext(filename)
+		switch ext {
+		case ".pdf":
+			break
+		default:
+			invalidFileTypes = append(invalidFileTypes, filename)
+		}
+	}
+
+	if len(invalidFileTypes) > 0 {
+		res := validateDocDirResponse{
+			IsValid: false,
+			Msg:     fmt.Sprintf("Invalid file formats found: %s. Only .pdf files are supported.", strings.Join(invalidFileTypes, ", ")),
+		}
+		utils.WriteJsonResponse(w, res)
+		return
+	}
+
+	invalidFilePaths := []string{}
+	categories := map[string][]string{}
+	for _, filename := range params.Filenames {
+		root, category := filepath.Split(filepath.Dir(filename))
+		extraDir, _ := filepath.Split(root)
+		if root == "" || category == "" || extraDir != "" {
+			invalidFilePaths = append(invalidFilePaths, filename)
+		} else {
+			if _, ok := categories[category]; !ok {
+				categories[category] = []string{}
+			}
+			categories[category] = append(categories[category], filename)
+		}
+	}
+
+	if len(invalidFilePaths) > 0 {
+		res := validateDocDirResponse{
+			IsValid: false,
+			Msg:     fmt.Sprintf("Invalid directory structure detected. Files must be in the format 'root_directory/category/filename'. Invalid files: %s", strings.Join(invalidFilePaths, ", ")),
+		}
+		utils.WriteJsonResponse(w, res)
+		return
+	}
+
+	if len(categories) < 2 {
+		res := validateDocDirResponse{
+			IsValid:    false,
+			Msg:        "At least two distinct categories must be present",
+			Categories: categories,
+		}
+		utils.WriteJsonResponse(w, res)
+		return
+	}
+
+	insufficientCategories := []string{}
+	for category, examples := range categories {
+		if len(examples) < 10 {
+			insufficientCategories = append(insufficientCategories, category)
+		}
+	}
+
+	if len(insufficientCategories) > 0 {
+		res := validateDocDirResponse{
+			IsValid:    false,
+			Msg:        fmt.Sprintf("All categories must have at least 10 example documents. The following categories have fewer: %s", strings.Join(insufficientCategories, ", ")),
+			Categories: categories,
+		}
+		utils.WriteJsonResponse(w, res)
+		return
+	}
+
+	res := validateDocDirResponse{
+		IsValid:    true,
+		Msg:        "Directory structure is valid",
+		Categories: categories,
+	}
+	utils.WriteJsonResponse(w, res)
 }
 
 type NlpTrainDatagenRequest struct {
@@ -210,6 +347,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 
 	if err := params.validate(); err != nil {
 		http.Error(w, fmt.Sprintf("unable to start nlp-token training, found the following errors: %v", err), http.StatusBadRequest)
+		return
 	}
 
 	user, err := auth.UserFromContext(r)
@@ -241,11 +379,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 		modelOptions = params.modelOptions()
 	}
 
-	storageDir, data, err := s.getDatagenData(modelId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	storageDir, data := s.getDatagenData(modelId)
 
 	trainConfig := config.TrainConfig{
 		ModelBazaarDir:      s.storage.Location(),
@@ -326,6 +460,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 
 	if err := params.validate(); err != nil {
 		http.Error(w, fmt.Sprintf("unable to start nlp-token training, found the following errors: %v", err), http.StatusBadRequest)
+		return
 	}
 
 	user, err := auth.UserFromContext(r)
@@ -350,11 +485,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	storageDir, data, err := s.getDatagenData(modelId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	storageDir, data := s.getDatagenData(modelId)
 
 	trainConfig := config.TrainConfig{
 		ModelBazaarDir:      s.storage.Location(),
@@ -443,21 +574,20 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 	return s.saveModelAndStartJob(model, user, job)
 }
 
-func (s *TrainService) getDatagenData(modelId uuid.UUID) (string, config.NlpData, error) {
+func (s *TrainService) getDatagenData(modelId uuid.UUID) (string, config.NlpData) {
 	// TODO(Any): this is needed because the train/deployment jobs do not use the storage interface
 	// in the future once this is standardized it will not be needed
 	storageDir := filepath.Join(s.storage.Location(), storage.ModelPath(modelId), "generated_data")
 
 	data := config.NlpData{
-		SupervisedFiles: []config.FileInfo{
-			{Path: filepath.Join(storageDir, "train/train.csv"), Location: "local"},
+		ModelDataType: config.NlpDataType,
+		SupervisedFiles: []config.TrainFile{
+			{Path: filepath.Join(storageDir, "train/train.csv"), Location: "local", Options: map[string]interface{}{}},
 		},
-		TestFiles: []config.FileInfo{
-			{Path: filepath.Join(storageDir, "test/test.csv"), Location: "local"},
+		TestFiles: []config.TrainFile{
+			{Path: filepath.Join(storageDir, "test/test.csv"), Location: "local", Options: map[string]interface{}{}},
 		},
 	}
 
-	err := data.Validate()
-
-	return storageDir, data, err
+	return storageDir, data
 }

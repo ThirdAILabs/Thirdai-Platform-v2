@@ -350,16 +350,27 @@ class DocClassificationModel(TextClassificationModel):
             self.reporter.report_status(self.config.model_id, "in_progress")
             model = self.get_model()
 
+            text_col = model.text_dataset_config().text_column
+            label_col = model.text_dataset_config().label_column
+
             # Create temporary directory for CSV generation
             with tempfile.TemporaryDirectory() as temp_dir:
                 # Process documents and create CSV
                 train_csv_path = self._create_classification_csv(
-                    self.config.data.supervised_files, temp_dir, is_training=True
+                    self.config.data.supervised_files,
+                    text_col=text_col,
+                    label_col=label_col,
+                    temp_dir=temp_dir,
+                    is_training=True,
                 )
 
                 if self.config.data.test_files:
                     test_csv_path = self._create_classification_csv(
-                        self.config.data.test_files, temp_dir, is_training=False
+                        self.config.data.test_files,
+                        text_col=text_col,
+                        label_col=label_col,
+                        temp_dir=temp_dir,
+                        is_training=False,
                     )
                     test_files = [test_csv_path]
                 else:
@@ -372,7 +383,7 @@ class DocClassificationModel(TextClassificationModel):
                     epochs=self.train_options.epochs,
                     learning_rate=self.train_options.learning_rate,
                     batch_size=self.train_options.batch_size,
-                    metrics=self.train_options.metrics,
+                    metrics=["precision@1", "recall@1"],
                 )
                 training_time = time.time() - start_time
                 self.logger.info(f"Training completed in {training_time:.2f} seconds.")
@@ -403,7 +414,12 @@ class DocClassificationModel(TextClassificationModel):
             self.cleanup_temp_dirs()
 
     def _create_classification_csv(
-        self, files: List[FileInfo], temp_dir: str, is_training: bool = True
+        self,
+        files: List[FileInfo],
+        text_col: str,
+        label_col: str,
+        temp_dir: str,
+        is_training: bool = True,
     ) -> str:
         """Create classification CSV from document files."""
         self.logger.info(
@@ -415,6 +431,7 @@ class DocClassificationModel(TextClassificationModel):
 
         for file_info in files:
             try:
+                print(file_info.path)
                 file_path = file_info.path
                 # Extract category from parent directory name
                 category = os.path.basename(os.path.dirname(file_path))
@@ -432,7 +449,7 @@ class DocClassificationModel(TextClassificationModel):
                     words = text.split()[:word_limit]
                     truncated_text = " ".join(words)
 
-                processed_docs.append({"text": truncated_text, "label": category})
+                processed_docs.append({text_col: truncated_text, label_col: category})
             except Exception as e:
                 file_path_str = getattr(file_info, "path", "unknown file")
                 self.logger.error(f"Error processing file {file_path_str}: {str(e)}")
@@ -441,7 +458,7 @@ class DocClassificationModel(TextClassificationModel):
         # Create CSV file
         csv_path = os.path.join(temp_dir, "classification.csv")
         with open(csv_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=["text", "label"])
+            writer = csv.DictWriter(f, fieldnames=[text_col, label_col])
             writer.writeheader()
             writer.writerows(processed_docs)
 

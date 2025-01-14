@@ -117,9 +117,9 @@ func checkSources(ndb *client.NdbClient, t *testing.T, expectedSources []string)
 }
 
 func doInsert(ndb *client.NdbClient, t *testing.T, fileNames []string) {
-	files := make([]config.FileInfo, 0, len(fileNames))
+	files := make([]client.FileInfo, 0, len(fileNames))
 	for _, file := range fileNames {
-		files = append(files, config.FileInfo{Path: filepath.Join("./data/", file), Location: "local"})
+		files = append(files, client.FileInfo{Path: filepath.Join("./data/", file), Location: "upload"})
 	}
 
 	err := ndb.Insert(files)
@@ -146,32 +146,18 @@ func checkSave(ndb *client.NdbClient, t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = newNdb.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		err := newNdb.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = newNdb.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &newNdb.ModelClient, false)
 
 	checkQuery(newNdb, t, false)
 }
 
 func createAndDeployNdb(t *testing.T, autoscaling bool) *client.NdbClient {
-	client := getClient(t)
+	c := getClient(t)
 
-	ndb, err := client.TrainNdb(
+	ndb, err := c.TrainNdb(
 		randomName("ndb"),
-		[]config.FileInfo{{
-			Path: "./data/articles.csv", Location: "local",
+		[]client.FileInfo{{
+			Path: "./data/articles.csv", Location: "upload",
 		}},
 		nil,
 		config.JobOptions{AllocationMemory: 600},
@@ -185,22 +171,7 @@ func createAndDeployNdb(t *testing.T, autoscaling bool) *client.NdbClient {
 		t.Fatal(err)
 	}
 
-	err = ndb.Deploy(autoscaling)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Cleanup(func() {
-		err := ndb.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = ndb.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &ndb.ModelClient, autoscaling)
 
 	return ndb
 }
@@ -229,13 +200,13 @@ func TestNdbDevMode(t *testing.T) {
 }
 
 func TestNdbProdMode(t *testing.T) {
-	client := getClient(t)
+	c := getClient(t)
 
-	baseNdb, err := client.TrainNdb(
+	baseNdb, err := c.TrainNdb(
 		randomName("ndb"),
-		[]config.FileInfo{
-			{Path: "./data/articles.csv", Location: "local"},
-			{Path: "./data/supervised.csv", Location: "local"},
+		[]client.FileInfo{
+			{Path: "./data/articles.csv", Location: "upload"},
+			{Path: "./data/supervised.csv", Location: "upload"},
 		},
 		nil,
 		config.JobOptions{AllocationMemory: 600},
@@ -249,22 +220,7 @@ func TestNdbProdMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = baseNdb.Deploy(true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Cleanup(func() {
-		err := baseNdb.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = baseNdb.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &baseNdb.ModelClient, true)
 
 	checkQuery(baseNdb, t, true)
 
@@ -316,12 +272,12 @@ func TestNdbProdMode(t *testing.T) {
 }
 
 func TestNdbTrainingFromBaseModel(t *testing.T) {
-	client := getClient(t)
+	c := getClient(t)
 
-	ndb, err := client.TrainNdb(
+	ndb, err := c.TrainNdb(
 		randomName("ndb"),
-		[]config.FileInfo{{
-			Path: "./data/articles.csv", Location: "local",
+		[]client.FileInfo{{
+			Path: "./data/articles.csv", Location: "upload",
 		}},
 		nil,
 		config.JobOptions{AllocationMemory: 600},
@@ -335,14 +291,14 @@ func TestNdbTrainingFromBaseModel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ndb2, err := client.TrainNdbWithBaseModel(
+	ndb2, err := c.TrainNdbWithBaseModel(
 		randomName("ndb2"),
 		ndb,
-		[]config.FileInfo{{
-			Path: "./data/four_english_words.docx", Location: "local",
+		[]client.FileInfo{{
+			Path: "./data/four_english_words.docx", Location: "upload",
 		}},
-		[]config.FileInfo{{
-			Path: "./data/supervised.csv", Location: "local",
+		[]client.FileInfo{{
+			Path: "./data/supervised.csv", Location: "upload",
 			Options: map[string]interface{}{
 				"csv_query_column": "text",
 				"csv_id_column":    "labels",
@@ -359,22 +315,7 @@ func TestNdbTrainingFromBaseModel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ndb2.Deploy(true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Cleanup(func() {
-		err := ndb2.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = ndb2.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &ndb2.ModelClient, true)
 
 	if !strings.Contains(getResult(ndb2, t, "manufacturing faster chips").Text, "AMD And IBM Boosts Chip Performance") {
 		t.Fatal("incorrect document result")
@@ -393,14 +334,12 @@ func createNdbAndInsert(t *testing.T, autoscaling bool) (*client.NdbClient, []cl
 		t.Fatal(err)
 	}
 
-	err = ndb.Insert([]config.FileInfo{
-		{
-			Path:     "./data/articles.csv",
-			Location: "local",
-			SourceId: &oldSources[0].SourceId,
-			Options:  map[string]interface{}{"upsert": true},
-		},
-	})
+	err = ndb.Insert([]client.FileInfo{{
+		Path:     "./data/articles.csv",
+		Location: "upload",
+		SourceId: &oldSources[0].SourceId,
+		Options:  map[string]interface{}{"upsert": true},
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -448,21 +387,7 @@ func TestNdbUpsertProdMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = retrainedNdb.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		err := retrainedNdb.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	err = retrainedNdb.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModel(t, &retrainedNdb.ModelClient, false)
 
 	retrainedSources, err := retrainedNdb.Sources()
 	if err != nil {
@@ -481,8 +406,8 @@ func TestDeploymentName(t *testing.T) {
 	c := getClient(t)
 
 	model1, err := c.TrainNdb(
-		randomName("ndb1"), []config.FileInfo{{
-			Path: "./data/articles.csv", Location: "local",
+		randomName("ndb1"), []client.FileInfo{{
+			Path: "./data/articles.csv", Location: "upload",
 		}},
 		nil,
 		config.JobOptions{AllocationMemory: 600},
@@ -492,8 +417,8 @@ func TestDeploymentName(t *testing.T) {
 	}
 
 	model2, err := c.TrainNdb(
-		randomName("ndb2"), []config.FileInfo{{
-			Path: "./data/mutual_nda.pdf", Location: "local",
+		randomName("ndb2"), []client.FileInfo{{
+			Path: "./data/mutual_nda.pdf", Location: "upload",
 		}},
 		nil,
 		config.JobOptions{AllocationMemory: 600},
@@ -551,12 +476,12 @@ func TestDeploymentName(t *testing.T) {
 }
 
 func TestTrainErrorHandling(t *testing.T) {
-	client := getClient(t)
+	c := getClient(t)
 
-	ndb, err := client.TrainNdb(
+	ndb, err := c.TrainNdb(
 		randomName("ndb"),
-		[]config.FileInfo{{Path: "./utils.go", Location: "local"}},
-		[]config.FileInfo{{Path: "./data/malformed.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./utils.go", Location: "upload"}},
+		[]client.FileInfo{{Path: "./data/malformed.csv", Location: "upload"}},
 		config.JobOptions{AllocationMemory: 600},
 	)
 	if err != nil {

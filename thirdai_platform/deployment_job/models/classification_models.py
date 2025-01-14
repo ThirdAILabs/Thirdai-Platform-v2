@@ -51,7 +51,8 @@ class ClassificationModel(Model):
 class TextClassificationModel(ClassificationModel):
     def __init__(self, config: DeploymentConfig, logger: JobLogger):
         super().__init__(config=config, logger=logger)
-        self.num_classes = self.model.predict({"text": "test"}).shape[-1]
+        self.text_col = self.model.text_dataset_config().text_column
+        self.num_classes = self.model.predict({self.text_col: "test"}).shape[-1]
         self.logger.info(
             f"TextClassificationModel initialized with {self.num_classes} classes",
             code=LogCode.MODEL_INIT,
@@ -113,7 +114,7 @@ class TextClassificationModel(ClassificationModel):
     def predict(self, text: str, top_k: int, **kwargs):
         try:
             top_k = min(top_k, self.num_classes)
-            prediction = self.model.predict({"text": text}, top_k=top_k)
+            prediction = self.model.predict({self.text_col: text}, top_k=top_k)
             predicted_classes = [
                 {"class": self.model.class_name(class_id), "score": float(activation)}
                 for class_id, activation in zip(*prediction)

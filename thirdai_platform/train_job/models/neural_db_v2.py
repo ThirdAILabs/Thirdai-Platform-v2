@@ -56,14 +56,14 @@ class NeuralDBV2(Model):
             ndb_options = self.config.model_options
             splade = ndb_options.advanced_search
 
-            self.on_disk = not ndb_options.in_memory
+            self.on_disk = ndb_options.on_disk
 
             self.logger.info(
-                f"NDB options - advanced_search: {splade}, in_memory: {ndb_options.in_memory}"
+                f"NDB options - advanced_search: {splade}, on_disk: {ndb_options.on_disk}"
             )
 
             self.logger.info("Creating new NDBv2 model", code=LogCode.MODEL_INIT)
-            if not ndb_options.in_memory:
+            if ndb_options.on_disk:
                 self.db = ndbv2.NeuralDB(save_path=self.ndb_save_path(), splade=splade)
             else:
                 # For the in memory model we create the chunk store in memory
@@ -425,7 +425,7 @@ class NeuralDBV2(Model):
                 return os.stat(path).st_size
             return get_directory_size(path)
 
-        # TODO(Nicholas): update this calculation for in_memory=False
+        # TODO(Nicholas): update this calculation for on_disk=True
         size_in_memory = int(
             get_size(self.db.retriever_path(self.ndb_save_path())) * 1.5
             + get_size(self.db.chunk_store_path(self.ndb_save_path()))

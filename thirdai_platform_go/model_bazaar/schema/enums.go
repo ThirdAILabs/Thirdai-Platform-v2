@@ -53,6 +53,7 @@ const (
 	NdbModel            = "ndb"
 	NlpTokenModel       = "nlp-token"
 	NlpTextModel        = "nlp-text"
+	NlpDocModel         = "nlp-doc"
 	EnterpriseSearch    = "enterprise-search"
 	KnowledgeExtraction = "ke"
 )

@@ -19,7 +19,7 @@ func TestModelInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	model, err := client.trainNdb("test_model")
+	model, err := client.trainNdbDummyFile("test_model")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestPublicModelPermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	model, err := user1.trainNdb("model")
+	model, err := user1.trainNdbDummyFile("model")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestProtectedModelPermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	model, err := user1.trainNdb("model")
+	model, err := user1.trainNdbDummyFile("model")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,17 +207,17 @@ func TestListModels(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	model1, err := user1.trainNdb("model1")
+	model1, err := user1.trainNdbDummyFile("model1")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	model2, err := user2.trainNdb("model2")
+	model2, err := user2.trainNdbDummyFile("model2")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	model3, err := user3.trainNdb("model3")
+	model3, err := user3.trainNdbDummyFile("model3")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -291,7 +291,7 @@ func TestDeleteModel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	model, err := user1.trainNdb("model")
+	model, err := user1.trainNdbDummyFile("model")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -437,7 +437,7 @@ func TestModelWithDeps(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ndb, err := user.trainNdb("ndb-model")
+	ndb, err := user.trainNdbDummyFile("ndb-model")
 	if err != nil {
 		t.Fatal(err)
 	}

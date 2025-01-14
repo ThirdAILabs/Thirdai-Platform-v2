@@ -29,7 +29,7 @@ job "llm-cache-{{ model_id }}" {
         "traefik.http.routers.llm-cache-{{ model_id }}-http.rule=PathPrefix(`/{{ model_id }}/cache`)",
         "traefik.http.middlewares.llm-cache-{{ model_id }}-stripprefix.stripprefix.prefixes=/{{ model_id }}/cache",
         {% endif %}
-        "traefik.http.routers.llm-cache-{{ model_id }}-http.priority=10"
+        "traefik.http.routers.llm-cache-{{ model_id }}-http.priority=11"
       ]
     }
 

@@ -10,6 +10,17 @@ from client.bazaar import ModelBazaar
 from integration_tests.utils import doc_dir
 
 
+def wait_for_cache(cache_health_url, action):
+    for _ in range(20):
+        res = requests.get(cache_health_url)
+        if action == "start" and res.status_code == 200:
+            return
+        if action == "stop" and res.status_code != 200:
+            return
+        time.sleep(1)
+    raise ValueError("cache job not stopped in expected time")
+
+
 @pytest.mark.unit
 def test_llm_cache():
     base_url = "http://127.0.0.1:80/api/"
@@ -34,13 +45,13 @@ def test_llm_cache():
         }
 
     model_id = base_model.model_id
-    time.sleep(10)
 
     cache_health_url = f"http://127.0.0.1:80/{model_id}/cache/health"
-    response = requests.get(cache_health_url)
-    assert response.status_code == 200
 
-    model_bazaar_dir = os.getenv("SHARE_DIR")
+    wait_for_cache(cache_health_url, action="start")
+
+    # model_bazaar_dir = os.getenv("SHARE_DIR")
+    model_bazaar_dir = "/home/david/thirdai-platform-models"
     cache_file_path = os.path.join(
         model_bazaar_dir, "models", model_id, "llm_cache", "llm_cache.ndb"
     )
@@ -75,13 +86,10 @@ def test_llm_cache():
         model_bazaar_dir, "models", model_id, "llm_cache", "insertions", "*.jsonl"
     )
     matching_files = glob.glob(pattern)
-    assert len(matching_files) > 0
+    assert len(matching_files) == 1
 
     admin_client.undeploy(ndb_client)
-    time.sleep(10)  # we have this because we don't have status checks for undeploy
-
-    stopped_response = requests.get(cache_health_url)
-    assert stopped_response.status_code != 200
+    wait_for_cache(cache_health_url, action="stop")
 
     refresh_url = f"{base_url}train/refresh-llm-cache"
     refresh_response = requests.post(
@@ -90,6 +98,8 @@ def test_llm_cache():
         headers=auth_header(),
     )
     assert refresh_response.status_code == 200
+
+    # TODO wait for llm cache refresh
 
     pattern = os.path.join(
         model_bazaar_dir, "models", model_id, "llm_cache", "insertions", "*.jsonl"
@@ -101,12 +111,14 @@ def test_llm_cache():
         base_model.model_identifier, autoscaling_enabled=True
     )
 
+    wait_for_cache(cache_health_url, action="start")
+
     suggestions_response_after_restart = requests.get(
         suggestions_url,
         params={"query": "lol", "model_id": model_id},
         headers=auth_header(),
     )
     assert suggestions_response_after_restart.status_code == 200
-    assert len(suggestions_response.json()["suggestions"]) == 1
+    assert len(suggestions_response_after_restart.json()["suggestions"]) == 1
 
     admin_client.undeploy(ndb_client)

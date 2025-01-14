@@ -477,11 +477,7 @@ def test_deploy_ndb_prod_mode(tmp_dir, on_disk):
     config = create_config(tmp_dir=tmp_dir, autoscaling=True, on_disk=on_disk)
     router = NDBRouter(config, None, logger)
     old_model_path = os.path.join(
-        tmp_dir,
-        "host_dir",
-        "models",
-        f"{MODEL_ID}",
-        f"{old_deployment_id}"
+        tmp_dir, "host_dir", "models", f"{MODEL_ID}", f"{old_deployment_id}"
     )
 
     assert not os.path.exists(old_model_path)

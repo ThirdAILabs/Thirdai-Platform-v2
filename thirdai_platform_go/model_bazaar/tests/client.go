@@ -269,6 +269,30 @@ func (c *client) listModels() ([]services.ModelInfo, error) {
 	return res, err
 }
 
+func (c *client) listModelsWithWriteAccess() ([]services.ModelInfo, error) {
+	var res []services.ModelInfo
+	err := c.Get("/model/list-model-write-access").Do(&res)
+	return res, err
+}
+
+func (c *client) createAPIKey(modelIDs []string, name string, expiry string) (string, error) {
+	requestBody := map[string]interface{}{
+		"model_ids": modelIDs,
+		"name":      name,
+		"exp":       expiry,
+	}
+
+	var response struct {
+		ApiKey string `json:"api_key"`
+	}
+	err := c.Post("/model/create-api-key").Json(requestBody).Do(&response)
+	if err != nil {
+		return "", fmt.Errorf("failed to create API key: %w", err)
+	}
+
+	return response.ApiKey, nil
+}
+
 func (c *client) deleteModel(modelId string) error {
 	return c.Delete(fmt.Sprintf("/model/%v", modelId)).Do(nil)
 }

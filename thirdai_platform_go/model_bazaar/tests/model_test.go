@@ -517,3 +517,54 @@ func TestModelWithDeps(t *testing.T) {
 
 	checkStatus("complete")
 }
+
+func TestListModelWriteAccess(t *testing.T) {
+
+	env := setupTestEnv(t)
+
+	user1, err := env.newUser("abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ndb, err := user1.trainNdb("ndb-model")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	nlp, err := user1.trainNlpToken("nlp-token-model")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	es, err := user1.createEnterpriseSearch("search", ndb, nlp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	models, err := user1.listModelsWithWriteAccess()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(models) < 3 {
+		t.Fatalf("Expected 3 models, but got %d", len(models))
+	}
+
+	selectedModelIDs := []string{models[0].ModelId.String(), models[1].ModelId.String()}
+
+	apiKeyName := "test-api-key"
+	expiry := "2025-01-31T23:59:59Z"
+
+	apiKey, err := user1.createAPIKey(selectedModelIDs, apiKeyName, expiry)
+	if err != nil {
+		t.Fatalf("Failed to create API key: %v", err)
+	}
+
+	if apiKey == "" {
+		t.Fatal("Expected a valid API key, but got an empty string")
+	}
+
+	t.Logf("API Key created successfully: %s", apiKey)
+
+}

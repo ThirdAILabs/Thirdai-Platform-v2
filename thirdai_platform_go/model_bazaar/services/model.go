@@ -191,6 +191,8 @@ func (s *ModelService) ListModelInfo(user schema.User, withWritePermission bool)
 		err := schema.NewDbError("listing models", result.Error)
 		return infos, err
 	}
+	fmt.Println(result)
+	fmt.Println("Models: ", models)
 
 	for _, model := range models {
 		info, err := convertToModelInfo(model, s.db)
@@ -201,6 +203,8 @@ func (s *ModelService) ListModelInfo(user schema.User, withWritePermission bool)
 
 		if withWritePermission {
 			permission, err := auth.GetModelPermissions(model.Id, user, s.db)
+			fmt.Println("Model with permission", model.Id, permission)
+
 			if err != nil {
 				return infos, err
 			}
@@ -246,6 +250,7 @@ func (s *ModelService) ListModelWithWritePermission(w http.ResponseWriter, r *ht
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	fmt.Println("Infos: ", infos)
 
 	utils.WriteJsonResponse(w, infos)
 }

@@ -45,7 +45,7 @@ func TestCreateUserModelAPIKeyDeployAndQuery(t *testing.T) {
 	selectedModelIDs := []string{ndb.modelId.string()}
 
 	apiKeyName := "test-api-key"
-	expiry := "2025-01-31T23:59:59Z"
+	expiry := "2026-01-31T23:59:59Z"
 
 	apiKey, err := client.createAPIKey(selectedModelIDs, apiKeyName, expiry)
 	if err != nil {
@@ -84,6 +84,7 @@ func TestCreateUserModelAPIKeyDeployAndQuery(t *testing.T) {
 	}
 
 	expireApiKeyName := "expire-test-api-key"
+	// TODO(pratik): use relative time here
 	oldExpiry := "2025-01-00T23:59:59Z"
 
 	expiredApiKey, err := client.createAPIKey(selectedModelIDs, expireApiKeyName, oldExpiry)

@@ -554,7 +554,7 @@ func TestListModelWriteAccess(t *testing.T) {
 	selectedModelIDs := []string{models[0].ModelId.String(), models[1].ModelId.String()}
 
 	apiKeyName := "test-api-key"
-	expiry := "2025-01-31T23:59:59Z"
+	expiry := "2026-01-31T23:59:59Z"
 
 	apiKey, err := user1.createAPIKey(selectedModelIDs, apiKeyName, expiry)
 	if err != nil {

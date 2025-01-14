@@ -395,31 +395,9 @@ func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		model := createModel(newModelId, params.ModelName, baseModel.Type, &baseModel.Id, user.Id)
+		model := newModel(newModelId, params.ModelName, baseModel.Type, &baseModel.Id, user.Id)
 
-		model.Attributes = make([]schema.ModelAttribute, 0, len(baseModel.Attributes))
-		for _, attr := range baseModel.Attributes {
-			model.Attributes = append(model.Attributes, schema.ModelAttribute{
-				ModelId: newModelId,
-				Key:     attr.Key,
-				Value:   attr.Value,
-			})
-		}
-
-		model.Dependencies = make([]schema.ModelDependency, 0, len(baseModel.Dependencies))
-		for _, dep := range baseModel.Dependencies {
-			model.Dependencies = append(model.Dependencies, schema.ModelDependency{
-				ModelId:      newModelId,
-				DependencyId: dep.DependencyId,
-			})
-		}
-
-		result := txn.Create(&model)
-		if result.Error != nil {
-			return schema.NewDbError("creating model entry for saving", result.Error)
-		}
-
-		return nil
+		return saveModel(txn, s.storage, model, user)
 	})
 
 	if err != nil {

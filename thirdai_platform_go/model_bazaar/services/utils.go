@@ -349,7 +349,7 @@ func checkForDuplicateModel(db *gorm.DB, modelName string, userId uuid.UUID) err
 	return nil
 }
 
-func createModel(modelId uuid.UUID, modelName, modelType string, baseModelId *uuid.UUID, userId uuid.UUID) schema.Model {
+func newModel(modelId uuid.UUID, modelName, modelType string, baseModelId *uuid.UUID, userId uuid.UUID) schema.Model {
 	return schema.Model{
 		Id:                modelId,
 		Name:              modelName,
@@ -362,6 +362,66 @@ func createModel(modelId uuid.UUID, modelName, modelType string, baseModelId *uu
 		BaseModelId:       baseModelId,
 		UserId:            userId,
 	}
+}
+
+type ModelMetadata struct {
+	Type string
+}
+
+func saveModel(txn *gorm.DB, s storage.Storage, model schema.Model, user schema.User) error {
+	if err := checkForDuplicateModel(txn, model.Name, model.UserId); err != nil {
+		return err
+	}
+
+	if model.BaseModelId != nil {
+		baseModel, err := schema.GetModel(*model.BaseModelId, txn, true, true, false)
+		if err != nil {
+			return fmt.Errorf("error retrieving specified base model %v: %w", *model.BaseModelId, err)
+		}
+		if baseModel.Type != model.Type {
+			return fmt.Errorf("specified base model has type %v but new model has type %v", baseModel.Type, model.Type)
+		}
+
+		perm, err := auth.GetModelPermissions(baseModel.Id, user, txn)
+		if err != nil {
+			return fmt.Errorf("error verifying permissions for base model %v: %w", baseModel.Id, err)
+		}
+
+		if perm < auth.ReadPermission {
+			return fmt.Errorf("user %v does not have permission to access base model %v", model.UserId, baseModel.Id)
+		}
+
+		if baseModel.TrainStatus != schema.Complete {
+			return fmt.Errorf("base model training is not complete, training must be completed before use as base model")
+		}
+
+		if model.Attributes == nil && baseModel.Attributes != nil {
+			model.Attributes = make([]schema.ModelAttribute, len(baseModel.Attributes))
+			copy(model.Attributes, baseModel.Attributes)
+		}
+
+		if model.Dependencies == nil && baseModel.Dependencies != nil {
+			model.Dependencies = make([]schema.ModelDependency, len(baseModel.Dependencies))
+			copy(model.Dependencies, baseModel.Dependencies)
+		}
+	}
+
+	metadata := ModelMetadata{Type: model.Type}
+	buf := new(bytes.Buffer)
+	if err := json.NewEncoder(buf).Encode(metadata); err != nil {
+		return fmt.Errorf("error serializing model metadata: %w", err)
+	}
+
+	if err := s.Write(storage.ModelMetadataPath(model.Id), buf); err != nil {
+		return fmt.Errorf("error saving model metadata: %w", err)
+	}
+
+	result := txn.Create(&model)
+	if result.Error != nil {
+		return schema.NewDbError("creating model entry", result.Error)
+	}
+
+	return nil
 }
 
 func checkDiskUsage(storage storage.Storage) error {

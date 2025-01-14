@@ -31,6 +31,7 @@ class NeuralDBV2(Model):
                 self.config.model_bazaar_dir,
                 "models",
                 self.config.base_model_id,
+                "model",
                 "model.ndb",
             )
             self.logger.info(
@@ -83,7 +84,7 @@ class NeuralDBV2(Model):
         return os.path.join(self.model_dir, "train_retriever")
 
     def ndb_save_path(self):
-        return os.path.join(self.model_dir, "model.ndb")
+        return os.path.join(self.model_dir, "model", "model.ndb")
 
     def doc_save_path(self):
         return os.path.join(self.ndb_save_path(), "documents")

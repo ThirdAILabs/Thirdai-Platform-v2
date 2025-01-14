@@ -98,7 +98,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 		return
 	}
 
-	model := createModel(uuid.New(), args.modelName, args.modelType, args.baseModelId, user.Id)
+	model := newModel(uuid.New(), args.modelName, args.modelType, args.baseModelId, user.Id)
 
 	slog.Info("starting training", "model_type", args.modelType, "model_id", model.Id, "model_name", args.modelName)
 
@@ -161,43 +161,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 
 func (s *TrainService) saveModelAndStartJob(model schema.Model, user schema.User, job nomad.Job) error {
 	err := s.db.Transaction(func(txn *gorm.DB) error {
-		if model.BaseModelId != nil {
-			baseModel, err := schema.GetModel(*model.BaseModelId, txn, false, true, false)
-			if err != nil {
-				return fmt.Errorf("error retrieving specified base model %v: %w", *model.BaseModelId, err)
-			}
-			if baseModel.Type != model.Type {
-				return fmt.Errorf("specified base model has type %v but new model has type %v", baseModel.Type, model.Type)
-			}
-
-			perm, err := auth.GetModelPermissions(baseModel.Id, user, txn)
-			if err != nil {
-				return fmt.Errorf("error verifying permissions for base model %v: %w", baseModel.Id, err)
-			}
-
-			if perm < auth.ReadPermission {
-				return fmt.Errorf("user %v does not have permission to access base model %v", model.UserId, baseModel.Id)
-			}
-
-			if baseModel.TrainStatus != schema.Complete {
-				return fmt.Errorf("base model training is not complete, training must be completed before use as base model")
-			}
-
-			// TODO(Nicholas): Copy dependencies/attributes from base model
-		}
-
-		err := checkForDuplicateModel(txn, model.Name, model.UserId)
-		if err != nil {
-			slog.Info("unable to start training: duplicate model name", "model_id", model.Id, "model_name", model.Name)
-			return err
-		}
-
-		result := txn.Create(&model)
-		if result.Error != nil {
-			return schema.NewDbError("creating model entry", result.Error)
-		}
-
-		return nil
+		return saveModel(txn, s.storage, model, user)
 	})
 
 	if err != nil {

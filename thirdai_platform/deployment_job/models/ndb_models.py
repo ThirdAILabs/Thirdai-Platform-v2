@@ -52,10 +52,10 @@ class NDBModel(Model):
         """
         Returns the NDB model path for the given model ID.
         """
-        return self.get_model_dir(model_id) / "model.ndb"
+        return self.get_model_dir(model_id) / "model" / "model.ndb"
 
     def ndb_save_path(self):
-        return os.path.join(self.model_dir, "model.ndb")
+        return os.path.join(self.model_dir, "model", "model.ndb")
 
     def ndb_host_save_path(self):
         return os.path.join(self.host_model_dir, "model.ndb")

@@ -32,7 +32,7 @@ class ClassificationModel(Model):
 
     def get_udt_path(self, model_id: Optional[str] = None) -> str:
         model_id = model_id or self.config.model_id
-        udt_path = str(self.get_model_dir(model_id) / "model.udt")
+        udt_path = str(self.get_model_dir(model_id) / "model" / "model.udt")
         return udt_path
 
     def load(self):

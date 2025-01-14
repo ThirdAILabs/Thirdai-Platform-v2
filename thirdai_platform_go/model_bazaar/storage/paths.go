@@ -10,6 +10,10 @@ func ModelPath(modelId uuid.UUID) string {
 	return filepath.Join("models", modelId.String())
 }
 
+func ModelMetadataPath(modelId uuid.UUID) string {
+	return filepath.Join(ModelPath(modelId), "model", "metadata.json")
+}
+
 func DataPath(modelId uuid.UUID) string {
 	return filepath.Join("data", modelId.String())
 }

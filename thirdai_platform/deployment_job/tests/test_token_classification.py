@@ -63,7 +63,7 @@ def create_token_classification_model(tmp_dir: str):
     )
     model.add_ner_rule("EMAIL")
 
-    model_dir = os.path.join(tmp_dir, "models", MODEL_ID)
+    model_dir = os.path.join(tmp_dir, "models", MODEL_ID, "model")
     os.makedirs(model_dir, exist_ok=True)
 
     model_save_path = os.path.join(model_dir, "model.udt")

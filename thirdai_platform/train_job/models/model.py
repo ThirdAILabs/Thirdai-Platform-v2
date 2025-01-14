@@ -40,6 +40,8 @@ class Model(ABC):
         )
         self.model_dir.mkdir(parents=True, exist_ok=True)
 
+        (self.model_dir / "model").mkdir(exist_ok=True)
+
         self.logger.info(f"Model directory created at: {self.model_dir}")
 
         self.unsupervised_checkpoint_dir: Path = (

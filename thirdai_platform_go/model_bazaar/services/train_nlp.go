@@ -553,7 +553,7 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 		return err
 	}
 
-	model := createModel(trainConfig.ModelId, modelName, trainConfig.ModelType, trainConfig.BaseModelId, user.Id)
+	model := newModel(trainConfig.ModelId, modelName, trainConfig.ModelType, trainConfig.BaseModelId, user.Id)
 
 	job := nomad.DatagenTrainJob{
 		TrainJob: nomad.TrainJob{

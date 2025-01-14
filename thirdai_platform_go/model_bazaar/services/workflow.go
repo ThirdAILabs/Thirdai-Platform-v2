@@ -77,11 +77,6 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 	modelId := uuid.New()
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
-		err := checkForDuplicateModel(txn, params.ModelName, user.Id)
-		if err != nil {
-			return err
-		}
-
 		components := params.components()
 		deps := make([]schema.ModelDependency, 0, len(components))
 		// Each component is stored as an attribute, and then we have 2 additional hyperparameters
@@ -115,17 +110,12 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 			attrs = append(attrs, schema.ModelAttribute{ModelId: modelId, Key: "default_mode", Value: *params.DefaultMode})
 		}
 
-		model := createModel(modelId, params.ModelName, schema.EnterpriseSearch, nil, user.Id)
+		model := newModel(modelId, params.ModelName, schema.EnterpriseSearch, nil, user.Id)
 		model.TrainStatus = schema.Complete
 		model.Dependencies = deps
 		model.Attributes = attrs
 
-		result := txn.Create(&model)
-		if result.Error != nil {
-			return schema.NewDbError("create enterprise search model", result.Error)
-		}
-
-		return nil
+		return saveModel(txn, s.storage, model, user)
 	})
 
 	if err != nil {
@@ -279,12 +269,7 @@ func (s *WorkflowService) KnowledgeExtraction(w http.ResponseWriter, r *http.Req
 	modelId := uuid.New()
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
-		err := checkForDuplicateModel(txn, params.ModelName, user.Id)
-		if err != nil {
-			return err
-		}
-
-		model := createModel(modelId, params.ModelName, schema.KnowledgeExtraction, nil, user.Id)
+		model := newModel(modelId, params.ModelName, schema.KnowledgeExtraction, nil, user.Id)
 
 		model.Attributes = []schema.ModelAttribute{
 			{ModelId: modelId, Key: "llm_provider", Value: params.LlmProvider},
@@ -293,12 +278,7 @@ func (s *WorkflowService) KnowledgeExtraction(w http.ResponseWriter, r *http.Req
 			{ModelId: modelId, Key: "generate_answers", Value: strconv.FormatBool(*params.GenerateAnswers)},
 		}
 
-		result := txn.Create(&model)
-		if result.Error != nil {
-			return schema.NewDbError("create knowledge extraction model", result.Error)
-		}
-
-		return nil
+		return saveModel(txn, s.storage, model, user)
 	})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error creating knowledge extraction model: %v", err), http.StatusBadRequest)

@@ -54,7 +54,7 @@ class ClassificationModel(Model):
 
     @property
     def model_save_path(self) -> Path:
-        return self.model_dir / "model.udt"
+        return self.model_dir / "model" / "model.udt"
 
     @property
     def train_options(self) -> NlpTrainOptions:
@@ -162,7 +162,11 @@ class ClassificationModel(Model):
 
     def get_udt_path(self, model_id):
         udt_path = (
-            Path(self.config.model_bazaar_dir) / "models" / model_id / "model.udt"
+            Path(self.config.model_bazaar_dir)
+            / "models"
+            / model_id
+            / "model"
+            / "model.udt"
         )
         self.logger.debug(f"UDT path for model {model_id}: {udt_path}")
         return udt_path

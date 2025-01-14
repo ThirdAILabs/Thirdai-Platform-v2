@@ -355,20 +355,10 @@ func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	model := createModel(uuid.New(), params.ModelName, params.ModelType, nil, user.Id)
+	model := newModel(uuid.New(), params.ModelName, params.ModelType, nil, user.Id)
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
-		err := checkForDuplicateModel(txn, model.Name, user.Id)
-		if err != nil {
-			return err
-		}
-
-		result := txn.Create(&model)
-		if result.Error != nil {
-			return schema.NewDbError("creating new model for upload", result.Error)
-		}
-
-		return nil
+		return saveModel(txn, s.storage, model, user)
 	})
 
 	if err != nil {

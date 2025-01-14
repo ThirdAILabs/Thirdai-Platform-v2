@@ -145,7 +145,7 @@ def run_ndb_train_job(extra_supervised_files=[], on_disk=True):
 
     model.train()
 
-    return os.path.join(MODEL_BAZAAR_DIR, "models", "ndb_123", "model.ndb")
+    return os.path.join(MODEL_BAZAAR_DIR, "models", "ndb_123", "model", "model.ndb")
 
 
 @pytest.fixture()
@@ -232,7 +232,7 @@ def test_udt_text_train():
     model.train()
 
     bolt.UniversalDeepTransformer.load(
-        os.path.join(MODEL_BAZAAR_DIR, "models", "udt_123", "model.udt")
+        os.path.join(MODEL_BAZAAR_DIR, "models", "udt_123", "model", "model.udt")
     )
 
 
@@ -281,7 +281,9 @@ def test_udt_document_classification(doc_classification_files):
     model.train()
 
     # Verify model output
-    model_path = os.path.join(MODEL_BAZAAR_DIR, "models", "udt_123", "model.udt")
+    model_path = os.path.join(
+        MODEL_BAZAAR_DIR, "models", "udt_123", "model", "model.udt"
+    )
     assert os.path.exists(model_path)
     trained_model = bolt.UniversalDeepTransformer.load(model_path)
 
@@ -331,7 +333,7 @@ def test_udt_token_train(test_split):
     model.train()
 
     boltmodel = bolt.UniversalDeepTransformer.load(
-        os.path.join(MODEL_BAZAAR_DIR, "models", "udt_123", "model.udt")
+        os.path.join(MODEL_BAZAAR_DIR, "models", "udt_123", "model", "model.udt")
     )
 
     predictions = boltmodel.predict({"text": "shubh@gmail.com"})

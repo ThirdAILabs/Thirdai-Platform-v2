@@ -365,7 +365,8 @@ func newModel(modelId uuid.UUID, modelName, modelType string, baseModelId *uuid.
 }
 
 type ModelMetadata struct {
-	Type string
+	Type       string
+	Attributes map[string]string
 }
 
 func saveModel(txn *gorm.DB, s storage.Storage, model schema.Model, user schema.User) error {
@@ -396,17 +397,28 @@ func saveModel(txn *gorm.DB, s storage.Storage, model schema.Model, user schema.
 		}
 
 		if model.Attributes == nil && baseModel.Attributes != nil {
-			model.Attributes = make([]schema.ModelAttribute, len(baseModel.Attributes))
-			copy(model.Attributes, baseModel.Attributes)
+			model.Attributes = make([]schema.ModelAttribute, 0, len(baseModel.Attributes))
+			for _, attr := range baseModel.Attributes {
+				model.Attributes = append(model.Attributes, schema.ModelAttribute{
+					ModelId: model.Id,
+					Key:     attr.Key,
+					Value:   attr.Value,
+				})
+			}
 		}
 
 		if model.Dependencies == nil && baseModel.Dependencies != nil {
-			model.Dependencies = make([]schema.ModelDependency, len(baseModel.Dependencies))
-			copy(model.Dependencies, baseModel.Dependencies)
+			model.Dependencies = make([]schema.ModelDependency, 0, len(baseModel.Dependencies))
+			for _, dep := range baseModel.Dependencies {
+				model.Dependencies = append(model.Dependencies, schema.ModelDependency{
+					ModelId:      model.Id,
+					DependencyId: dep.DependencyId,
+				})
+			}
 		}
 	}
 
-	metadata := ModelMetadata{Type: model.Type}
+	metadata := ModelMetadata{Type: model.Type, Attributes: model.GetAttributes()}
 	buf := new(bytes.Buffer)
 	if err := json.NewEncoder(buf).Encode(metadata); err != nil {
 		return fmt.Errorf("error serializing model metadata: %w", err)

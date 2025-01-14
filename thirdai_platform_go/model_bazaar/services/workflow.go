@@ -241,7 +241,7 @@ func (s *WorkflowService) createQuestionDb(modelId uuid.UUID, questions []Questi
 		return fmt.Errorf("unable to open knowledge extraction metadata for copying to share: %w", err)
 	}
 
-	err = s.storage.Write(filepath.Join(storage.ModelPath(modelId), "knowledge.db"), file)
+	err = s.storage.Write(filepath.Join(storage.ModelPath(modelId), "model", "knowledge.db"), file)
 	if err != nil {
 		return fmt.Errorf("unable to copy knowledge extraction metadata to share: %w", err)
 	}

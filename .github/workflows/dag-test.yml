@@ -195,7 +195,7 @@ jobs:
       run: |
         source ${{ github.workspace }}/venv/bin/activate
         cd $GITHUB_WORKSPACE/thirdai_platform_go
-        go test ./integration_tests -v --run TestDeploymentName -timeout 2h
+        go test ./integration_tests -v -timeout 2h
 
     - name: Display Logs
       if: always()

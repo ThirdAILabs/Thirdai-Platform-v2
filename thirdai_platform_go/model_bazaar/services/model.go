@@ -2,6 +2,7 @@ package services
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -60,6 +61,8 @@ func (s *ModelService) Routes() chi.Router {
 		r.Get("/list", s.List)
 		r.Get("/list-model-write-access", s.ListModelWithWritePermission)
 		r.Get("/create-api-key", s.CreateAPIKey)
+		r.Get("/delete-api-key", s.DeleteAPIKey)
+		r.Get("/list-api-keys", s.ListUserAPIKeys)
 		r.With(checkSufficientStorage(s.storage)).Post("/upload", s.UploadStart)
 	})
 
@@ -326,6 +329,64 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJsonResponse(w, response)
+}
+
+func (s *ModelService) DeleteAPIKey(w http.ResponseWriter, r *http.Request) {
+	user, err := auth.UserFromContext(r)
+	if err != nil {
+		http.Error(w, "invalid or missing user", http.StatusUnauthorized)
+		return
+	}
+
+	prefix := chi.URLParam(r, "prefix")
+	if prefix == "" {
+		http.Error(w, "prefix is required", http.StatusBadRequest)
+		return
+	}
+
+	var apiKey schema.UserAPIKey
+	if err := s.db.Where("prefix = ?", prefix).First(&apiKey).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			http.Error(w, "API key not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "failed to retrieve API key", http.StatusInternalServerError)
+		return
+	}
+
+	if apiKey.CreatedBy != user.Id && !user.IsAdmin {
+		http.Error(w, "you do not own this key", http.StatusForbidden)
+		return
+	}
+
+	if err := s.db.Delete(&apiKey).Error; err != nil {
+		http.Error(w, "failed to delete API key", http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteSuccess(w)
+}
+
+func (s *ModelService) ListUserAPIKeys(w http.ResponseWriter, r *http.Request) {
+	user, err := auth.UserFromContext(r)
+	if err != nil {
+		http.Error(w, "Unauthorized: invalid or missing user", http.StatusUnauthorized)
+		return
+	}
+
+	var userAPIKeys []schema.UserAPIKey
+
+	dbQuery := s.db.Model(&schema.UserAPIKey{})
+	if !user.IsAdmin {
+		dbQuery = dbQuery.Where("created_by = ?", user.Id)
+	}
+
+	if err := dbQuery.Preload("Models").Find(&userAPIKeys).Error; err != nil {
+		http.Error(w, "failed to retrieve API keys", http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJsonResponse(w, userAPIKeys)
 }
 
 type ModelPermissions struct {

@@ -469,3 +469,18 @@ def test_deploy_ndb_prod_mode(tmp_dir, on_disk):
     check_log_lines(os.path.join(deployment_dir, "feedback"), 2)
     check_log_lines(os.path.join(deployment_dir, "insertions"), 1)
     check_log_lines(os.path.join(deployment_dir, "deletions"), 1)
+
+    global MODEL_ID
+    old_model_id = MODEL_ID
+    MODEL_ID = "zyx"
+
+    config = create_config(tmp_dir=tmp_dir, autoscaling=True, on_disk=on_disk)
+    router = NDBRouter(config, None, logger)
+    old_model_path = os.path.join(
+        tmp_dir,
+        "host_dir",
+        "models",
+        f"{old_model_id}",
+    )
+
+    assert not os.path.exists(old_model_path)

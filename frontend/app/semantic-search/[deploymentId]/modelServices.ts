@@ -653,7 +653,6 @@ export class ModelService {
     references: ReferenceInfo[],
     onNextWord: (str: string) => void,
     genAiProvider?: string,
-    workflowId?: string,
     onComplete?: (finalAnswer: string) => void,
     signal?: AbortSignal // <-- Add this parameter
   ) {
@@ -675,7 +674,7 @@ export class ModelService {
         }),
         key: apiKey,
         provider: genAiProvider,
-        workflow_id: workflowId,
+        model_id: this.getModelID(),
         cache_access_token: cache_access_token,
       };
 

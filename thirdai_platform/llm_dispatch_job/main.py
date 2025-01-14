@@ -126,7 +126,7 @@ async def generate(
     )
 
     logger.info(
-        f"Received request from workflow: '{generate_args.workflow_id}'. "
+        f"Received request from model: '{generate_args.model_id}'. "
         f"Starting generation with provider '{generate_args.provider.lower()}':",
     )
 
@@ -143,7 +143,7 @@ async def generate(
                 yield next_word
                 await asyncio.sleep(0)
             logger.info(
-                f"\nCompleted generation for workflow '{generate_args.workflow_id}'.",
+                f"\nCompleted generation for model '{generate_args.model_id}'.",
             )
         except Exception as e:
             logger.error(f"Error during generation: {e}")
@@ -157,15 +157,12 @@ async def generate(
                 generated_response,
                 generate_args.cache_access_token,
                 [ref.ref_id for ref in generate_args.references],
-                # TODO is this id the enterprise search or the underlying model id?
-                model_id=generate_args.workflow_id,
+                model_id=generate_args.model_id,
             )
 
     return StreamingResponse(generate_stream(), media_type="text/plain")
 
 
-# TODO avoid caching bad answers like "I cannot answer", use keyword detection for now
-# TODO if there's a deployment name we need to hit that endpoint instead of the /modelid endpoint
 async def insert_into_cache(
     original_query: str,
     generated_response: str,

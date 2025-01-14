@@ -19,7 +19,7 @@ class GenerateArgs(BaseModel):
     key: Optional[str] = None
     model: str = "gpt-4o-mini"
     provider: str = "openai"
-    workflow_id: Optional[str] = None
+    model_id: Optional[str] = None
 
     cache_access_token: Optional[str] = None
 

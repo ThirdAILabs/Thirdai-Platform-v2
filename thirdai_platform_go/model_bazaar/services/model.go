@@ -173,7 +173,7 @@ func (s *ModelService) ListModelInfo(user schema.User, withWritePermission bool)
 	} else {
 		userTeams, err := schema.GetUserTeamIds(user.Id, s.db)
 		if err != nil {
-			return infos, err
+			return nil, err
 		}
 		result = s.db.
 			Preload("Dependencies").
@@ -189,7 +189,7 @@ func (s *ModelService) ListModelInfo(user schema.User, withWritePermission bool)
 
 	if result.Error != nil {
 		err := schema.NewDbError("listing models", result.Error)
-		return infos, err
+		return nil, err
 	}
 	fmt.Println(result)
 	fmt.Println("Models: ", models)
@@ -225,13 +225,13 @@ func (s *ModelService) ListModelInfo(user schema.User, withWritePermission bool)
 func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	infos, err := s.ListModelInfo(user, false)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

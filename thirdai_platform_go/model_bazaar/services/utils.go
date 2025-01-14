@@ -404,16 +404,28 @@ func checkSufficientStorage(storage storage.Storage) func(http.Handler) http.Han
 }
 
 func GenerateApiKey(db *gorm.DB, prefix string) (string, string, error) {
-	if err := ensurePrefixIsUnique(db, prefix); err != nil {
-		return "", "", err
-	}
+	var secret string
+	var secretHash string
 
-	secret, err := generateRandomString(32)
+	// We are doing a transaction here, to make sure we don't have two keys with same prefix
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if err := ensurePrefixIsUnique(tx, prefix); err != nil {
+			return err
+		}
+
+		var err error
+		secret, err = generateRandomString(32)
+		if err != nil {
+			return err
+		}
+
+		secretHash = hashSecret(secret)
+
+		return nil
+	})
 	if err != nil {
 		return "", "", err
 	}
-
-	secretHash := hashSecret(secret)
 
 	fullKey := fmt.Sprintf("%s.%s", prefix, secret)
 	return fullKey, secretHash, nil
@@ -495,7 +507,7 @@ func validateApiKey(db *gorm.DB, r *http.Request) (bool, error) {
 		}
 	}
 
-	return true, nil
+	return false, nil
 }
 
 func eitherUserOrApiKeyAuthMiddleware(db *gorm.DB) func(http.Handler) http.Handler {

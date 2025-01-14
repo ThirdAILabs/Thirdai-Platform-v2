@@ -108,6 +108,7 @@ var ErrUnauthorized = errors.New("unauthorized")
 type client struct {
 	api       chi.Router
 	authToken string
+	apiKey    string
 	userId    string
 }
 
@@ -115,6 +116,9 @@ func (c *client) Get(endpoint string) *httpTestRequest {
 	r := newHttpTestRequest(c.api, "GET", endpoint)
 	if c.authToken != "" {
 		return r.Auth(c.authToken)
+	}
+	if c.apiKey != "" {
+		return r.Auth(c.apiKey)
 	}
 	return r
 }
@@ -124,6 +128,9 @@ func (c *client) Post(endpoint string) *httpTestRequest {
 	if c.authToken != "" {
 		return r.Auth(c.authToken)
 	}
+	if c.apiKey != "" {
+		return r.Auth(c.apiKey)
+	}
 	return r
 }
 
@@ -131,6 +138,9 @@ func (c *client) Delete(endpoint string) *httpTestRequest {
 	r := newHttpTestRequest(c.api, "DELETE", endpoint)
 	if c.authToken != "" {
 		return r.Auth(c.authToken)
+	}
+	if c.apiKey != "" {
+		return r.Auth(c.apiKey)
 	}
 	return r
 }

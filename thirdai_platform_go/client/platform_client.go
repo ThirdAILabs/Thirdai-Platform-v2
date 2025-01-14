@@ -48,8 +48,9 @@ func (c *PlatformClient) Login(email, password string) error {
 
 func (c *PlatformClient) UseApiKey(api_key string) error {
 
-	c.authToken = api_key
-	c.userId = api_key // We are only accessing it in tests
+	c.apiKey = api_key
+	c.authToken = ""
+	c.userId = ""
 	return nil
 }
 

@@ -80,7 +80,19 @@ func TestCreateUserModelAPIKeyDeployAndQuery(t *testing.T) {
 	// Now deploy nlp, which should fail beacause apiKey doesnot include the required Permission
 	err = nlp.Deploy(false)
 	if err == nil {
-		t.Fatal("should not deploy nlp model")
+		t.Fatal("expected an error because the API key doesnot allows the nlp model, but got none")
 	}
 
+	expireApiKeyName := "expire-test-api-key"
+	oldExpiry := "2025-01-00T23:59:59Z"
+
+	expiredApiKey, err := client.createAPIKey(selectedModelIDs, expireApiKeyName, oldExpiry)
+
+	client.UseApiKey(expiredApiKey)
+
+	// Now model client should use api key
+	err = ndb.Deploy(false)
+	if err == nil {
+		t.Fatal("expected an error because the API key is expired, but got none")
+	}
 }

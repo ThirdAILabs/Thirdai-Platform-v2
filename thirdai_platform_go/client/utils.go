@@ -14,6 +14,10 @@ import (
 	"time"
 )
 
+type loginInfo struct {
+	email, password string
+}
+
 type httpRequest struct {
 	method      string
 	baseUrl     string
@@ -22,6 +26,7 @@ type httpRequest struct {
 	queryParams map[string]string
 	json        interface{}
 	body        io.Reader
+	login       *loginInfo
 }
 
 func newHttpRequest(method, baseUrl, endpoint string) *httpRequest {
@@ -41,6 +46,11 @@ func (r *httpRequest) Header(key, value string) *httpRequest {
 		r.headers = make(map[string]string)
 	}
 	r.headers[key] = value
+	return r
+}
+
+func (r *httpRequest) Login(email, password string) *httpRequest {
+	r.login = &loginInfo{email: email, password: password}
 	return r
 }
 
@@ -90,6 +100,10 @@ func (r *httpRequest) Do(result interface{}) error {
 		for k, v := range r.headers {
 			req.Header.Add(k, v)
 		}
+	}
+
+	if r.login != nil {
+		req.SetBasicAuth(r.login.email, r.login.password)
 	}
 
 	if r.queryParams != nil {

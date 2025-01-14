@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/schema"
@@ -22,7 +23,8 @@ func (s *UserService) Routes() chi.Router {
 
 	r.Group(func(r chi.Router) {
 		r.Post("/signup", s.Signup)
-		r.Post("/login", s.LoginWithEmail)
+
+		r.Get("/login", s.LoginWithEmail)
 		r.Post("/login-with-token", s.LoginWithToken)
 	})
 
@@ -81,23 +83,21 @@ func (s *UserService) Signup(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJsonResponse(w, res)
 }
 
-type loginWithEmailRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 type loginResponse struct {
 	UserId      uuid.UUID `json:"user_id"`
 	AccessToken string    `json:"access_token"`
 }
 
 func (s *UserService) LoginWithEmail(w http.ResponseWriter, r *http.Request) {
-	var params loginWithEmailRequest
-	if !utils.ParseRequestBody(w, r, &params) {
+	slog.Info("Got to login")
+
+	email, password, ok := r.BasicAuth()
+	if !ok {
+		http.Error(w, "missing or invalid Authorization header", http.StatusUnauthorized)
 		return
 	}
 
-	login, err := s.userAuth.LoginWithEmail(params.Email, params.Password)
+	login, err := s.userAuth.LoginWithEmail(email, password)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("login failed: %v", err), http.StatusUnauthorized)
 		return

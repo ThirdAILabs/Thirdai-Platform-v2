@@ -32,10 +32,8 @@ func (c *PlatformClient) Signup(username, email, password string) error {
 }
 
 func (c *PlatformClient) Login(email, password string) error {
-	body := map[string]string{"email": email, "password": password}
-
 	var data map[string]string
-	err := c.Post("/api/v2/user/login").Json(body).Do(&data)
+	err := c.Get("/api/v2/user/login").Login(email, password).Do(&data)
 	if err != nil {
 		return err
 	}

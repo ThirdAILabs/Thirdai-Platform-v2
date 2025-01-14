@@ -26,6 +26,7 @@ type httpTestRequest struct {
 	headers  map[string]string
 	json     interface{}
 	body     io.Reader
+	login    *loginInfo
 }
 
 func newHttpTestRequest(api http.Handler, method, endpoint string) *httpTestRequest {
@@ -44,6 +45,11 @@ func (r *httpTestRequest) Header(key, value string) *httpTestRequest {
 		r.headers = make(map[string]string)
 	}
 	r.headers[key] = value
+	return r
+}
+
+func (r *httpTestRequest) Login(email, password string) *httpTestRequest {
+	r.login = &loginInfo{Email: email, Password: password}
 	return r
 }
 
@@ -77,6 +83,10 @@ func (r *httpTestRequest) Do(result interface{}) error {
 		for k, v := range r.headers {
 			req.Header.Add(k, v)
 		}
+	}
+
+	if r.login != nil {
+		req.SetBasicAuth(r.login.Email, r.login.Password)
 	}
 
 	w := httptest.NewRecorder()
@@ -155,7 +165,7 @@ func (c *client) signup(username, email, password string) (loginInfo, error) {
 
 func (c *client) login(login loginInfo) error {
 	var res map[string]string
-	err := c.Post("/user/login").Json(login).Do(&res)
+	err := c.Get("/user/login").Login(login.Email, login.Password).Do(&res)
 	if err != nil {
 		return err
 	}

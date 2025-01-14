@@ -58,6 +58,8 @@ func (s *ModelService) Routes() chi.Router {
 		r.Use(s.userAuth.AuthMiddleware()...)
 
 		r.Get("/list", s.List)
+		r.Get("/list-model-write-access", s.ListModelWithWritePermission)
+		r.Get("/create-api-key", s.CreateAPIKey)
 		r.With(checkSufficientStorage(s.storage)).Post("/upload", s.UploadStart)
 	})
 

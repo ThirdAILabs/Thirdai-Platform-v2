@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/nomad"
@@ -445,4 +446,77 @@ func ensurePrefixIsUnique(db *gorm.DB, prefix string) error {
 		return errors.New("prefix collision, please retry")
 	}
 	return nil
+}
+
+func validateApiKey(db *gorm.DB, r *http.Request) (bool, error) {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return false, nil
+	}
+
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return false, nil
+	}
+	fullKey := parts[1]
+
+	keyParts := strings.SplitN(fullKey, ".", 2)
+	if len(keyParts) != 2 {
+		return false, nil
+	}
+	prefix, secret := keyParts[0], keyParts[1]
+
+	var record schema.UserAPIKey
+	if err := db.Where("prefix = ?", prefix).First(&record).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	if !record.ExpiryTime.IsZero() && time.Now().After(record.ExpiryTime) {
+		return false, nil
+	}
+
+	hashed := hashSecret(secret)
+	if hashed != record.HashKey {
+		return false, nil
+	}
+
+	modelId, err := utils.URLParamUUID(r, "model_id")
+	if err != nil {
+		return false, err
+	}
+
+	for _, model := range record.Models {
+		if model.Id == modelId {
+			return true, nil
+		}
+	}
+
+	return true, nil
+}
+
+func eitherUserOrApiKeyAuthMiddleware(db *gorm.DB) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userUntyped := r.Context().Value("user")
+			if userUntyped != nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			ok, err := validateApiKey(db, r)
+			if err != nil {
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
+			if !ok {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }

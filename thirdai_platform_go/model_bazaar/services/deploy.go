@@ -41,6 +41,8 @@ func (s *DeployService) Routes() chi.Router {
 	r.Route("/{model_id}", func(r chi.Router) {
 		r.Use(s.userAuth.AuthMiddleware()...)
 
+		r.Use(eitherUserOrApiKeyAuthMiddleware(s.db))
+
 		r.Group(func(r chi.Router) {
 			r.Use(auth.ModelPermissionOnly(s.db, auth.OwnerPermission))
 

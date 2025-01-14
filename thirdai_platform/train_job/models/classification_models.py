@@ -429,7 +429,7 @@ class DocClassificationModel(TextClassificationModel):
         processed_docs = []
         categories = set()
 
-        for file_info in files:
+        for file_info in expand_cloud_buckets_and_directories(files):
             try:
                 print(file_info.path)
                 file_path = file_info.path

@@ -277,9 +277,9 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name, err := auth.ValueFromContext(r, "name")
+	prefix, err := auth.ValueFromContext(r, "prefix")
 	if err != nil {
-		http.Error(w, "failed to name of the key", http.StatusInternalServerError)
+		http.Error(w, "failed to prefix of the key", http.StatusInternalServerError)
 		return
 	}
 
@@ -302,7 +302,7 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiKey, hashKey, err := GenerateApiKey(s.db, name)
+	apiKey, hashKey, err := GenerateApiKey(s.db, prefix)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -311,7 +311,7 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	newAPIKey := schema.UserAPIKey{
 		Id:            uuid.New(),
 		HashKey:       hashKey,
-		Prefix:        name,
+		Prefix:        prefix,
 		Models:        models,
 		GeneratedTime: time.Now(),
 		ExpiryTime:    unixTime,

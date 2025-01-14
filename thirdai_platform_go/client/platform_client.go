@@ -493,7 +493,7 @@ func (c *PlatformClient) LocalBackups() ([]string, error) {
 func (c *PlatformClient) createAPIKey(modelIDs []string, name string, expiry string) (string, error) {
 	requestBody := map[string]interface{}{
 		"model_ids": modelIDs,
-		"name":      name,
+		"prefix":    name,
 		"exp":       expiry,
 	}
 

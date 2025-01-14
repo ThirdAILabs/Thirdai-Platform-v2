@@ -120,7 +120,7 @@ func listLogData[T any](dir string, s storage.Storage) ([]T, error) {
 }
 
 type ndbInsertionLog struct {
-	Documents []config.FileInfo `json:"documents"`
+	Documents []config.TrainFile `json:"documents"`
 }
 
 type ndbDeletionLog struct {
@@ -131,8 +131,9 @@ func (s *TrainService) getNdbRetrainingData(baseModelId uuid.UUID) (config.NDBDa
 	deploymentDir := filepath.Join(storage.ModelPath(baseModelId), "deployments/data")
 
 	data := config.NDBData{
-		UnsupervisedFiles: []config.FileInfo{},
-		SupervisedFiles: []config.FileInfo{
+		ModelDataType:     config.NdbDataType,
+		UnsupervisedFiles: []config.TrainFile{},
+		SupervisedFiles: []config.TrainFile{
 			// TODO(Any): this is needed because the train/deployment jobs do not use the storage interface
 			// in the future once this is standardized it will not be needed
 			{Path: filepath.Join(s.storage.Location(), deploymentDir, "feedback"), Location: config.FileLocLocal, Options: map[string]interface{}{}},
@@ -193,11 +194,6 @@ func (s *TrainService) NdbRetrain(w http.ResponseWriter, r *http.Request) {
 	data, err := s.getNdbRetrainingData(options.BaseModelId)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error collecting retraining data: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	if err := data.Validate(); err != nil {
-		http.Error(w, fmt.Sprintf("data validation failed for ndb retrainin: %v", err), http.StatusBadRequest)
 		return
 	}
 

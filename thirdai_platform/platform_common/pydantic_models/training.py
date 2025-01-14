@@ -122,7 +122,7 @@ class FileInfo(BaseModel):
 class NDBOptions(BaseModel):
     model_type: Literal[ModelType.NDB] = ModelType.NDB
 
-    in_memory: bool = True
+    on_disk: bool = True
     advanced_search: bool = False
 
     class Config:

@@ -22,8 +22,8 @@ func TestEnterpriseSearchWithGuardrail(t *testing.T) {
 
 	ndb, err := c.TrainNdb(
 		randomName("ndb"),
-		[]config.FileInfo{{
-			Path: "./data/articles.csv", Location: "local",
+		[]client.FileInfo{{
+			Path: "./data/articles.csv", Location: "upload",
 		}},
 		nil,
 		config.JobOptions{AllocationMemory: 600},

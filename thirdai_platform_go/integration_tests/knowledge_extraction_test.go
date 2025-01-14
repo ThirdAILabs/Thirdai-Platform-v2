@@ -3,14 +3,14 @@ package integrationtests
 import (
 	"strings"
 	"testing"
-	"thirdai_platform/model_bazaar/config"
+	"thirdai_platform/client"
 	"time"
 )
 
 func TestKnowledgeExtraction(t *testing.T) {
 	c := getClient(t)
 
-	client, err := c.CreateKnowledgeExtractionWorkflow(randomName("knowledge-extraction"), []string{
+	ke, err := c.CreateKnowledgeExtractionWorkflow(randomName("knowledge-extraction"), []string{
 		"net revenue of apple",
 		"iphone sales in 2021 (in billion)",
 		"a question that should be deleted",
@@ -21,14 +21,14 @@ func TestKnowledgeExtraction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	deployModel(t, &client.ModelClient, false)
+	deployModel(t, &ke.ModelClient, false)
 
-	err = client.AddQuestion("what were the EPS in 2022")
+	err = ke.AddQuestion("what were the EPS in 2022")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	questions, err := client.ListQuestions()
+	questions, err := ke.ListQuestions()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,29 +39,29 @@ func TestKnowledgeExtraction(t *testing.T) {
 
 	for _, q := range questions {
 		if strings.Contains(q.QuestionText, "EPS") {
-			err := client.AddKeywords(q.QuestionId, []string{"earnings", "per", "share"})
+			err := ke.AddKeywords(q.QuestionId, []string{"earnings", "per", "share"})
 			if err != nil {
 				t.Fatal(err)
 			}
 		}
 		if strings.Contains(q.QuestionText, "deleted") {
-			err := client.DeleteQuestion(q.QuestionId)
+			err := ke.DeleteQuestion(q.QuestionId)
 			if err != nil {
 				t.Fatal(err)
 			}
 		}
 	}
 
-	reportId, err := client.CreateReport([]config.FileInfo{
+	reportId, err := ke.CreateReport([]client.FileInfo{
 		{Path: "./data/apple-10k.pdf",
-			Location: "local",
+			Location: "upload",
 		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	reports, err := client.ListReports()
+	reports, err := ke.ListReports()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestKnowledgeExtraction(t *testing.T) {
 		t.Fatalf("incorrect reports returned: %v", reports)
 	}
 
-	report, err := client.AwaitReport(reportId, 200*time.Second)
+	report, err := ke.AwaitReport(reportId, 200*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,21 +99,21 @@ func TestKnowledgeExtraction(t *testing.T) {
 		}
 	}
 
-	err = client.DeleteReport(reportId)
+	err = ke.DeleteReport(reportId)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = client.GetReport(reportId)
+	_, err = ke.GetReport(reportId)
 	if err == nil || !strings.Contains(err.Error(), "status 404") {
 		t.Fatal("report should return 404")
 	}
 
-	badReportId, err := client.CreateReport([]config.FileInfo{
-		{Path: "./utils.go", Location: "local"},
+	badReportId, err := ke.CreateReport([]client.FileInfo{
+		{Path: "./utils.go", Location: "upload"},
 	})
 
-	badReport, err := client.AwaitReport(badReportId, 20*time.Second)
+	badReport, err := ke.AwaitReport(badReportId, 20*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}

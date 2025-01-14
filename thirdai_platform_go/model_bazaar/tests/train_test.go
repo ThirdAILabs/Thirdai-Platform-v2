@@ -189,7 +189,7 @@ func TestUseUploadInTrain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = user1.trainNdb("bad-upload", config.FileInfo{Location: "upload", Path: uuid.NewString()})
+	_, err = user1.trainNdb("bad-upload", config.TrainFile{Location: "upload", Path: uuid.NewString()})
 	if err == nil || !strings.Contains(err.Error(), "does not exist") {
 		t.Fatal("upload should not exist")
 	}
@@ -201,12 +201,12 @@ func TestUseUploadInTrain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = user2.trainNdb("bad-upload", config.FileInfo{Location: "upload", Path: uploadRes["upload_id"]})
+	_, err = user2.trainNdb("bad-upload", config.TrainFile{Location: "upload", Path: uploadRes["upload_id"]})
 	if err == nil || !strings.Contains(err.Error(), "does not have permission to access upload") {
 		t.Fatal("user cannot access another user's upload")
 	}
 
-	_, err = user1.trainNdb("bad-upload", config.FileInfo{Location: "upload", Path: uploadRes["upload_id"]})
+	_, err = user1.trainNdb("bad-upload", config.TrainFile{Location: "upload", Path: uploadRes["upload_id"]})
 	if err != nil {
 		t.Fatal(err)
 	}

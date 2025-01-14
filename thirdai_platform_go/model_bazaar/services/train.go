@@ -316,7 +316,7 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJsonResponse(w, map[string]uuid.UUID{"upload_id": uploadId})
 }
 
-func (s *TrainService) validateUploads(userId uuid.UUID, files []config.FileInfo) error {
+func (s *TrainService) validateUploads(userId uuid.UUID, files []config.TrainFile) error {
 	for i, file := range files {
 		if file.Location == config.FileLocUpload {
 			uploadId, err := uuid.Parse(file.Path)
@@ -337,8 +337,8 @@ func (s *TrainService) validateUploads(userId uuid.UUID, files []config.FileInfo
 				return fmt.Errorf("user %v does not have permission to access upload %v", userId, uploadId)
 			}
 
-			files[i].Path = storage.UploadPath(uploadId)
 			files[i].Location = config.FileLocLocal
+			files[i].Path = filepath.Join(s.storage.Location(), storage.UploadPath(uploadId))
 		}
 	}
 

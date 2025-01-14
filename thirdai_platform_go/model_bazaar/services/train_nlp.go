@@ -379,11 +379,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 		modelOptions = params.modelOptions()
 	}
 
-	storageDir, data, err := s.getDatagenData(modelId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	storageDir, data := s.getDatagenData(modelId)
 
 	trainConfig := config.TrainConfig{
 		ModelBazaarDir:      s.storage.Location(),
@@ -489,11 +485,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	storageDir, data, err := s.getDatagenData(modelId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	storageDir, data := s.getDatagenData(modelId)
 
 	trainConfig := config.TrainConfig{
 		ModelBazaarDir:      s.storage.Location(),
@@ -582,21 +574,20 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 	return s.saveModelAndStartJob(model, user, job)
 }
 
-func (s *TrainService) getDatagenData(modelId uuid.UUID) (string, config.NlpData, error) {
+func (s *TrainService) getDatagenData(modelId uuid.UUID) (string, config.NlpData) {
 	// TODO(Any): this is needed because the train/deployment jobs do not use the storage interface
 	// in the future once this is standardized it will not be needed
 	storageDir := filepath.Join(s.storage.Location(), storage.ModelPath(modelId), "generated_data")
 
 	data := config.NlpData{
-		SupervisedFiles: []config.FileInfo{
-			{Path: filepath.Join(storageDir, "train/train.csv"), Location: "local"},
+		ModelDataType: config.NlpDataType,
+		SupervisedFiles: []config.TrainFile{
+			{Path: filepath.Join(storageDir, "train/train.csv"), Location: "local", Options: map[string]interface{}{}},
 		},
-		TestFiles: []config.FileInfo{
-			{Path: filepath.Join(storageDir, "test/test.csv"), Location: "local"},
+		TestFiles: []config.TrainFile{
+			{Path: filepath.Join(storageDir, "test/test.csv"), Location: "local", Options: map[string]interface{}{}},
 		},
 	}
 
-	err := data.Validate()
-
-	return storageDir, data, err
+	return storageDir, data
 }

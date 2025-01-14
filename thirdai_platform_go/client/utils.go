@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"thirdai_platform/model_bazaar/config"
 	"time"
 )
 
@@ -160,9 +159,9 @@ func (c *baseClient) Delete(endpoint string) *httpRequest {
 	return r
 }
 
-func addFilesToMultipart(writer *multipart.Writer, files []config.FileInfo) error {
+func addFilesToMultipart(writer *multipart.Writer, files []FileInfo) error {
 	for _, fileInfo := range files {
-		if fileInfo.Location != "local" {
+		if fileInfo.Location != "upload" {
 			continue
 		}
 		part, err := writer.CreateFormFile("files", filepath.Base(fileInfo.Path))
@@ -183,29 +182,6 @@ func addFilesToMultipart(writer *multipart.Writer, files []config.FileInfo) erro
 	}
 
 	return nil
-}
-
-func updateLocalFilePrefixes(files []config.FileInfo, prefix string) []config.FileInfo {
-	newFiles := make([]config.FileInfo, 0, len(files))
-
-	for _, file := range files {
-		var newPath string
-		if file.Location == "local" {
-			newPath = filepath.Join(prefix, filepath.Base(file.Path))
-		} else {
-			newPath = file.Path
-		}
-
-		newFiles = append(newFiles, config.FileInfo{
-			Path:     newPath,
-			Location: file.Location,
-			SourceId: file.SourceId,
-			Options:  file.Options,
-			Metadata: file.Metadata,
-		})
-	}
-
-	return newFiles
 }
 
 type wrappedData[T any] struct {

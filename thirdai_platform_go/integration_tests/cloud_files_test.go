@@ -3,6 +3,7 @@ package integrationtests
 import (
 	"net/http"
 	"testing"
+	"thirdai_platform/client"
 	"thirdai_platform/model_bazaar/config"
 	"time"
 )
@@ -29,7 +30,7 @@ func verifyNdbWorksWithFile(t *testing.T, url, provider, query string) {
 	c := getClient(t)
 
 	ndb, err := c.TrainNdb(
-		randomName(provider), []config.FileInfo{{Path: url, Location: provider}}, nil, config.JobOptions{},
+		randomName(provider), []client.FileInfo{{Path: url, Location: provider}}, nil, config.JobOptions{},
 	)
 	if err != nil {
 		t.Fatal(err)

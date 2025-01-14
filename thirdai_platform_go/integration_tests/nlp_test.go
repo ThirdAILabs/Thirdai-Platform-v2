@@ -2,17 +2,18 @@ package integrationtests
 
 import (
 	"testing"
+	"thirdai_platform/client"
 	"thirdai_platform/model_bazaar/config"
 	"time"
 )
 
 func TestNlpTokenSupervised(t *testing.T) {
-	client := getClient(t)
+	c := getClient(t)
 
-	model, err := client.TrainNlpToken(
+	model, err := c.TrainNlpToken(
 		randomName("nlp-token"),
 		[]string{"EMAIL", "NAME"},
-		[]config.FileInfo{{Path: "./data/ner.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./data/ner.csv", Location: "upload"}},
 		config.NlpTrainOptions{Epochs: 10},
 	)
 	if err != nil {
@@ -33,12 +34,12 @@ func TestNlpTokenSupervised(t *testing.T) {
 }
 
 func TestNlpTextSupervised(t *testing.T) {
-	client := getClient(t)
+	c := getClient(t)
 
-	model, err := client.TrainNlpText(
+	model, err := c.TrainNlpText(
 		randomName("nlp-text"),
 		3,
-		[]config.FileInfo{{Path: "./data/supervised.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./data/supervised.csv", Location: "upload"}},
 		config.NlpTrainOptions{Epochs: 10},
 	)
 	if err != nil {
@@ -152,12 +153,12 @@ func TestNlpTextDatagen(t *testing.T) {
 }
 
 func TestNlpTokenRetrain(t *testing.T) {
-	client := getClient(t)
+	c := getClient(t)
 
-	model, err := client.TrainNlpToken(
+	model, err := c.TrainNlpToken(
 		randomName("nlp-token"),
 		[]string{"EMAIL", "NAME"},
-		[]config.FileInfo{{Path: "./data/ner.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./data/ner.csv", Location: "upload"}},
 		config.NlpTrainOptions{Epochs: 10},
 	)
 	if err != nil {
@@ -209,12 +210,12 @@ func TestNlpTokenRetrain(t *testing.T) {
 }
 
 func TestNlpTokenTrainingFromBaseModel(t *testing.T) {
-	client := getClient(t)
+	c := getClient(t)
 
-	nlp, err := client.TrainNlpToken(
+	nlp, err := c.TrainNlpToken(
 		randomName("nlp"),
 		[]string{"EMAIL", "NAME"},
-		[]config.FileInfo{{Path: "./data/ner.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./data/ner.csv", Location: "upload"}},
 		config.NlpTrainOptions{Epochs: 10},
 	)
 	if err != nil {
@@ -226,10 +227,10 @@ func TestNlpTokenTrainingFromBaseModel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	nlp2, err := client.TrainNlpTokenWithBaseModel(
+	nlp2, err := c.TrainNlpTokenWithBaseModel(
 		randomName("nlp2"),
 		nlp,
-		[]config.FileInfo{{Path: "./data/ner.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./data/ner.csv", Location: "upload"}},
 		config.NlpTrainOptions{},
 	)
 
@@ -240,12 +241,12 @@ func TestNlpTokenTrainingFromBaseModel(t *testing.T) {
 }
 
 func TestNlpTextTrainingFromBaseModel(t *testing.T) {
-	client := getClient(t)
+	c := getClient(t)
 
-	nlp, err := client.TrainNlpText(
+	nlp, err := c.TrainNlpText(
 		randomName("nlp"),
 		3,
-		[]config.FileInfo{{Path: "./data/supervised.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./data/supervised.csv", Location: "upload"}},
 		config.NlpTrainOptions{Epochs: 10},
 	)
 	if err != nil {
@@ -257,10 +258,10 @@ func TestNlpTextTrainingFromBaseModel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	nlp2, err := client.TrainNlpTextWithBaseModel(
+	nlp2, err := c.TrainNlpTextWithBaseModel(
 		randomName("nlp2"),
 		nlp,
-		[]config.FileInfo{{Path: "./data/supervised.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./data/supervised.csv", Location: "upload"}},
 		config.NlpTrainOptions{},
 	)
 

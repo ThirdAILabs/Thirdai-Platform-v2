@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"mime/multipart"
-	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/services"
 
 	"github.com/google/uuid"
@@ -46,10 +45,10 @@ func (c *NdbClient) Search(query string, topk int) ([]NdbSearchResult, error) {
 }
 
 type insertParams struct {
-	Documents []config.FileInfo `json:"documents"`
+	Documents []FileInfo `json:"documents"`
 }
 
-func (c *NdbClient) Insert(files []config.FileInfo) error {
+func (c *NdbClient) Insert(files []FileInfo) error {
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
 
@@ -63,8 +62,12 @@ func (c *NdbClient) Insert(files []config.FileInfo) error {
 		return fmt.Errorf("error creating request part: %w", err)
 	}
 
-	params := insertParams{Documents: updateLocalFilePrefixes(files, "")}
+	params := insertParams{Documents: files}
 	for i := range params.Documents {
+		if params.Documents[i].Location == "upload" {
+			// NDB deployment doesn't support upload yet
+			params.Documents[i].Location = "local"
+		}
 		if params.Documents[i].Options == nil {
 			params.Documents[i].Options = map[string]interface{}{}
 		}

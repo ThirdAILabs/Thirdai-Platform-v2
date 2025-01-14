@@ -27,7 +27,7 @@ Notes:
     "unsupervised_files": [
       {
         "path": "/path/to/file.pdf",
-        "location": "local",
+        "location": "s3",
       }
     ],
     "supervised_files": [],
@@ -106,13 +106,13 @@ Notes:
     "supervised_files": [
       {
         "path": "/path/to/train.csv",
-        "location": "local",
+        "location": "s3",
       }
     ],
     "test_files": [
       {
         "path": "/path/to/test.csv",
-        "location": "local"
+        "location": "s3"
       }
     ]
   },
@@ -146,13 +146,15 @@ __Example Request__:
 
 Notes:
 * `base_model_id` is optional, indicates a base model to start from.
-* In `model_options`, `text_column`, `label_column`, and `n_target_classes` must be specfied. Other args are optional and have defaults.
+* Arg `doc_classification` defaults to false.
+* In `model_options`, `text_column`, `label_column`, and `n_target_classes` must be specfied. Other args are optional and have defaults. Unless `doc_classification` is true, then only `n_target_classes` is required.
 * `test_files` is optional in data fields.
 * All fields within `train_options` are optional and have defaults.
 * All fields within `job_options` are optional and have defaults.
 ```json
 {
   "model_name": "my-model",
+  "doc_classification": false,
   "base_model_id": null,
   "model_options": {
     "text_column": "source",
@@ -322,7 +324,7 @@ __Example Response__:
 | ------ | ---- | ------------- | ----------  |
 | `POST` | `/api/v2/train/upload-data` | Yes | None |
 
-Accepts a multipart request containing multiple files to upload for training. Returns a path to the files that can be provided to a train endpoint to train on the files. For example if `file.pdf` was uploaded then that file can be specified by `{artifact_path}/file.pdf`. Or the plain artifact path can be passed to indicate all the files should be trained on.
+Accepts a multipart request containing multiple files to upload for training. Returns an upload uuid that can be provided to a train endpoint to train on the files. For example if the upload id is `abc` then a user could pass `{"location": "upload", "path": "abc"}` to train on the file(s) in the upload. Note that only the user who created the upload can use that upload in training.
 
 __Example Request__: 
 ```
@@ -331,7 +333,7 @@ A multipart request containing the files.
 __Example Response__:
 ```json
 {
-  "artifact_path": "/path/to/files"
+  "upload_id": "uuid"
 }
 ```
 

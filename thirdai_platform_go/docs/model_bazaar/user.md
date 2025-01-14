@@ -27,16 +27,12 @@ __Example Response__:
 
 | Method | Path | Auth Required | Permissions |
 | ------ | ---- | ------------- | ----------  |
-| `POST` | `/api/v2/user/login` | No | None |
+| `GET` | `/api/v2/user/login` | No | None |
 
-Logs in as the specified user. Not supported when using Keycloak authentication. Returns the access token and user id.
+Logs in as the specified user. Not supported when using Keycloak authentication. Returns the access token and user id. The email and password should be passed in the `Authorization` header using the scheme `Basic`. See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Authorization for details for the format of the header, though most libraries will have support for constructing the correct header from the email and password. for example `req.SetBasicAuth(email, password)` in Go.
 
 __Example Request__: 
 ```json
-{
-  "email": "xyz@mail.com",
-  "password": "password"
-}
 ```
 __Example Response__:
 ```json

@@ -17,6 +17,7 @@ Notes:
 {
   "deployment_name": "my-app",
   "autoscaling_enabled": true,
+  "autoscaling_min": 1,
   "autoscaling_max": 4,
   "memory": 800
 }
@@ -109,6 +110,28 @@ __Example Response__:
 {
   "model_id": "new model uuid",
   "update_token": "job token"
+}
+```
+
+## Get Deployment Status From Deploy Job
+
+| Method | Path | Auth Required | Permissions |
+| ------ | ---- | ------------- | ----------  |
+| `GET` | `/api/v2/deploy/{model_id}/status-internal` | Yes (Job Auth) | Job Auth Token Required |
+
+Returns the deploy status of the model.
+
+__Example Request__: 
+```json
+```
+__Example Response__:
+```json
+{
+  "status": "complete",
+  "errors": [],
+  "warnings": [
+    "a warning message"
+  ]
 }
 ```
 

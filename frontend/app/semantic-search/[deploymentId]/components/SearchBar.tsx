@@ -356,7 +356,7 @@ export default function SearchBar({
 
       <Spacer $height="5px" />
       {!showSuggestionBar && (
-        <div className='flex flex-wrap gap-5'>
+        <div className="flex flex-wrap gap-5">
           <ModelDescription
             onClickViewDocuments={() => setShowSources((val) => !val)}
             sources={sources}

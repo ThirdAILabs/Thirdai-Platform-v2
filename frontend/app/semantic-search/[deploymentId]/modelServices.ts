@@ -59,8 +59,6 @@ export interface PIIDetectionResult {
   predicted_tags: string[];
 }
 
-
-
 function sourceName(ref: ReferenceJson) {
   if (ref.source.endsWith('.pdf') || ref.source.endsWith('.docx')) {
     return ref.source.split('/').at(-1);
@@ -882,18 +880,18 @@ export class ModelService {
   }
   //To fetch metadata from backend.
 
-  async fetchMetaData(
-    sourceId: string,
-    version: number,
-  ) {
+  async fetchMetaData(sourceId: string, version: number) {
     try {
-      const response = await fetch(`${this.url}/get-metadata?source_id=${encodeURIComponent(sourceId)}&version=${encodeURIComponent(version.toString())}`, {
-        method: 'GET',
-        headers: {
-          ...this.authHeader(),
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await fetch(
+        `${this.url}/get-metadata?source_id=${encodeURIComponent(sourceId)}&version=${encodeURIComponent(version.toString())}`,
+        {
+          method: 'GET',
+          headers: {
+            ...this.authHeader(),
+            'Content-Type': 'application/json',
+          },
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -901,7 +899,7 @@ export class ModelService {
       }
 
       const result = await response.json();
-      console.log("Result: ", result.data);
+      console.log('Result: ', result.data);
       return result.data;
     } catch (error) {
       if (error instanceof Error) {

@@ -171,3 +171,5 @@ data/
 *.license
 
 **/config.json
+
+.share/

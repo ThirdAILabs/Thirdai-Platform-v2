@@ -72,9 +72,7 @@ jobs:
       run: |
         python -m venv ${{ github.workspace }}/venv
         source venv/bin/activate
-        pip install -r headless/requirements.txt
         sudo pip install -r thirdai_platform_py/requirements.txt
-        pip install -r thirdai_platform_py/requirements.txt
     
     - name: Update openssl
       run: |

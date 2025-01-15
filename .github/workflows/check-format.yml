@@ -29,11 +29,13 @@ jobs:
         go-version: '>=1.23.1'
     - name: Validate Go Module Files
       run: | 
+        cd thirdai_platform
         go mod tidy
         git diff --name-only --exit-code
       
     - name: Run Formatter
       run: |
+        cd thirdai_platform
         test -z $(gofmt -e -l)
     
   python-format:

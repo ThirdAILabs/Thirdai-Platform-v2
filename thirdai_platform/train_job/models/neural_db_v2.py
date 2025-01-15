@@ -200,7 +200,7 @@ class NeuralDBV2(Model):
                     "with_images", False
                 ):
                     # enable parallelism for image-pdf(s)
-                    file_info.options.update({"parallelize": True})
+                    file_info.options.update(parallelize=True)
 
                 doc = parse_doc(file_info, doc_save_dir, tmp_dir)
                 if not doc:

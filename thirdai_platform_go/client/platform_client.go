@@ -54,6 +54,24 @@ func (c *PlatformClient) UseApiKey(api_key string) error {
 	return nil
 }
 
+func (c *PlatformClient) CreateAPIKey(modelIDs []string, name string, expiry string) (string, error) {
+	requestBody := map[string]interface{}{
+		"model_ids": modelIDs,
+		"prefix":    name,
+		"exp":       expiry,
+	}
+
+	var response struct {
+		ApiKey string `json:"api_key"`
+	}
+	err := c.Post("/api/v2/model/create-api-key").Json(requestBody).Do(&response)
+	if err != nil {
+		return "", fmt.Errorf("failed to create API key: %w", err)
+	}
+
+	return response.ApiKey, nil
+}
+
 type FileInfo struct {
 	Path     string                 `json:"path"`
 	Location string                 `json:"location"`
@@ -488,22 +506,4 @@ func (c *PlatformClient) LocalBackups() ([]string, error) {
 	var backups []string
 	err := c.Get("/api/v2/recovery/backups").Do(&backups)
 	return backups, err
-}
-
-func (c *PlatformClient) createAPIKey(modelIDs []string, name string, expiry string) (string, error) {
-	requestBody := map[string]interface{}{
-		"model_ids": modelIDs,
-		"prefix":    name,
-		"exp":       expiry,
-	}
-
-	var response struct {
-		ApiKey string `json:"api_key"`
-	}
-	err := c.Post("/api/v2/model/create-api-key").Json(requestBody).Do(&response)
-	if err != nil {
-		return "", fmt.Errorf("failed to create API key: %w", err)
-	}
-
-	return response.ApiKey, nil
 }

@@ -3,6 +3,7 @@ package tests
 import (
 	"bytes"
 	"crypto/rand"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -527,7 +528,7 @@ func TestListModelWriteAccess(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ndb, err := user1.trainNdb("ndb-model")
+	ndb, err := user1.trainNdbDummyFile("ndb-model")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -541,6 +542,8 @@ func TestListModelWriteAccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	fmt.Println(es)
 
 	models, err := user1.listModelsWithWriteAccess()
 	if err != nil {

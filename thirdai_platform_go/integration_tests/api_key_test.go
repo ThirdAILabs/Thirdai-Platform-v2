@@ -2,17 +2,18 @@ package integrationtests
 
 import (
 	"testing"
+	"thirdai_platform/client"
 	"thirdai_platform/model_bazaar/config"
 	"time"
 )
 
 func TestCreateUserModelAPIKeyDeployAndQuery(t *testing.T) {
-	client := getClient(t)
+	c := getClient(t)
 
-	ndb, err := client.TrainNdb(
+	ndb, err := c.TrainNdb(
 		randomName("ndb"),
-		[]config.FileInfo{{
-			Path: "./data/articles.csv", Location: "local",
+		[]client.FileInfo{{
+			Path: "./data/articles.csv", Location: "upload",
 		}},
 		nil,
 		config.JobOptions{AllocationMemory: 600},
@@ -26,10 +27,10 @@ func TestCreateUserModelAPIKeyDeployAndQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	nlp, err := client.TrainNlpToken(
+	nlp, err := c.TrainNlpToken(
 		randomName("nlp-token"),
 		[]string{"EMAIL", "NAME"},
-		[]config.FileInfo{{Path: "./data/ner.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./data/ner.csv", Location: "local"}},
 		config.NlpTrainOptions{Epochs: 10},
 	)
 	if err != nil {
@@ -42,12 +43,12 @@ func TestCreateUserModelAPIKeyDeployAndQuery(t *testing.T) {
 	}
 
 	// create token for accessing ndb model
-	selectedModelIDs := []string{ndb.modelId.string()}
+	selectedModelIDs := []string{ndb.ModelClient.GetModelID().String()}
 
 	apiKeyName := "test-api-key"
 	expiry := "2026-01-31T23:59:59Z"
 
-	apiKey, err := client.createAPIKey(selectedModelIDs, apiKeyName, expiry)
+	apiKey, err := c.CreateAPIKey(selectedModelIDs, apiKeyName, expiry)
 	if err != nil {
 		t.Fatalf("Failed to create API key: %v", err)
 	}
@@ -56,7 +57,7 @@ func TestCreateUserModelAPIKeyDeployAndQuery(t *testing.T) {
 		t.Fatal("Expected a valid API key, but got an empty string")
 	}
 
-	client.UseApiKey(apiKey)
+	c.UseApiKey(apiKey)
 
 	// Now model client should use api key
 	err = ndb.Deploy(false)
@@ -87,9 +88,9 @@ func TestCreateUserModelAPIKeyDeployAndQuery(t *testing.T) {
 	// TODO(pratik): use relative time here
 	oldExpiry := "2025-01-00T23:59:59Z"
 
-	expiredApiKey, err := client.createAPIKey(selectedModelIDs, expireApiKeyName, oldExpiry)
+	expiredApiKey, err := c.CreateAPIKey(selectedModelIDs, expireApiKeyName, oldExpiry)
 
-	client.UseApiKey(expiredApiKey)
+	c.UseApiKey(expiredApiKey)
 
 	// Now model client should use api key
 	err = ndb.Deploy(false)

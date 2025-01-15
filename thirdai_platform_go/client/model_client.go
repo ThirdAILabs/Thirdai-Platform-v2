@@ -14,6 +14,10 @@ type ModelClient struct {
 	deploymentName *string
 }
 
+func (c *ModelClient) GetModelID() uuid.UUID {
+	return c.modelId
+}
+
 func (c *ModelClient) deploymentId() string {
 	if c.deploymentName != nil {
 		return *c.deploymentName

@@ -295,6 +295,7 @@ func (c *client) createAPIKey(modelIDs []string, name string, expiry string) (st
 	var response struct {
 		ApiKey string `json:"api_key"`
 	}
+	fmt.Println("Request Body:", requestBody)
 	err := c.Post("/model/create-api-key").Json(requestBody).Do(&response)
 	if err != nil {
 		return "", fmt.Errorf("failed to create API key: %w", err)

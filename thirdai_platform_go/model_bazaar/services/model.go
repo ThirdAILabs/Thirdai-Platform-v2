@@ -2,6 +2,7 @@ package services
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -29,6 +30,12 @@ type ModelService struct {
 
 	userAuth          auth.IdentityProvider
 	uploadSessionAuth *auth.JwtManager
+}
+
+type CreateAPIKeyRequest struct {
+	ModelIDs []string `json:"model_ids"`
+	Prefix   string   `json:"prefix"`
+	Exp      string   `json:"exp"`
 }
 
 func (s *ModelService) Routes() chi.Router {
@@ -60,8 +67,8 @@ func (s *ModelService) Routes() chi.Router {
 
 		r.Get("/list", s.List)
 		r.Get("/list-model-write-access", s.ListModelWithWritePermission)
-		r.Get("/create-api-key", s.CreateAPIKey)
-		r.Get("/delete-api-key", s.DeleteAPIKey)
+		r.Post("/create-api-key", s.CreateAPIKey)
+		r.Post("/delete-api-key", s.DeleteAPIKey)
 		r.Get("/list-api-keys", s.ListUserAPIKeys)
 		r.With(checkSufficientStorage(s.storage)).Post("/upload", s.UploadStart)
 	})
@@ -259,9 +266,30 @@ func (s *ModelService) ListModelWithWritePermission(w http.ResponseWriter, r *ht
 }
 
 func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
-	modelIDs, err := auth.ModelIdFromContext(r)
+	var req CreateAPIKeyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.ModelIDs) == 0 {
+		http.Error(w, "model_ids are required", http.StatusBadRequest)
+		return
+	}
+
+	if strings.TrimSpace(req.Prefix) == "" {
+		http.Error(w, "prefix is required", http.StatusBadRequest)
+		return
+	}
+
+	if strings.TrimSpace(req.Exp) == "" {
+		http.Error(w, "expiry date is required", http.StatusBadRequest)
+		return
+	}
+
+	unixTime, err := time.Parse(time.RFC3339, req.Exp)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "invalid expiry format", http.StatusBadRequest)
 		return
 	}
 
@@ -271,21 +299,23 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	expiry, err := auth.ValueFromContext(r, "exp")
-	if err != nil {
-		http.Error(w, "failed to retrieve expiry date", http.StatusInternalServerError)
-		return
+	var parsedModelIDs []uuid.UUID
+	for _, idStr := range req.ModelIDs {
+		idStr = strings.TrimSpace(idStr)
+		if idStr == "" {
+			continue
+		}
+
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("invalid model_id '%s': %v", idStr, err), http.StatusBadRequest)
+			return
+		}
+		parsedModelIDs = append(parsedModelIDs, id)
 	}
 
-	prefix, err := auth.ValueFromContext(r, "prefix")
-	if err != nil {
-		http.Error(w, "failed to prefix of the key", http.StatusInternalServerError)
-		return
-	}
-
-	unixTime, err := time.Parse(time.RFC3339, expiry)
-	if err != nil {
-		http.Error(w, "invalid expiry format", http.StatusBadRequest)
+	if len(parsedModelIDs) == 0 {
+		http.Error(w, "no valid model_ids provided", http.StatusBadRequest)
 		return
 	}
 
@@ -294,7 +324,7 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		Preload("Dependencies").
 		Preload("Dependencies.Dependency").
 		Preload("Dependencies.Dependency.User").
-		Where("id IN ?", modelIDs).
+		Where("id IN ?", parsedModelIDs).
 		Where("user_id = ?", user.Id).
 		Find(&models).Error
 	if err != nil {
@@ -302,7 +332,12 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiKey, hashKey, err := GenerateApiKey(s.db, prefix)
+	if len(models) != len(parsedModelIDs) {
+		http.Error(w, "some model_ids are invalid or do not belong to the user", http.StatusBadRequest)
+		return
+	}
+
+	apiKey, hashKey, err := GenerateApiKey(s.db, req.Prefix)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -311,7 +346,7 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	newAPIKey := schema.UserAPIKey{
 		Id:            uuid.New(),
 		HashKey:       hashKey,
-		Prefix:        prefix,
+		Prefix:        req.Prefix,
 		Models:        models,
 		GeneratedTime: time.Now(),
 		ExpiryTime:    unixTime,

@@ -33,7 +33,7 @@ func TestNdbDownloadUpload(t *testing.T) {
 			Path: "./data/articles.csv", Location: "upload",
 		}},
 		nil,
-		config.JobOptions{AllocationMemory: 600},
+		config.JobOptions{AllocationMemory: 1000},
 	)
 	if err != nil {
 		t.Fatal(err)

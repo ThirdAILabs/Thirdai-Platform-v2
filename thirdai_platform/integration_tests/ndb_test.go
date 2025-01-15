@@ -160,7 +160,7 @@ func createAndDeployNdb(t *testing.T, autoscaling bool) *client.NdbClient {
 			Path: "./data/articles.csv", Location: "upload",
 		}},
 		nil,
-		config.JobOptions{AllocationMemory: 600},
+		config.JobOptions{AllocationMemory: 1000},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -209,7 +209,7 @@ func TestNdbProdMode(t *testing.T) {
 			{Path: "./data/supervised.csv", Location: "upload"},
 		},
 		nil,
-		config.JobOptions{AllocationMemory: 600},
+		config.JobOptions{AllocationMemory: 1000},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -280,7 +280,7 @@ func TestNdbTrainingFromBaseModel(t *testing.T) {
 			Path: "./data/articles.csv", Location: "upload",
 		}},
 		nil,
-		config.JobOptions{AllocationMemory: 600},
+		config.JobOptions{AllocationMemory: 1000},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -482,7 +482,7 @@ func TestTrainErrorHandling(t *testing.T) {
 		randomName("ndb"),
 		[]client.FileInfo{{Path: "./utils.go", Location: "upload"}},
 		[]client.FileInfo{{Path: "./data/malformed.csv", Location: "upload"}},
-		config.JobOptions{AllocationMemory: 600},
+		config.JobOptions{AllocationMemory: 1000},
 	)
 	if err != nil {
 		t.Fatal(err)

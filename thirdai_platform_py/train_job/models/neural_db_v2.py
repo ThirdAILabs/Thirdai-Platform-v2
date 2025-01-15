@@ -106,7 +106,7 @@ class NeuralDBV2(Model):
     def unsupervised_train(self, files: List[FileInfo], batch_size=500):
         self.logger.debug("Starting unsupervised training.")
 
-        n_jobs = max(1, min(os.cpu_count() - 6, 20, len(files) * 2))
+        n_jobs = max(1, min(os.cpu_count() - 6, 20))
 
         self.logger.debug(f"Using {n_jobs} parsing jobs")
 

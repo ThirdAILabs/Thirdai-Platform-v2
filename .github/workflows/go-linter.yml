@@ -37,3 +37,4 @@ jobs:
         with:
           version: v1.60
           working-directory: thirdai_platform
+          args: --timeout=30m

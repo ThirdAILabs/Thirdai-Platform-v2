@@ -188,7 +188,7 @@ async def insert_into_cache(
                 f"LLM Cache Insertion failed with status {res.status_code}: {res.text}"
             )
     except Exception as e:
-        logger.error("LLM Cache Insert Error", e)
+        logger.error(f"LLM Cache Insert Error {str(e)}")
 
 
 @app.get("/llm-dispatch/health")

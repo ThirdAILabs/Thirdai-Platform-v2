@@ -1,0 +1,71 @@
+job "{{ .JobName }}" {
+
+  datacenters = ["dc1"]
+
+  type = "batch"
+
+  group "train-job" {
+    count = 1
+
+    task "backend" {
+
+      {{ if isDocker .Driver }}
+        driver = "docker"
+      {{ else if isLocal .Driver }}
+        driver = "raw_exec"
+      {{ end }}
+
+      env {
+        {{ with .CloudCredentials }}
+        AWS_ACCESS_KEY = "{{ .AwsAccessKey }}"
+        AWS_ACCESS_SECRET = "{{ .AwsAccessSecret }}"
+        AWS_REGION_NAME = "{{ .AwsRegionName }}"
+        AZURE_ACCOUNT_NAME = "{{ .AzureAccountName }}"
+        AZURE_ACCOUNT_KEY = "{{ .AzureAccountKey }}"
+        GCP_CREDENTIALS_FILE = "{{ .GcpCredentialsFile }}"
+        {{ end }}
+        HF_HOME = "/model_bazaar/pretrained-models"
+      }
+
+      config {
+        {{ if isDocker .Driver }}
+          {{ with .Driver }}
+          image = "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          image_pull_timeout = "15m"
+          auth {
+            username = "{{ .DockerUsername }}"
+            password = "{{ .DockerPassword }}"
+            server_address = "{{ .Registry }}"
+          }
+          volumes = [
+            "{{ .ShareDir }}:/model_bazaar"
+          ]
+          {{ end }}
+          command = "python3"
+          args    = ["-m", "train_job.run", "--config", "{{ .ConfigPath }}"]
+        {{ else if isLocal .Driver }}
+          command = "/bin/sh"
+          args    = ["-c", "cd {{ with .Driver }}{{ .PlatformDir }} && {{ .PythonPath }}{{ end }} -m train_job.run --config {{ .ConfigPath }}"]
+        {{ end }}
+      }
+
+      resources {
+        {{ with .Resources }}
+        cpu = {{ .AllocationMhz }}
+        memory = {{ .AllocationMemory }}
+        memory_max = {{ .AllocationMemoryMax }}
+        {{ end }} 
+      }
+    }
+
+    restart {
+      attempts = 0
+      mode = "fail"
+    }
+
+    reschedule {
+      attempts  = 0
+      unlimited = false
+    }
+  }
+}

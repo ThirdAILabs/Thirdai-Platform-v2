@@ -87,6 +87,10 @@ func TestDeploy(t *testing.T) {
 	}
 
 	err = client.undeploy(model)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	status, err = client.deployStatus(model)
 	if err != nil {
 		t.Fatal(err)

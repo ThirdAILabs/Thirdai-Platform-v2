@@ -310,6 +310,9 @@ func TestListTeamsAndTeamUsers(t *testing.T) {
 	}
 
 	teams, err = user2.listTeams()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(teams) != 1 || teams[0].Id.String() != team1 || teams[0].Name != "abc" {
 		t.Fatal("invalid teams list for user 2")
 	}

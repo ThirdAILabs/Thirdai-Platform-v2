@@ -169,3 +169,5 @@ data/
 
 **/ndb_enterprise_license.json
 *.license
+
+**/config.json

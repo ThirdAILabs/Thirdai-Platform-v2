@@ -11,14 +11,16 @@ from pydantic import BaseModel, Field, model_validator
 
 class ModelType(str, Enum):
     NDB = "ndb"
-    UDT = "udt"
+    NLP_TOKEN = "nlp-token"
+    NLP_TEXT = "nlp-text"
+    NLP_DOC = "nlp-doc"
     ENTERPRISE_SEARCH = "enterprise-search"
-    KNOWLEDGE_EXTRACTION = "knowledge-extraction"
+    KNOWLEDGE_EXTRACTION = "ke"
 
 
 class ModelDataType(str, Enum):
     NDB = "ndb"
-    UDT = "udt"
+    NLP = "nlp"
     UDT_DATAGEN = "udt_datagen"
 
 
@@ -132,7 +134,6 @@ class NDBData(BaseModel):
 
     unsupervised_files: List[FileInfo] = []
     supervised_files: List[FileInfo] = []
-    test_files: List[FileInfo] = []
 
     deletions: List[str] = []
 
@@ -148,14 +149,8 @@ class NDBData(BaseModel):
         return self
 
 
-class UDTSubType(str, Enum):
-    text = "text"
-    token = "token"
-    document = "document"
-
-
-class TokenClassificationOptions(BaseModel):
-    udt_sub_type: Literal[UDTSubType.token] = UDTSubType.token
+class NlpTokenOptions(BaseModel):
+    model_type: Literal[ModelType.NLP_TOKEN] = ModelType.NLP_TOKEN
 
     target_labels: List[str]
     source_column: str
@@ -163,8 +158,8 @@ class TokenClassificationOptions(BaseModel):
     default_tag: str = "O"
 
 
-class TextClassificationOptions(BaseModel):
-    udt_sub_type: Literal[UDTSubType.text, UDTSubType.document] = UDTSubType.text
+class NlpTextOptions(BaseModel):
+    model_type: Literal[ModelType.NLP_TEXT] = ModelType.NLP_TEXT
 
     text_column: str
     label_column: str
@@ -172,32 +167,16 @@ class TextClassificationOptions(BaseModel):
     delimiter: str = ","
 
 
-class UDTTrainOptions(BaseModel):
-    supervised_epochs: int = 1
+class NlpTrainOptions(BaseModel):
+    epochs: int = 1
     learning_rate: float = 0.0001
     batch_size: int = 2048
     max_in_memory_batches: Optional[int] = None
     test_split: Optional[float] = None
 
-    metrics: List[str] = ["precision@1", "loss"]
-    validation_metrics: List[str] = ["categorical_accuracy", "recall@1"]
-
-
-class UDTOptions(BaseModel):
-    model_type: Literal[ModelType.UDT] = ModelType.UDT
-
-    udt_options: Union[TokenClassificationOptions, TextClassificationOptions] = Field(
-        ..., discriminator="udt_sub_type"
-    )
-
-    train_options: UDTTrainOptions = UDTTrainOptions()
-
-    class Config:
-        protected_namespaces = ()
-
 
 class UDTData(BaseModel):
-    model_data_type: Literal[ModelDataType.UDT] = ModelDataType.UDT
+    model_data_type: Literal[ModelDataType.NLP] = ModelDataType.NLP
 
     supervised_files: List[FileInfo]
     test_files: List[FileInfo] = []
@@ -219,23 +198,28 @@ class LLMProvider(str, Enum):
     cohere = "cohere"
 
 
-class TextClassificationDatagenOptions(BaseModel):
-    sub_type: Literal[UDTSubType.text] = UDTSubType.text
+class NlpTextDatagenOptions(BaseModel):
+    model_type: Literal[ModelType.NLP_TEXT] = ModelType.NLP_TEXT
+
+    labels: List[LabelEntity]
     samples_per_label: int
-    target_labels: List[LabelEntity]
     user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
     vocab_per_sentence: int = 4
 
+    class Config:
+        protected_namespaces = ()
+
     @model_validator(mode="after")
     def check_target_labels_length(cls, values):
-        if len(values.target_labels) < 2:
+        if len(values.labels) < 2:
             raise ValueError("target_labels must contain at least two labels.")
         return values
 
 
-class TokenClassificationDatagenOptions(BaseModel):
-    sub_type: Literal[UDTSubType.token] = UDTSubType.token
+class NlpTokenDatagenOptions(BaseModel):
+    model_type: Literal[ModelType.NLP_TOKEN] = ModelType.NLP_TOKEN
+
     tags: List[LabelEntity]
     num_sentences_to_generate: int = 1_000
     num_samples_per_tag: Optional[int] = None
@@ -244,28 +228,29 @@ class TokenClassificationDatagenOptions(BaseModel):
     samples: Optional[List[TokenClassificationData]] = None
     templates_per_sample: int = 10
 
-    @model_validator(mode="after")
-    def deduplicate_tags(cls, values):
-        tag_map = {}
-        for tag in values.tags:
-            key = tag.name
-            if key in tag_map:
-                tag_map[key].examples = list(
-                    set(tag_map[key].examples) | set(tag.examples)
-                )
-            else:
-                tag_map[key] = tag
-        values.tags = list(tag_map.values())
-        return values
+    load_from_storage: bool = False
+
+    class Config:
+        protected_namespaces = ()
 
 
-class DatagenOptions(BaseModel):
+class DatagenConfig(BaseModel):
+    model_id: str
+    base_model_id: Optional[str] = None
+    model_bazaar_dir: str
+    storage_dir: str
+    model_bazaar_endpoint: str
+
     task_prompt: str
-    llm_provider: LLMProvider = LLMProvider.openai
+    llm_provider: str
+    test_size: float = 0.05
 
-    datagen_options: Union[
-        TokenClassificationDatagenOptions, TextClassificationDatagenOptions
-    ] = Field(..., discriminator="sub_type")
+    task_options: Union[NlpTokenDatagenOptions, NlpTextDatagenOptions] = Field(
+        ..., descriminator="model_type"
+    )
+
+    class Config:
+        protected_namespaces = ()
 
 
 class JobOptions(BaseModel):
@@ -279,7 +264,7 @@ class TrainConfig(BaseModel):
     license_key: str
     model_bazaar_endpoint: str
     model_id: str
-    data_id: str
+    job_auth_token: str
     base_model_id: Optional[str] = None
 
     # The model and data fields are separate because the model_options are designed
@@ -288,11 +273,14 @@ class TrainConfig(BaseModel):
     # some processing, to download files, copy to directories, etc. Thus they are separated
     # so that the model options can be passed through while the data is processed
     # in the train endpoint.
-    model_options: Union[NDBOptions, UDTOptions] = Field(
+    model_type: ModelType
+    model_options: Optional[Union[NDBOptions, NlpTokenOptions, NlpTextOptions]] = Field(
         ..., discriminator="model_type"
     )
-    datagen_options: Optional[DatagenOptions] = None
+    # datagen_options: Optional[DatagenOptions] = None
     job_options: JobOptions
+
+    train_options: Optional[NlpTrainOptions] = NlpTrainOptions()
 
     data: Union[NDBData, UDTData, UDTGeneratedData] = Field(
         ..., discriminator="model_data_type"
@@ -305,7 +293,7 @@ class TrainConfig(BaseModel):
 
     @model_validator(mode="after")
     def check_model_data_match(self):
-        if self.model_options.model_type.value not in self.data.model_data_type.value:
+        if self.data.model_data_type.value not in self.model_type.value:
             raise ValueError("Model and data fields don't match")
         return self
 

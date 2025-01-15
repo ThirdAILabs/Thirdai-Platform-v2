@@ -2,7 +2,8 @@ import ast
 import datetime
 import enum
 import fcntl
-import re
+
+pass
 from dataclasses import dataclass
 from typing import Dict, Tuple
 
@@ -41,21 +42,6 @@ def delete_deployment_job(
     headers = {"X-Nomad-Token": task_runner_token}
     response = requests.delete(job_url, headers=headers)
     return response, job_id
-
-
-def validate_name(name: str) -> None:
-    """
-    Validates a name to ensure it matches a specific regex pattern.
-
-    Args:
-        name (str): The name to validate.
-
-    Raises:
-        ValueError: If the name does not match the regex pattern.
-    """
-    regex_pattern = "^[\w-]+$"
-    if not re.match(regex_pattern, name):
-        raise ValueError("name is not valid")
 
 
 class Status(str, enum.Enum):

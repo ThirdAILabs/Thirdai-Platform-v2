@@ -1,7 +1,10 @@
+import os
 import random
 import re
+import shutil
 from collections import defaultdict
 from logging import Logger
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -20,14 +23,41 @@ from data_generation_job.utils import (
 from data_generation_job.variables import Entity, EntityStatus, NERSample
 from faker import Faker
 from platform_common.pii.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
+from platform_common.pydantic_models.training import LabelEntity
+from platform_common.thirdai_storage import data_types, storage
 from platform_common.utils import save_dict
 from tqdm import tqdm
 
 
+def tags_in_storage(data_storage: storage.DataStorage) -> List[LabelEntity]:
+    tag_metadata: data_types.TagMetadata = data_storage.get_metadata(
+        "tags_and_status"
+    ).data
+
+    tag_status = tag_metadata.tag_status
+    tags = [tag_status[tag] for tag in tag_status.keys() if tag != "O"]
+    return tags
+
+
+def retrieve_ner_samples_for_generation(
+    data_storage: storage.DataStorage,
+) -> List[NERSample]:
+    # retrieve all the samples
+    samples: List[data_types.DataSample] = data_storage.retrieve_samples(
+        name="ner", num_samples=None, user_provided=True
+    )
+    # only use the samples that we did not generate synthetic data for
+    return [
+        NERSample(tokens=sample.data.tokens, tags=sample.data.tags)
+        for sample in samples
+        if sample.status == data_types.SampleStatus.untrained
+    ]
+
+
 class TokenDataFactory(DataFactory):
 
-    def __init__(self, logger: Logger):
-        super().__init__(logger)
+    def __init__(self, logger: Logger, config):
+        super().__init__(logger, config=config)
         self.faker = Faker()
         self.sentences_per_template = 4
 
@@ -38,6 +68,36 @@ class TokenDataFactory(DataFactory):
             for method in dir(provider)
             if not method.startswith("_")
         ]
+
+        if self.config.base_model_id:
+            if not os.path.exists(self.data_storage_path(self.config.model_id)):
+                self.copy_data_storage(
+                    old_model_id=self.config.base_model_id,
+                    new_model_id=self.config.model_id,
+                )
+                self.remove_unused_samples(self.config.model_id)
+
+    def data_storage_path(self, model_id: str) -> str:
+        return Path(self.config.model_bazaar_dir) / "data" / str(model_id)
+
+    def copy_data_storage(self, old_model_id: str, new_model_id: str):
+        old_storage_dir = self.data_storage_path(old_model_id)
+        new_storage_dir = self.data_storage_path(new_model_id)
+
+        os.makedirs(new_storage_dir, exist_ok=True)
+        if not os.path.exists(old_storage_dir / "data_storage.db"):
+            raise ValueError("Base model missing sample storage")
+
+        shutil.copy(old_storage_dir / "data_storage.db", new_storage_dir)
+
+    def remove_unused_samples(self, model_id: str):
+        # remove unused samples from the old storage and rollback metadata to be in a consistent state
+        storage_dir = Path(self.config.model_bazaar_dir) / "data" / str(model_id)
+        data_storage = storage.DataStorage(
+            connector=storage.SQLiteConnector(db_path=storage_dir / "data_storage.db")
+        )
+        data_storage.remove_untrained_samples("ner")
+        data_storage.rollback_metadata("tags_and_status")
 
     # Function to generate the tag_values by faker library
     def get_tag_values_from_faker(self, tag: str, num_samples: int):
@@ -343,7 +403,7 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
 
             # Splitting into train/test template set
             train_templates, test_templates = train_test_split(
-                data_points=templates, test_size=self.general_variables.test_size
+                data_points=templates, test_size=self.config.test_size
             )
             # Saving the train and test templates
             if train_templates:
@@ -434,7 +494,23 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
         num_samples_per_tag: Optional[int] = None,
         samples: List[NERSample] = None,
         templates_per_sample: int = 4,
+        load_from_storage: bool = False,
     ):
+        if load_from_storage:
+            storage_path = (
+                Path(self.config.model_bazaar_dir)
+                / "data"
+                / self.config.model_id
+                / "data_storage.db"
+            )
+            data_storage = storage.DataStorage(
+                connector=storage.SQLiteConnector(db_path=storage_path)
+            )
+            if not tags:
+                tags = tags_in_storage(data_storage)
+            if not samples:
+                samples = retrieve_ner_samples_for_generation(data_storage)
+
         if len(tags) == 0:
             return {
                 "error_file": str(self.errored_file_location),
@@ -481,7 +557,7 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
         # divide the values into train and test split for no data leakage while validation
         train_tag_values, test_tag_values = self.train_test_tag_split(
             tag_values=tag_values,
-            test_size=self.general_variables.test_size * self.sentences_per_template,
+            test_size=self.config.test_size * self.sentences_per_template,
             shuffle=True,
             save=True,
         )

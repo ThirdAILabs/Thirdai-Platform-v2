@@ -52,8 +52,14 @@ class ReportProcessorWorker:
 
         self.auth_header = {"Authorization": f"Bearer {os.environ['JOB_TOKEN']}"}
 
+        self.llm_provider = self.config.options["llm_provider"]
+        self.genai_key = self.config.options["genai_key"]
+        self.advanced_indexing = self.config.options["advanced_indexing"] == "true"
+        self.rerank = self.config.options["rerank"] == "true"
+        self.generate_answers = self.config.options["generate_answers"] == "true"
+
         self.logger.info(
-            f"options: advanced_indexing={self.config.model_options.advanced_indexing} rerank={self.config.model_options.rerank} generate_answers={self.config.model_options.generate_answers}"
+            f"options: advanced_indexing={self.advanced_indexing} rerank={self.rerank} generate_answers={self.generate_answers}"
         )
 
         verify_license.activate_thirdai_license(self.config.license_key)
@@ -148,9 +154,7 @@ class ReportProcessorWorker:
             f"document parsing complete: time={e-s:.3f}s total_chunks={total_chunks}"
         )
 
-        db = ndb.NeuralDB(
-            splade=(total_chunks < 5000) and self.config.model_options.advanced_indexing
-        )
+        db = ndb.NeuralDB(splade=(total_chunks < 5000) and self.advanced_indexing)
 
         self.logger.info("starting indexing")
         s = time.perf_counter()
@@ -170,16 +174,14 @@ class ReportProcessorWorker:
 
         s = time.perf_counter()
         self.logger.info("starting answer generation")
-        search_results = db.search_batch(
-            queries, top_k=5, rerank=self.config.model_options.rerank
-        )
+        search_results = db.search_batch(queries, top_k=5, rerank=self.rerank)
 
         search_results = [
             [{"text": chunk.text, "source": chunk.document} for chunk, _ in refs]
             for refs in search_results
         ]
 
-        if self.config.model_options.generate_answers:
+        if self.generate_answers:
             answers = [
                 self.generate(q["question_text"], refs)
                 for q, refs in zip(questions, search_results)
@@ -248,8 +250,8 @@ class ReportProcessorWorker:
                 "query": question,
                 "task_prompt": KE_PROMPT,
                 "references": references,
-                "key": self.config.model_options.genai_key,
-                "provider": self.config.model_options.llm_provider,
+                "key": self.genai_key,
+                "provider": self.llm_provider,
             },
         )
 

@@ -23,21 +23,21 @@ class EnterpriseSearchRouter:
         self.session = Session()
         self.retrieval_endpoint = urljoin(
             self.config.model_bazaar_endpoint,
-            self.config.model_options.retrieval_id + "/",
+            self.config.options["retrieval_id"] + "/",
         )
         self.logger.info(
             f"Retrieval endpoint set to {self.retrieval_endpoint}",
             code=LogCode.MODEL_INFO,
         )
 
-        if self.config.model_options.guardrail_id:
+        if self.config.options.get("guardrail_id", None):
             self.guardrail = Guardrail(
-                guardrail_model_id=self.config.model_options.guardrail_id,
+                guardrail_model_id=self.config.options["guardrail_id"],
                 model_bazaar_endpoint=self.config.model_bazaar_endpoint,
                 logger=self.logger,
             )
             self.logger.info(
-                f"Guardrail initialized with ID {self.config.model_options.guardrail_id}",
+                f"Guardrail initialized with ID {self.config.options['guardrail_id']}",
                 code=LogCode.GUARDRAILS,
             )
         else:

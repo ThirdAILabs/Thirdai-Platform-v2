@@ -12,11 +12,7 @@ try:
     import argparse
 
     from platform_common.logging import JobLogger, LogCode
-    from platform_common.pydantic_models.training import (
-        ModelType,
-        TrainConfig,
-        UDTSubType,
-    )
+    from platform_common.pydantic_models.training import ModelType, TrainConfig
     from train_job.models.classification_models import (
         DocClassificationModel,
         TextClassificationModel,
@@ -30,24 +26,20 @@ except ImportError as e:
 
 
 def get_model(config: TrainConfig, reporter: Reporter, logger: JobLogger):
-    model_type = config.model_options.model_type
+    model_type = config.model_type
 
     if model_type == ModelType.NDB:
         logger.info("Creating NDB model", code=LogCode.MODEL_INIT)
         return NeuralDBV2(config, reporter, logger)
-    elif model_type == ModelType.UDT:
-        udt_type = config.model_options.udt_options.udt_sub_type
-        logger.info(f"UDT type: {udt_type}", code=LogCode.MODEL_INIT)
-        if udt_type == UDTSubType.text:
-            return TextClassificationModel(config, reporter, logger)
-        elif udt_type == UDTSubType.document:
-            return DocClassificationModel(config, reporter, logger)
-        elif udt_type == UDTSubType.token:
-            return TokenClassificationModel(config, reporter, logger)
-        else:
-            message = f"Unsupported UDT subtype '{udt_type.value}'"
-            logger.error(message, code=LogCode.MODEL_INIT)
-            raise ValueError(message)
+    elif model_type == ModelType.NLP_TOKEN:
+        logger.info(f"Creating NLP Token model", code=LogCode.MODEL_INIT)
+        return TokenClassificationModel(config, reporter, logger)
+    elif model_type == ModelType.NLP_TEXT:
+        logger.info(f"Creating NLP Text model", code=LogCode.MODEL_INIT)
+        return TextClassificationModel(config, reporter, logger)
+    elif model_type == ModelType.NLP_DOC:
+        logger.info(f"Creating NLP Doc model", code=LogCode.MODEL_INIT)
+        return DocClassificationModel(config, reporter, logger)
 
     message = f"Unsupported model type {model_type.value}"
     logger.error(message, code=LogCode.MODEL_INIT)
@@ -73,11 +65,13 @@ def main():
         log_prefix="train",
         service_type="train",
         model_id=config.model_id,
-        model_type=config.model_options.model_type,
+        model_type=config.model_type,
         user_id=config.user_id,
     )
     try:
-        reporter = HttpReporter(config.model_bazaar_endpoint, logger)
+        reporter = HttpReporter(
+            config.model_bazaar_endpoint, config.job_auth_token, logger
+        )
 
         verify_license.activate_thirdai_license(config.license_key)
 

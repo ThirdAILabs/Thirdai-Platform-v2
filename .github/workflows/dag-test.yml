@@ -1,4 +1,4 @@
-name: Run DAG Tests
+name: Run Integration Tests
 
 on:
   push:
@@ -59,6 +59,11 @@ jobs:
       with:
         python-version: '3.11'
 
+    - name: Set up Go >=1.23.1
+      uses: actions/setup-go@v5
+      with:
+        go-version: '>=1.23.1'
+
     - name: Setup Python and Install Dependencies
       # We need to run the backend in sudo for the delete endpoint to work, thus
       # we need to install the requirements for the backend job in sudo. However,
@@ -83,9 +88,10 @@ jobs:
           echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list && \
           wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add - && \
           sudo apt-get update && \
-          sudo apt-get install -y postgresql-client-17
-
-    - name: Setup `nomad`
+          sudo apt-get install -y postgresql-client-17 && \
+          sudo ln -s /usr/lib/postgresql/17/bin/pg_dump /usr/bin/pg_dump --force
+          
+    - name: Setup Nomad
       uses: hashicorp/setup-nomad@main
       id: setup
       with:
@@ -155,18 +161,26 @@ jobs:
         echo "HASHICORP_VAULT_TOKEN=00000000-0000-0000-0000-000000000000" >> $GITHUB_WORKSPACE/.env
         echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_WORKSPACE/.env
         echo "PYTHON_PATH=${{ github.workspace }}/venv/bin/python" >> $GITHUB_WORKSPACE/.env
+        echo "PLATFORM_DIR=${{ github.workspace }}/thirdai_platform" >> $GITHUB_WORKSPACE/.env
         echo "AZURE_ACCOUNT_NAME=${{ secrets.AZURE_ACCOUNT_NAME }}" >> $GITHUB_WORKSPACE/.env
         echo "AZURE_ACCOUNT_KEY=${{ secrets.AZURE_ACCOUNT_KEY }}" >> $GITHUB_WORKSPACE/.env
         echo "GCP_CREDENTIALS_FILE=$HOME/nfs/dir/google_license.json" >> $GITHUB_WORKSPACE/.env
         echo "AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY }}" >> $GITHUB_WORKSPACE/.env
         echo "AWS_ACCESS_SECRET=${{ secrets.AWS_ACCESS_SECRET }}" >> $GITHUB_WORKSPACE/.env
         echo "AWS_REGION_NAME=us-east-2" >> $GITHUB_WORKSPACE/.env
+        echo "TASK_RUNNER_TOKEN=N/A" >> $GITHUB_WORKSPACE/.env
+        echo "IDENTITY_PROVIDER=default" >> $GITHUB_WORKSPACE/.env
+        echo "DOCKER_REGISTRY=none" >> $GITHUB_WORKSPACE/.env
+        echo "DOCKER_USERNAME=none" >> $GITHUB_WORKSPACE/.env
+        echo "DOCKER_PASSWORD=none" >> $GITHUB_WORKSPACE/.env
+        echo "GRAFANA_DB_URL=none" >> $GITHUB_WORKSPACE/.env
 
     - name: Launch Backend
       run: |
         source ${{ github.workspace }}/venv/bin/activate
-        cd $GITHUB_WORKSPACE/thirdai_platform
-        nohup sudo uvicorn main:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
+        cd $GITHUB_WORKSPACE/thirdai_platform_go
+        go build cmd/model_bazaar/main.go
+        nohup sudo ./main --env ../.env --skip_telemetry --skip_cache > model_bazaar_log.log 2>&1 &
     
     - name: List files in local_setup
       run: ls -la local_setup
@@ -180,21 +194,21 @@ jobs:
     - name: Run Tests
       run: |
         source ${{ github.workspace }}/venv/bin/activate
-        cd $GITHUB_WORKSPACE
-        pytest
+        cd $GITHUB_WORKSPACE/thirdai_platform_go
+        go test ./integration_tests -v -timeout 2h
 
     - name: Display Logs
       if: always()
       run: |
         echo "Nomad Logs:"
         cat nomad.log
+        echo "Backend Logs:"
+        cat $GITHUB_WORKSPACE/thirdai_platform_go/model_bazaar_log.log
         echo "Traefik Logs:"
         cat local_setup/traefik.log
         echo "Vault Logs:"
         cat vault.log
-        echo "Uvicorn Logs:"
-        cat $GITHUB_WORKSPACE/thirdai_platform/uvicorn.log
-
+        
         bash local_setup/fetch_nomad_logs.sh
 
     - name: Stop Services

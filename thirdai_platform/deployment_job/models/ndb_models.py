@@ -46,16 +46,16 @@ class NDBModel(Model):
 
         self.chat_instances = {}
         self.chat_instance_lock = Lock()
-        self.set_chat(provider=self.config.model_options.llm_provider)
+        self.set_chat(provider=self.config.options.get("llm_provider", "openai"))
 
     def get_ndb_path(self, model_id: str) -> Path:
         """
         Returns the NDB model path for the given model ID.
         """
-        return self.get_model_dir(model_id) / "model.ndb"
+        return self.get_model_dir(model_id) / "model" / "model.ndb"
 
     def ndb_save_path(self):
-        return os.path.join(self.model_dir, "model.ndb")
+        return os.path.join(self.model_dir, "model", "model.ndb")
 
     def ndb_host_save_path(self):
         return os.path.join(self.host_model_dir, "model.ndb")
@@ -107,8 +107,6 @@ class NDBModel(Model):
         return inputs.SearchResultsNDB(query_text=query, references=results)
 
     def insert(self, documents: List[FileInfo], **kwargs: Any) -> List[Dict[str, str]]:
-        # TODO(V2 Support): add flag for upsert
-
         documents = expand_cloud_buckets_and_directories(documents)
         ndb_docs = [
             ndbv2_parser.parse_doc(
@@ -444,7 +442,7 @@ class NDBModel(Model):
 
                 llm_chat_interface = llm_providers.get(provider)
 
-                key = kwargs.get("key") or self.config.model_options.genai_key
+                key = kwargs.get("key") or self.config.options.get("genai_key", None)
 
                 # Remove 'key' from kwargs if present
                 kwargs.pop("key", None)

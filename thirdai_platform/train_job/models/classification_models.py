@@ -23,10 +23,10 @@ from platform_common.file_handler import (
 from platform_common.logging import LogCode
 from platform_common.pii.udt_common_patterns import find_common_pattern
 from platform_common.pydantic_models.training import (
-    TextClassificationOptions,
-    TokenClassificationOptions,
+    NlpTextOptions,
+    NlpTokenOptions,
+    NlpTrainOptions,
     TrainConfig,
-    UDTTrainOptions,
 )
 from platform_common.thirdai_storage.data_types import (
     DataSample,
@@ -54,11 +54,11 @@ class ClassificationModel(Model):
 
     @property
     def model_save_path(self) -> Path:
-        return self.model_dir / "model.udt"
+        return self.model_dir / "model" / "model.udt"
 
     @property
-    def train_options(self) -> UDTTrainOptions:
-        return self.config.model_options.train_options
+    def train_options(self) -> NlpTrainOptions:
+        return self.config.train_options
 
     def train_test_files(self) -> Tuple[List[str], List[str]]:
         train_files = expand_cloud_buckets_and_directories(
@@ -162,13 +162,14 @@ class ClassificationModel(Model):
 
     def get_udt_path(self, model_id):
         udt_path = (
-            Path(self.config.model_bazaar_dir) / "models" / model_id / "model.udt"
+            Path(self.config.model_bazaar_dir)
+            / "models"
+            / model_id
+            / "model"
+            / "model.udt"
         )
         self.logger.debug(f"UDT path for model {model_id}: {udt_path}")
         return udt_path
-
-    def load_model(self, model_id):
-        return bolt.UniversalDeepTransformer.load(str(self.get_udt_path(model_id)))
 
     def save_model(self, model):
         try:
@@ -198,7 +199,9 @@ class ClassificationModel(Model):
                     f"Loading base model with model_id: {self.config.base_model_id}",
                     code=LogCode.MODEL_LOAD,
                 )
-                return self.load_model(self.config.base_model_id)
+                return bolt.UniversalDeepTransformer.load(
+                    str(self.get_udt_path(self.config.base_model_id))
+                )
 
             # initialize the model from scratch if the model does not exist or if there is not base model
             self.logger.info(
@@ -215,7 +218,10 @@ class ClassificationModel(Model):
         self.logger.info("Starting evaluation on test files.", code=LogCode.MODEL_EVAL)
         for test_file in test_files:
             try:
-                model.evaluate(test_file, metrics=self.train_options.validation_metrics)
+                self.logger.info(
+                    f"Evaluating on test file: {test_file}", code=LogCode.MODEL_EVAL
+                )
+                model.evaluate(test_file, metrics=["precision@1", "recall@1"])
                 self.logger.info(
                     f"Evaluation completed on test file: {test_file}",
                     code=LogCode.MODEL_EVAL,
@@ -233,8 +239,8 @@ class ClassificationModel(Model):
 
 class TextClassificationModel(ClassificationModel):
     @property
-    def txt_cls_vars(self) -> TextClassificationOptions:
-        return self.config.model_options.udt_options
+    def txt_cls_vars(self) -> NlpTextOptions:
+        return self.config.model_options
 
     def initialize_model(self):
         try:
@@ -272,10 +278,10 @@ class TextClassificationModel(ClassificationModel):
                     )
                     model.train(
                         train_file,
-                        epochs=self.train_options.supervised_epochs,
+                        epochs=self.train_options.epochs,
                         learning_rate=self.train_options.learning_rate,
                         batch_size=self.train_options.batch_size,
-                        metrics=self.train_options.metrics,
+                        metrics=["precision@1", "recall@1"],
                     )
                     self.logger.info(
                         f"Training completed on file: {train_file}",
@@ -325,8 +331,9 @@ class TextClassificationModel(ClassificationModel):
     def get_latency(self, model) -> float:
         self.logger.debug("Measuring latency of the UDT instance.")
 
+        text_col = model.text_dataset_config().text_column
         start_time = time.time()
-        model.predict({self.txt_cls_vars.text_column: "Checking for latency"}, top_k=1)
+        model.predict({text_col: "Checking for latency"}, top_k=1)
         latency = time.time() - start_time
 
         self.logger.info(
@@ -347,16 +354,27 @@ class DocClassificationModel(TextClassificationModel):
             self.reporter.report_status(self.config.model_id, "in_progress")
             model = self.get_model()
 
+            text_col = model.text_dataset_config().text_column
+            label_col = model.text_dataset_config().label_column
+
             # Create temporary directory for CSV generation
             with tempfile.TemporaryDirectory() as temp_dir:
                 # Process documents and create CSV
                 train_csv_path = self._create_classification_csv(
-                    self.config.data.supervised_files, temp_dir, is_training=True
+                    self.config.data.supervised_files,
+                    text_col=text_col,
+                    label_col=label_col,
+                    temp_dir=temp_dir,
+                    is_training=True,
                 )
 
                 if self.config.data.test_files:
                     test_csv_path = self._create_classification_csv(
-                        self.config.data.test_files, temp_dir, is_training=False
+                        self.config.data.test_files,
+                        text_col=text_col,
+                        label_col=label_col,
+                        temp_dir=temp_dir,
+                        is_training=False,
                     )
                     test_files = [test_csv_path]
                 else:
@@ -366,10 +384,10 @@ class DocClassificationModel(TextClassificationModel):
                 start_time = time.time()
                 model.train(
                     train_csv_path,
-                    epochs=self.train_options.supervised_epochs,
+                    epochs=self.train_options.epochs,
                     learning_rate=self.train_options.learning_rate,
                     batch_size=self.train_options.batch_size,
-                    metrics=self.train_options.metrics,
+                    metrics=["precision@1", "recall@1"],
                 )
                 training_time = time.time() - start_time
                 self.logger.info(f"Training completed in {training_time:.2f} seconds.")
@@ -400,7 +418,12 @@ class DocClassificationModel(TextClassificationModel):
             self.cleanup_temp_dirs()
 
     def _create_classification_csv(
-        self, files: List[FileInfo], temp_dir: str, is_training: bool = True
+        self,
+        files: List[FileInfo],
+        text_col: str,
+        label_col: str,
+        temp_dir: str,
+        is_training: bool = True,
     ) -> str:
         """Create classification CSV from document files."""
         self.logger.info(
@@ -410,8 +433,9 @@ class DocClassificationModel(TextClassificationModel):
         processed_docs = []
         categories = set()
 
-        for file_info in files:
+        for file_info in expand_cloud_buckets_and_directories(files):
             try:
+                print(file_info.path)
                 file_path = file_info.path
                 # Extract category from parent directory name
                 category = os.path.basename(os.path.dirname(file_path))
@@ -429,7 +453,7 @@ class DocClassificationModel(TextClassificationModel):
                     words = text.split()[:word_limit]
                     truncated_text = " ".join(words)
 
-                processed_docs.append({"text": truncated_text, "label": category})
+                processed_docs.append({text_col: truncated_text, label_col: category})
             except Exception as e:
                 file_path_str = getattr(file_info, "path", "unknown file")
                 self.logger.error(f"Error processing file {file_path_str}: {str(e)}")
@@ -438,7 +462,7 @@ class DocClassificationModel(TextClassificationModel):
         # Create CSV file
         csv_path = os.path.join(temp_dir, "classification.csv")
         with open(csv_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=["text", "label"])
+            writer = csv.DictWriter(f, fieldnames=[text_col, label_col])
             writer.writeheader()
             writer.writerows(processed_docs)
 
@@ -465,8 +489,8 @@ class TokenClassificationModel(ClassificationModel):
         self._balancing_samples_path = self.data_dir / "balancing_samples.csv"
 
     @property
-    def tkn_cls_vars(self) -> TokenClassificationOptions:
-        return self.config.model_options.udt_options
+    def tkn_cls_vars(self) -> NlpTokenOptions:
+        return self.config.model_options
 
     def save_model_and_metadata(
         self, model, old_metadata: TagMetadata, latest_metadata: TagMetadata
@@ -568,9 +592,38 @@ class TokenClassificationModel(ClassificationModel):
 
         return model
 
+    def data_storage_path(self, model_id: str) -> str:
+        return Path(self.config.model_bazaar_dir) / "data" / str(model_id)
+
+    def copy_data_storage(self, old_model_id: str, new_model_id: str):
+        old_storage_dir = self.data_storage_path(old_model_id)
+        new_storage_dir = self.data_storage_path(new_model_id)
+
+        os.makedirs(new_storage_dir, exist_ok=True)
+        if not os.path.exists(old_storage_dir / "data_storage.db"):
+            raise ValueError("Base model missing sample storage")
+
+        shutil.copy(old_storage_dir / "data_storage.db", new_storage_dir)
+
+    def remove_unused_samples(self, model_id: str):
+        # remove unused samples from the old storage and rollback metadata to be in a consistent state
+        storage_dir = Path(self.config.model_bazaar_dir) / "data" / str(model_id)
+        data_storage = DataStorage(
+            connector=SQLiteConnector(db_path=storage_dir / "data_storage.db")
+        )
+        data_storage.remove_untrained_samples("ner")
+        data_storage.rollback_metadata("tags_and_status")
+
     def load_storage(self):
         data_storage_path = self.data_dir / "data_storage.db"
         self.logger.debug(f"Loading data storage from {data_storage_path}.")
+        if not os.path.exists(data_storage_path) and self.config.base_model_id:
+            self.logger.info("Existing data storage not found, copying from base model")
+            self.copy_data_storage(
+                old_model_id=self.config.base_model_id,
+                new_model_id=self.config.model_id,
+            )
+            self.remove_unused_samples(model_id=self.config.model_id)
         # connector will instantiate an sqlite db at the specified path if it doesn't exist
         self.data_storage = DataStorage(
             connector=SQLiteConnector(db_path=data_storage_path)
@@ -659,7 +712,9 @@ class TokenClassificationModel(ClassificationModel):
 
             source_column, target_column = model.source_target_columns()
 
-            balancing_samples_path = self.find_and_save_balancing_samples()
+            balancing_samples_path = self.find_and_save_balancing_samples(
+                source_column=source_column, target_column=target_column
+            )
 
             # insert samples into data storage for later use
             self.insert_samples_in_storage(
@@ -704,10 +759,10 @@ class TokenClassificationModel(ClassificationModel):
                 try:
                     model.train(
                         train_file,
-                        epochs=self.train_options.supervised_epochs,
+                        epochs=self.train_options.epochs,
                         learning_rate=self.train_options.learning_rate,
                         batch_size=self.train_options.batch_size,
-                        metrics=self.train_options.metrics,
+                        metrics=["precision@1", "recall@1"],
                     )
                     self.logger.info(
                         f"Training completed on file: {train_file}",
@@ -730,7 +785,7 @@ class TokenClassificationModel(ClassificationModel):
                         epochs=1,
                         learning_rate=self.train_options.learning_rate,
                         batch_size=self.train_options.batch_size,
-                        metrics=self.train_options.metrics,
+                        metrics=["precision@1", "recall@1"],
                     )
                     self.logger.info(
                         f"Training completed on balancing samples.",
@@ -968,7 +1023,7 @@ class TokenClassificationModel(ClassificationModel):
                 code=LogCode.NLP_TOKEN_BALANCING_SAMPLES,
             )
 
-    def find_and_save_balancing_samples(self):
+    def find_and_save_balancing_samples(self, source_column, target_column):
         try:
             self.logger.debug("Finding balancing samples for training.")
             user_provided_samples = self.data_storage.retrieve_samples(
@@ -986,12 +1041,8 @@ class TokenClassificationModel(ClassificationModel):
             for user_provided_sample in user_provided_samples:
                 samples.append(
                     {
-                        self.tkn_cls_vars.source_column: " ".join(
-                            user_provided_sample.data.tokens
-                        ),
-                        self.tkn_cls_vars.target_column: " ".join(
-                            user_provided_sample.data.tags
-                        ),
+                        source_column: " ".join(user_provided_sample.data.tokens),
+                        target_column: " ".join(user_provided_sample.data.tags),
                         "user_provided": True,
                     }
                 )
@@ -1004,8 +1055,8 @@ class TokenClassificationModel(ClassificationModel):
             for sample in non_user_provided_samples[: self._num_balancing_samples]:
                 samples.append(
                     {
-                        self.tkn_cls_vars.source_column: " ".join(sample.data.tokens),
-                        self.tkn_cls_vars.target_column: " ".join(sample.data.tags),
+                        source_column: " ".join(sample.data.tokens),
+                        target_column: " ".join(sample.data.tags),
                         "user_provided": False,
                     }
                 )

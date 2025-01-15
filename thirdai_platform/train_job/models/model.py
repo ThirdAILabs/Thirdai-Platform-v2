@@ -28,7 +28,7 @@ class Model(ABC):
 
         # Directory for storing data
         self.data_dir: Path = (
-            Path(self.config.model_bazaar_dir) / "data" / self.config.data_id
+            Path(self.config.model_bazaar_dir) / "data" / self.config.model_id
         )
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -39,6 +39,8 @@ class Model(ABC):
             Path(self.config.model_bazaar_dir) / "models" / self.config.model_id
         )
         self.model_dir.mkdir(parents=True, exist_ok=True)
+
+        (self.model_dir / "model").mkdir(exist_ok=True)
 
         self.logger.info(f"Model directory created at: {self.model_dir}")
 

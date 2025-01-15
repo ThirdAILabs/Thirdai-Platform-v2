@@ -85,7 +85,7 @@ class Permissions:
     def _deployment_permissions(cls, token: str):
         deployment_permissions_endpoint = urljoin(
             cls.model_bazaar_endpoint,
-            f"api/deploy/permissions/{cls.model_id}",
+            f"api/v2/model/{cls.model_id}/permissions",
         )
         response = requests.get(
             deployment_permissions_endpoint,
@@ -106,8 +106,7 @@ class Permissions:
                 "exp": now(),
                 "override": False,
             }
-        res_json = response.json()
-        permissions = res_json["data"]
+        permissions = response.json()
         permissions["exp"] = datetime.datetime.fromisoformat(permissions["exp"])
         return permissions
 
@@ -136,7 +135,7 @@ class Permissions:
             return (
                 permissions["read"],
                 permissions["write"],
-                permissions["override"],
+                permissions["owner"],
                 permissions["username"],
             )
         if cls.cache[token]["exp"] <= curr_time:
@@ -145,7 +144,7 @@ class Permissions:
         return (
             permissions["read"],
             permissions["write"],
-            permissions["override"],
+            permissions["owner"],
             permissions["username"],
         )
 
@@ -155,7 +154,7 @@ class Permissions:
         Creates a function that verifies a specific permission type for the token.
 
         Args:
-            permission_type (str): The type of permission to verify (read, write, override).
+            permission_type (str): The type of permission to verify (read, write, owner).
 
         Returns:
             Callable: A function that takes the token and checks the permission.
@@ -167,7 +166,7 @@ class Permissions:
                 permission_map = {
                     "read": permissions[0],
                     "write": permissions[1],
-                    "override": permissions[2],
+                    "owner": permissions[2],
                 }
                 if not permission_map.get(permission_type):
                     raise CREDENTIALS_EXCEPTION
@@ -182,7 +181,7 @@ class Permissions:
 
         Args:
             token (str): The access token.
-            permission_type (str): The type of permission to check (read, write, override).
+            permission_type (str): The type of permission to check (read, write, owner).
 
         Returns:
             bool: True if the token has the required permission, False otherwise.
@@ -192,6 +191,6 @@ class Permissions:
             permission_map = {
                 "read": permissions[0],
                 "write": permissions[1],
-                "override": permissions[2],
+                "owner": permissions[2],
             }
             return permission_map.get(permission_type, False)

@@ -119,7 +119,7 @@ def manage_backup_limit_local(backup_dir: str, backup_limit: int):
     """Ensure that the number of local backups does not exceed the limit."""
     all_backups = [f for f in os.listdir(backup_dir) if f.startswith("backup_")]
     sorted_backups = sorted(all_backups, key=extract_timestamp, reverse=True)
-    if len(sorted_backups) > backup_limit:
+    if backup_limit and len(sorted_backups) > backup_limit:
         for backup in sorted_backups[backup_limit:]:
             backup_path = os.path.join(backup_dir, backup)
             os.remove(backup_path)
@@ -132,7 +132,7 @@ def manage_backup_limit(
     """Ensure that the number of backups in the cloud does not exceed the limit."""
     all_backups = cloud_handler.list_files(bucket_name, "backup_")
     sorted_backups = sorted(all_backups, key=extract_timestamp, reverse=True)
-    if len(sorted_backups) > backup_limit:
+    if backup_limit and len(sorted_backups) > backup_limit:
         for backup in sorted_backups[backup_limit:]:
             cloud_handler.delete_path(bucket_name, backup)
             logger.info(f"Deleted old cloud backup: {backup}")

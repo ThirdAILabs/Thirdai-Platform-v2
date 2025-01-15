@@ -21,11 +21,12 @@ class Reporter(ABC):
 
 
 class HttpReporter(Reporter):
-    def __init__(self, api_url: str, logger: JobLogger):
+    def __init__(self, api_url: str, auth_token: str, logger: JobLogger):
         """
         Initialize the Reporter with the given API URL.
         """
         self._api = api_url
+        self._auth_token = auth_token
         self.logger = logger
 
     def _request(self, method: str, suffix: str, *args, **kwargs) -> Optional[Dict]:
@@ -43,7 +44,9 @@ class HttpReporter(Reporter):
         if "headers" not in kwargs:
             kwargs["headers"] = {}
 
-        kwargs["headers"].update({"User-Agent": "Train job"})
+        kwargs["headers"].update(
+            {"Authorization": f"Bearer {self._auth_token}", "User-Agent": "Train job"}
+        )
 
         url = urljoin(self._api, suffix)
 
@@ -70,10 +73,10 @@ class HttpReporter(Reporter):
             metadata (Dict[str, str]): Metadata associated with the training job.
         """
         json_data = {
-            "model_id": model_id,
+            "status": "complete",
             "metadata": metadata,
         }
-        self._request("post", "api/train/complete", json=json_data)
+        self._request("post", "api/v2/train/update-status", json=json_data)
 
     def report_status(self, model_id: str, status: str, message: str = ""):
         """
@@ -83,15 +86,21 @@ class HttpReporter(Reporter):
             status (str): The status of the training job.
             message (str, optional): Additional message. Defaults to "".
         """
+        if status == "failed":
+            self.report_error(message)
+
+        self._request("post", "api/v2/train/update-status", json={"status": status})
+
+    def report_error(self, message: str):
         self._request(
             "post",
-            "api/train/update-status",
-            params={"model_id": model_id, "new_status": status, "message": message},
+            "api/v2/train/log",
+            json={"level": "error", "message": message},
         )
 
     def report_warning(self, model_id: str, message: str):
         self._request(
             "post",
-            "api/train/warning",
-            params={"model_id": model_id, "message": message},
+            "api/v2/train/log",
+            json={"level": "warning", "message": message},
         )

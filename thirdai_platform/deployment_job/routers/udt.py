@@ -22,7 +22,7 @@ from platform_common.pii.data_types import (
     UnstructuredTokenClassificationResults,
     XMLTokenClassificationResults,
 )
-from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
+from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.thirdai_storage.data_types import (
     LabelCollection,
     LabelStatus,
@@ -223,19 +223,8 @@ class UDTRouterTextClassification(UDTBaseRouter):
 
     @staticmethod
     def get_model(config: DeploymentConfig, logger: JobLogger) -> ClassificationModel:
-        subtype = config.model_options.udt_sub_type
-        logger.info(
-            f"Initializing Text Classification model of subtype: {subtype}",
-            code=LogCode.MODEL_INIT,
-        )
-        if subtype == UDTSubType.text or subtype == UDTSubType.document:
-            return TextClassificationModel(config=config, logger=logger)
-        else:
-            error_message = (
-                f"Unsupported UDT subtype '{subtype}' for Text Classification."
-            )
-            logger.error(error_message, code=LogCode.MODEL_INIT)
-            raise ValueError(error_message)
+        logger.info(f"Initializing Nlp Text Classification model")
+        return TextClassificationModel(config=config, logger=logger)
 
     def insert_sample(
         self,
@@ -280,19 +269,8 @@ class UDTRouterTokenClassification(UDTBaseRouter):
 
     @staticmethod
     def get_model(config: DeploymentConfig, logger: JobLogger) -> ClassificationModel:
-        subtype = config.model_options.udt_sub_type
-        logger.info(
-            f"Initializing Token Classification model of subtype: {subtype}",
-            code=LogCode.MODEL_INIT,
-        )
-        if subtype == UDTSubType.token:
-            return TokenClassificationModel(config=config, logger=logger)
-        else:
-            error_message = (
-                f"Unsupported UDT subtype '{subtype}' for Token Classification."
-            )
-            logger.error(error_message, code=LogCode.MODEL_INIT)
-            raise ValueError(error_message)
+        logger.info(f"Initializing Nlp Token Classification model")
+        return TokenClassificationModel(config=config, logger=logger)
 
     def add_labels(
         self,

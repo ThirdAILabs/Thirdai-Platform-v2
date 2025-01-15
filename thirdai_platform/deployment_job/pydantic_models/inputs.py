@@ -3,7 +3,7 @@ Defines input models for Pydantic validation and utility functions for conversio
 """
 
 import json
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional
 
 from deployment_job.pydantic_models.constraints import Constraints
 from platform_common.pydantic_models.training import FileInfo
@@ -146,7 +146,7 @@ class DeleteInput(BaseModel):
 
 class SearchResultsTextClassification(BaseModel):
     query_text: str
-    predicted_classes: List[Tuple[str, float]]
+    predicted_classes: List[Dict[str, Any]]
 
 
 class SaveModel(BaseModel):

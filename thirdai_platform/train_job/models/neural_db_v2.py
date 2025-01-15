@@ -26,18 +26,12 @@ class NeuralDBV2(Model):
     def __init__(self, config: TrainConfig, reporter: Reporter, logger: Logger):
         super().__init__(config=config, reporter=reporter, logger=logger)
 
-        self.on_disk = self.config.model_options.on_disk
-        splade = self.config.model_options.advanced_search
-
-        self.logger.info(
-            f"NDB options - advanced_search: {splade}, on_disk: {self.on_disk}"
-        )
-
         if self.config.base_model_id:
             base_model_path = os.path.join(
                 self.config.model_bazaar_dir,
                 "models",
                 self.config.base_model_id,
+                "model",
                 "model.ndb",
             )
             self.logger.info(
@@ -58,11 +52,19 @@ class NeuralDBV2(Model):
             with open(ndbv2.NeuralDB.metadata_path(self.ndb_save_path()), "r") as f:
                 ndb_save_metadata = json.load(f)
             chunk_store_name = ndb_save_metadata["chunk_store_name"]
-            if chunk_store_name == "PandasChunkStore":
-                self.on_disk = False
+            self.on_disk = chunk_store_name != "PandasChunkStore"
         else:
+            ndb_options = self.config.model_options
+            splade = ndb_options.advanced_search
+
+            self.on_disk = ndb_options.on_disk
+
+            self.logger.info(
+                f"NDB options - advanced_search: {splade}, on_disk: {ndb_options.on_disk}"
+            )
+
             self.logger.info("Creating new NDBv2 model", code=LogCode.MODEL_INIT)
-            if self.on_disk:
+            if ndb_options.on_disk:
                 self.db = ndbv2.NeuralDB(save_path=self.ndb_save_path(), splade=splade)
             else:
                 # For the in memory model we create the chunk store in memory
@@ -82,7 +84,7 @@ class NeuralDBV2(Model):
         return os.path.join(self.model_dir, "train_retriever")
 
     def ndb_save_path(self):
-        return os.path.join(self.model_dir, "model.ndb")
+        return os.path.join(self.model_dir, "model", "model.ndb")
 
     def doc_save_path(self):
         return os.path.join(self.ndb_save_path(), "documents")
@@ -97,7 +99,7 @@ class NeuralDBV2(Model):
         for file in all_files:
             if file.ext() != ".csv" and file.ext() != ".jsonl":
                 raise ValueError(
-                    "Only CSV or jsonl files are supported for NDB supervised training."
+                    f"Only CSV or jsonl files are supported for NDB supervised training. Found file {file.path}"
                 )
         return all_files
 
@@ -110,6 +112,8 @@ class NeuralDBV2(Model):
 
         doc_save_dir = self.doc_save_path()
         tmp_dir = self.data_dir / "unsupervised"
+
+        os.makedirs(tmp_dir, exist_ok=True)
 
         docs_indexed = 0
         successfully_indexed_files = 0

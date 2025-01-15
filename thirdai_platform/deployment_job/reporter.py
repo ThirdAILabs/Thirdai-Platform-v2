@@ -6,7 +6,7 @@ from platform_common.logging import JobLogger
 
 
 class Reporter:
-    def __init__(self, api_url: str, logger: JobLogger):
+    def __init__(self, api_url: str, auth_token: str, logger: JobLogger):
         """
         Initializes the Reporter instance with the API URL.
 
@@ -14,6 +14,7 @@ class Reporter:
             api_url (str): The base URL for the API.
         """
         self._api = api_url
+        self._auth_token = auth_token
         self.logger = logger
 
     def _request(self, method: str, suffix: str, *args, **kwargs) -> dict:
@@ -33,12 +34,15 @@ class Reporter:
             requests.exceptions.HTTPError: If the request fails with an HTTP error.
             Exception: For other types of exceptions.
         """
-        # The following exists to have custom user-agent so ngrok doesn't
-        # provide an abuse page.
         if "headers" not in kwargs:
             kwargs["headers"] = {}
 
-        kwargs["headers"].update({"User-Agent": "NDB Deployment job"})
+        # The following exists to have custom user-agent so ngrok doesn't
+        # provide an abuse page.
+        kwargs["headers"]["User-Agent"] = "NDB Deployment job"
+
+        if not "Authorization" in kwargs["headers"]:
+            kwargs["headers"]["Authorization"] = f"Bearer {self._auth_token}"
 
         url = urljoin(self._api, suffix)
 
@@ -60,14 +64,7 @@ class Reporter:
             self.logger.error(f"Error during {method.upper()} request to {url}: {e}")
             raise
 
-    def save_model(
-        self,
-        access_token: str,
-        model_id: str,
-        base_model_id: str,
-        model_name: str,
-        metadata: dict,
-    ) -> None:
+    def save_model(self, access_token: str, base_model_id: str, model_name: str) -> str:
         """
         Saves the deployed model information.
 
@@ -78,16 +75,19 @@ class Reporter:
             model_name (str): The name of the model.
             metadata (dict): Metadata associated with the model.
         """
+        return self._request(
+            "post",
+            f"api/v2/deploy/{base_model_id}/save",
+            json={"model_name": model_name},
+            headers=self.auth_header(access_token=access_token),
+        )
+
+    def save_complete(self, token: str):
         self._request(
             "post",
-            "api/model/save-deployed",
-            json={
-                "model_id": model_id,
-                "base_model_id": base_model_id,
-                "model_name": model_name,
-                "metadata": metadata,
-            },
-            headers=self.auth_header(access_token=access_token),
+            f"api/v2/train/update-status",
+            json={"status": "complete"},
+            headers=self.auth_header(token),
         )
 
     def auth_header(self, access_token: str) -> dict:
@@ -104,28 +104,6 @@ class Reporter:
             "Authorization": f"Bearer {access_token}",
         }
 
-    def check_model_present(self, access_token: str, model_name: str) -> bool:
-        """
-        Checks if a model with the given name is already present.
-
-        Args:
-            access_token (str): The access token for authentication.
-            model_name (str): The name of the model to check.
-
-        Returns:
-            bool: True if the model is present, False otherwise.
-        """
-        content = self._request(
-            "get",
-            "api/model/name-check",
-            params={
-                "name": model_name,
-            },
-            headers=self.auth_header(access_token=access_token),
-        )
-
-        return content["data"]["model_present"]
-
     def update_deploy_status(
         self, model_id: str, status: str, message: Optional[str] = None
     ) -> None:
@@ -136,14 +114,7 @@ class Reporter:
             model_id (str): The ID of the model.
             status (str): The new status of the deployment.
         """
-        self._request(
-            "post",
-            "api/deploy/update-status",
-            params={
-                "model_id": model_id,
-                "new_status": status,
-            },
-        )
+        self._request("post", "api/v2/deploy/update-status", json={"status": status})
 
     def get_deploy_status(self, model_id: str) -> str:
         """
@@ -152,14 +123,8 @@ class Reporter:
         Args:
             model_id (str): The ID of the model.
         """
-        content = self._request(
-            "get",
-            "api/deploy/internal-status",
-            params={
-                "model_id": model_id,
-            },
-        )
-        return content["data"]["deploy_status"]
+        content = self._request("get", "api/v2/deploy/status-internal")
+        return content["status"]
 
     def log(
         self,

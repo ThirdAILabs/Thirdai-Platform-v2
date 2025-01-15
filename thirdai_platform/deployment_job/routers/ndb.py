@@ -1,4 +1,6 @@
 import io
+
+pass
 import threading
 import traceback
 import uuid
@@ -8,7 +10,6 @@ from typing import AsyncGenerator, List, Optional
 
 import fitz
 import jwt
-import thirdai
 from deployment_job.models.ndb_models import NDBModel
 from deployment_job.permissions import Permissions
 from deployment_job.pydantic_models.inputs import (
@@ -25,7 +26,7 @@ from deployment_job.pydantic_models.inputs import (
 )
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
-from deployment_job.utils import Task, TaskAction, TaskStatus, now, validate_name
+from deployment_job.utils import Task, TaskAction, TaskStatus, now
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -273,7 +274,7 @@ class NDBRouter:
                 code=LogCode.MODEL_INSERT,
             )
             return response(
-                status_code=status.HTTP_202_ACCEPTED,
+                status_code=status.HTTP_200_OK,
                 message="Insert logged successfully.",
             )
         elif not sync:
@@ -345,7 +346,7 @@ class NDBRouter:
                 "Deletion logged for autoscaling deployment", code=LogCode.MODEL_DELETE
             )
             return response(
-                status_code=status.HTTP_202_ACCEPTED,
+                status_code=status.HTTP_200_OK,
                 message="Delete logged successfully.",
             )
         elif not sync:
@@ -437,7 +438,7 @@ class NDBRouter:
         if prod_mode:
             message = "Upvote logged successfully."
             self.logger.info(message, code=LogCode.MODEL_RLHF)
-            return response(status_code=status.HTTP_202_ACCEPTED, message=message)
+            return response(status_code=status.HTTP_200_OK, message=message)
         else:
             if len(input.text_id_pairs) > 100:
                 message = f"Number of upvote samples exceeds the maximum {input.text_id_pairs} that can be processed synchronously in an active deployment."
@@ -506,7 +507,7 @@ class NDBRouter:
             message = "Associate logged successfully."
             self.logger.info(message, code=LogCode.MODEL_RLHF)
             return response(
-                status_code=status.HTTP_202_ACCEPTED,
+                status_code=status.HTTP_200_OK,
                 message=message,
             )
         else:
@@ -685,33 +686,23 @@ class NDBRouter:
         ```
         """
         model_id = self.config.model_id
+        update_token = None
         if not input.override:
-            model_id = str(uuid.uuid4())
             if not input.model_name:
                 return response(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     message="Model name is required for new model.",
                 )
-
-            try:
-                validate_name(input.model_name)
-            except Exception:
-                return response(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    message="Name must only contain alphanumeric characters, underscores (_), and hyphens (-).",
-                )
-
-            is_model_present = self.reporter.check_model_present(
-                token, input.model_name
+            res = self.reporter.save_model(
+                access_token=token,
+                base_model_id=self.config.model_id,
+                model_name=input.model_name,
             )
-            if is_model_present:
-                return response(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    message="Model name already exists, choose another one.",
-                )
+            model_id = res["model_id"]
+            update_token = res["update_token"]
         else:
             override_permission = Permissions.check_permission(
-                token=token, permission_type="override"
+                token=token, permission_type="owner"
             )
             if not override_permission:
                 return response(
@@ -719,12 +710,14 @@ class NDBRouter:
                     message="You don't have permissions to override this model.",
                 )
 
-        background_tasks.add_task(self._perform_save, model_id, token, input.override)
+        background_tasks.add_task(
+            self._perform_save, model_id, update_token, input.override
+        )
 
         message = "Save operation initiated in the background."
         self.logger.info(message, code=LogCode.MODEL_SAVE)
         return response(
-            status_code=status.HTTP_202_ACCEPTED,
+            status_code=status.HTTP_200_OK,
             message=message,
             data={"new_model_id": model_id if not input.override else None},
         )
@@ -733,13 +726,8 @@ class NDBRouter:
         try:
             self.model.save(model_id=model_id)
             if not override:
-                self.reporter.save_model(
-                    access_token=token,
-                    model_id=model_id,
-                    base_model_id=self.config.model_id,
-                    model_name=model_id,
-                    metadata={"thirdai_version": str(thirdai.__version__)},
-                )
+                self.reporter.save_complete(token)
+            self.logger.info("Successfully saved the model in the background.")
         except Exception as err:
             self.logger.error(
                 f"Error in background save: {traceback.format_exc()}",

@@ -55,6 +55,7 @@ class KnowledgeExtractionRouter:
             Path(self.config.model_bazaar_dir)
             / "models"
             / config.model_id
+            / "model"
             / "knowledge.db"
         )
         self.reports_base_path = (

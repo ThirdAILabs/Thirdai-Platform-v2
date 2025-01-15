@@ -25,62 +25,17 @@ on:
 jobs:
   backend-unit-tests:
     runs-on: ubuntu-latest-8-cores
-    services:
-      # We need postgres because generate_random_uuid does not work with sqlite since 
-      # it requires pg-crypto. Since these tests are just testing individual backend
-      # endpoints, they do not require nomad, traefik, vault, etc. These are available
-      # in the integration tests.
-      # TODO(Nicholas): refactor out generate_random_uuid so we can use in simple
-      # sqlite DB for unit tests
-      postgres:
-        image: postgres:latest
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: model_bazaar
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s 
-          --health-timeout 5s 
-          --health-retries 5
     steps:
       - uses: actions/checkout@v2
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v4
+      - name: Set up Go >=1.23.1
+        uses: actions/setup-go@v5
         with:
-          python-version: '3.11'
+          go-version: '>=1.23.1'
 
-      - name: install dependencies
+      - name: run backend unit tests
         run: |
-          pip3 install -r thirdai_platform/requirements.txt
-          pip3 install pytest
-          pip3 install pyopenssl --upgrade
-
-      - name: Wait for PostgreSQL to be ready
-        run: |
-          until pg_isready -h localhost -U postgres; do
-            echo "Waiting for PostgreSQL..."
-            sleep 1
-          done
-
-      - name: Create Extension
-        run: |
-          export PGPASSWORD='password'
-          psql -h localhost -U postgres -d model_bazaar -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
-          echo "DB_BASE_URI=postgresql://postgres:password@localhost:5432" >> $GITHUB_ENV
-
-      - name: run unit tests
-        run: |
-          cd thirdai_platform
-          python3 -m pytest tests -v
-
-      - name: Stop Services
-        if: always()
-        run: |
-          sudo systemctl stop postgresql
+          cd thirdai_platform_go && go test ./model_bazaar/tests -v
 
   train-job-unit-tests:
     runs-on: ubuntu-latest

@@ -23,6 +23,7 @@ jobs:
   go-format:
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v2
     - name: Set up Go >=1.23.1
       uses: actions/setup-go@v5
       with:

@@ -37,7 +37,7 @@ jobs:
     - name: Run Formatter
       run: |
         cd thirdai_platform
-        test -z $(gofmt -e -l)
+        test -z $(gofmt -e -l ./)
     
   python-format:
     runs-on: ubuntu-latest

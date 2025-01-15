@@ -332,6 +332,8 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println(models)
+
 	if len(models) != len(parsedModelIDs) {
 		http.Error(w, "some model_ids are invalid or do not belong to the user", http.StatusBadRequest)
 		return

@@ -1,6 +1,7 @@
 package integrationtests
 
 import (
+	"fmt"
 	"testing"
 	"thirdai_platform/client"
 	"thirdai_platform/model_bazaar/config"
@@ -30,7 +31,7 @@ func TestCreateUserModelAPIKeyDeployAndQuery(t *testing.T) {
 	nlp, err := c.TrainNlpToken(
 		randomName("nlp-token"),
 		[]string{"EMAIL", "NAME"},
-		[]client.FileInfo{{Path: "./data/ner.csv", Location: "local"}},
+		[]client.FileInfo{{Path: "./data/ner.csv", Location: "upload"}},
 		config.NlpTrainOptions{Epochs: 10},
 	)
 	if err != nil {
@@ -45,7 +46,9 @@ func TestCreateUserModelAPIKeyDeployAndQuery(t *testing.T) {
 	// create token for accessing ndb model
 	selectedModelIDs := []string{ndb.ModelClient.GetModelID().String()}
 
-	apiKeyName := "test-api-key"
+	// selectedModelIDs := []string{"a19bd35d-89e5-47c2-9039-66c5a1f0ebe4"}
+
+	apiKeyName := fmt.Sprintf("test-api-key-%s", ndb.ModelClient.GetModelID().String())
 	expiry := "2026-01-31T23:59:59Z"
 
 	apiKey, err := c.CreateAPIKey(selectedModelIDs, apiKeyName, expiry)
@@ -57,7 +60,7 @@ func TestCreateUserModelAPIKeyDeployAndQuery(t *testing.T) {
 		t.Fatal("Expected a valid API key, but got an empty string")
 	}
 
-	c.UseApiKey(apiKey)
+	ndb.ModelClient.UseApiKey(apiKey)
 
 	// Now model client should use api key
 	err = ndb.Deploy(false)
@@ -84,7 +87,7 @@ func TestCreateUserModelAPIKeyDeployAndQuery(t *testing.T) {
 		t.Fatal("expected an error because the API key doesnot allows the nlp model, but got none")
 	}
 
-	expireApiKeyName := "expire-test-api-key"
+	expireApiKeyName := fmt.Sprintf("expire-test-api-key-%s", ndb.ModelClient.GetModelID().String())
 	// TODO(pratik): use relative time here
 	oldExpiry := "2025-01-00T23:59:59Z"
 

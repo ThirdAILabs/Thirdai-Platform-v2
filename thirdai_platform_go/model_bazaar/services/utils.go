@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -461,75 +463,98 @@ func ensurePrefixIsUnique(db *gorm.DB, prefix string) error {
 	return nil
 }
 
-func validateApiKey(db *gorm.DB, r *http.Request) (bool, error) {
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		return false, nil
+func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, error) {
+	fullKey := r.Header.Get("X-API-Key")
+	if fullKey == "" {
+		return uuid.Nil, nil
 	}
-
-	parts := strings.SplitN(authHeader, " ", 2)
-	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-		return false, nil
-	}
-	fullKey := parts[1]
 
 	keyParts := strings.SplitN(fullKey, ".", 2)
 	if len(keyParts) != 2 {
-		return false, nil
+		return uuid.Nil, nil
 	}
 	prefix, secret := keyParts[0], keyParts[1]
 
 	var record schema.UserAPIKey
-	if err := db.Where("prefix = ?", prefix).First(&record).Error; err != nil {
+	if err := db.Where("prefix = ?", prefix).Preload("Models").First(&record).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return false, nil
+			return uuid.Nil, nil
 		}
-		return false, err
+		return uuid.Nil, err
 	}
 
 	if !record.ExpiryTime.IsZero() && time.Now().After(record.ExpiryTime) {
-		return false, nil
+		fmt.Printf("API key has expired at: %v\n", record.ExpiryTime)
+		return uuid.Nil, nil
 	}
 
 	hashed := hashSecret(secret)
 	if hashed != record.HashKey {
-		return false, nil
+		return uuid.Nil, nil
 	}
 
 	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
-		return false, err
+		return uuid.Nil, err
 	}
 
 	for _, model := range record.Models {
 		if model.Id == modelId {
-			return true, nil
+			return record.CreatedBy, nil
 		}
 	}
 
-	return false, nil
+	return uuid.Nil, nil
 }
 
-func eitherUserOrApiKeyAuthMiddleware(db *gorm.DB) func(http.Handler) http.Handler {
+// ChainMiddlewares chains multiple middlewares into a single middleware
+func ChainMiddlewares(middlewares ...func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		for _, m := range middlewares {
+			next = m(next)
+		}
+		return next
+	}
+}
+
+func eitherUserOrApiKeyAuthMiddleware(
+	db *gorm.DB,
+	userAuthMiddlewares chi.Middlewares,
+) func(http.Handler) http.Handler {
+
+	userAuthHandler := ChainMiddlewares(userAuthMiddlewares...)
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			userUntyped := r.Context().Value("user")
-			if userUntyped != nil {
-				next.ServeHTTP(w, r)
+			apiKey := r.Header.Get("X-API-Key")
+
+			if apiKey != "" {
+				fmt.Println("API Key detected. Validating...")
+
+				user_id, err := validateApiKey(db, r)
+				if err != nil {
+					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+					return
+				}
+
+				if user_id == uuid.Nil {
+					http.Error(w, "Unauthorized", http.StatusUnauthorized)
+					return
+				}
+
+				user, err := schema.GetUser(user_id.String(), db)
+				if err != nil {
+					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+					return
+				}
+
+				reqCtx := r.Context()
+				reqCtx = context.WithValue(reqCtx, "user", user)
+				next.ServeHTTP(w, r.WithContext(reqCtx))
 				return
 			}
 
-			ok, err := validateApiKey(db, r)
-			if err != nil {
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-				return
-			}
-			if !ok {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-
-			next.ServeHTTP(w, r)
+			userAuthHandler(next).ServeHTTP(w, r)
 		})
 	}
 }

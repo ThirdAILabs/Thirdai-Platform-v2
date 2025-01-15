@@ -118,7 +118,7 @@ func (c *client) Get(endpoint string) *httpTestRequest {
 		return r.Auth(c.authToken)
 	}
 	if c.apiKey != "" {
-		return r.Auth(c.apiKey)
+		return r.Header("X-API-Key", c.apiKey)
 	}
 	return r
 }
@@ -129,7 +129,7 @@ func (c *client) Post(endpoint string) *httpTestRequest {
 		return r.Auth(c.authToken)
 	}
 	if c.apiKey != "" {
-		return r.Auth(c.apiKey)
+		return r.Header("X-API-Key", c.apiKey)
 	}
 	return r
 }
@@ -140,7 +140,7 @@ func (c *client) Delete(endpoint string) *httpTestRequest {
 		return r.Auth(c.authToken)
 	}
 	if c.apiKey != "" {
-		return r.Auth(c.apiKey)
+		return r.Header("X-API-Key", c.apiKey)
 	}
 	return r
 }

@@ -110,7 +110,7 @@ func (r *httpRequest) Do(result interface{}) error {
 
 	end := time.Now()
 
-	slog.Debug("thirdai platform client", "method", r.method, "endpoint", r.endpoint, "status", res.StatusCode, "duration", end.Sub(start).String())
+	slog.Debug("thirdai platform client", "method", r.method, "endpoint", r.endpoint, "status", res.StatusCode, "duration", end.Sub(start).String(), "headers", r.headers)
 
 	if res.StatusCode != http.StatusOK {
 		content, err := io.ReadAll(res.Body)
@@ -142,7 +142,7 @@ func (c *baseClient) Get(endpoint string) *httpRequest {
 		return r.Auth(c.authToken)
 	}
 	if c.apiKey != "" {
-		return r.Auth(c.apiKey)
+		return r.Header("X-API-Key", c.apiKey)
 	}
 	return r
 }
@@ -153,7 +153,7 @@ func (c *baseClient) Post(endpoint string) *httpRequest {
 		return r.Auth(c.authToken)
 	}
 	if c.apiKey != "" {
-		return r.Auth(c.apiKey)
+		return r.Header("X-API-Key", c.apiKey)
 	}
 	return r
 }
@@ -164,9 +164,16 @@ func (c *baseClient) Delete(endpoint string) *httpRequest {
 		return r.Auth(c.authToken)
 	}
 	if c.apiKey != "" {
-		return r.Auth(c.apiKey)
+		return r.Header("X-API-Key", c.apiKey)
 	}
 	return r
+}
+
+func (c *baseClient) UseApiKey(api_key string) error {
+
+	c.apiKey = api_key
+	c.authToken = ""
+	return nil
 }
 
 func addFilesToMultipart(writer *multipart.Writer, files []FileInfo) error {

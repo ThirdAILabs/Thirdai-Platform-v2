@@ -20,6 +20,22 @@ on:
   workflow_dispatch:
 
 jobs:
+  go-format:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set up Go >=1.23.1
+      uses: actions/setup-go@v5
+      with:
+        go-version: '>=1.23.1'
+    - name: Validate Go Module Files
+      run: | 
+        go mod tidy
+        git diff --name-only --exit-code
+      
+    - name: Run Formatter
+      run: |
+        test -z $(gofmt -e -l)
+    
   python-format:
     runs-on: ubuntu-latest
     steps:

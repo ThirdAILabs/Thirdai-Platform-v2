@@ -240,10 +240,13 @@ class NDBModel(Model):
         chunk = chunk[0]
 
         highlighted_pdf = ndbv2.PDF.highlighted_doc(
-            self.full_source_path(chunk.document), chunk.metadata
+            self.full_source_path(chunk.document),
+            chunk,
+            chunk.metadata.get("with_images", False),
+            parallelize=True,
         )
         if highlighted_pdf:
-            return highlighted_pdf.tobytes()
+            return self.full_source_path(chunk.document), highlighted_pdf.tobytes()
         return self.full_source_path(chunk.document), None
 
     def chunks(self, chunk_id: int) -> Optional[Dict[str, Any]]:

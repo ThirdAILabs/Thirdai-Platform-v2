@@ -128,7 +128,7 @@ class NeuralDBV2(Model):
         ]
 
         # some static conditions to evaluate if parallelism should be done or not (can be finetuned possibly)
-        if len(image_pdf_files >= 5 and len(other_files) <= 20):
+        if len(image_pdf_files) >= 5 and len(other_files) <= 20:
             # Don't parallelize the doc parsing of files
             parallelize = False
 

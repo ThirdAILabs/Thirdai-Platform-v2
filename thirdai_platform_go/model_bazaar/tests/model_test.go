@@ -350,8 +350,8 @@ func TestDownloadUpload(t *testing.T) {
 	}
 
 	modelData := randomBytes(28490)
-	datapath := filepath.Join(env.storage.Location(), "models", model, "model", "model.ndb")
-	if err := os.WriteFile(datapath, modelData, 0666); err != nil {
+	datapath := filepath.Join("models", model, "model", "model.ndb")
+	if err := env.storage.Write(datapath, bytes.NewReader(modelData)); err != nil {
 		t.Fatal(err)
 	}
 

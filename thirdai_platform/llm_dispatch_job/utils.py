@@ -21,8 +21,6 @@ class GenerateArgs(BaseModel):
     provider: str = "openai"
     model_id: Optional[str] = None
 
-    cache_access_token: Optional[str] = None
-
 
 DEFAULT_SYSTEM_PROMPT = (
     "Write a short answer for the user's query based on the provided context. "

@@ -10,9 +10,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from licensing.verify import verify_license
 from llm_cache_job.cache import Cache, NDBSemanticCache
-from llm_cache_job.permissions import Permissions
 from platform_common.logging import setup_logger
+from platform_common.permissions import Permissions
 from pydantic import BaseModel
+
+Permissions.init(
+    model_bazaar_endpoint=os.getenv("MODEL_BAZAAR_ENDPOINT"),
+    model_id=os.getenv("MODEL_ID"),
+)
 
 app = FastAPI()
 router = APIRouter()
@@ -71,8 +76,11 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-@router.get("/suggestions", dependencies=[Depends(permissions.verify_read_permission)])
-def suggestions(query: str):
+@router.get("/suggestions")
+def suggestions(
+    query: str,
+    token: str = Depends(Permissions.verify_permission("read")),
+):
     result = cache.suggestions(query=query)
 
     logger.info(f"found {len(result)} suggestions for query={query}")
@@ -83,8 +91,11 @@ def suggestions(query: str):
     )
 
 
-@router.get("/query", dependencies=[Depends(permissions.verify_read_permission)])
-def cache_query(query: str):
+@router.get("/query")
+def cache_query(
+    query: str,
+    token: str = Depends(Permissions.verify_permission("read")),
+):
     result = cache.query(query=query)
 
     if result:
@@ -107,7 +118,7 @@ class CacheInsertRequest(BaseModel):
 @router.post("/insert")
 def cache_insert(
     insert_data: CacheInsertRequest,
-    _: str = Depends(permissions.verify_temporary_cache_access_token),
+    token: str = Depends(Permissions.verify_permission("read")),
 ):
     cache.queue_insert(
         query=insert_data.query,
@@ -120,21 +131,6 @@ def cache_insert(
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={"status": "success", "message": "inserted response into cache"},
-    )
-
-
-@router.get("/token", dependencies=[Depends(permissions.verify_read_permission)])
-def temporary_cache_token():
-    logger.info(f"creating cache token")
-
-    return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content={
-            "status": "success",
-            "access_token": permissions.create_temporary_cache_access_token(
-                model_id=model_id
-            ),
-        },
     )
 
 

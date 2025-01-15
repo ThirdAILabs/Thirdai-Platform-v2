@@ -83,7 +83,6 @@ async def generate(
         - model: str - The model to use for text generation (default: "gpt-4o-mini").
         - provider: str - The AI provider to use (default: "openai"). Providers should be one of on-prem, openai, or cohere
         - workflow_id: Optional[str] - Workflow ID for tracking the request.
-        - cache_access_token: Optional[str] - Authorization token for caching responses.
 
     Returns:
     - StreamingResponse: A stream of generated text in chunks.
@@ -103,7 +102,6 @@ async def generate(
         "model": "gpt-4o-mini",
         "provider": "openai",
         "workflow_id": "12345",
-        "cache_access_token": "cache_token_abc"
     }
     ```
 
@@ -115,7 +113,7 @@ async def generate(
         - Error during the text generation process.
 
     Caching:
-    - If `original_query` and `cache_access_token` are provided, the generated content will be cached after completion.
+    - If `original_query` is provided, the generated content will be cached after completion.
     """
 
     llm: LLMBase = LLMFactory.create(
@@ -151,14 +149,13 @@ async def generate(
                 status_code=500, detail=f"Error while generating content: {e}"
             )
 
-        if generate_args.cache_access_token is not None:
-            await insert_into_cache(
-                generate_args.query,
-                generated_response,
-                generate_args.cache_access_token,
-                [ref.ref_id for ref in generate_args.references],
-                model_id=generate_args.model_id,
-            )
+        await insert_into_cache(
+            generate_args.query,
+            generated_response,
+            [ref.ref_id for ref in generate_args.references],
+            access_token=token,
+            model_id=generate_args.model_id,
+        )
 
     return StreamingResponse(generate_stream(), media_type="text/plain")
 
@@ -166,8 +163,8 @@ async def generate(
 async def insert_into_cache(
     original_query: str,
     generated_response: str,
-    cache_access_token: str,
     reference_ids: List[int],
+    access_token: str,
     model_id: str,
 ):
     if "I cannot answer" in generated_response:
@@ -183,7 +180,7 @@ async def insert_into_cache(
                 "reference_ids": reference_ids,
             },
             headers={
-                "Authorization": f"Bearer {cache_access_token}",
+                "Authorization": f"Bearer {access_token}",
             },
         )
         if res.status_code != 200:

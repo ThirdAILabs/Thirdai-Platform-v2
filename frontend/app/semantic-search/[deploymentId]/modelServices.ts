@@ -1,5 +1,4 @@
 import { Box, Chunk, DocChunks } from './components/pdf_viewer/interfaces';
-import { temporaryCacheToken } from '@/lib/backend';
 import _ from 'lodash';
 
 export const deploymentBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
@@ -660,12 +659,6 @@ export class ModelService {
 
     try {
       const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
-      let cache_access_token = null;
-      try {
-        cache_access_token = await temporaryCacheToken(this.getModelID());
-      } catch (error) {
-        console.error('Error getting cache access token:', error);
-      }
       const args: any = {
         query: question,
         prompt: genaiPrompt,
@@ -675,7 +668,6 @@ export class ModelService {
         key: apiKey,
         provider: genAiProvider,
         model_id: this.getModelID(),
-        cache_access_token: cache_access_token,
       };
 
       const uri = deploymentBaseUrl + '/llm-dispatch/generate';

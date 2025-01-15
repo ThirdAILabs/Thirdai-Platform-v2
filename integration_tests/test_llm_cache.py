@@ -67,35 +67,35 @@ def test_llm_cache():
 
     wait_for_cache(cache_health_url, action="start")
 
-    # model_bazaar_dir = os.getenv("SHARE_DIR")
-    model_bazaar_dir = "/home/david/thirdai-platform-models"
+    model_bazaar_dir = os.getenv("SHARE_DIR")
     cache_file_path = os.path.join(
         model_bazaar_dir, "models", model_id, "llm_cache", "llm_cache.ndb"
     )
     assert os.path.exists(cache_file_path)
 
+    # test authentication
     suggestions_url = f"http://127.0.0.1:80/{model_id}/cache/suggestions"
     suggestions_response = requests.get(
         suggestions_url,
-        params={"query": "lol", "model_id": model_id},
+        params={"query": "lol"},
+        headers={"Authorization": "Bearer faulty_token"},
+    )
+    assert suggestions_response.status_code == 401
+
+    suggestions_url = f"http://127.0.0.1:80/{model_id}/cache/suggestions"
+    suggestions_response = requests.get(
+        suggestions_url,
+        params={"query": "lol"},
         headers=auth_header(),
     )
     assert suggestions_response.status_code == 200
     assert len(suggestions_response.json()["suggestions"]) == 0
 
-    cache_token_url = f"http://127.0.0.1:80/{model_id}/cache/token"
-    token_response = requests.get(
-        cache_token_url, params={"model_id": model_id}, headers=auth_header()
-    )
-    assert token_response.status_code == 200
-    cache_token = token_response.json()["access_token"]
-    assert cache_token
-
     insertion_url = f"http://127.0.0.1:80/{model_id}/cache/insert"
     insertion_response = requests.post(
         insertion_url,
         json={"query": "lol", "llm_res": "response", "reference_ids": [0]},
-        headers={"Authorization": f"Bearer {cache_token}"},
+        headers=auth_header(),
     )
     assert insertion_response.status_code == 200
 
@@ -141,7 +141,7 @@ def test_llm_cache():
 
     suggestions_response_after_restart = requests.get(
         suggestions_url,
-        params={"query": "lol", "model_id": model_id},
+        params={"query": "lol"},
         headers=auth_header(),
     )
     assert suggestions_response_after_restart.status_code == 200

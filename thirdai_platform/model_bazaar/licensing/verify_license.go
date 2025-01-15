@@ -74,11 +74,12 @@ func (v *LicenseVerifier) loadLicense() (PlatformLicense, error) {
 	var license PlatformLicense
 
 	file, err := os.Open(v.licensePath)
-	defer file.Close()
 	if err != nil {
 		slog.Error("error opening license file", "error", err)
 		return license, fmt.Errorf("unable to access platform license: %v", err)
 	}
+	defer file.Close()
+
 	err = json.NewDecoder(file).Decode(&license)
 	if err != nil {
 		slog.Error("unable to parse license file", "error", err)

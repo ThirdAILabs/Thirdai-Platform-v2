@@ -233,6 +233,9 @@ func TestNlpTokenTrainingFromBaseModel(t *testing.T) {
 		[]client.FileInfo{{Path: "./data/ner.csv", Location: "upload"}},
 		config.NlpTrainOptions{},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = nlp2.AwaitTrain(100 * time.Second)
 	if err != nil {
@@ -264,6 +267,9 @@ func TestNlpTextTrainingFromBaseModel(t *testing.T) {
 		[]client.FileInfo{{Path: "./data/supervised.csv", Location: "upload"}},
 		config.NlpTrainOptions{},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = nlp2.AwaitTrain(100 * time.Second)
 	if err != nil {

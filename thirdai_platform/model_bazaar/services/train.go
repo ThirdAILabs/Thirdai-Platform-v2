@@ -255,7 +255,7 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 
 		if part.FormName() == "files" {
 			if part.FileName() == "" {
-				http.Error(w, fmt.Sprintf("invalid filename detected in upload files"), http.StatusBadRequest)
+				http.Error(w, "invalid filename detected in upload files", http.StatusBadRequest)
 				return
 			}
 

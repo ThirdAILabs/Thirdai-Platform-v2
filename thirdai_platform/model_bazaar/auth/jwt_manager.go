@@ -86,7 +86,7 @@ func ModelIdFromContext(r *http.Request) (uuid.UUID, error) {
 }
 
 func UserFromContext(r *http.Request) (schema.User, error) {
-	userUntyped := r.Context().Value("user")
+	userUntyped := r.Context().Value(userRequestContextKey)
 	if userUntyped == nil {
 		return schema.User{}, fmt.Errorf("user field not found in request context")
 	}

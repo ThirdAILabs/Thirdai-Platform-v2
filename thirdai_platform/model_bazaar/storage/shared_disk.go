@@ -55,11 +55,11 @@ func (s *SharedDiskStorage) writeData(path string, data io.Reader, flags int) er
 	}
 
 	file, err := os.OpenFile(fullpath, flags, 0666)
-	defer file.Close()
 	if err != nil {
 		slog.Error("error opening file for writing", "path", fullpath, "error", err)
 		return fmt.Errorf("error opening file %v: %v", path, err)
 	}
+	defer file.Close()
 
 	_, err = io.Copy(file, data)
 	if err != nil {

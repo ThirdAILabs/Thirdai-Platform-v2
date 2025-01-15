@@ -112,6 +112,9 @@ func TestKnowledgeExtraction(t *testing.T) {
 	badReportId, err := ke.CreateReport([]client.FileInfo{
 		{Path: "./utils.go", Location: "upload"},
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	badReport, err := ke.AwaitReport(badReportId, 20*time.Second)
 	if err != nil {

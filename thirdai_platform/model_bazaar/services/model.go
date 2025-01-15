@@ -502,10 +502,10 @@ func saveModelMetadata(s storage.Storage, model schema.Model) error {
 
 func (s *ModelService) loadModelMetadata(modelId uuid.UUID) (ModelMetadata, error) {
 	rawMetadata, err := s.storage.Read(storage.ModelMetadataPath(modelId))
-	defer rawMetadata.Close()
 	if err != nil {
 		return ModelMetadata{}, fmt.Errorf("error opening model metadata: %w", err)
 	}
+	defer rawMetadata.Close()
 
 	var metadata ModelMetadata
 	if err := json.NewDecoder(rawMetadata).Decode(&metadata); err != nil {
@@ -579,7 +579,7 @@ func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, fmt.Sprintf("http response does not support chunked response."), http.StatusInternalServerError)
+		http.Error(w, "http response does not support chunked response.", http.StatusInternalServerError)
 		return
 	}
 

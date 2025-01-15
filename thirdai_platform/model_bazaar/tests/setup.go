@@ -78,6 +78,9 @@ func setupTestEnv(t *testing.T) *testEnv {
 			AdminPassword: adminPassword,
 		},
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	modelBazaar := services.NewModelBazaar(
 		db, nomadStub, store,

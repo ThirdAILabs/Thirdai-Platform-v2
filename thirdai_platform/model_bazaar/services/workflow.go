@@ -145,7 +145,7 @@ func (r *KnowledgeExtractionRequest) validate() error {
 	if r.ModelName == "" {
 		return fmt.Errorf("model_name must be specified")
 	}
-	if r.Questions == nil || len(r.Questions) == 0 {
+	if len(r.Questions) == 0 {
 		return fmt.Errorf("Must provide at least one question to create knowledge extraction model")
 	}
 

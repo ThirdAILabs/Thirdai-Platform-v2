@@ -68,7 +68,7 @@ func (auth *BasicIdentityProvider) addUserToContext() func(http.Handler) http.Ha
 			}
 
 			reqCtx := r.Context()
-			reqCtx = context.WithValue(reqCtx, "user", user)
+			reqCtx = context.WithValue(reqCtx, userRequestContextKey, user)
 			next.ServeHTTP(w, r.WithContext(reqCtx))
 		}
 

@@ -115,7 +115,7 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 		model.Dependencies = deps
 		model.Attributes = attrs
 
-		return saveModel(txn, s.storage, model, user)
+		return saveModel(txn, model, user)
 	})
 
 	if err != nil {
@@ -278,7 +278,7 @@ func (s *WorkflowService) KnowledgeExtraction(w http.ResponseWriter, r *http.Req
 			{ModelId: modelId, Key: "generate_answers", Value: strconv.FormatBool(*params.GenerateAnswers)},
 		}
 
-		return saveModel(txn, s.storage, model, user)
+		return saveModel(txn, model, user)
 	})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error creating knowledge extraction model: %v", err), http.StatusBadRequest)

@@ -397,7 +397,7 @@ func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
 
 		model := newModel(newModelId, params.ModelName, baseModel.Type, &baseModel.Id, user.Id)
 
-		return saveModel(txn, s.storage, model, user)
+		return saveModel(txn, model, user)
 	})
 
 	if err != nil {

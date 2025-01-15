@@ -2,6 +2,7 @@ package services
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -449,21 +450,6 @@ func (s *ModelService) combineChunks(modelId uuid.UUID) error {
 	return nil
 }
 
-func (s *ModelService) loadModelMetadata(modelId uuid.UUID) (ModelMetadata, error) {
-	rawMetadata, err := s.storage.Read(storage.ModelMetadataPath(modelId))
-	defer rawMetadata.Close()
-	if err != nil {
-		return ModelMetadata{}, fmt.Errorf("error opening model metadata: %w", err)
-	}
-
-	var metadata ModelMetadata
-	if err := json.NewDecoder(rawMetadata).Decode(&metadata); err != nil {
-		return ModelMetadata{}, fmt.Errorf("error parsing model metadata: %w", err)
-	}
-
-	return metadata, nil
-}
-
 func (s *ModelService) completeUpload(model *schema.Model) error {
 	metadata, err := s.loadModelMetadata(model.Id)
 	if err != nil {
@@ -485,10 +471,6 @@ func (s *ModelService) completeUpload(model *schema.Model) error {
 	}
 
 	return s.db.Transaction(func(txn *gorm.DB) error {
-		if err := saveModelMetadata(s.storage, *model); err != nil {
-			return err
-		}
-
 		result := txn.Save(model)
 		if result.Error != nil {
 			err := schema.NewDbError("updating model on upload commit", result.Error)
@@ -497,6 +479,40 @@ func (s *ModelService) completeUpload(model *schema.Model) error {
 
 		return nil
 	})
+}
+
+type ModelMetadata struct {
+	Type       string
+	Attributes map[string]string
+}
+
+func saveModelMetadata(s storage.Storage, model schema.Model) error {
+	metadata := ModelMetadata{Type: model.Type, Attributes: model.GetAttributes()}
+	buf := new(bytes.Buffer)
+	if err := json.NewEncoder(buf).Encode(metadata); err != nil {
+		return fmt.Errorf("error serializing model metadata: %w", err)
+	}
+
+	if err := s.Write(storage.ModelMetadataPath(model.Id), buf); err != nil {
+		return fmt.Errorf("error saving model metadata: %w", err)
+	}
+
+	return nil
+}
+
+func (s *ModelService) loadModelMetadata(modelId uuid.UUID) (ModelMetadata, error) {
+	rawMetadata, err := s.storage.Read(storage.ModelMetadataPath(modelId))
+	defer rawMetadata.Close()
+	if err != nil {
+		return ModelMetadata{}, fmt.Errorf("error opening model metadata: %w", err)
+	}
+
+	var metadata ModelMetadata
+	if err := json.NewDecoder(rawMetadata).Decode(&metadata); err != nil {
+		return ModelMetadata{}, fmt.Errorf("error parsing model metadata: %w", err)
+	}
+
+	return metadata, nil
 }
 
 func (s *ModelService) UploadCommit(w http.ResponseWriter, r *http.Request) {
@@ -534,7 +550,7 @@ func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	model, err := schema.GetModel(modelId, s.db, true, false, false)
+	model, err := schema.GetModel(modelId, s.db, true, true, false)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error retrieving model: %v", err), http.StatusBadRequest)
 		return
@@ -547,6 +563,11 @@ func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
 
 	if len(model.Dependencies) > 0 {
 		http.Error(w, "downloading models with dependencies is not yet supported", http.StatusBadRequest)
+		return
+	}
+
+	if err := saveModelMetadata(s.storage, model); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

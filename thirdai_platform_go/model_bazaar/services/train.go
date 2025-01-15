@@ -161,7 +161,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 
 func (s *TrainService) saveModelAndStartJob(model schema.Model, user schema.User, job nomad.Job) error {
 	err := s.db.Transaction(func(txn *gorm.DB) error {
-		return saveModel(txn, s.storage, model, user)
+		return saveModel(txn, model, user)
 	})
 
 	if err != nil {

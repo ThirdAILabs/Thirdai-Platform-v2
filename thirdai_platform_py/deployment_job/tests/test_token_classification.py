@@ -19,7 +19,7 @@ USER_ID = "abc"
 MODEL_ID = "xyz"
 
 THIRDAI_LICENSE = os.path.join(
-    os.path.dirname(__file__), "../../tests/ndb_enterprise_license.json"
+    os.path.dirname(__file__), "../../tests/platform_test_license.json"
 )
 
 UNSTRUCTURED_QUERY = "My email is shubh@thirdai.com"

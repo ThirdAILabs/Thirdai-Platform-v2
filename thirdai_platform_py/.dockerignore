@@ -8,7 +8,7 @@ __pycache__/
 
 # Ignore the tests directory, which includes a permanent license
 /tests/
-ndb_enterprise_license.json
+platform_test_license.json
 
 # Ignore any file or directory that contains "test" in its name
 *test*

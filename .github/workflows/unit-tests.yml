@@ -35,7 +35,7 @@ jobs:
 
       - name: run backend unit tests
         run: |
-          cd thirdai_platform_go && go test ./model_bazaar/tests -v
+          cd thirdai_platform && go test ./model_bazaar/tests -v
 
   train-job-unit-tests:
     runs-on: ubuntu-latest

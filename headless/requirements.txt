@@ -1,8 +1,0 @@
-requests
-networkx
-pyyaml
-boto3
-pytest
---extra-index-url https://download.pytorch.org/whl/cpu
-torch 
-thirdai[neural_db_v2]>=0.9.17

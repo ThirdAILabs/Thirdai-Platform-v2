@@ -521,18 +521,25 @@ func ensurePrefixIsUnique(db *gorm.DB, prefix string) error {
 }
 
 func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, error) {
+
+	// Extract the API Key from the header
 	fullKey := r.Header.Get("X-API-Key")
+
 	if fullKey == "" {
 		return uuid.Nil, nil
 	}
 
 	keyParts := strings.SplitN(fullKey, ".", 2)
+
 	if len(keyParts) != 2 {
 		return uuid.Nil, nil
 	}
+
 	prefix, secret := keyParts[0], keyParts[1]
 
+	// Look up the API Key record in the database
 	var record schema.UserAPIKey
+
 	if err := db.Where("prefix = ?", prefix).Preload("Models").First(&record).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return uuid.Nil, nil
@@ -540,12 +547,14 @@ func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, error) {
 		return uuid.Nil, err
 	}
 
-	if !record.ExpiryTime.IsZero() && time.Now().After(record.ExpiryTime) {
-		fmt.Printf("API key has expired at: %v\n", record.ExpiryTime)
-		return uuid.Nil, nil
+	if !record.ExpiryTime.IsZero() {
+		if time.Now().After(record.ExpiryTime) {
+			return uuid.Nil, nil
+		}
 	}
 
 	hashed := hashSecret(secret)
+
 	if hashed != record.HashKey {
 		return uuid.Nil, nil
 	}
@@ -586,27 +595,28 @@ func eitherUserOrApiKeyAuthMiddleware(
 			apiKey := r.Header.Get("X-API-Key")
 
 			if apiKey != "" {
-				fmt.Println("API Key detected. Validating...")
 
-				user_id, err := validateApiKey(db, r)
+				userID, err := validateApiKey(db, r)
+
 				if err != nil {
 					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 					return
 				}
 
-				if user_id == uuid.Nil {
+				if userID == uuid.Nil {
 					http.Error(w, "Unauthorized", http.StatusUnauthorized)
 					return
 				}
 
-				user, err := schema.GetUser(user_id.String(), db)
+				user, err := schema.GetUser(userID, db)
 				if err != nil {
 					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 					return
 				}
 
 				reqCtx := r.Context()
-				reqCtx = context.WithValue(reqCtx, "user", user)
+				reqCtx = context.WithValue(reqCtx, auth.GetUserContextKey(), user)
+
 				next.ServeHTTP(w, r.WithContext(reqCtx))
 				return
 			}

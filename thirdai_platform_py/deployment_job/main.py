@@ -77,12 +77,7 @@ app.add_middleware(
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    # TODO(pratik): skip for now, discuss with nick
-    print(request)
-    if (
-        request.url.path.strip("/") != "metrics"
-        and request.headers.get("X-API-Key") == ""
-    ):
+    if request.url.path.strip("/") != "metrics":
         # Don't log the prometheus client metric request
         x_forwarded_for = request.headers.get("x-forwarded-for")
         client_ip = (

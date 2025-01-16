@@ -167,7 +167,9 @@ data/
 # DB build with pytest
 *.db
 
-**/ndb_enterprise_license.json
+**/platform_test_license.json
 *.license
 
 **/config.json
+
+.share/

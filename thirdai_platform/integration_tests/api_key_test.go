@@ -81,10 +81,8 @@ func TestCreateUserModelAPIKeyDeployAndQuery(t *testing.T) {
 
 	checkQuery(ndb, t, true)
 
-	// TODO(pratik): check with exact error prompt
-	// Now deploy nlp, which should fail beacause apiKey doesnot include the required Permission
+	nlp.ModelClient.UseApiKey(apiKey)
 	err = nlp.Deploy(false)
-	fmt.Println("Err", err)
 	if err == nil {
 		t.Fatal("expected an error because the API key doesnot allows the nlp model, but got none")
 	}

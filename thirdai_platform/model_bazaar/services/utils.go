@@ -522,53 +522,78 @@ func ensurePrefixIsUnique(db *gorm.DB, prefix string) error {
 
 func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, time.Time, error) {
 	// Extract the API Key from the header
+	fmt.Println("validateApiKey: Extracting API Key from the header")
 	fullKey := r.Header.Get("X-API-Key")
 
 	if fullKey == "" {
+		fmt.Println("validateApiKey: API Key is missing from the header")
 		return uuid.Nil, time.Time{}, nil
 	}
 
+	fmt.Printf("validateApiKey: Full API Key received: %s\n", fullKey)
 	keyParts := strings.SplitN(fullKey, ".", 2)
 
 	if len(keyParts) != 2 {
+		fmt.Println("validateApiKey: API Key format is invalid")
 		return uuid.Nil, time.Time{}, nil
 	}
 
 	prefix, secret := keyParts[0], keyParts[1]
+	fmt.Printf("validateApiKey: Extracted prefix: %s, secret part: [REDACTED]\n", prefix)
 
 	// Look up the API Key record in the database
+	fmt.Println("validateApiKey: Looking up the API Key record in the database")
 	var record schema.UserAPIKey
 
 	if err := db.Where("prefix = ?", prefix).Preload("Models").First(&record).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			fmt.Printf("validateApiKey: No record found for prefix: %s\n", prefix)
 			return uuid.Nil, time.Time{}, nil
 		}
+		fmt.Printf("validateApiKey: Error querying database: %v\n", err)
 		return uuid.Nil, time.Time{}, err
 	}
 
+	fmt.Printf("validateApiKey: Found API Key record: %+v\n", record)
+
+	// Check for expiry
 	if !record.ExpiryTime.IsZero() {
 		if time.Now().After(record.ExpiryTime) {
+			fmt.Println("validateApiKey: API Key has expired")
 			return uuid.Nil, time.Time{}, nil
 		}
+		fmt.Printf("validateApiKey: API Key is still valid, expiry time: %s\n", record.ExpiryTime)
 	}
 
+	// Validate the secret
+	fmt.Println("validateApiKey: Validating the secret against the stored hash")
 	hashed := hashSecret(secret)
 
 	if hashed != record.HashKey {
+		fmt.Println("validateApiKey: Provided secret does not match the stored hash")
 		return uuid.Nil, time.Time{}, nil
 	}
+	fmt.Println("validateApiKey: Secret validated successfully")
 
+	// Extract and validate the model ID from the request
+	fmt.Println("validateApiKey: Extracting model_id from the request URL")
 	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
+		fmt.Printf("validateApiKey: Error extracting model_id: %v\n", err)
 		return uuid.Nil, time.Time{}, err
 	}
+	fmt.Printf("validateApiKey: Extracted model_id: %s\n", modelId)
 
+	// Verify if the model_id is associated with the API Key
+	fmt.Println("validateApiKey: Checking if the model_id is associated with the API Key")
 	for _, model := range record.Models {
 		if model.Id == modelId {
+			fmt.Printf("validateApiKey: model_id %s is valid and associated with the API Key\n", modelId)
 			return record.CreatedBy, record.ExpiryTime, nil
 		}
 	}
 
+	fmt.Printf("validateApiKey: model_id %s is not associated with the API Key\n", modelId)
 	return uuid.Nil, time.Time{}, nil
 }
 

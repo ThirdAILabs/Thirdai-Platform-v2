@@ -192,12 +192,16 @@ class Permissions:
                 }
                 if not permission_map.get(permission_type):
                     raise CREDENTIALS_EXCEPTION
-                return token
+
+                auth_scheme = request.state.auth_scheme
+                return token, auth_scheme
 
         return dependency
 
     @classmethod
-    def check_permission(cls, token: str, permission_type: str = "read") -> bool:
+    def check_permission(
+        cls, token: str, auth_scheme: str, permission_type: str = "read"
+    ) -> bool:
         """
         Checks if a specific permission type is granted for the token.
 
@@ -209,7 +213,7 @@ class Permissions:
             bool: True if the token has the required permission, False otherwise.
         """
         with cls.cache_lock:
-            permissions = cls._get_permissions(token)
+            permissions = cls._get_permissions(token, auth_scheme)
             permission_map = {
                 "read": permissions[0],
                 "write": permissions[1],

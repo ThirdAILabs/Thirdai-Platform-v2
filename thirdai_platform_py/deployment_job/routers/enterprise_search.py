@@ -55,14 +55,19 @@ class EnterpriseSearchRouter:
     def search(
         self,
         params: inputs.NDBSearchParams,
-        token: str = Depends(Permissions.verify_permission("read")),
+        token_scheme=Depends(Permissions.verify_permission("read")),
     ):
+        token, scheme = token_scheme
+
+        if scheme == "api_key":
+            headers = {"X-API-Key": token}
+        else:
+            headers = {"Authorization": f"Bearer {token}"}
+
         res = self.session.post(
             url=urljoin(self.retrieval_endpoint, "search"),
             json=params.model_dump(),
-            headers={
-                "Authorization": f"Bearer {token}",
-            },
+            headers=headers,
         )
         if res.status_code != status.HTTP_200_OK:
             self.logger.error(
@@ -80,12 +85,18 @@ class EnterpriseSearchRouter:
             label_map = LabelMap()
 
             results.query_text = self.guardrail.redact_pii(
-                text=results.query_text, access_token=token, label_map=label_map
+                text=results.query_text,
+                label_map=label_map,
+                access_token=token,
+                auth_scheme=scheme,
             )
 
             for ref in results.references:
                 ref.text = self.guardrail.redact_pii(
-                    text=ref.text, access_token=token, label_map=label_map
+                    text=ref.text,
+                    label_map=label_map,
+                    access_token=token,
+                    auth_scheme=scheme,
                 )
             results.pii_entities = label_map.get_entities()
             self.logger.debug("Redacted PII from search results")
@@ -99,7 +110,7 @@ class EnterpriseSearchRouter:
     def unredact(
         self,
         args: inputs.UnredactArgs,
-        token: str = Depends(Permissions.verify_permission("read")),
+        _=Depends(Permissions.verify_permission("read")),
     ):
         if self.guardrail:
             unredacted_text = self.guardrail.unredact_pii(args.text, args.pii_entities)

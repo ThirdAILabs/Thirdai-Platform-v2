@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+// TODO(pratik): Add tests for rest of the models and their functions
+
 func TestCreateUserModelAPIKeyDeployAndQuery(t *testing.T) {
 	c := getClient(t)
 

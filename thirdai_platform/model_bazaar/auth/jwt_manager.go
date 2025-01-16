@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -87,7 +88,7 @@ func ModelIdFromContext(r *http.Request) (uuid.UUID, error) {
 }
 
 func UserFromContext(r *http.Request) (schema.User, error) {
-	userUntyped := r.Context().Value(userRequestContextKey)
+	userUntyped := r.Context().Value(UserRequestContextKey)
 	if userUntyped == nil {
 		return schema.User{}, fmt.Errorf("user field not found in request context")
 	}
@@ -96,4 +97,12 @@ func UserFromContext(r *http.Request) (schema.User, error) {
 		return schema.User{}, fmt.Errorf("invalid value for user field")
 	}
 	return user, nil
+}
+
+func GetAPIKeyExpiry(ctx context.Context) time.Time {
+	expiry, ok := ctx.Value(ContextAPIKeyExpiry).(time.Time)
+	if !ok {
+		return time.Time{}
+	}
+	return expiry
 }

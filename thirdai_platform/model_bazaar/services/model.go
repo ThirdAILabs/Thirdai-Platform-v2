@@ -42,8 +42,9 @@ type CreateAPIKeyRequest struct {
 func (s *ModelService) Routes() chi.Router {
 	r := chi.NewRouter()
 
+	eitherOrMiddleware := eitherUserOrApiKeyAuthMiddleware(s.db, s.userAuth.AuthMiddleware())
 	r.Route("/{model_id}", func(r chi.Router) {
-		r.Use(s.userAuth.AuthMiddleware()...)
+		r.Use(eitherOrMiddleware)
 
 		r.Get("/permissions", s.Permissions)
 
@@ -267,59 +268,88 @@ func (s *ModelService) ListModelWithWritePermission(w http.ResponseWriter, r *ht
 }
 
 func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("CreateAPIKey: Handler invoked")
+
+	// Initialize the request structure
 	var req CreateAPIKeyRequest
+
+	// Decode the JSON request body
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		fmt.Printf("CreateAPIKey: Error decoding request body: %v\n", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
+	fmt.Printf("CreateAPIKey: Received request: %+v\n", req)
 
+	// Validate the presence of model_ids
 	if len(req.ModelIDs) == 0 {
+		fmt.Println("CreateAPIKey: Missing model_ids in request")
 		http.Error(w, "model_ids are required", http.StatusBadRequest)
 		return
 	}
+	fmt.Println("CreateAPIKey: model_ids validated")
 
+	// Validate the presence of prefix
 	if strings.TrimSpace(req.Prefix) == "" {
+		fmt.Println("CreateAPIKey: Missing prefix in request")
 		http.Error(w, "prefix is required", http.StatusBadRequest)
 		return
 	}
+	fmt.Printf("CreateAPIKey: Prefix provided: %s\n", req.Prefix)
 
+	// Validate the presence of expiry date
 	if strings.TrimSpace(req.Exp) == "" {
+		fmt.Println("CreateAPIKey: Missing expiry date in request")
 		http.Error(w, "expiry date is required", http.StatusBadRequest)
 		return
 	}
+	fmt.Printf("CreateAPIKey: Expiry date provided: %s\n", req.Exp)
 
+	// Parse the expiry date
 	unixTime, err := time.Parse(time.RFC3339, req.Exp)
 	if err != nil {
+		fmt.Printf("CreateAPIKey: Invalid expiry format '%s': %v\n", req.Exp, err)
 		http.Error(w, "invalid expiry format", http.StatusBadRequest)
 		return
 	}
+	fmt.Printf("CreateAPIKey: Parsed expiry time: %s\n", unixTime)
 
+	// Retrieve the authenticated user from context
 	user, err := auth.UserFromContext(r)
 	if err != nil {
+		fmt.Printf("CreateAPIKey: Error retrieving user from context: %v\n", err)
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
+	fmt.Printf("CreateAPIKey: Authenticated user: %s (ID: %s)\n", user.Username, user.Id)
 
+	// Parse and validate model IDs
 	var parsedModelIDs []uuid.UUID
 	for _, idStr := range req.ModelIDs {
 		idStr = strings.TrimSpace(idStr)
 		if idStr == "" {
+			fmt.Println("CreateAPIKey: Skipping empty model_id")
 			continue
 		}
 
 		id, err := uuid.Parse(idStr)
 		if err != nil {
+			fmt.Printf("CreateAPIKey: Invalid model_id '%s': %v\n", idStr, err)
 			http.Error(w, fmt.Sprintf("invalid model_id '%s': %v", idStr, err), http.StatusBadRequest)
 			return
 		}
+		fmt.Printf("CreateAPIKey: Parsed model_id: %s\n", id)
 		parsedModelIDs = append(parsedModelIDs, id)
 	}
 
 	if len(parsedModelIDs) == 0 {
+		fmt.Println("CreateAPIKey: No valid model_ids provided after parsing")
 		http.Error(w, "no valid model_ids provided", http.StatusBadRequest)
 		return
 	}
+	fmt.Printf("CreateAPIKey: Valid model_ids: %+v\n", parsedModelIDs)
 
+	// Retrieve models from the database
 	var models []schema.Model
 	err = s.db.Preload("Attributes").
 		Preload("Dependencies").
@@ -329,23 +359,30 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		Where("user_id = ?", user.Id).
 		Find(&models).Error
 	if err != nil {
+		fmt.Printf("CreateAPIKey: Database error retrieving models: %v\n", err)
 		http.Error(w, "failed to retrieve models", http.StatusInternalServerError)
 		return
 	}
+	fmt.Printf("CreateAPIKey: Retrieved models from DB: %+v\n", models)
 
-	fmt.Println(models)
-
+	// Check if all requested models were found
 	if len(models) != len(parsedModelIDs) {
+		fmt.Printf("CreateAPIKey: Mismatch in models. Requested: %d, Found: %d\n", len(parsedModelIDs), len(models))
 		http.Error(w, "some model_ids are invalid or do not belong to the user", http.StatusBadRequest)
 		return
 	}
+	fmt.Println("CreateAPIKey: All model_ids are valid and belong to the user")
 
+	// Generate API key and hash key
 	apiKey, hashKey, err := GenerateApiKey(s.db, req.Prefix)
 	if err != nil {
+		fmt.Printf("CreateAPIKey: Error generating API key: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	fmt.Printf("CreateAPIKey: Generated API key: %s and hash key\n", apiKey)
 
+	// Create a new API key record
 	newAPIKey := schema.UserAPIKey{
 		Id:            uuid.New(),
 		HashKey:       hashKey,
@@ -355,17 +392,19 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		ExpiryTime:    unixTime,
 		CreatedBy:     user.Id,
 	}
-
 	err = s.db.Create(&newAPIKey).Error
 	if err != nil {
+		fmt.Printf("CreateAPIKey: Error saving API key to DB: %v\n", err)
 		http.Error(w, fmt.Sprintf("failed to save API key: %v", err), http.StatusInternalServerError)
 		return
 	}
+	fmt.Printf("CreateAPIKey: Successfully saved API key: %s for user: %s\n", apiKey, user.Id)
 
+	// Prepare and send the response
 	response := map[string]string{
 		"api_key": apiKey,
 	}
-
+	fmt.Printf("CreateAPIKey: Responding with API key: %s for user: %s\n", apiKey, user.Id)
 	utils.WriteJsonResponse(w, response)
 }
 
@@ -454,10 +493,17 @@ func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	expiration, err := s.userAuth.GetTokenExpiration(r)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error retrieving token expiration: %v", err), http.StatusBadRequest)
-		return
+	var expiration time.Time
+
+	expiry := auth.GetAPIKeyExpiry(r.Context())
+	if !expiry.IsZero() {
+		expiration = expiry
+	} else {
+		expiration, err = s.userAuth.GetTokenExpiration(r)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("error retrieving token expiration: %v", err), http.StatusBadRequest)
+			return
+		}
 	}
 
 	res := ModelPermissions{

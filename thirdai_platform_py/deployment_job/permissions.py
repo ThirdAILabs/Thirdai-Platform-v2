@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 
 import fastapi
 import requests
-from fastapi import status
+from fastapi import status, Request
 
 CREDENTIALS_EXCEPTION = fastapi.HTTPException(
     status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
@@ -24,12 +24,20 @@ def optional_token_bearer(request: fastapi.Request) -> str:
     """
     # Attempt to retrieve the Authorization header from the request,
     # and return "None" for token if header doesn't exist.
+    request.state.auth_scheme = "none"
+
+    x_api_token = request.headers.get("X-API-Key")
+    if x_api_token:
+        request.state.auth_scheme = "api_key"
+        return x_api_token
+
     auth_header = request.headers.get("Authorization")
     if auth_header:
         try:
             # Extract the token type and the token itself from the header.
             token_type, token = auth_header.split(" ", 1)
             if token_type.lower() == "bearer":
+                request.state.auth_scheme = "bearer"
                 return token
         except ValueError:
             # Return "None" as a dummy value for the token,
@@ -82,15 +90,22 @@ class Permissions:
         cls.expirations = cls.expirations[pos:]
 
     @classmethod
-    def _deployment_permissions(cls, token: str):
+    def _deployment_permissions(cls, token: str, auth_scheme: str):
         deployment_permissions_endpoint = urljoin(
             cls.model_bazaar_endpoint,
             f"api/v2/model/{cls.model_id}/permissions",
         )
-        response = requests.get(
-            deployment_permissions_endpoint,
-            headers={"Authorization": "Bearer " + token},
-        )
+        if auth_scheme == "bearer":
+            response = requests.get(
+                deployment_permissions_endpoint,
+                headers={"Authorization": "Bearer " + token},
+            )
+        else:
+            response = requests.get(
+                deployment_permissions_endpoint,
+                headers={"X-API-Key": token},
+            )
+
         if response.status_code == status.HTTP_401_UNAUTHORIZED:
             return {
                 "read": False,
@@ -111,7 +126,9 @@ class Permissions:
         return permissions
 
     @classmethod
-    def _get_permissions(cls, token: str) -> Tuple[bool, bool, bool, str]:
+    def _get_permissions(
+        cls, token: str, auth_scheme: str
+    ) -> Tuple[bool, bool, bool, str]:
         """
         Retrieves permissions for a token, updating the cache if necessary.
 
@@ -124,7 +141,7 @@ class Permissions:
         cls._clear_expired_entries()
         curr_time = now()
         if token not in cls.cache:
-            permissions = cls._deployment_permissions(token)
+            permissions = cls._deployment_permissions(token, auth_scheme)
             cls.expirations.append(
                 (
                     curr_time + datetime.timedelta(minutes=cls.entry_expiration_min),
@@ -160,9 +177,14 @@ class Permissions:
             Callable: A function that takes the token and checks the permission.
         """
 
-        def dependency(token: str = fastapi.Depends(optional_token_bearer)) -> str:
+        def dependency(
+            request: Request,
+            token: str = fastapi.Depends(optional_token_bearer),
+        ) -> str:
+            auth_scheme = getattr(request.state, "auth_scheme", "none")
+
             with cls.cache_lock:
-                permissions = cls._get_permissions(token)
+                permissions = cls._get_permissions(token, auth_scheme)
                 permission_map = {
                     "read": permissions[0],
                     "write": permissions[1],

@@ -114,7 +114,6 @@ func (c *ModelClient) DeployWithName(autoscaling bool, name string) error {
 	}
 
 	req := c.Post(fmt.Sprintf("/api/v2/deploy/%v", c.modelId)).Json(body).Do(nil)
-	fmt.Println("Request Client Side: ", req)
 	return req
 }
 

@@ -520,19 +520,18 @@ func ensurePrefixIsUnique(db *gorm.DB, prefix string) error {
 	return nil
 }
 
-func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, error) {
-
+func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, time.Time, error) {
 	// Extract the API Key from the header
 	fullKey := r.Header.Get("X-API-Key")
 
 	if fullKey == "" {
-		return uuid.Nil, nil
+		return uuid.Nil, time.Time{}, nil
 	}
 
 	keyParts := strings.SplitN(fullKey, ".", 2)
 
 	if len(keyParts) != 2 {
-		return uuid.Nil, nil
+		return uuid.Nil, time.Time{}, nil
 	}
 
 	prefix, secret := keyParts[0], keyParts[1]
@@ -542,35 +541,35 @@ func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, error) {
 
 	if err := db.Where("prefix = ?", prefix).Preload("Models").First(&record).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return uuid.Nil, nil
+			return uuid.Nil, time.Time{}, nil
 		}
-		return uuid.Nil, err
+		return uuid.Nil, time.Time{}, err
 	}
 
 	if !record.ExpiryTime.IsZero() {
 		if time.Now().After(record.ExpiryTime) {
-			return uuid.Nil, nil
+			return uuid.Nil, time.Time{}, nil
 		}
 	}
 
 	hashed := hashSecret(secret)
 
 	if hashed != record.HashKey {
-		return uuid.Nil, nil
+		return uuid.Nil, time.Time{}, nil
 	}
 
 	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, time.Time{}, err
 	}
 
 	for _, model := range record.Models {
 		if model.Id == modelId {
-			return record.CreatedBy, nil
+			return record.CreatedBy, record.ExpiryTime, nil
 		}
 	}
 
-	return uuid.Nil, nil
+	return uuid.Nil, time.Time{}, nil
 }
 
 // ChainMiddlewares chains multiple middlewares into a single middleware
@@ -596,7 +595,7 @@ func eitherUserOrApiKeyAuthMiddleware(
 
 			if apiKey != "" {
 
-				userID, err := validateApiKey(db, r)
+				userID, expiry, err := validateApiKey(db, r)
 
 				if err != nil {
 					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -615,7 +614,8 @@ func eitherUserOrApiKeyAuthMiddleware(
 				}
 
 				reqCtx := r.Context()
-				reqCtx = context.WithValue(reqCtx, auth.GetUserContextKey(), user)
+				reqCtx = context.WithValue(reqCtx, auth.UserRequestContextKey, user)
+				reqCtx = context.WithValue(reqCtx, auth.ContextAPIKeyExpiry, expiry)
 
 				next.ServeHTTP(w, r.WithContext(reqCtx))
 				return

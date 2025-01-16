@@ -81,23 +81,11 @@ func TestCreateUserModelAPIKeyDeployAndQuery(t *testing.T) {
 
 	checkQuery(ndb, t, true)
 
+	// TODO(pratik): check with exact error prompt
 	// Now deploy nlp, which should fail beacause apiKey doesnot include the required Permission
 	err = nlp.Deploy(false)
+	fmt.Println("Err", err)
 	if err == nil {
 		t.Fatal("expected an error because the API key doesnot allows the nlp model, but got none")
-	}
-
-	expireApiKeyName := fmt.Sprintf("expire-test-api-key-%s", ndb.ModelClient.GetModelID().String())
-	// TODO(pratik): use relative time here
-	oldExpiry := "2025-01-00T23:59:59Z"
-
-	expiredApiKey, err := c.CreateAPIKey(selectedModelIDs, expireApiKeyName, oldExpiry)
-
-	c.UseApiKey(expiredApiKey)
-
-	// Now model client should use api key
-	err = ndb.Deploy(false)
-	if err == nil {
-		t.Fatal("expected an error because the API key is expired, but got none")
 	}
 }

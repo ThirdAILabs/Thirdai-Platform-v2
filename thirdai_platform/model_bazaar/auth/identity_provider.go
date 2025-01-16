@@ -68,8 +68,7 @@ func addInitialAdminToDb(db *gorm.DB, userId uuid.UUID, username, email string, 
 
 type requestContextKey string
 
-const userRequestContextKey requestContextKey = "user"
-
-func GetUserContextKey() requestContextKey {
-	return userRequestContextKey
-}
+const (
+	UserRequestContextKey requestContextKey = "user"
+	ContextAPIKeyExpiry   requestContextKey = "api_key_expiry"
+)

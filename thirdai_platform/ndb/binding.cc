@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstring>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -17,14 +18,16 @@ void copyError(const std::exception &e, const char **err_ptr) {
 }
 
 struct NeuralDB_t {
-  OnDiskNeuralDB ndb;
+  std::unique_ptr<OnDiskNeuralDB> ndb;
 
-  NeuralDB_t(const char *save_path) : ndb(save_path) {}
+  NeuralDB_t(const std::string &save_path)
+      : ndb(OnDiskNeuralDB::make(save_path)) {}
 };
 
 NeuralDB_t *NeuralDB_new(const char *save_path, const char **err_ptr) {
   try {
-    return new NeuralDB_t(save_path);
+    std::string path(save_path);
+    return new NeuralDB_t(path);
   } catch (const std::exception &e) {
     // TODO(Nicholas): have case for NeuralDBError to return better errors
     copyError(e, err_ptr);
@@ -62,7 +65,7 @@ void Document_set_version(Document_t *doc, unsigned int version) {
 
 void NeuralDB_insert(NeuralDB_t *ndb, Document_t *doc, const char **err_ptr) {
   try {
-    ndb->ndb.insert(
+    ndb->ndb->insert(
         /*chunks=*/doc->chunks,
         /*metadata*/ std::vector<MetadataMap>(doc->chunks.size()),
         /*document=*/doc->document,
@@ -111,7 +114,7 @@ float QueryResults_score(QueryResults_t *results, unsigned int i) {
 QueryResults_t *NeuralDB_query(NeuralDB_t *ndb, const char *query,
                                unsigned int topk, const char **err_ptr) {
   try {
-    auto results = ndb->ndb.query(query, topk);
+    auto results = ndb->ndb->query(query, topk);
     auto out = new QueryResults_t();
     out->results = results;
     return out;
@@ -125,7 +128,7 @@ QueryResults_t *NeuralDB_query(NeuralDB_t *ndb, const char *query,
 void NeuralDB_save(NeuralDB_t *ndb, const char *save_path,
                    const char **err_ptr) {
   try {
-    ndb->ndb.save(save_path);
+    ndb->ndb->save(save_path);
   } catch (const std::exception &e) {
     copyError(e, err_ptr);
     return;

@@ -1,7 +1,7 @@
 package ndb
 
 // #cgo LDFLAGS: -L. -lthirdai -lrocksdb -lutf8proc -L/opt/homebrew/opt/libomp/lib/ -lomp
-// #cgo CXXFLAGS: -std=c++17 -I. -fvisibility=hidden
+// #cgo CXXFLAGS: -fPIC -std=c++17 -I. -fvisibility=hidden
 // #include "binding.h"
 // #include <stdlib.h>
 import "C"

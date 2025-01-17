@@ -10,6 +10,8 @@ namespace thirdai::search::ndb {
 
 class OnDiskNeuralDB final : public NeuralDB {
 public:
+  static std::unique_ptr<OnDiskNeuralDB> make(const std::string &save_path);
+
   explicit OnDiskNeuralDB(const std::string &save_path);
 
   InsertMetadata insert(const std::vector<std::string> &chunks,

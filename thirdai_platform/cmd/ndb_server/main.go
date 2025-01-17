@@ -58,7 +58,6 @@ func (s *NDBServer) Search(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("error writing request: %v", err), http.StatusBadRequest)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 func main() {
@@ -77,6 +76,7 @@ func main() {
 	r := chi.NewRouter()
 	r.Post("/search", server.Search)
 
+	log.Println("starting server on port 3000")
 	if err := http.ListenAndServe(":3000", r); err != nil {
 		log.Fatal(err)
 	}

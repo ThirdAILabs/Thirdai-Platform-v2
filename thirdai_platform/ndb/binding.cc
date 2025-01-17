@@ -9,6 +9,7 @@
 
 using thirdai::search::ndb::Chunk;
 using thirdai::search::ndb::MetadataMap;
+using thirdai::search::ndb::MetadataValue;
 using thirdai::search::ndb::OnDiskNeuralDB;
 
 void copyError(const std::exception &e, const char **err_ptr) {
@@ -39,7 +40,7 @@ void NeuralDB_free(NeuralDB_t *ndb) { delete ndb; }
 
 struct Document_t {
   std::vector<std::string> chunks;
-  // std::vector<MetadataMap> metadata;
+  std::vector<MetadataMap> metadata;
   std::string document;
   std::string doc_id;
   std::optional<uint32_t> doc_version;
@@ -57,17 +58,38 @@ void Document_free(Document_t *doc) { delete doc; }
 
 void Document_add_chunk(Document_t *doc, const char *chunk) {
   doc->chunks.emplace_back(chunk);
+  doc->metadata.emplace_back();
 }
 
 void Document_set_version(Document_t *doc, unsigned int version) {
   doc->doc_version = version;
 }
 
+void Document_add_metadata_bool(Document_t *doc, unsigned int i,
+                                const char *key, bool value) {
+  doc->metadata[i][key] = MetadataValue::Bool(value);
+}
+
+void Document_add_metadata_int(Document_t *doc, unsigned int i,
+                                const char *key, int value) {
+  doc->metadata[i][key] = MetadataValue::Int(value);
+}
+
+void Document_add_metadata_float(Document_t *doc, unsigned int i,
+                                const char *key, float value) {
+  doc->metadata[i][key] = MetadataValue::Float(value);
+}
+
+void Document_add_metadata_str(Document_t *doc, unsigned int i,
+                                const char *key, const char* value) {
+  doc->metadata[i][key] = MetadataValue::Str(value);
+}
+
 void NeuralDB_insert(NeuralDB_t *ndb, Document_t *doc, const char **err_ptr) {
   try {
     ndb->ndb->insert(
         /*chunks=*/doc->chunks,
-        /*metadata*/ std::vector<MetadataMap>(doc->chunks.size()),
+        /*metadata*/ doc->metadata,
         /*document=*/doc->document,
         /*doc_id=*/doc->doc_id,
         /*doc_version=*/doc->doc_version);
@@ -75,6 +97,40 @@ void NeuralDB_insert(NeuralDB_t *ndb, Document_t *doc, const char **err_ptr) {
     copyError(e, err_ptr);
     return;
   }
+}
+
+struct MetadataList_t {
+  std::vector<std::pair<std::string, MetadataValue>> metadata;
+};
+
+void MetadataList_free(MetadataList_t *metadata) { delete metadata; }
+
+unsigned int MetadataList_len(MetadataList_t *metadata) {
+  return metadata->metadata.size();
+}
+
+const char *MetadataList_key(MetadataList_t *metadata, unsigned int i) {
+  return metadata->metadata.at(i).first.c_str();
+}
+
+int MetadataList_type(MetadataList_t *metadata, unsigned int i) {
+  return int(metadata->metadata.at(i).second.type());
+}
+
+bool MetadataList_bool(MetadataList_t *metadata, unsigned int i) {
+  return metadata->metadata.at(i).second.asBool();
+}
+
+int MetadataList_int(MetadataList_t *metadata, unsigned int i) {
+  return metadata->metadata.at(i).second.asInt();
+}
+
+float MetadataList_float(MetadataList_t *metadata, unsigned int i) {
+  return metadata->metadata.at(i).second.asFloat();
+}
+
+const char *MetadataList_str(MetadataList_t *metadata, unsigned int i) {
+  return metadata->metadata.at(i).second.asStr().c_str();
 }
 
 struct QueryResults_t {
@@ -109,6 +165,13 @@ unsigned int QueryResults_doc_version(QueryResults_t *results, unsigned int i) {
 
 float QueryResults_score(QueryResults_t *results, unsigned int i) {
   return results->results.at(i).second;
+}
+
+MetadataList_t *QueryResults_metadata(QueryResults_t *results, unsigned int i) {
+  const auto &metadata_map = results->results.at(i).first.metadata;
+  MetadataList_t *out = new MetadataList_t();
+  out->metadata = {metadata_map.begin(), metadata_map.end()};
+  return out;
 }
 
 QueryResults_t *NeuralDB_query(NeuralDB_t *ndb, const char *query,

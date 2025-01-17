@@ -17,7 +17,7 @@ func basicTest() {
 	}
 	defer ndb.Free()
 
-	err = ndb.Insert("some_doc", "abc", []string{"a b c d e", "x y z", "b d", "e z"}, nil)
+	err = ndb.Insert("some_doc", "abc", []string{"a b c d e", "x y z", "b d", "e z"}, []map[string]interface{}{{"a": "a", "c": false}, {}, {"a": 1, "b": 2.3}, {}}, nil)
 	if err != nil {
 		log.Fatalf("insert failed: %v", err)
 	}
@@ -60,7 +60,7 @@ func loadQueries(filename string) []sample {
 	return samples
 }
 
-func main() {
+func wiki() {
 	ndb, err := ndb.New("../wiki_large.ndb")
 	if err != nil {
 		log.Fatalf("failed to open ndb: %v", err)
@@ -87,4 +87,9 @@ func main() {
 
 	fmt.Printf("p@1=%f\n", float64(correct)/float64(len(samples)))
 	fmt.Printf("avg_time=%f\n", float64(end.Sub(start).Milliseconds())/float64(len(samples)))
+}
+
+func main() {
+	// wiki()
+	basicTest()
 }

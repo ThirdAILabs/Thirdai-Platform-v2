@@ -50,11 +50,39 @@ func addChunk(doc *C.Document_t, chunk string) {
 	C.Document_add_chunk(doc, chunkCStr)
 }
 
-func (ndb *NeuralDB) Insert(document, doc_id string, chunks []string, version *uint) error {
+func addMetadata(doc *C.Document_t, i int, key string, value interface{}) {
+	keyCStr := C.CString(key)
+	defer C.free(unsafe.Pointer(keyCStr))
+
+	switch value := value.(type) {
+	case bool:
+		C.Document_add_metadata_bool(doc, C.uint(i), keyCStr, C.bool(value))
+	case int:
+		C.Document_add_metadata_int(doc, C.uint(i), keyCStr, C.int(value))
+	case float32:
+		C.Document_add_metadata_float(doc, C.uint(i), keyCStr, C.float(value))
+	case float64:
+		C.Document_add_metadata_float(doc, C.uint(i), keyCStr, C.float(value))
+	case string:
+		valueCStr := C.CString(value)
+		defer C.free(unsafe.Pointer(valueCStr))
+		C.Document_add_metadata_str(doc, C.uint(i), keyCStr, valueCStr)
+	}
+}
+
+func (ndb *NeuralDB) Insert(document, doc_id string, chunks []string, metadata []map[string]interface{}, version *uint) error {
 	doc := newDocument(document, doc_id)
 	defer C.Document_free(doc)
 	for _, chunk := range chunks {
 		addChunk(doc, chunk)
+	}
+
+	if metadata != nil {
+		for i, m := range metadata {
+			for k, v := range m {
+				addMetadata(doc, i, k, v)
+			}
+		}
 	}
 
 	if version != nil {
@@ -62,7 +90,6 @@ func (ndb *NeuralDB) Insert(document, doc_id string, chunks []string, version *u
 	}
 
 	var err *C.char
-
 	C.NeuralDB_insert(ndb.ndb, doc, &err)
 	if err != nil {
 		defer C.free(unsafe.Pointer(err))
@@ -78,8 +105,8 @@ type Chunk struct {
 	Document   string
 	DocId      string
 	DocVersion uint32
-	// Metadata   map[string]interface{}
-	Score float32
+	Metadata   map[string]interface{}
+	Score      float32
 }
 
 func (ndb *NeuralDB) Query(query string, topk int) ([]Chunk, error) {
@@ -103,9 +130,32 @@ func (ndb *NeuralDB) Query(query string, topk int) ([]Chunk, error) {
 		chunks[i].DocId = C.GoString(C.QueryResults_doc_id(results, i))
 		chunks[i].DocVersion = uint32(C.QueryResults_doc_version(results, i))
 		chunks[i].Score = float32(C.QueryResults_score(results, i))
+		chunks[i].Metadata = convertMetadata(C.QueryResults_metadata(results, i))
 	}
 
 	return chunks, nil
+}
+
+func convertMetadata(metadata *C.MetadataList_t) map[string]interface{} {
+	defer C.MetadataList_free(metadata)
+
+	len := C.MetadataList_len(metadata)
+	out := make(map[string]interface{})
+
+	for i := C.uint(0); i < len; i++ {
+		key := C.GoString(C.MetadataList_key(metadata, i))
+		switch C.MetadataList_type(metadata, i) {
+		case 0:
+			out[key] = bool(C.MetadataList_bool(metadata, i))
+		case 1:
+			out[key] = int(C.MetadataList_int(metadata, i))
+		case 2:
+			out[key] = float32(C.MetadataList_float(metadata, i))
+		case 3:
+			out[key] = C.GoString(C.MetadataList_str(metadata, i))
+		}
+	}
+	return out
 }
 
 func (ndb *NeuralDB) Save(savePath string) error {

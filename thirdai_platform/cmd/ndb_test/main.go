@@ -11,6 +11,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to open ndb: %v", err)
 	}
+	defer ndb.Free()
 
 	err = ndb.Insert("some_doc", "abc", []string{"a b c d e", "x y z", "b d", "e z"}, nil)
 	if err != nil {
@@ -23,6 +24,4 @@ func main() {
 	}
 
 	fmt.Println(res)
-
-	defer ndb.Free()
 }

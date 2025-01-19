@@ -3,7 +3,6 @@ package tests
 import (
 	"bytes"
 	"crypto/rand"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -489,8 +488,6 @@ func TestListModelWriteAccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	fmt.Println(es)
 
 	models, err := user1.listModelsWithWriteAccess()
 	if err != nil {

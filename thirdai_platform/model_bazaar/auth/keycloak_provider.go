@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -378,7 +379,12 @@ func (auth *KeycloakIdentityProvider) middleware() func(http.Handler) http.Handl
 
 			user, err := schema.GetUser(userUUID, auth.db)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("unable to find user %v: %v", *userInfo.Sub, err), http.StatusUnauthorized)
+				if errors.Is(err, schema.ErrUserNotFound) {
+					http.Error(w, err.Error(), http.StatusNotFound)
+					return
+				}
+				slog.Error("unable to find user from keycloak id", "keycloak_id", *userInfo.Sub, "error", err)
+				http.Error(w, fmt.Sprintf("unable to find user %v: %v", *userInfo.Sub, schema.ErrDbAccessFailed), http.StatusInternalServerError)
 				return
 			}
 
@@ -428,7 +434,8 @@ func (auth *KeycloakIdentityProvider) LoginWithToken(accessToken string) (LoginR
 	err = auth.db.Transaction(func(txn *gorm.DB) error {
 		findUserResult := txn.Limit(1).Find(&user, "email = ?", *userInfo.Email)
 		if findUserResult.Error != nil {
-			return schema.NewDbError("locate user by email", findUserResult.Error)
+			slog.Error("sql error checking for existing user in keycloak identity provider", "email", user.Email, "error", findUserResult.Error)
+			return schema.ErrDbAccessFailed
 		}
 
 		if findUserResult.RowsAffected != 1 {
@@ -441,7 +448,8 @@ func (auth *KeycloakIdentityProvider) LoginWithToken(accessToken string) (LoginR
 
 			createUserResult := txn.Create(&user)
 			if createUserResult.Error != nil {
-				return schema.NewDbError("create new user from keycloak fields", findUserResult.Error)
+				slog.Error("sql error creating new user in keycloak identify provider", "error", err)
+				return schema.ErrDbAccessFailed
 			}
 		}
 
@@ -466,7 +474,10 @@ func (auth *KeycloakIdentityProvider) checkExistingUsers(adminToken, field strin
 	}
 
 	if len(users) > 0 {
-		return fmt.Errorf("%v is already in use", field)
+		if field == "username" {
+			return ErrUsernameAlreadyInUse
+		}
+		return ErrEmailAlreadyInUse
 	}
 
 	return nil
@@ -524,7 +535,8 @@ func (auth *KeycloakIdentityProvider) CreateUser(username, email, password strin
 
 	result := auth.db.Create(&user)
 	if result.Error != nil {
-		return uuid.UUID{}, schema.NewDbError("creating user", result.Error)
+		slog.Error("sql error creating user in keycloak identity provider", "error", result.Error)
+		return uuid.UUID{}, schema.ErrDbAccessFailed
 	}
 
 	return userUUID, nil

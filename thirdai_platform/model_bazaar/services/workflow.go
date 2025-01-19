@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -82,21 +83,24 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 		// Each component is stored as an attribute, and then we have 2 additional hyperparameters
 		attrs := make([]schema.ModelAttribute, 0, len(components)+2)
 		for _, component := range components {
-			// TODO: check dep types
 			model, err := schema.GetModel(component.id, txn, false, false, false)
 			if err != nil {
-				return fmt.Errorf("error getting model for %v: %w", component.component, err)
+				if errors.Is(err, schema.ErrModelNotFound) {
+					return CodedError(fmt.Errorf("model %v for component %s does not exist", component.id, component.component), http.StatusNotFound)
+				}
+				return CodedError(fmt.Errorf("error loading model for component %s: %w", component.component, schema.ErrDbAccessFailed), http.StatusInternalServerError)
 			}
 			if model.Type != component.expectedType {
-				return fmt.Errorf("component %v was expected to have type %v, but specified model has type %v", component.component, component.expectedType, model.Type)
+				return CodedError(fmt.Errorf("component %v was expected to have type %v, but specified model has type %v", component.component, component.expectedType, model.Type), http.StatusBadRequest)
 			}
 
 			perm, err := auth.GetModelPermissions(model.Id, user, txn)
 			if err != nil {
-				return fmt.Errorf("error verifying permissions for %v: %w", component.component, err)
+				slog.Error("error verify permissions for component of enterprise search workflow", "model_id", component.id, "error", err)
+				return CodedError(fmt.Errorf("error verifying permissions for component %v", component.component), http.StatusInternalServerError)
 			}
 			if perm < auth.ReadPermission {
-				return fmt.Errorf("user does not have permissions to access %v", component.component)
+				return CodedError(fmt.Errorf("user does not have permissions to access %v", component.component), http.StatusUnauthorized)
 			}
 
 			deps = append(deps, schema.ModelDependency{ModelId: modelId, DependencyId: model.Id})
@@ -119,7 +123,7 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 	})
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error creating enterprise search model: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error creating enterprise search model: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -191,12 +195,14 @@ type Keyword struct {
 func populateQuestions(dbPath string, questions []QuestionKeywords) error {
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
-		return fmt.Errorf("unable to open knowledge extraction metadata db: %w", err)
+		slog.Error("unable to open knowledge extraction metadata db", "error", err)
+		return CodedError(errors.New("unable to open knowledge extraction metadata db"), http.StatusInternalServerError)
 	}
 
 	err = db.AutoMigrate(&Question{}, &Keyword{})
 	if err != nil {
-		return fmt.Errorf("unable to initialize knowledge extraction metadata db: %w", err)
+		slog.Error("unable to initialize knowledge extraction metadata db", "error", err)
+		return CodedError(errors.New("unable to initialize knowledge extraction metadata db"), http.StatusInternalServerError)
 	}
 
 	entries := make([]Question, 0, len(questions))
@@ -215,7 +221,8 @@ func populateQuestions(dbPath string, questions []QuestionKeywords) error {
 
 	result := db.Create(&entries)
 	if result.Error != nil {
-		return schema.NewDbError("populating knowledge extraction metadata", result.Error)
+		slog.Error("sql error populating knowledge extraction metadata", "error", result.Error)
+		return CodedError(errors.New("error populating knowledge extraction metadata"), http.StatusInternalServerError)
 	}
 
 	return nil
@@ -238,12 +245,14 @@ func (s *WorkflowService) createQuestionDb(modelId uuid.UUID, questions []Questi
 
 	file, err := os.Open(dbPath)
 	if err != nil {
-		return fmt.Errorf("unable to open knowledge extraction metadata for copying to share: %w", err)
+		slog.Error("unable to open knowledge extraction metadata for copying", "error", err)
+		return CodedError(errors.New("unable to open knowledge extraction metadata for copying"), http.StatusInternalServerError)
 	}
 
 	err = s.storage.Write(filepath.Join(storage.ModelPath(modelId), "model", "knowledge.db"), file)
 	if err != nil {
-		return fmt.Errorf("unable to copy knowledge extraction metadata to share: %w", err)
+		slog.Error("unable to copy knowledge extraction metadata", "error", err)
+		return CodedError(errors.New("unable to copy knowledge extraction metadata"), http.StatusInternalServerError)
 	}
 
 	return nil
@@ -281,20 +290,21 @@ func (s *WorkflowService) KnowledgeExtraction(w http.ResponseWriter, r *http.Req
 		return saveModel(txn, model, user)
 	})
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error creating knowledge extraction model: %v", err), http.StatusBadRequest)
+		slog.Error("error creating knowledge extraction model", "error", err)
+		http.Error(w, "error creating knowledge extraction model", GetResponseCode(err))
 		return
 	}
 
 	err = s.createQuestionDb(modelId, params.Questions)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("unable to populate knowledge extraction metadata: %v", err), http.StatusInternalServerError)
+		http.Error(w, err.Error(), GetResponseCode(err))
 		return
 	}
 
 	result := s.db.Model(&schema.Model{}).Where("id = ?", modelId).Update("train_status", schema.Complete)
 	if result.Error != nil {
-		err := schema.NewDbError("updating model train status", result.Error)
-		http.Error(w, fmt.Sprintf("finalizing knowledge extraction initialization: %v", err), http.StatusInternalServerError)
+		slog.Error("error updating knowledge extraction train status", "error", result.Error)
+		http.Error(w, "error updating knowledge extraction train status", http.StatusInternalServerError)
 		return
 	}
 

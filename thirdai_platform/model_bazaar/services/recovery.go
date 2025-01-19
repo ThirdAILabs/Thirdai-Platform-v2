@@ -3,7 +3,9 @@ package services
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -79,7 +81,7 @@ func (s *RecoveryService) saveConfig(params BackupRequest, configPath string) er
 	case "local":
 	// pass
 	default:
-		return fmt.Errorf("invalid provider: '%v'", params.Provider)
+		return CodedError(fmt.Errorf("invalid provider: '%v'", params.Provider), http.StatusBadRequest)
 	}
 
 	config := map[string]interface{}{
@@ -88,12 +90,14 @@ func (s *RecoveryService) saveConfig(params BackupRequest, configPath string) er
 
 	data, err := json.Marshal(config)
 	if err != nil {
-		return fmt.Errorf("error serializing snapshot config: %w", err)
+		slog.Error("error serializing snapshot config", "error", err)
+		return CodedError(errors.New("error saving snapshot config"), http.StatusInternalServerError)
 	}
 
 	err = s.storage.Write(configPath, bytes.NewReader(data))
 	if err != nil {
-		return fmt.Errorf("error saving snapshot config: %w", err)
+		slog.Error("error saving snapshot config", "error", err)
+		return CodedError(errors.New("error saving snapshot config"), http.StatusInternalServerError)
 	}
 
 	return nil
@@ -115,14 +119,15 @@ func (s *RecoveryService) Backup(w http.ResponseWriter, r *http.Request) {
 
 	dbUri, err := s.getDbUri()
 	if err != nil {
-		http.Error(w, fmt.Sprintf("unable to perform backup, unable to validate DB connection string: %v", err), http.StatusBadRequest)
+		slog.Error("unable to perform backup, unable to validate DB connection string", "error", err)
+		http.Error(w, "unable to perform backup, unable to validate DB connection string", http.StatusInternalServerError)
 		return
 	}
 
 	configPath := "backup_config.json"
 	err = s.saveConfig(params, configPath)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), GetResponseCode(err))
 		return
 	}
 
@@ -137,13 +142,15 @@ func (s *RecoveryService) Backup(w http.ResponseWriter, r *http.Request) {
 
 	err = nomad.StopJobIfExists(s.nomad, job.GetJobName())
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error stopping existing snapshot job: %v", err), http.StatusBadRequest)
+		slog.Error("error stopping existing snapshot job", "error", err)
+		http.Error(w, "error stopping existing snapshot job", http.StatusInternalServerError)
 		return
 	}
 
 	err = s.nomad.StartJob(job)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error starting snapshot job: %v", err), http.StatusBadRequest)
+		slog.Error("error starting snapshot job", "error", err)
+		http.Error(w, "error starting snapshot job", http.StatusInternalServerError)
 		return
 	}
 
@@ -153,7 +160,8 @@ func (s *RecoveryService) Backup(w http.ResponseWriter, r *http.Request) {
 func (s *RecoveryService) ListLocalBackups(w http.ResponseWriter, r *http.Request) {
 	exists, err := s.storage.Exists("backups")
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error checking if local backups exist: %v", err), http.StatusBadRequest)
+		slog.Error("error checking if local backups exist", "error", err)
+		http.Error(w, "error listing local backups", http.StatusInternalServerError)
 		return
 	}
 
@@ -164,7 +172,8 @@ func (s *RecoveryService) ListLocalBackups(w http.ResponseWriter, r *http.Reques
 
 	backups, err := s.storage.List("backups")
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error listing local backups: %v", err), http.StatusBadRequest)
+		slog.Error("error listing local backups")
+		http.Error(w, "error listing local backups", http.StatusInternalServerError)
 		return
 	}
 

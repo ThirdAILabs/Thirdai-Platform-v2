@@ -70,12 +70,12 @@ func (s *TrainService) TrainNlpToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.validateUploads(user.Id, options.Data.SupervisedFiles); err != nil {
-		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), GetResponseCode(err))
 		return
 	}
 
 	if err := s.validateUploads(user.Id, options.Data.TestFiles); err != nil {
-		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -143,12 +143,12 @@ func (s *TrainService) TrainNlpText(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.validateUploads(user.Id, options.Data.SupervisedFiles); err != nil {
-		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), GetResponseCode(err))
 		return
 	}
 
 	if err := s.validateUploads(user.Id, options.Data.TestFiles); err != nil {
-		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -362,13 +362,14 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 
 	license, err := verifyLicenseForNewJob(s.nomad, s.license, params.JobOptions.CpuUsageMhz())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), GetResponseCode(err))
 		return
 	}
 
 	jobToken, err := s.jobAuth.CreateModelJwt(modelId, time.Hour*1000*24)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
+		slog.Error("error creating job token for train job", "error", err)
+		http.Error(w, "error setting up train job", http.StatusInternalServerError)
 		return
 	}
 
@@ -411,7 +412,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 
 	err = s.createModelAndStartDatagenTraining(params.ModelName, user, trainConfig, datagenConfig)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("unable to start training: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("unable to start training: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -475,13 +476,14 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 
 	license, err := verifyLicenseForNewJob(s.nomad, s.license, params.JobOptions.CpuUsageMhz())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), GetResponseCode(err))
 		return
 	}
 
 	jobToken, err := s.jobAuth.CreateModelJwt(modelId, time.Hour*1000*24)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
+		slog.Error("error creating job token for train job", "error", err)
+		http.Error(w, "error setting up train job", http.StatusInternalServerError)
 		return
 	}
 
@@ -526,7 +528,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 
 	err = s.createModelAndStartDatagenTraining(params.ModelName, user, trainConfig, datagenConfig)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("unable to start training: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("unable to start training: %v", err), GetResponseCode(err))
 		return
 	}
 

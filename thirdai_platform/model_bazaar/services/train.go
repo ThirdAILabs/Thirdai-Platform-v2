@@ -104,13 +104,14 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 
 	license, err := verifyLicenseForNewJob(s.nomad, s.license, args.jobOptions.CpuUsageMhz())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), GetResponseCode(err))
 		return
 	}
 
 	jobToken, err := s.jobAuth.CreateModelJwt(model.Id, time.Hour*1000*24)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
+		slog.Error("error creating job token for train job", "error", err)
+		http.Error(w, "error setting up train job", http.StatusInternalServerError)
 		return
 	}
 
@@ -132,7 +133,8 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 
 	configPath, err := saveConfig(trainConfig.ModelId, "train", trainConfig, s.storage)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error starting training: %v", err), http.StatusBadRequest)
+		slog.Error("error saving train config", "error", err)
+		http.Error(w, err.Error(), GetResponseCode(err))
 		return
 	}
 
@@ -150,7 +152,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 
 	err = s.saveModelAndStartJob(model, user, job)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error starting %v training: %v", args.modelType, err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error starting %v training: %v", args.modelType, err), GetResponseCode(err))
 		return
 	}
 
@@ -170,12 +172,14 @@ func (s *TrainService) saveModelAndStartJob(model schema.Model, user schema.User
 
 	err = s.nomad.StartJob(job)
 	if err != nil {
-		return fmt.Errorf("error starting train job: %w", err)
+		slog.Error("error starting train job", "error", err)
+		return CodedError(errors.New("error starting train job on nomad"), http.StatusInternalServerError)
 	}
 
 	result := s.db.Model(&model).Update("train_status", schema.Starting)
 	if result.Error != nil {
-		return schema.NewDbError("updating model train status to starting", result.Error)
+		slog.Error("sql error updating model train status", "error", err)
+		return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 	}
 
 	return nil
@@ -184,19 +188,19 @@ func (s *TrainService) saveModelAndStartJob(model schema.Model, user schema.User
 func getMultipartBoundary(r *http.Request) (string, error) {
 	contentType := r.Header.Get("Content-Type")
 	if contentType == "" {
-		return "", fmt.Errorf("missing 'Content-Type' header")
+		return "", CodedError(fmt.Errorf("missing 'Content-Type' header"), http.StatusBadRequest)
 	}
 	mediaType, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		return "", fmt.Errorf("error parsing media type in request: %w", err)
+		return "", CodedError(fmt.Errorf("error parsing media type in request: %w", err), http.StatusBadRequest)
 	}
 	if mediaType != "multipart/form-data" {
-		return "", fmt.Errorf("expected media type to be 'multipart/form-data'")
+		return "", CodedError(fmt.Errorf("expected media type to be 'multipart/form-data'"), http.StatusBadRequest)
 	}
 
 	boundary, ok := params["boundary"]
 	if !ok {
-		return "", fmt.Errorf("missing 'boundary' parameter in 'Content-Type' header")
+		return "", CodedError(fmt.Errorf("missing 'boundary' parameter in 'Content-Type' header"), http.StatusBadRequest)
 	}
 
 	return boundary, nil
@@ -211,7 +215,7 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 
 	boundary, err := getMultipartBoundary(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), GetResponseCode(err))
 		return
 	}
 
@@ -223,8 +227,8 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 		UploadDate: time.Now().UTC(),
 	}
 	if err := s.db.Create(&upload).Error; err != nil {
-		err := schema.NewDbError("creating upload entry", err)
-		http.Error(w, fmt.Sprintf("unable to create upload: %v", err), http.StatusInternalServerError)
+		slog.Error("sql error creating upload", "error", err)
+		http.Error(w, fmt.Sprintf("unable to create upload: %v", schema.ErrDbAccessFailed), http.StatusInternalServerError)
 		return
 	}
 
@@ -255,7 +259,7 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 
 		if part.FormName() == "files" {
 			if part.FileName() == "" {
-				http.Error(w, "invalid filename detected in upload files", http.StatusBadRequest)
+				http.Error(w, "invalid filename detected in upload files: filename cannot be empty", http.StatusBadRequest)
 				return
 			}
 
@@ -264,7 +268,8 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 			newFilepath := filepath.Join(saveDir, part.FileName())
 			err := s.storage.Write(newFilepath, part)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("error saving file '%v': %v", part.FileName(), err), http.StatusBadRequest)
+				slog.Error("error saving uploaded file", "error", err)
+				http.Error(w, "error saving uploaded file", http.StatusInternalServerError)
 				return
 			}
 		}
@@ -272,8 +277,8 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 
 	upload.Files = strings.Join(filenames, ";")
 	if err := s.db.Save(&upload).Error; err != nil {
-		err := schema.NewDbError("updating upload file list", err)
-		http.Error(w, fmt.Sprintf("unable to create upload: %v", err), http.StatusInternalServerError)
+		slog.Error("sql error updating upload file list", "error", err)
+		http.Error(w, "error storing upload metadata", http.StatusInternalServerError)
 		return
 	}
 
@@ -285,20 +290,21 @@ func (s *TrainService) validateUploads(userId uuid.UUID, files []config.TrainFil
 		if file.Location == config.FileLocUpload {
 			uploadId, err := uuid.Parse(file.Path)
 			if err != nil {
-				return fmt.Errorf("invalid upload id: %v", file.Path)
+				return CodedError(fmt.Errorf("invalid upload id: %v", file.Path), http.StatusBadRequest)
 			}
 
 			var upload schema.Upload
 			result := s.db.First(&upload, "id = ?", uploadId)
 			if result.Error != nil {
 				if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-					return fmt.Errorf("upload %v does not exist", uploadId)
+					return CodedError(fmt.Errorf("upload %v does not exist", uploadId), http.StatusNotFound)
 				}
-				return schema.NewDbError("retrieving upload info", result.Error)
+				slog.Error("sql error retrieving upload info", "upload_id", uploadId, "error", result.Error)
+				return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 			}
 
 			if upload.UserId != userId {
-				return fmt.Errorf("user %v does not have permission to access upload %v", userId, uploadId)
+				return CodedError(fmt.Errorf("user %v does not have permission to access upload %v", userId, uploadId), http.StatusBadRequest)
 			}
 
 			files[i].Location = config.FileLocLocal
@@ -352,7 +358,8 @@ func (s *TrainService) TrainReport(w http.ResponseWriter, r *http.Request) {
 
 	reports, err := s.storage.List(reportDir)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("unable to locate train reports: %v", err), http.StatusBadRequest)
+		slog.Error("error listing train reports", "model_id", modelId, "error", err)
+		http.Error(w, "error listing train reports", http.StatusInternalServerError)
 		return
 	}
 
@@ -374,13 +381,15 @@ func (s *TrainService) TrainReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if mostRecent <= 0 {
+		slog.Error("no processable train reports found", "model_id", model.Id)
 		http.Error(w, fmt.Sprintf("no train reports found for model %v", model.Id), http.StatusBadRequest)
 		return
 	}
 
 	reportData, err := s.storage.Read(filepath.Join(reportDir, fmt.Sprintf("%d.json", mostRecent)))
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error reading report file: %v", err), http.StatusBadRequest)
+		slog.Error("error reading train report", "error", err)
+		http.Error(w, "error reading train report", http.StatusInternalServerError)
 		return
 	}
 	defer reportData.Close()
@@ -388,7 +397,8 @@ func (s *TrainService) TrainReport(w http.ResponseWriter, r *http.Request) {
 	var report interface{}
 	err = json.NewDecoder(reportData).Decode(&report)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error parsing report: %v", err), http.StatusBadRequest)
+		slog.Error("error parsing train report", "error", err)
+		http.Error(w, "error parsing train report", http.StatusInternalServerError)
 		return
 	}
 

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"thirdai_platform/model_bazaar/schema"
@@ -30,13 +31,16 @@ func AdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 	}
 }
 
-func isTeamAdmin(teamId, userId uuid.UUID, db *gorm.DB) bool {
+func isTeamAdmin(teamId, userId uuid.UUID, db *gorm.DB) (bool, error) {
 	userTeam, err := schema.GetUserTeam(teamId, userId, db)
-	if err != nil || userTeam == nil {
-		return false
+	if err != nil {
+		if errors.Is(err, schema.ErrUserTeamNotFound) {
+			return false, nil
+		}
+		return false, err
 	}
 
-	return userTeam.IsTeamAdmin
+	return userTeam.IsTeamAdmin, nil
 }
 
 func AdminOrTeamAdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
@@ -54,7 +58,13 @@ func AdminOrTeamAdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 				return
 			}
 
-			if !user.IsAdmin && !isTeamAdmin(teamId, user.Id, db) {
+			isAdmin, err := isTeamAdmin(teamId, user.Id, db)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			if !user.IsAdmin && !isAdmin {
 				http.Error(w, "user must be admin or team admin to access endpoint", http.StatusUnauthorized)
 				return
 			}
@@ -65,13 +75,16 @@ func AdminOrTeamAdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 	}
 }
 
-func isTeamMember(teamId, userId uuid.UUID, db *gorm.DB) bool {
-	userTeam, err := schema.GetUserTeam(teamId, userId, db)
-	if err != nil || userTeam == nil {
-		return false
+func isTeamMember(teamId, userId uuid.UUID, db *gorm.DB) (bool, error) {
+	_, err := schema.GetUserTeam(teamId, userId, db)
+	if err != nil {
+		if errors.Is(err, schema.ErrUserTeamNotFound) {
+			return false, nil
+		}
+		return false, err
 	}
 
-	return true
+	return true, nil
 }
 
 func TeamMemberOnly(db *gorm.DB) func(http.Handler) http.Handler {
@@ -89,7 +102,13 @@ func TeamMemberOnly(db *gorm.DB) func(http.Handler) http.Handler {
 				return
 			}
 
-			if !user.IsAdmin && !isTeamMember(teamId, user.Id, db) {
+			isMember, err := isTeamMember(teamId, user.Id, db)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			if !user.IsAdmin && !isMember {
 				http.Error(w, "user must be team member to access endpoint", http.StatusUnauthorized)
 				return
 			}
@@ -148,17 +167,18 @@ func GetModelPermissions(modelId uuid.UUID, user schema.User, db *gorm.DB) (mode
 	if model.Access == schema.Protected && model.TeamId != nil {
 		userTeam, err := schema.GetUserTeam(*model.TeamId, user.Id, db)
 		if err != nil {
+			if errors.Is(err, schema.ErrUserTeamNotFound) {
+				return NoPermission, nil
+			}
 			return NoPermission, err
 		}
-		if userTeam != nil {
-			if userTeam.IsTeamAdmin {
-				return OwnerPermission, nil
-			}
-			if model.DefaultPermission == schema.WritePerm {
-				return WritePermission, nil
-			}
-			return ReadPermission, nil
+		if userTeam.IsTeamAdmin {
+			return OwnerPermission, nil
 		}
+		if model.DefaultPermission == schema.WritePerm {
+			return WritePermission, nil
+		}
+		return ReadPermission, nil
 	}
 
 	return NoPermission, nil

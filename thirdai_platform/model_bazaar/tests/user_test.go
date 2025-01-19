@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -70,8 +71,8 @@ func TestAddUser(t *testing.T) {
 	}
 
 	err = client.login(loginInfo{Email: "xyz@mail.com", Password: "123"})
-	if err != ErrUnauthorized {
-		t.Fatal("no login should be created")
+	if !strings.Contains(err.Error(), "no user found for given email") {
+		t.Fatalf("no login should be created: %v", err)
 	}
 
 	_, err = admin.addUser("xyz", "xyz@mail.com", "123")

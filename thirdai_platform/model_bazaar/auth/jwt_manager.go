@@ -55,7 +55,6 @@ func (m *JwtManager) CreateModelJwt(modelId uuid.UUID, exp time.Duration) (strin
 }
 
 func ValueFromContext(r *http.Request, key string) (string, error) {
-	fmt.Println("Request, Key::", r, key)
 	_, claims, err := jwtauth.FromContext(r.Context())
 	if err != nil {
 		return "", fmt.Errorf("error retrieving auth claims: %w", err)

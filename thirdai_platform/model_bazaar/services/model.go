@@ -35,7 +35,7 @@ type ModelService struct {
 
 type CreateAPIKeyRequest struct {
 	ModelIDs []string `json:"model_ids"`
-	Prefix   string   `json:"prefix"`
+	Name     string   `json:"name"`
 	Exp      string   `json:"exp"`
 }
 
@@ -265,48 +265,40 @@ func (s *ModelService) ListModelWithWritePermission(w http.ResponseWriter, r *ht
 
 func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 
-	// Initialize the request structure
 	var req CreateAPIKeyRequest
 
-	// Decode the JSON request body
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	// Validate the presence of model_ids
 	if len(req.ModelIDs) == 0 {
 		http.Error(w, "model_ids are required", http.StatusBadRequest)
 		return
 	}
 
-	// Validate the presence of prefix
-	if strings.TrimSpace(req.Prefix) == "" {
-		http.Error(w, "prefix is required", http.StatusBadRequest)
+	if strings.TrimSpace(req.Name) == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
 		return
 	}
 
-	// Validate the presence of expiry date
 	if strings.TrimSpace(req.Exp) == "" {
 		http.Error(w, "expiry date is required", http.StatusBadRequest)
 		return
 	}
 
-	// Parse the expiry date
 	unixTime, err := time.Parse(time.RFC3339, req.Exp)
 	if err != nil {
 		http.Error(w, "invalid expiry format", http.StatusBadRequest)
 		return
 	}
 
-	// Retrieve the authenticated user from context
 	user, err := auth.UserFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	// Parse and validate model IDs
 	var parsedModelIDs []uuid.UUID
 	for _, idStr := range req.ModelIDs {
 		idStr = strings.TrimSpace(idStr)
@@ -327,7 +319,6 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Retrieve models from the database
 	var models []schema.Model
 	err = s.db.Preload("Attributes").
 		Preload("Dependencies").
@@ -341,24 +332,21 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if all requested models were found
 	if len(models) != len(parsedModelIDs) {
 		http.Error(w, "some model_ids are invalid or do not belong to the user", http.StatusBadRequest)
 		return
 	}
 
-	// Generate API key and hash key
-	apiKey, hashKey, err := GenerateApiKey(s.db, req.Prefix)
+	apiKey, hashKey, err := GenerateApiKey(s.db)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Create a new API key record
 	newAPIKey := schema.UserAPIKey{
 		Id:            uuid.New(),
 		HashKey:       hashKey,
-		Prefix:        req.Prefix,
+		Name:          req.Name,
 		Models:        models,
 		GeneratedTime: time.Now(),
 		ExpiryTime:    unixTime,

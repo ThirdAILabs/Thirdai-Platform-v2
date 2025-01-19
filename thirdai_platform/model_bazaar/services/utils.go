@@ -28,6 +28,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const thirdaiPlatformKeyPrefix = "thirdai_platform_key"
+
 func listModelDependencies(modelId uuid.UUID, db *gorm.DB) ([]schema.Model, error) {
 	visited := map[uuid.UUID]struct{}{}
 	models := []schema.Model{}
@@ -462,31 +464,27 @@ func checkSufficientStorage(storage storage.Storage) func(http.Handler) http.Han
 	}
 }
 
-func GenerateApiKey(db *gorm.DB, prefix string) (string, string, error) {
+func removeApiKeyPrefix(input string) (string, error) {
+	expectedPrefix := thirdaiPlatformKeyPrefix + "-"
+	if strings.HasPrefix(input, expectedPrefix) {
+		trimmed := strings.TrimPrefix(input, expectedPrefix)
+		return trimmed, nil
+	}
+	return "", fmt.Errorf("input string must start with the prefix '%s-'", thirdaiPlatformKeyPrefix)
+}
+
+func GenerateApiKey(db *gorm.DB) (string, string, error) {
 	var secret string
 	var secretHash string
 
-	// We are doing a transaction here, to make sure we don't have two keys with same prefix
-	err := db.Transaction(func(tx *gorm.DB) error {
-		if err := ensurePrefixIsUnique(tx, prefix); err != nil {
-			return err
-		}
-
-		var err error
-		secret, err = generateRandomString(32)
-		if err != nil {
-			return err
-		}
-
-		secretHash = hashSecret(secret)
-
-		return nil
-	})
+	secret, err := generateRandomString(32)
 	if err != nil {
 		return "", "", err
 	}
 
-	fullKey := fmt.Sprintf("%s.%s", prefix, secret)
+	secretHash = hashSecret(secret)
+
+	fullKey := fmt.Sprintf("%s-%s", thirdaiPlatformKeyPrefix, secret)
 	return fullKey, secretHash, nil
 }
 
@@ -507,19 +505,6 @@ func hashSecret(secret string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func ensurePrefixIsUnique(db *gorm.DB, prefix string) error {
-	var count int64
-	if err := db.Model(&schema.UserAPIKey{}).
-		Where("prefix = ?", prefix).
-		Count(&count).Error; err != nil {
-		return err
-	}
-	if count > 0 {
-		return errors.New("prefix collision, please retry")
-	}
-	return nil
-}
-
 func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, time.Time, error) {
 	// Extract the API Key from the header
 	fullKey := r.Header.Get("X-API-Key")
@@ -528,24 +513,21 @@ func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, time.Time, error) 
 		return uuid.Nil, time.Time{}, nil
 	}
 
-	keyParts := strings.SplitN(fullKey, ".", 2)
+	secret, err := removeApiKeyPrefix(fullKey)
 
-	if len(keyParts) != 2 {
+	if err != nil {
 		return uuid.Nil, time.Time{}, nil
 	}
 
-	prefix, secret := keyParts[0], keyParts[1]
-
 	var record schema.UserAPIKey
 
-	if err := db.Where("prefix = ?", prefix).Preload("Models").First(&record).Error; err != nil {
+	if err := db.Where("hashkey = ?", secret).Preload("Models").First(&record).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return uuid.Nil, time.Time{}, nil
 		}
 		return uuid.Nil, time.Time{}, err
 	}
 
-	// Check for expiry
 	if !record.ExpiryTime.IsZero() {
 		if time.Now().After(record.ExpiryTime) {
 			return uuid.Nil, time.Time{}, nil

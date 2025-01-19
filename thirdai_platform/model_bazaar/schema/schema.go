@@ -75,7 +75,7 @@ type UserAPIKey struct {
 	Id uuid.UUID `gorm:"type:uuid;primaryKey"`
 
 	HashKey string  `gorm:"unique;size:500;not null"`
-	Prefix  string  `gorm:"unique;size:500;not null"`
+	Name    string  `gorm:"size:500;not null"`
 	Models  []Model `gorm:"many2many:user_api_key_models;constraint:OnDelete:CASCADE;"`
 
 	GeneratedTime time.Time

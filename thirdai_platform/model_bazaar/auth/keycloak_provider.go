@@ -486,17 +486,17 @@ func (auth *KeycloakIdentityProvider) checkExistingUsers(adminToken, field strin
 func (auth *KeycloakIdentityProvider) CreateUser(username, email, password string) (uuid.UUID, error) {
 	adminToken, err := adminLogin(auth.keycloak, auth.adminUsername, auth.adminPassword)
 	if err != nil {
-		return uuid.UUID{}, err
+		return uuid.Nil, err
 	}
 
 	existingUsername := auth.checkExistingUsers(adminToken, "username", gocloak.GetUsersParams{Username: &username})
 	if existingUsername != nil {
-		return uuid.UUID{}, existingUsername
+		return uuid.Nil, existingUsername
 	}
 
 	existingEmail := auth.checkExistingUsers(adminToken, "email", gocloak.GetUsersParams{Email: &email})
 	if existingEmail != nil {
-		return uuid.UUID{}, existingEmail
+		return uuid.Nil, existingEmail
 	}
 
 	trueArg := true
@@ -518,12 +518,12 @@ func (auth *KeycloakIdentityProvider) CreateUser(username, email, password strin
 
 	userId, err := auth.keycloak.CreateUser(ctx, adminToken, auth.realm, keycloakUser)
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("error creating new user in keycloak: %w", err)
+		return uuid.Nil, fmt.Errorf("error creating new user in keycloak: %w", err)
 	}
 
 	userUUID, err := uuid.Parse(userId)
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("invalid uuid '%v' returned from keycloak: %w", userId, err)
+		return uuid.Nil, fmt.Errorf("invalid uuid '%v' returned from keycloak: %w", userId, err)
 	}
 
 	user := schema.User{
@@ -536,7 +536,7 @@ func (auth *KeycloakIdentityProvider) CreateUser(username, email, password strin
 	result := auth.db.Create(&user)
 	if result.Error != nil {
 		slog.Error("sql error creating user in keycloak identity provider", "error", result.Error)
-		return uuid.UUID{}, schema.ErrDbAccessFailed
+		return uuid.Nil, schema.ErrDbAccessFailed
 	}
 
 	return userUUID, nil

@@ -120,7 +120,7 @@ func (auth *BasicIdentityProvider) LoginWithToken(accessToken string) (LoginResu
 func (auth *BasicIdentityProvider) CreateUser(username, email, password string) (uuid.UUID, error) {
 	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("error encrypting password: %w", err)
+		return uuid.Nil, fmt.Errorf("error encrypting password: %w", err)
 	}
 
 	newUser := schema.User{Id: uuid.New(), Username: username, Email: email, Password: hashedPwd, IsAdmin: false}
@@ -150,7 +150,7 @@ func (auth *BasicIdentityProvider) CreateUser(username, email, password string) 
 	})
 
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("error creating new user: %w", err)
+		return uuid.Nil, fmt.Errorf("error creating new user: %w", err)
 	}
 
 	return newUser.Id, nil

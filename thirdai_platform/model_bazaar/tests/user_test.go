@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -66,7 +67,7 @@ func TestAddUser(t *testing.T) {
 	client := env.newClient()
 
 	_, err = user.addUser("xyz", "xyz@mail.com", "123")
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("users cannot add users")
 	}
 
@@ -108,7 +109,7 @@ func TestUserInfo(t *testing.T) {
 	}
 
 	info, err = client.userInfo()
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("expected unauthorized error")
 	}
 
@@ -167,7 +168,7 @@ func TestListUsers(t *testing.T) {
 
 	client := env.newClient()
 	_, err = client.listUsers()
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("expected unauthorized error")
 	}
 
@@ -230,12 +231,12 @@ func TestPromoteDemoteAdmin(t *testing.T) {
 	}
 
 	err = user1.promoteAdmin(user1.userId)
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("users can't promote admins")
 	}
 
 	err = user1.promoteAdmin(user2.userId)
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("users can't promote admins")
 	}
 
@@ -271,7 +272,7 @@ func TestPromoteDemoteAdmin(t *testing.T) {
 	checkAdminStatus(user2, t, true)
 
 	err = user1.demoteAdmin(user2.userId)
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("non admin cannot demote admin")
 	}
 

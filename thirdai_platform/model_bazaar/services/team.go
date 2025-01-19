@@ -85,7 +85,7 @@ func (s *TeamService) CreateTeam(w http.ResponseWriter, r *http.Request) {
 			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 		if result.RowsAffected != 0 {
-			return CodedError(fmt.Errorf("team with name %v already exists", params.Name), http.StatusBadRequest)
+			return CodedError(fmt.Errorf("team with name %v already exists", params.Name), http.StatusConflict)
 		}
 
 		result = txn.Create(&newTeam)
@@ -252,7 +252,7 @@ func (s *TeamService) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if model.TeamId != nil {
-			return CodedError(fmt.Errorf("model %v is already assigned to team", modelId), http.StatusBadRequest)
+			return CodedError(fmt.Errorf("model %v is already assigned to team", modelId), http.StatusConflict)
 		}
 
 		model.TeamId = &teamId
@@ -396,7 +396,7 @@ type TeamInfo struct {
 func (s *TeamService) List(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -407,7 +407,7 @@ func (s *TeamService) List(w http.ResponseWriter, r *http.Request) {
 	} else {
 		userTeams, err := schema.GetUserTeamIds(user.Id, s.db)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		result = s.db.Where("id IN ?", userTeams).Find(&teams)
@@ -495,7 +495,7 @@ func (s *TeamService) TeamModels(w http.ResponseWriter, r *http.Request) {
 	for _, model := range models {
 		info, err := convertToModelInfo(model, s.db)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), GetResponseCode(err))
 			return
 		}
 		infos = append(infos, info)

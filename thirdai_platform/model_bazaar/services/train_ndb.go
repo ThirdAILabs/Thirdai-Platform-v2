@@ -56,13 +56,13 @@ func (s *TrainService) TrainNdb(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := options.validate(); err != nil {
-		http.Error(w, fmt.Sprintf("unable to start ndb training, found the following errors: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("unable to start ndb training, found the following errors: %v", err), http.StatusUnprocessableEntity)
 		return
 	}
 
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -188,7 +188,7 @@ func (s *TrainService) NdbRetrain(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := options.validate(); err != nil {
-		http.Error(w, fmt.Sprintf("unable to start ndb retraining, found the following errors: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("unable to start ndb retraining, found the following errors: %v", err), http.StatusUnprocessableEntity)
 		return
 	}
 

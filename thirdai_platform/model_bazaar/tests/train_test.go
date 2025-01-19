@@ -157,7 +157,7 @@ func TestFileUpload(t *testing.T) {
 		body, contentType := createUploadBody(t, files)
 		var res map[string]string
 		err := client.Post("/train/upload-data?sub_dir=a/b").Header("Content-Type", contentType).Body(body).Do(&res)
-		if err == nil || !strings.Contains(err.Error(), "status 400") {
+		if err == nil || !strings.Contains(err.Error(), "status 422") {
 			t.Fatal(err)
 		}
 	}

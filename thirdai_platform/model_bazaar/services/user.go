@@ -23,7 +23,9 @@ func (s *UserService) Routes() chi.Router {
 	r := chi.NewRouter()
 
 	r.Group(func(r chi.Router) {
-		r.Post("/signup", s.Signup)
+		if s.userAuth.AllowDirectSignup() {
+			r.Post("/signup", s.Signup)
+		}
 
 		r.Get("/login", s.LoginWithEmail)
 		r.Post("/login-with-token", s.LoginWithToken)
@@ -70,13 +72,20 @@ func (s *UserService) Signup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !s.userAuth.AllowDirectSignup() {
-		http.Error(w, "direct signup is not supported for this identify provider", http.StatusUnauthorized)
+		http.Error(w, "direct signup is not supported for this identify provider", http.StatusBadRequest)
 		return
 	}
 
 	userId, err := s.userAuth.CreateUser(params.Username, params.Email, params.Password)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		responseCode := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, auth.ErrEmailAlreadyInUse):
+			responseCode = http.StatusConflict
+		case errors.Is(err, auth.ErrUsernameAlreadyInUse):
+			responseCode = http.StatusConflict
+		}
+		http.Error(w, err.Error(), responseCode)
 		return
 	}
 
@@ -151,7 +160,7 @@ func (s *UserService) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		adminResult := txn.Where("is_admin = ?", true).First(&admin)
 		if adminResult.Error != nil {
 			slog.Error("sql error finding admin to assign models to", "user_id", userId, "error", adminResult.Error)
-			return CodedError(schema.ErrDbAccessFailed, http.StatusUnauthorized)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		updateResult := txn.Model(&schema.Model{}).
@@ -159,13 +168,13 @@ func (s *UserService) DeleteUser(w http.ResponseWriter, r *http.Request) {
 			Update("user_id", admin.Id)
 		if updateResult.Error != nil {
 			slog.Error("sql error updating owner of user protected/public models", "user_id", userId, "error", updateResult.Error)
-			return CodedError(schema.ErrDbAccessFailed, http.StatusUnauthorized)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		deleteUserResult := txn.Delete(&schema.User{Id: userId})
 		if deleteUserResult.Error != nil {
 			slog.Error("sql error deleting user", "user_id", userId, "error", err)
-			return CodedError(schema.ErrDbAccessFailed, http.StatusUnauthorized)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		return nil
@@ -237,7 +246,7 @@ func (s *UserService) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !user.IsAdmin {
-			return CodedError(errors.New("user is already not an admim"), http.StatusBadRequest)
+			return CodedError(errors.New("user is already not an admim"), http.StatusUnprocessableEntity)
 		}
 
 		var count int64
@@ -248,7 +257,7 @@ func (s *UserService) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if count < 2 {
-			return CodedError(fmt.Errorf("cannot demote admin %v since there would be no admins left", userId), http.StatusBadRequest)
+			return CodedError(fmt.Errorf("cannot demote admin %v since there would be no admins left", userId), http.StatusUnprocessableEntity)
 		}
 
 		user.IsAdmin = false
@@ -306,7 +315,7 @@ func convertToUserInfo(user *schema.User) UserInfo {
 func (s *UserService) List(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -343,7 +352,7 @@ func (s *UserService) List(w http.ResponseWriter, r *http.Request) {
 func (s *UserService) Info(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -370,9 +379,9 @@ func (s *UserService) CreateUser(w http.ResponseWriter, r *http.Request) {
 		responseCode := http.StatusInternalServerError
 		switch {
 		case errors.Is(err, auth.ErrEmailAlreadyInUse):
-			responseCode = http.StatusBadRequest
+			responseCode = http.StatusConflict
 		case errors.Is(err, auth.ErrUsernameAlreadyInUse):
-			responseCode = http.StatusBadRequest
+			responseCode = http.StatusConflict
 		}
 		http.Error(w, fmt.Sprintf("error creating user: %v", err), responseCode)
 		return

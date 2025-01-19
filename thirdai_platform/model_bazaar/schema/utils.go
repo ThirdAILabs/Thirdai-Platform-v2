@@ -8,24 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// type DbError struct {
-// 	action string
-// 	err    error
-// }
-
-// func NewDbError(action string, err error) error {
-// 	slog.Error("sql error", "action", action, "error", err)
-// 	return DbError{action: action, err: err}
-// }
-
-// func (e DbError) Error() string {
-// 	return fmt.Sprintf("sql error while %v: %v", e.action, e.err)
-// }
-
-// func (e DbError) Unwrap() error {
-// 	return e.err
-// }
-
 var (
 	ErrUserNotFound     = errors.New("user not found")
 	ErrModelNotFound    = errors.New("model not found")

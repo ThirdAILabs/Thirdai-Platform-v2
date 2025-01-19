@@ -94,7 +94,7 @@ type trainResponse struct {
 func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, args basicTrainArgs) {
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -209,7 +209,7 @@ func getMultipartBoundary(r *http.Request) (string, error) {
 func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -240,7 +240,7 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 	if subDir := r.URL.Query().Get("sub_dir"); subDir != "" {
 		ok, err := regexp.MatchString(`^\w+$`, subDir)
 		if err != nil || !ok {
-			http.Error(w, "invalid value for query parameter 'sub_dir', must be alphanumeric or _ characters only", http.StatusBadRequest)
+			http.Error(w, "invalid value for query parameter 'sub_dir', must be alphanumeric or _ characters only", http.StatusUnprocessableEntity)
 			return
 		}
 		saveDir = filepath.Join(saveDir, subDir)
@@ -259,7 +259,7 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 
 		if part.FormName() == "files" {
 			if part.FileName() == "" {
-				http.Error(w, "invalid filename detected in upload files: filename cannot be empty", http.StatusBadRequest)
+				http.Error(w, "invalid filename detected in upload files: filename cannot be empty", http.StatusUnprocessableEntity)
 				return
 			}
 
@@ -304,7 +304,7 @@ func (s *TrainService) validateUploads(userId uuid.UUID, files []config.TrainFil
 			}
 
 			if upload.UserId != userId {
-				return CodedError(fmt.Errorf("user %v does not have permission to access upload %v", userId, uploadId), http.StatusBadRequest)
+				return CodedError(fmt.Errorf("user %v does not have permission to access upload %v", userId, uploadId), http.StatusForbidden)
 			}
 
 			files[i].Location = config.FileLocLocal
@@ -345,12 +345,16 @@ func (s *TrainService) TrainReport(w http.ResponseWriter, r *http.Request) {
 
 	model, err := schema.GetModel(modelId, s.db, false, false, false)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error retrieving model info: %v", err), http.StatusBadRequest)
+		if errors.Is(err, schema.ErrModelNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, fmt.Sprintf("error retrieving model info: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	if model.TrainStatus != schema.Complete {
-		http.Error(w, fmt.Sprintf("unable to retrieve train report, model %v has status %v", model.Id, model.TrainStatus), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("unable to retrieve train report, model %v has status %v", model.Id, model.TrainStatus), http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -364,7 +368,7 @@ func (s *TrainService) TrainReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(reports) == 0 {
-		http.Error(w, fmt.Sprintf("no train reports found for model %v", model.Id), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("no train reports found for model %v", model.Id), http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -382,7 +386,7 @@ func (s *TrainService) TrainReport(w http.ResponseWriter, r *http.Request) {
 
 	if mostRecent <= 0 {
 		slog.Error("no processable train reports found", "model_id", model.Id)
-		http.Error(w, fmt.Sprintf("no train reports found for model %v", model.Id), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("no train reports found for model %v", model.Id), http.StatusUnprocessableEntity)
 		return
 	}
 

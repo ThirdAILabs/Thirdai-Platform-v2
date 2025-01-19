@@ -81,7 +81,7 @@ func (s *RecoveryService) saveConfig(params BackupRequest, configPath string) er
 	case "local":
 	// pass
 	default:
-		return CodedError(fmt.Errorf("invalid provider: '%v'", params.Provider), http.StatusBadRequest)
+		return CodedError(fmt.Errorf("invalid provider: '%v'", params.Provider), http.StatusUnprocessableEntity)
 	}
 
 	config := map[string]interface{}{

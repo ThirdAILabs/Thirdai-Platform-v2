@@ -70,7 +70,7 @@ func (log *AuditLogger) Middleware(next http.Handler) http.Handler {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		user, err := UserFromContext(r)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 

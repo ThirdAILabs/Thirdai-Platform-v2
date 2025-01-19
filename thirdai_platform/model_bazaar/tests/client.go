@@ -93,10 +93,11 @@ func (r *httpTestRequest) Do(result interface{}) error {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		if res.StatusCode == http.StatusUnauthorized {
-			return ErrUnauthorized
+		err := fmt.Errorf("%v request to endpoint %v returned status %d, content '%v'", r.method, r.endpoint, res.StatusCode, w.Body.String())
+		if res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden {
+			return errors.Join(ErrUnauthorized, err)
 		}
-		return fmt.Errorf("%v request to endpoint %v returned status %d, content '%v'", r.method, r.endpoint, res.StatusCode, w.Body.String())
+		return err
 	}
 
 	if result != nil {
@@ -385,10 +386,11 @@ func (c *client) downloadModel(modelId string) (io.Reader, error) {
 
 	res := w.Result()
 	if res.StatusCode != http.StatusOK {
-		if res.StatusCode == http.StatusUnauthorized {
-			return nil, ErrUnauthorized
+		err := fmt.Errorf("get %v failed with status %d and res '%v'", endpoint, res.StatusCode, w.Body.String())
+		if res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden {
+			return nil, errors.Join(ErrUnauthorized, err)
 		}
-		return nil, fmt.Errorf("get %v failed with status %d and res '%v'", endpoint, res.StatusCode, w.Body.String())
+		return nil, err
 	}
 
 	dst := new(bytes.Buffer)

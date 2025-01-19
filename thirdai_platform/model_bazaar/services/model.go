@@ -169,7 +169,7 @@ func (s *ModelService) Info(w http.ResponseWriter, r *http.Request) {
 func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -231,7 +231,7 @@ func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
 
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error getting user_id: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error getting user_id: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -241,14 +241,14 @@ func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		http.Error(w, fmt.Sprintf("error retrieving model permissions: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error retrieving model permissions: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	expiration, err := s.userAuth.GetTokenExpiration(r)
 	if err != nil {
 		slog.Error("error retrieving jwt expiration", "error", err)
-		http.Error(w, "error retrieving token expiration", http.StatusBadRequest)
+		http.Error(w, "error retrieving token expiration", http.StatusInternalServerError)
 		return
 	}
 
@@ -297,7 +297,7 @@ func (s *ModelService) Delete(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if usedBy != 0 {
-			return CodedError(fmt.Errorf("cannot delete model %v since it is used as a dependency by %d other models", modelId, usedBy), http.StatusBadRequest)
+			return CodedError(fmt.Errorf("cannot delete model %v since it is used as a dependency by %d other models", modelId, usedBy), http.StatusUnprocessableEntity)
 		}
 
 		childModels, err := countTrainingChildModels(txn, modelId)
@@ -305,7 +305,7 @@ func (s *ModelService) Delete(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if childModels != 0 {
-			return CodedError(fmt.Errorf("cannot delete model %v since it is being used as a base model for %d actively training models", modelId, childModels), http.StatusBadRequest)
+			return CodedError(fmt.Errorf("cannot delete model %v since it is being used as a base model for %d actively training models", modelId, childModels), http.StatusUnprocessableEntity)
 		}
 
 		if model.TrainStatus == schema.Starting || model.TrainStatus == schema.InProgress {
@@ -365,7 +365,7 @@ func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
 
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error retrieving user id from request: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error retrieving user id from request: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -423,7 +423,7 @@ func (s *ModelService) UploadChunk(w http.ResponseWriter, r *http.Request) {
 	err = s.storage.Write(path, r.Body)
 	if err != nil {
 		slog.Error("error uploading chunk to storage", "model_id", modelId, "chunk_idx", chunkIdx, "error", err)
-		http.Error(w, "error uploading chunk to storage", http.StatusBadRequest)
+		http.Error(w, "error uploading chunk to storage", http.StatusInternalServerError)
 		return
 	}
 
@@ -553,7 +553,11 @@ func (s *ModelService) UploadCommit(w http.ResponseWriter, r *http.Request) {
 
 	model, err := schema.GetModel(modelId, s.db, false, false, false)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error retrieving model: %v", err), http.StatusBadRequest)
+		if errors.Is(err, schema.ErrModelNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, fmt.Sprintf("error retrieving model: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -590,12 +594,12 @@ func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if model.TrainStatus != schema.Complete {
-		http.Error(w, fmt.Sprintf("can only download model with successfully completed training, model has train status %s", model.TrainStatus), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("can only download model with successfully completed training, model has train status %s", model.TrainStatus), http.StatusUnprocessableEntity)
 		return
 	}
 
 	if len(model.Dependencies) > 0 {
-		http.Error(w, "downloading models with dependencies is not yet supported", http.StatusBadRequest)
+		http.Error(w, "downloading models with dependencies is not yet supported", http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -673,7 +677,7 @@ func (s *ModelService) UpdateAccess(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := schema.CheckValidAccess(params.Access); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -708,7 +712,7 @@ func (s *ModelService) UpdateDefaultPermission(w http.ResponseWriter, r *http.Re
 	}
 
 	if err := schema.CheckValidPermission(params.Permission); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 

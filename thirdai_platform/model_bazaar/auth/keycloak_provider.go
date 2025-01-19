@@ -367,13 +367,13 @@ func (auth *KeycloakIdentityProvider) middleware() func(http.Handler) http.Handl
 			}
 
 			if userInfo.Sub == nil {
-				http.Error(w, "user identifier missing in keycloak response", http.StatusUnauthorized)
+				http.Error(w, "user identifier missing in keycloak response", http.StatusInternalServerError)
 				return
 			}
 
 			userUUID, err := uuid.Parse(*userInfo.Sub)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("invalid uuid '%v' returned from keycloak: %v", *userInfo.Sub, err), http.StatusUnauthorized)
+				http.Error(w, fmt.Sprintf("invalid uuid '%v' returned from keycloak: %v", *userInfo.Sub, err), http.StatusInternalServerError)
 				return
 			}
 

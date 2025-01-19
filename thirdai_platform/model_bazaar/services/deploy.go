@@ -118,7 +118,7 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 			return CodedError(err, http.StatusInternalServerError)
 		}
 		if perm < auth.OwnerPermission {
-			return CodedError(fmt.Errorf("user %v does not have permission to deploy model %v", user.Id, modelId), http.StatusUnauthorized)
+			return CodedError(fmt.Errorf("user %v does not have permission to deploy model %v", user.Id, modelId), http.StatusForbidden)
 		}
 
 		model, err := schema.GetModel(modelId, txn, false, true, false)
@@ -130,7 +130,7 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 		}
 
 		if model.TrainStatus != schema.Complete {
-			return CodedError(fmt.Errorf("cannot deploy %v since it has train status %v", model.Id, model.TrainStatus), http.StatusBadRequest)
+			return CodedError(fmt.Errorf("cannot deploy %v since it has train status %v", model.Id, model.TrainStatus), http.StatusUnprocessableEntity)
 		}
 
 		if model.DeployStatus == schema.Starting || model.DeployStatus == schema.InProgress || model.DeployStatus == schema.Complete {
@@ -148,7 +148,7 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 
 		license, err := verifyLicenseForNewJob(s.nomad, s.license, resources.AllocationMhz)
 		if err != nil {
-			return CodedError(err, http.StatusUnauthorized)
+			return CodedError(err, GetResponseCode(err))
 		}
 
 		token, err := s.jobAuth.CreateModelJwt(modelId, time.Hour*1000*24)
@@ -254,7 +254,7 @@ type startRequest struct {
 func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -308,7 +308,7 @@ func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
 			return fmt.Errorf("error checking if model is a dependend of other models: %w", err)
 		}
 		if usedBy != 0 {
-			return CodedError(fmt.Errorf("cannot stop deployment for model %v since it is used as a dependency by %d other active models", modelId, usedBy), http.StatusBadRequest)
+			return CodedError(fmt.Errorf("cannot stop deployment for model %v since it is used as a dependency by %d other active models", modelId, usedBy), http.StatusUnprocessableEntity)
 		}
 
 		model, err := schema.GetModel(modelId, txn, false, false, false)
@@ -386,7 +386,7 @@ type saveDeployedResponse struct {
 func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error retrieving user id from request: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error retrieving user id from request: %v", err), http.StatusInternalServerError)
 		return
 	}
 

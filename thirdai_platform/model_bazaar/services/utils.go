@@ -245,7 +245,7 @@ func updateStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, jo
 	}
 
 	if err := schema.CheckValidStatus(params.Status); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -306,7 +306,7 @@ func jobLogHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job stri
 	}
 
 	if params.Level != "warning" && params.Level != "error" {
-		http.Error(w, fmt.Sprintf("invalid log level '%v', must be 'warning' or 'error'", params.Level), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("invalid log level '%v', must be 'warning' or 'error'", params.Level), http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -384,7 +384,7 @@ func verifyLicenseForNewJob(nomad nomad.NomadClient, license *licensing.LicenseV
 	licenseData, err := license.Verify(currentCpuUsage + jobCpuUsage)
 	if err != nil {
 		slog.Error("license verification failed for new job", "error", err)
-		return "", CodedError(err, http.StatusUnauthorized)
+		return "", CodedError(err, http.StatusForbidden)
 	}
 
 	return licenseData.BoltLicenseKey, nil
@@ -398,7 +398,7 @@ func checkForDuplicateModel(db *gorm.DB, modelName string, userId uuid.UUID) err
 		return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 	}
 	if result.RowsAffected != 0 {
-		return CodedError(fmt.Errorf("a model with name %v already exists for user %v", modelName, userId), http.StatusBadRequest)
+		return CodedError(fmt.Errorf("a model with name %v already exists for user %v", modelName, userId), http.StatusConflict)
 	}
 	return nil
 }
@@ -432,7 +432,7 @@ func saveModel(txn *gorm.DB, model schema.Model, user schema.User) error {
 			return CodedError(fmt.Errorf("error retrieving base model: %w", err), http.StatusInternalServerError)
 		}
 		if baseModel.Type != model.Type {
-			return CodedError(fmt.Errorf("specified base model has type %v but new model has type %v", baseModel.Type, model.Type), http.StatusBadRequest)
+			return CodedError(fmt.Errorf("specified base model has type %v but new model has type %v", baseModel.Type, model.Type), http.StatusUnprocessableEntity)
 		}
 
 		perm, err := auth.GetModelPermissions(baseModel.Id, user, txn)
@@ -444,11 +444,11 @@ func saveModel(txn *gorm.DB, model schema.Model, user schema.User) error {
 		}
 
 		if perm < auth.ReadPermission {
-			return CodedError(fmt.Errorf("user %v does not have permission to access base model %v", model.UserId, baseModel.Id), http.StatusUnauthorized)
+			return CodedError(fmt.Errorf("user %v does not have permission to access base model %v", model.UserId, baseModel.Id), http.StatusForbidden)
 		}
 
 		if baseModel.TrainStatus != schema.Complete {
-			return CodedError(errors.New("base model training is not complete, training must be completed before use as base model"), http.StatusUnauthorized)
+			return CodedError(errors.New("base model training is not complete, training must be completed before use as base model"), http.StatusUnprocessableEntity)
 		}
 
 		if model.Attributes == nil && baseModel.Attributes != nil {

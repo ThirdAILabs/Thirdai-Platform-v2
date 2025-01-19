@@ -16,12 +16,12 @@ func AdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
 			user, err := UserFromContext(r)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
 			if !user.IsAdmin {
-				http.Error(w, fmt.Sprintf("user %v is not an admin", user.Id), http.StatusUnauthorized)
+				http.Error(w, fmt.Sprintf("user %v is not an admin", user.Id), http.StatusForbidden)
 				return
 			}
 
@@ -54,7 +54,7 @@ func AdminOrTeamAdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 
 			user, err := UserFromContext(r)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
@@ -65,7 +65,7 @@ func AdminOrTeamAdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 			}
 
 			if !user.IsAdmin && !isAdmin {
-				http.Error(w, "user must be admin or team admin to access endpoint", http.StatusUnauthorized)
+				http.Error(w, "user must be admin or team admin to access endpoint", http.StatusForbidden)
 				return
 			}
 
@@ -98,7 +98,7 @@ func TeamMemberOnly(db *gorm.DB) func(http.Handler) http.Handler {
 
 			user, err := UserFromContext(r)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
@@ -109,7 +109,7 @@ func TeamMemberOnly(db *gorm.DB) func(http.Handler) http.Handler {
 			}
 
 			if !user.IsAdmin && !isMember {
-				http.Error(w, "user must be team member to access endpoint", http.StatusUnauthorized)
+				http.Error(w, "user must be team member to access endpoint", http.StatusForbidden)
 				return
 			}
 
@@ -195,13 +195,17 @@ func ModelPermissionOnly(db *gorm.DB, minPermission modelPermission) func(http.H
 
 			user, err := UserFromContext(r)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
 			permission, err := GetModelPermissions(modelId, user, db)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
+				if errors.Is(err, schema.ErrModelNotFound) {
+					http.Error(w, err.Error(), http.StatusNotFound)
+					return
+				}
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
@@ -211,7 +215,7 @@ func ModelPermissionOnly(db *gorm.DB, minPermission modelPermission) func(http.H
 			}
 
 			required, actual := modelPermissionToString(minPermission), modelPermissionToString(permission)
-			http.Error(w, fmt.Sprintf("user %v does not have required permission for model %v (required=%v, actual=%v)", user.Id, modelId, required, actual), http.StatusUnauthorized)
+			http.Error(w, fmt.Sprintf("user %v does not have required permission for model %v (required=%v, actual=%v)", user.Id, modelId, required, actual), http.StatusForbidden)
 		}
 		return http.HandlerFunc(hfn)
 	}

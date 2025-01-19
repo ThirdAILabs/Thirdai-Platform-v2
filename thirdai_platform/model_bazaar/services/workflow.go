@@ -71,7 +71,7 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -91,7 +91,7 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 				return CodedError(fmt.Errorf("error loading model for component %s: %w", component.component, schema.ErrDbAccessFailed), http.StatusInternalServerError)
 			}
 			if model.Type != component.expectedType {
-				return CodedError(fmt.Errorf("component %v was expected to have type %v, but specified model has type %v", component.component, component.expectedType, model.Type), http.StatusBadRequest)
+				return CodedError(fmt.Errorf("component %v was expected to have type %v, but specified model has type %v", component.component, component.expectedType, model.Type), http.StatusUnprocessableEntity)
 			}
 
 			perm, err := auth.GetModelPermissions(model.Id, user, txn)
@@ -100,7 +100,7 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 				return CodedError(fmt.Errorf("error verifying permissions for component %v", component.component), http.StatusInternalServerError)
 			}
 			if perm < auth.ReadPermission {
-				return CodedError(fmt.Errorf("user does not have permissions to access %v", component.component), http.StatusUnauthorized)
+				return CodedError(fmt.Errorf("user does not have permissions to access %v", component.component), http.StatusForbidden)
 			}
 
 			deps = append(deps, schema.ModelDependency{ModelId: modelId, DependencyId: model.Id})
@@ -266,12 +266,12 @@ func (s *WorkflowService) KnowledgeExtraction(w http.ResponseWriter, r *http.Req
 
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	if err := params.validate(); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 

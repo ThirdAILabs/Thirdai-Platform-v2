@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"thirdai_platform/model_bazaar/schema"
@@ -20,7 +21,7 @@ func TestCreateDeleteTeams(t *testing.T) {
 	}
 
 	_, err = user.createTeam("000")
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("users cannot create teams")
 	}
 
@@ -53,7 +54,7 @@ func TestCreateDeleteTeams(t *testing.T) {
 	}
 
 	err = user.deleteTeam(team2)
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("users cannot delete teams")
 	}
 
@@ -108,7 +109,7 @@ func TestAddRemoveTeamUsers(t *testing.T) {
 	}
 
 	err = users[1].addUserToTeam(team2, users[0].userId)
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("users cannot add to team")
 	}
 
@@ -129,7 +130,7 @@ func TestAddRemoveTeamUsers(t *testing.T) {
 	}
 
 	err = users[1].addUserToTeam(team2, users[0].userId)
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("users cannot add to team")
 	}
 
@@ -139,7 +140,7 @@ func TestAddRemoveTeamUsers(t *testing.T) {
 	}
 
 	err = users[1].removeUserFromTeam(team2, users[0].userId)
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal(err)
 	}
 
@@ -201,7 +202,7 @@ func TestTeamAdmins(t *testing.T) {
 	}
 
 	err = user1.addUserToTeam(team1, user2.userId)
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("non team admin cannot add users")
 	}
 
@@ -211,7 +212,7 @@ func TestTeamAdmins(t *testing.T) {
 	}
 
 	err = user1.addUserToTeam(team2, user2.userId)
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("team admin cannot add users to other teams")
 	}
 
@@ -231,7 +232,7 @@ func TestTeamAdmins(t *testing.T) {
 	}
 
 	err = user1.removeUserFromTeam(team1, user2.userId)
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("non admin cannot remove team users")
 	}
 
@@ -328,7 +329,7 @@ func TestListTeamsAndTeamUsers(t *testing.T) {
 	}
 
 	_, err = user1.listTeamUsers(team2)
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("only admins can list team users")
 	}
 }
@@ -377,12 +378,12 @@ func TestTeamModels(t *testing.T) {
 	}
 
 	_, err = user2.modelInfo(model1)
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("user shouldn't be able to access another user's model")
 	}
 
 	err = user1.addModelToTeam(unusedTeam, model1)
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("user cannot add model to a team they are not a member of")
 	}
 
@@ -392,7 +393,7 @@ func TestTeamModels(t *testing.T) {
 	}
 
 	_, err = user2.modelInfo(model1)
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("model access must be updated after adding to team")
 	}
 
@@ -422,7 +423,7 @@ func TestTeamModels(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = user1.updateAccess(model2, schema.Protected)
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("only model owner can update access")
 	}
 

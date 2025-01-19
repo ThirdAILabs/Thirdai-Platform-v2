@@ -52,13 +52,13 @@ func (auth *BasicIdentityProvider) addUserToContext() func(http.Handler) http.Ha
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			userId, err := ValueFromContext(r, userIdKey)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
 			userUUID, err := uuid.Parse(userId)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("invalid user uuid '%v': %v'", userId, err), http.StatusUnauthorized)
+				http.Error(w, fmt.Sprintf("invalid user uuid '%v': %v'", userId, err), http.StatusBadRequest)
 				return
 			}
 

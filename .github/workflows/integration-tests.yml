@@ -71,14 +71,15 @@ jobs:
       # we need to install the requirements for the backend job in sudo. However,
       # since the other jobs (train_job, cache_job, etc) are spun up as seperate
       # processes, we also need so install their requirements in the virtual env
+      # We are adding the symlink because otherwise when we run python with sudo 
+      # it defaults to the /usr/bin/python, which is version 3.12, which prevents 
+      # it from installing thirdai.
       run: |
         python -m venv ${{ github.workspace }}/venv
         source venv/bin/activate
-        which python
-        python --version
-        which pip
-        pip --version
-        sudo pip install -r thirdai_platform_py/requirements.txt
+        INSTALLED_PYTHON=$(which python)
+        sudo ln -s -f $INSTALLED_PYTHON /usr/bin/python
+        sudo python -m pip install -r thirdai_platform_py/requirements.txt
         pip install -r thirdai_platform_py/requirements.txt
     
     - name: Update openssl
@@ -87,7 +88,7 @@ jobs:
         sudo apt-get install --only-upgrade openssl
 
     - name: Install PostgreSQL client version 17.x
-      run: |
+      run: 
           sudo apt-get update && \
           sudo apt-get install -y wget gnupg2 lsb-release && \
           echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list && \

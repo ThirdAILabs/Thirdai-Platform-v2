@@ -294,7 +294,7 @@ func (c *client) listModelsWithWriteAccess() ([]services.ModelInfo, error) {
 func (c *client) createAPIKey(modelIDs []string, name string, expiry string) (string, error) {
 	requestBody := map[string]interface{}{
 		"model_ids": modelIDs,
-		"prefix":    name,
+		"name":      name,
 		"exp":       expiry,
 	}
 

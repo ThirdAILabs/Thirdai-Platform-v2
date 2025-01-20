@@ -519,9 +519,11 @@ func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, time.Time, error) 
 		return uuid.Nil, time.Time{}, nil
 	}
 
+	hashedKey := hashSecret(secret)
+
 	var record schema.UserAPIKey
 
-	if err := db.Where("hashkey = ?", secret).Preload("Models").First(&record).Error; err != nil {
+	if err := db.Where("hashkey = ?", hashedKey).Preload("Models").First(&record).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return uuid.Nil, time.Time{}, nil
 		}

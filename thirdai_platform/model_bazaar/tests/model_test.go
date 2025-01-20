@@ -485,6 +485,7 @@ func TestListModelWriteAccess(t *testing.T) {
 	}
 
 	es, err := user1.createEnterpriseSearch("search", ndb, nlp)
+	_ = es
 	if err != nil {
 		t.Fatal(err)
 	}

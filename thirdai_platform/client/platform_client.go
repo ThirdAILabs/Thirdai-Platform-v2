@@ -55,7 +55,7 @@ func (c *PlatformClient) UseApiKey(api_key string) error {
 func (c *PlatformClient) CreateAPIKey(modelIDs []string, name string, expiry string) (string, error) {
 	requestBody := map[string]interface{}{
 		"model_ids": modelIDs,
-		"prefix":    name,
+		"name":      name,
 		"exp":       expiry,
 	}
 

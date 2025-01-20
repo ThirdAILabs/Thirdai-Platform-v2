@@ -1,6 +1,7 @@
 package integrationtests
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"thirdai_platform/client"
@@ -86,6 +87,41 @@ func TestEnterpriseSearchWithGuardrail(t *testing.T) {
 	}
 
 	unredacted, err := es.Unredact(results.QueryText, results.PiiEntities)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if unredacted != query {
+		t.Fatal("unredacted query should match original")
+	}
+
+	// use API Key to deploy query
+	enterpriseSearchModelIds := []string{es.GetModelID().String()}
+
+	apiKeyName := fmt.Sprintf("test-api-key-%s", es.GetModelID().String())
+	expiry := "2026-01-31T23:59:59Z"
+
+	eskApiKey, err := c.CreateAPIKey(enterpriseSearchModelIds, apiKeyName, expiry)
+	if err != nil {
+		t.Fatalf("Failed to create API key: %v", err)
+	}
+
+	if eskApiKey == "" {
+		t.Fatal("Expected a valid API key, but got an empty string")
+	}
+
+	es.ModelClient.UseApiKey(eskApiKey)
+
+	results, err = es.Search(query, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if results.QueryText != strings.Replace(query, "123-457-2490", "[PHONENUMBER#0]", -1) {
+		t.Fatalf("invalid redacted query: %v", results.QueryText)
+	}
+
+	unredacted, err = es.Unredact(results.QueryText, results.PiiEntities)
 	if err != nil {
 		t.Fatal(err)
 	}

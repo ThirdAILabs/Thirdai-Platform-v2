@@ -10,7 +10,7 @@ import (
 
 // TODO(pratik): Add tests for rest of the models and their functions
 
-func TestCreateUserModelAPIKeyDeployAndQuery(t *testing.T) {
+func TestNdbNlpModelsAPIKeyDeployAndQuery(t *testing.T) {
 	c := getClient(t)
 
 	ndb, err := c.TrainNdb(

@@ -22,7 +22,7 @@ func basicTest() {
 		log.Fatalf("insert failed: %v", err)
 	}
 
-	res, err := ndb.Query("a b c", 2)
+	res, err := ndb.Query("a b c", 2, nil)
 	if err != nil {
 		log.Fatalf("query failed: %v", err)
 	}
@@ -73,7 +73,7 @@ func wiki() {
 	start := time.Now()
 
 	for _, sample := range samples {
-		results, err := ndb.Query(sample.query, 5)
+		results, err := ndb.Query(sample.query, 5, nil)
 		if err != nil {
 			log.Fatalf("ndb query failed: %v", err)
 		}

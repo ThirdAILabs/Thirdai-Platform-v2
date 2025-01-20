@@ -3,6 +3,7 @@
 #include "Chunk.h"
 #include "NeuralDB.h"
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 

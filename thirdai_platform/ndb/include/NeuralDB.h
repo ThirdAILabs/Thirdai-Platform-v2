@@ -2,6 +2,7 @@
 
 #include "Chunk.h"
 #include "Constraints.h"
+#include <optional>
 #include <vector>
 
 namespace thirdai::search::ndb {

@@ -82,8 +82,6 @@ jobs:
         sudo pip install --upgrade cryptography pyopenssl
         sudo apt-get install --only-upgrade openssl
 
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v3
     - name: Install PostgreSQL client version 17.x
       run: |
           sudo apt-get update && \

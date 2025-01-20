@@ -8,15 +8,49 @@
 #include <vector>
 
 using thirdai::search::ndb::Chunk;
+using thirdai::search::ndb::EqualTo;
+using thirdai::search::ndb::GreaterThan;
+using thirdai::search::ndb::LessThan;
 using thirdai::search::ndb::MetadataMap;
 using thirdai::search::ndb::MetadataValue;
 using thirdai::search::ndb::OnDiskNeuralDB;
+using thirdai::search::ndb::QueryConstraints;
 
 void copyError(const std::exception &e, const char **err_ptr) {
   char *err_msg = new char[std::strlen(e.what())];
   std::strcpy(err_msg, e.what());
   *err_ptr = err_msg;
 }
+
+struct MetadataValue_t {
+  MetadataValue value;
+};
+
+MetadataValue_t *MetadataValue_bool(bool value) {
+  MetadataValue_t *out = new MetadataValue_t();
+  out->value = MetadataValue::Bool(value);
+  return out;
+}
+
+MetadataValue_t *MetadataValue_int(int value) {
+  MetadataValue_t *out = new MetadataValue_t();
+  out->value = MetadataValue::Int(value);
+  return out;
+}
+
+MetadataValue_t *MetadataValue_float(float value) {
+  MetadataValue_t *out = new MetadataValue_t();
+  out->value = MetadataValue::Float(value);
+  return out;
+}
+
+MetadataValue_t *MetadataValue_str(const char *value) {
+  MetadataValue_t *out = new MetadataValue_t();
+  out->value = MetadataValue::Str(value);
+  return out;
+}
+
+void MetadataValue_free(MetadataValue_t *value) { delete value; }
 
 struct Document_t {
   std::vector<std::string> chunks;
@@ -45,24 +79,9 @@ void Document_set_version(Document_t *doc, unsigned int version) {
   doc->doc_version = version;
 }
 
-void Document_add_metadata_bool(Document_t *doc, unsigned int i,
-                                const char *key, bool value) {
-  doc->metadata[i][key] = MetadataValue::Bool(value);
-}
-
-void Document_add_metadata_int(Document_t *doc, unsigned int i, const char *key,
-                               int value) {
-  doc->metadata[i][key] = MetadataValue::Int(value);
-}
-
-void Document_add_metadata_float(Document_t *doc, unsigned int i,
-                                 const char *key, float value) {
-  doc->metadata[i][key] = MetadataValue::Float(value);
-}
-
-void Document_add_metadata_str(Document_t *doc, unsigned int i, const char *key,
-                               const char *value) {
-  doc->metadata[i][key] = MetadataValue::Str(value);
+void Document_add_metadata(Document_t *doc, unsigned int i, const char *key,
+                           const MetadataValue_t *value) {
+  doc->metadata[i][key] = value->value;
 }
 
 struct MetadataList_t {
@@ -97,6 +116,34 @@ float MetadataList_float(MetadataList_t *metadata, unsigned int i) {
 
 const char *MetadataList_str(MetadataList_t *metadata, unsigned int i) {
   return metadata->metadata.at(i).second.asStr().c_str();
+}
+
+struct Constraints_t {
+  QueryConstraints constraints;
+};
+
+Constraints_t *Constraints_new() { return new Constraints_t(); }
+
+void Constraints_free(Constraints_t *constraints) { delete constraints; }
+
+const int BinaryConstraintEq = 0;
+const int BinaryConstraintLt = 1;
+const int BinaryConstraintGt = 2;
+
+void Constraints_add_binary_constraint(Constraints_t *constraints, int op,
+                                       const char *key,
+                                       const MetadataValue_t *value) {
+  switch (op) {
+  case BinaryConstraintEq:
+    constraints->constraints[key] = EqualTo::make(value->value);
+    break;
+  case BinaryConstraintLt:
+    constraints->constraints[key] = LessThan::make(value->value);
+    break;
+  case BinaryConstraintGt:
+    constraints->constraints[key] = GreaterThan::make(value->value);
+    break;
+  }
 }
 
 struct QueryResults_t {
@@ -140,6 +187,26 @@ MetadataList_t *QueryResults_metadata(QueryResults_t *results, unsigned int i) {
   return out;
 }
 
+struct StringList_t {
+  std::vector<std::string> list;
+};
+
+StringList_t *StringList_new() { return new StringList_t(); }
+void StringList_free(StringList_t *list) { delete list; }
+void StringList_append(StringList_t *list, const char *value) {
+  list->list.emplace_back(value);
+}
+
+struct LabelList_t {
+  std::vector<std::vector<uint64_t>> list;
+};
+
+LabelList_t *LabelList_new() { return new LabelList_t(); }
+void LabelList_free(LabelList_t *list) { delete list; }
+void LabelList_append(LabelList_t *list, unsigned long long value) {
+  list->list.emplace_back(std::vector<uint64_t>{value});
+}
+
 struct NeuralDB_t {
   std::unique_ptr<OnDiskNeuralDB> ndb;
 
@@ -175,9 +242,16 @@ void NeuralDB_insert(NeuralDB_t *ndb, Document_t *doc, const char **err_ptr) {
 }
 
 QueryResults_t *NeuralDB_query(NeuralDB_t *ndb, const char *query,
-                               unsigned int topk, const char **err_ptr) {
+                               unsigned int topk,
+                               const Constraints_t *constraints,
+                               const char **err_ptr) {
   try {
-    auto results = ndb->ndb->query(query, topk);
+    std::vector<std::pair<Chunk, float>> results;
+    if (constraints == nullptr) {
+      results = ndb->ndb->query(query, topk);
+    } else {
+      results = ndb->ndb->rank(query, constraints->constraints, topk);
+    }
     auto out = new QueryResults_t();
     out->results = results;
     return out;
@@ -185,6 +259,28 @@ QueryResults_t *NeuralDB_query(NeuralDB_t *ndb, const char *query,
     // TODO(Nicholas): have case for NeuralDBError to return better errors
     copyError(e, err_ptr);
     return nullptr;
+  }
+}
+
+void NeuralDB_finetune(NeuralDB_t *ndb, const StringList_t *queries,
+                       const LabelList_t *chunk_ids, const char **err_ptr) {
+  try {
+    ndb->ndb->finetune(queries->list, chunk_ids->list);
+  } catch (const std::exception &e) {
+    // TODO(Nicholas): have case for NeuralDBError to return better errors
+    copyError(e, err_ptr);
+    return;
+  }
+}
+
+void NeuralDB_associate(NeuralDB_t *ndb, const StringList_t *sources,
+                        const StringList_t *targets, const char **err_ptr) {
+  try {
+    ndb->ndb->associate(sources->list, targets->list, 4);
+  } catch (const std::exception &e) {
+    // TODO(Nicholas): have case for NeuralDBError to return better errors
+    copyError(e, err_ptr);
+    return;
   }
 }
 

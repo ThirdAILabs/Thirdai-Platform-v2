@@ -8,6 +8,7 @@ package ndb
 import "C"
 import (
 	"errors"
+	"fmt"
 	"unsafe"
 )
 
@@ -33,6 +34,25 @@ func (ndb *NeuralDB) Free() {
 	C.NeuralDB_free(ndb.ndb)
 }
 
+func newMetadataValue(value interface{}) (*C.MetadataValue_t, error) {
+	switch value := value.(type) {
+	case bool:
+		return C.MetadataValue_bool(C.bool(value)), nil
+	case int:
+		return C.MetadataValue_int(C.int(value)), nil
+	case float32:
+		return C.MetadataValue_float(C.float(value)), nil
+	case float64:
+		return C.MetadataValue_float(C.float(value)), nil
+	case string:
+		valueCStr := C.CString(value)
+		defer C.free(unsafe.Pointer(valueCStr))
+		return C.MetadataValue_str(valueCStr), nil
+	default:
+		return nil, fmt.Errorf("unsupported metadata type %T for value %v: type must be bool, int, float, or string", value, value)
+	}
+}
+
 func newDocument(document, doc_id string) *C.Document_t {
 	documentCStr := C.CString(document)
 	defer C.free(unsafe.Pointer(documentCStr))
@@ -50,24 +70,19 @@ func addChunk(doc *C.Document_t, chunk string) {
 	C.Document_add_chunk(doc, chunkCStr)
 }
 
-func addMetadata(doc *C.Document_t, i int, key string, value interface{}) {
+func addMetadata(doc *C.Document_t, i int, key string, value interface{}) error {
 	keyCStr := C.CString(key)
 	defer C.free(unsafe.Pointer(keyCStr))
 
-	switch value := value.(type) {
-	case bool:
-		C.Document_add_metadata_bool(doc, C.uint(i), keyCStr, C.bool(value))
-	case int:
-		C.Document_add_metadata_int(doc, C.uint(i), keyCStr, C.int(value))
-	case float32:
-		C.Document_add_metadata_float(doc, C.uint(i), keyCStr, C.float(value))
-	case float64:
-		C.Document_add_metadata_float(doc, C.uint(i), keyCStr, C.float(value))
-	case string:
-		valueCStr := C.CString(value)
-		defer C.free(unsafe.Pointer(valueCStr))
-		C.Document_add_metadata_str(doc, C.uint(i), keyCStr, valueCStr)
+	metadataValue, err := newMetadataValue(value)
+	if err != nil {
+		return err
 	}
+	defer C.MetadataValue_free(metadataValue)
+
+	C.Document_add_metadata(doc, C.uint(i), keyCStr, metadataValue)
+
+	return nil
 }
 
 func (ndb *NeuralDB) Insert(document, doc_id string, chunks []string, metadata []map[string]interface{}, version *uint) error {
@@ -78,9 +93,15 @@ func (ndb *NeuralDB) Insert(document, doc_id string, chunks []string, metadata [
 	}
 
 	if metadata != nil {
+		if len(chunks) != len(metadata) {
+			return fmt.Errorf("len of metadata must match the len of chunks if metadata is specified")
+		}
 		for i, m := range metadata {
 			for k, v := range m {
-				addMetadata(doc, i, k, v)
+				err := addMetadata(doc, i, k, v)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -99,6 +120,63 @@ func (ndb *NeuralDB) Insert(document, doc_id string, chunks []string, metadata [
 	return nil
 }
 
+type Constraint interface {
+	addToConstraints(constraints *C.Constraints_t, key string) error
+}
+
+type binaryConstraintOp int8
+
+const (
+	BinaryConstraintEq binaryConstraintOp = iota
+	BinaryConstraintLt
+	BinaryConstraintGt
+)
+
+type binaryConstraint struct {
+	value interface{}
+	op    binaryConstraintOp
+}
+
+func (c binaryConstraint) addToConstraints(constraints *C.Constraints_t, key string) error {
+	keyCStr := C.CString(key)
+	defer C.free(unsafe.Pointer(keyCStr))
+
+	metadataValue, err := newMetadataValue(c.value)
+	if err != nil {
+		return fmt.Errorf("invalid constraint for key '%v': %w", key, err)
+	}
+	defer C.MetadataValue_free(metadataValue)
+
+	C.Constraints_add_binary_constraint(constraints, C.int(c.op), keyCStr, metadataValue)
+
+	return nil
+}
+
+func EqualTo(value interface{}) Constraint {
+	return binaryConstraint{value: value, op: BinaryConstraintEq}
+}
+
+func LessThan(value interface{}) Constraint {
+	return binaryConstraint{value: value, op: BinaryConstraintLt}
+}
+
+func GreaterThan(value interface{}) Constraint {
+	return binaryConstraint{value: value, op: BinaryConstraintGt}
+}
+
+func newConstraints(constraints map[string]Constraint) (*C.Constraints_t, error) {
+	constraintsMap := C.Constraints_new()
+
+	for k, v := range constraints {
+		err := v.addToConstraints(constraintsMap, k)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return constraintsMap, nil
+}
+
 type Chunk struct {
 	Id         uint64
 	Text       string
@@ -109,12 +187,26 @@ type Chunk struct {
 	Score      float32
 }
 
-func (ndb *NeuralDB) Query(query string, topk int) ([]Chunk, error) {
+func (ndb *NeuralDB) Query(query string, topk int, constraints map[string]Constraint) ([]Chunk, error) {
 	queryCStr := C.CString(query)
 	defer C.free(unsafe.Pointer(queryCStr))
 
+	var constraintsMap *C.Constraints_t
+	if len(constraints) > 0 {
+		var err error
+		constraintsMap, err = newConstraints(constraints)
+		if constraintsMap != nil {
+			// This is because we could allocate the map, convert some of the constraints,
+			// then get a type error, in which case the map should still be freed.
+			defer C.Constraints_free(constraintsMap)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	var err *C.char
-	results := C.NeuralDB_query(ndb.ndb, queryCStr, C.uint(topk), &err)
+	results := C.NeuralDB_query(ndb.ndb, queryCStr, C.uint(topk), constraintsMap, &err)
 	if err != nil {
 		defer C.free(unsafe.Pointer(err))
 		return nil, errors.New(C.GoString(err))
@@ -156,6 +248,66 @@ func convertMetadata(metadata *C.MetadataList_t) map[string]interface{} {
 		}
 	}
 	return out
+}
+
+func newStringList(values []string) *C.StringList_t {
+	list := C.StringList_new()
+	for _, v := range values {
+		vCStr := C.CString(v)
+		C.StringList_append(list, vCStr)
+		C.free(unsafe.Pointer(vCStr))
+	}
+	return list
+}
+
+func newLabelList(values []uint64) *C.LabelList_t {
+	list := C.LabelList_new()
+	for _, v := range values {
+		C.LabelList_append(list, C.ulonglong(v))
+	}
+	return list
+}
+
+func (ndb *NeuralDB) Finetune(queries []string, labels []uint64) error {
+	if len(queries) != len(labels) {
+		return fmt.Errorf("len of queries must match len of labels")
+	}
+
+	queryList := newStringList(queries)
+	defer C.StringList_free(queryList)
+
+	labelList := newLabelList(labels)
+	defer C.LabelList_free(labelList)
+
+	var err *C.char
+	C.NeuralDB_finetune(ndb.ndb, queryList, labelList, &err)
+	if err != nil {
+		defer C.free(unsafe.Pointer(err))
+		return errors.New(C.GoString(err))
+	}
+
+	return nil
+}
+
+func (ndb *NeuralDB) Associate(sources, targets []string) error {
+	if len(sources) != len(targets) {
+		return fmt.Errorf("len of sources must match length of targets")
+	}
+
+	sourceList := newStringList(sources)
+	defer C.StringList_free(sourceList)
+
+	targetList := newStringList(targets)
+	defer C.StringList_free(targetList)
+
+	var err *C.char
+	C.NeuralDB_associate(ndb.ndb, sourceList, targetList, &err)
+	if err != nil {
+		defer C.free(unsafe.Pointer(err))
+		return errors.New(C.GoString(err))
+	}
+
+	return nil
 }
 
 func (ndb *NeuralDB) Save(savePath string) error {

@@ -1,4 +1,0 @@
-locust
-requests
-boto3
-botocore

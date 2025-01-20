@@ -71,6 +71,8 @@ void NeuralDB_finetune(NeuralDB_t *ndb, const StringList_t *queries,
                        const LabelList_t *chunk_ids, const char **err_ptr);
 void NeuralDB_associate(NeuralDB_t *ndb, const StringList_t *sources,
                         const StringList_t *targets, const char **err_ptr);
+void NeuralDB_delete_doc(NeuralDB_t *ndb, const char *doc_id,
+                         bool keep_latest_version, const char **err_ptr);
 void NeuralDB_save(NeuralDB_t *ndb, const char *save_path,
                    const char **err_ptr);
 

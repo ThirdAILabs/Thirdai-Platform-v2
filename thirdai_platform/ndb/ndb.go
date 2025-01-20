@@ -310,6 +310,20 @@ func (ndb *NeuralDB) Associate(sources, targets []string) error {
 	return nil
 }
 
+func (ndb *NeuralDB) Delete(docId string, keepLatestVersion bool) error {
+	docIdCStr := C.CString(docId)
+	defer C.free(unsafe.Pointer(docIdCStr))
+
+	var err *C.char
+	C.NeuralDB_delete_doc(ndb.ndb, docIdCStr, C.bool(keepLatestVersion), &err)
+	if err != nil {
+		defer C.free(unsafe.Pointer(err))
+		return errors.New(C.GoString(err))
+	}
+
+	return nil
+}
+
 func (ndb *NeuralDB) Save(savePath string) error {
 	savePathCStr := C.CString(savePath)
 	defer C.free(unsafe.Pointer(savePathCStr))

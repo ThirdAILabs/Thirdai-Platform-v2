@@ -51,7 +51,9 @@ public:
                          const std::vector<std::string> &targets,
                          uint32_t strength) = 0;
 
-  virtual void deleteDoc(const DocId &doc_id, uint32_t doc_version) = 0;
+  virtual void deleteDocVersion(const DocId &doc_id, uint32_t doc_version) = 0;
+
+  virtual void deleteDoc(const DocId &doc_id, bool keep_latest_version) = 0;
 
   virtual void prune() = 0;
 

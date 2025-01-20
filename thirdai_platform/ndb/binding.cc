@@ -284,6 +284,18 @@ void NeuralDB_associate(NeuralDB_t *ndb, const StringList_t *sources,
   }
 }
 
+void NeuralDB_delete_doc(NeuralDB_t *ndb, const char *doc_id,
+                         bool keep_latest_version, const char **err_ptr) {
+
+  try {
+    ndb->ndb->deleteDoc(doc_id, keep_latest_version);
+  } catch (const std::exception &e) {
+    // TODO(Nicholas): have case for NeuralDBError to return better errors
+    copyError(e, err_ptr);
+    return;
+  }
+}
+
 void NeuralDB_save(NeuralDB_t *ndb, const char *save_path,
                    const char **err_ptr) {
   try {

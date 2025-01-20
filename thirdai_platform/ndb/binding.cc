@@ -18,26 +18,6 @@ void copyError(const std::exception &e, const char **err_ptr) {
   *err_ptr = err_msg;
 }
 
-struct NeuralDB_t {
-  std::unique_ptr<OnDiskNeuralDB> ndb;
-
-  NeuralDB_t(const std::string &save_path)
-      : ndb(OnDiskNeuralDB::make(save_path)) {}
-};
-
-NeuralDB_t *NeuralDB_new(const char *save_path, const char **err_ptr) {
-  try {
-    std::string path(save_path);
-    return new NeuralDB_t(path);
-  } catch (const std::exception &e) {
-    // TODO(Nicholas): have case for NeuralDBError to return better errors
-    copyError(e, err_ptr);
-    return nullptr;
-  }
-}
-
-void NeuralDB_free(NeuralDB_t *ndb) { delete ndb; }
-
 struct Document_t {
   std::vector<std::string> chunks;
   std::vector<MetadataMap> metadata;
@@ -70,33 +50,19 @@ void Document_add_metadata_bool(Document_t *doc, unsigned int i,
   doc->metadata[i][key] = MetadataValue::Bool(value);
 }
 
-void Document_add_metadata_int(Document_t *doc, unsigned int i,
-                                const char *key, int value) {
+void Document_add_metadata_int(Document_t *doc, unsigned int i, const char *key,
+                               int value) {
   doc->metadata[i][key] = MetadataValue::Int(value);
 }
 
 void Document_add_metadata_float(Document_t *doc, unsigned int i,
-                                const char *key, float value) {
+                                 const char *key, float value) {
   doc->metadata[i][key] = MetadataValue::Float(value);
 }
 
-void Document_add_metadata_str(Document_t *doc, unsigned int i,
-                                const char *key, const char* value) {
+void Document_add_metadata_str(Document_t *doc, unsigned int i, const char *key,
+                               const char *value) {
   doc->metadata[i][key] = MetadataValue::Str(value);
-}
-
-void NeuralDB_insert(NeuralDB_t *ndb, Document_t *doc, const char **err_ptr) {
-  try {
-    ndb->ndb->insert(
-        /*chunks=*/doc->chunks,
-        /*metadata*/ doc->metadata,
-        /*document=*/doc->document,
-        /*doc_id=*/doc->doc_id,
-        /*doc_version=*/doc->doc_version);
-  } catch (const std::exception &e) {
-    copyError(e, err_ptr);
-    return;
-  }
 }
 
 struct MetadataList_t {
@@ -172,6 +138,40 @@ MetadataList_t *QueryResults_metadata(QueryResults_t *results, unsigned int i) {
   MetadataList_t *out = new MetadataList_t();
   out->metadata = {metadata_map.begin(), metadata_map.end()};
   return out;
+}
+
+struct NeuralDB_t {
+  std::unique_ptr<OnDiskNeuralDB> ndb;
+
+  NeuralDB_t(const std::string &save_path)
+      : ndb(OnDiskNeuralDB::make(save_path)) {}
+};
+
+NeuralDB_t *NeuralDB_new(const char *save_path, const char **err_ptr) {
+  try {
+    std::string path(save_path);
+    return new NeuralDB_t(path);
+  } catch (const std::exception &e) {
+    // TODO(Nicholas): have case for NeuralDBError to return better errors
+    copyError(e, err_ptr);
+    return nullptr;
+  }
+}
+
+void NeuralDB_free(NeuralDB_t *ndb) { delete ndb; }
+
+void NeuralDB_insert(NeuralDB_t *ndb, Document_t *doc, const char **err_ptr) {
+  try {
+    ndb->ndb->insert(
+        /*chunks=*/doc->chunks,
+        /*metadata*/ doc->metadata,
+        /*document=*/doc->document,
+        /*doc_id=*/doc->doc_id,
+        /*doc_version=*/doc->doc_version);
+  } catch (const std::exception &e) {
+    copyError(e, err_ptr);
+    return;
+  }
 }
 
 QueryResults_t *NeuralDB_query(NeuralDB_t *ndb, const char *query,

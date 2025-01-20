@@ -6,11 +6,7 @@
 extern "C" {
 #endif
 
-typedef struct NeuralDB_t NeuralDB_t;
-
-NeuralDB_t *NeuralDB_new(const char *save_path, const char **err_ptr);
-
-void NeuralDB_free(NeuralDB_t *ndb);
+typedef struct MetadataValue_t MetadataValue_t;
 
 typedef struct Document_t Document_t;
 Document_t *Document_new(const char *document, const char *doc_id);
@@ -26,8 +22,6 @@ void Document_add_metadata_float(Document_t *doc, unsigned int i,
                                  const char *key, float value);
 void Document_add_metadata_str(Document_t *doc, unsigned int i, const char *key,
                                const char *value);
-
-void NeuralDB_insert(NeuralDB_t *ndb, Document_t *doc, const char **err_ptr);
 
 typedef struct MetadataList_t MetadataList_t;
 void MetadataList_free(MetadataList_t *metadata);
@@ -50,9 +44,12 @@ unsigned int QueryResults_doc_version(QueryResults_t *results, unsigned int i);
 MetadataList_t *QueryResults_metadata(QueryResults_t *results, unsigned int i);
 float QueryResults_score(QueryResults_t *results, unsigned int i);
 
+typedef struct NeuralDB_t NeuralDB_t;
+NeuralDB_t *NeuralDB_new(const char *save_path, const char **err_ptr);
+void NeuralDB_free(NeuralDB_t *ndb);
+void NeuralDB_insert(NeuralDB_t *ndb, Document_t *doc, const char **err_ptr);
 QueryResults_t *NeuralDB_query(NeuralDB_t *ndb, const char *query,
                                unsigned int topk, const char **err_ptr);
-
 void NeuralDB_save(NeuralDB_t *ndb, const char *save_path,
                    const char **err_ptr);
 

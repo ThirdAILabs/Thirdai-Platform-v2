@@ -64,9 +64,6 @@ jobs:
       with:
         go-version: '>=1.23.1'
 
-    - name: setup tmate
-      uses: mxschmitt/action-tmate@v3
-
     - name: Setup Python and Install Dependencies
       # We need to run the backend in sudo for the delete endpoint to work, thus
       # we need to install the requirements for the backend job in sudo. However,
@@ -78,9 +75,6 @@ jobs:
       run: |
         python -m venv ${{ github.workspace }}/venv
         source venv/bin/activate
-        INSTALLED_PYTHON=$(which python)
-        sudo ln -s -f $INSTALLED_PYTHON /usr/bin/python
-        sudo python -m pip install -r thirdai_platform_py/requirements.txt
         pip install -r thirdai_platform_py/requirements.txt
     
     - name: Update openssl

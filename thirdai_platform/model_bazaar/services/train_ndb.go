@@ -56,23 +56,23 @@ func (s *TrainService) TrainNdb(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := options.validate(); err != nil {
-		http.Error(w, fmt.Sprintf("unable to start ndb training, found the following errors: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("unable to start ndb training, found the following errors: %v", err), http.StatusUnprocessableEntity)
 		return
 	}
 
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	if err := s.validateUploads(user.Id, options.Data.UnsupervisedFiles); err != nil {
-		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), GetResponseCode(err))
 		return
 	}
 
 	if err := s.validateUploads(user.Id, options.Data.SupervisedFiles); err != nil {
-		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -89,7 +89,8 @@ func (s *TrainService) TrainNdb(w http.ResponseWriter, r *http.Request) {
 func listLogData[T any](dir string, s storage.Storage) ([]T, error) {
 	logFiles, err := s.List(dir)
 	if err != nil {
-		return nil, fmt.Errorf("error listing log files for deployment: %w", err)
+		slog.Error("error listing log files for deployment", "error", err)
+		return nil, CodedError(errors.New("error reading log files for retraining"), http.StatusInternalServerError)
 	}
 
 	logs := make([]T, 0)
@@ -97,7 +98,8 @@ func listLogData[T any](dir string, s storage.Storage) ([]T, error) {
 		if strings.HasSuffix(logFileName, ".jsonl") {
 			logFile, err := s.Read(filepath.Join(dir, logFileName))
 			if err != nil {
-				return nil, fmt.Errorf("error reading log file from deployment: %w", err)
+				slog.Error("error reading log file for deployment", "error", err)
+				return nil, CodedError(errors.New("error reading log files for retraining"), http.StatusInternalServerError)
 			}
 			defer logFile.Close()
 
@@ -109,7 +111,8 @@ func listLogData[T any](dir string, s storage.Storage) ([]T, error) {
 					break
 				}
 				if err != nil {
-					return nil, fmt.Errorf("error parsing logs from deployment: %w", err)
+					slog.Error("error parsing log for deploment", "error", err)
+					return nil, CodedError(errors.New("error parsing log files"), http.StatusInternalServerError)
 				}
 				logs = append(logs, log)
 			}
@@ -185,7 +188,7 @@ func (s *TrainService) NdbRetrain(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := options.validate(); err != nil {
-		http.Error(w, fmt.Sprintf("unable to start ndb retraining, found the following errors: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("unable to start ndb retraining, found the following errors: %v", err), http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -193,7 +196,7 @@ func (s *TrainService) NdbRetrain(w http.ResponseWriter, r *http.Request) {
 
 	data, err := s.getNdbRetrainingData(options.BaseModelId)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error collecting retraining data: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error collecting retraining data: %v", err), GetResponseCode(err))
 		return
 	}
 

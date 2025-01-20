@@ -46,7 +46,7 @@ func (s *TelemetryService) DeploymentServices(w http.ResponseWriter, r *http.Req
 		nameParts := strings.SplitN(service.Name, "-", 3)
 		if len(nameParts) != 3 {
 			slog.Error("invalid service name encountered: " + service.Name)
-			http.Error(w, "invalid service name: "+service.Name, http.StatusBadRequest)
+			http.Error(w, "invalid service name: "+service.Name, http.StatusInternalServerError)
 			return
 		}
 		for _, allocation := range service.Allocations {

@@ -164,7 +164,9 @@ func GreaterThan(value interface{}) Constraint {
 	return binaryConstraint{value: value, op: BinaryConstraintGt}
 }
 
-func newConstraints(constraints map[string]Constraint) (*C.Constraints_t, error) {
+type Constraints = map[string]Constraint
+
+func newConstraints(constraints Constraints) (*C.Constraints_t, error) {
 	constraintsMap := C.Constraints_new()
 
 	for k, v := range constraints {
@@ -187,7 +189,7 @@ type Chunk struct {
 	Score      float32
 }
 
-func (ndb *NeuralDB) Query(query string, topk int, constraints map[string]Constraint) ([]Chunk, error) {
+func (ndb *NeuralDB) Query(query string, topk int, constraints Constraints) ([]Chunk, error) {
 	queryCStr := C.CString(query)
 	defer C.free(unsafe.Pointer(queryCStr))
 

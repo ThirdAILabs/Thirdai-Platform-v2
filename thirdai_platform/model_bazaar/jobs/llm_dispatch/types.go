@@ -1,7 +1,6 @@
 package llm_dispatch
 
 import (
-	"log/slog"
 	"net/http"
 	"time"
 )
@@ -15,22 +14,19 @@ type Reference struct {
 
 // GenerateRequest represents an LLM generation request
 type GenerateRequest struct {
-	Query            string      `json:"query"`
-	TaskPrompt       string      `json:"task_prompt,omitempty"`
-	References       []Reference `json:"references,omitempty"`
-	Key             string      `json:"key,omitempty"`
-	Model           string      `json:"model"`
-	Provider        string      `json:"provider"`
-	WorkflowID      string      `json:"workflow_id,omitempty"`
+	Query      string      `json:"query"`
+	TaskPrompt string      `json:"task_prompt,omitempty"`
+	References []Reference `json:"references,omitempty"`
+	Key       string      `json:"key,omitempty"`
+	Model     string      `json:"model"`
+	Provider  string      `json:"provider"`
 }
 
 // LLMConfig holds configuration for an LLM provider
 type LLMConfig struct {
-	APIKey      string
-	AccessToken string
-	BaseURL     string
-	HTTPClient  *http.Client
-	Logger      *slog.Logger
+	APIKey     string
+	BaseURL    string
+	HTTPClient *http.Client
 }
 
 // DefaultHTTPClient returns an http.Client with sensible defaults

@@ -76,7 +76,6 @@ func (s *Server) handleGenerate(w http.ResponseWriter, r *http.Request) {
 	s.logger.Info("processing generation request",
 		"provider", req.Provider,
 		"model", req.Model,
-		"workflow_id", req.WorkflowID,
 	)
 
 	provider, err := NewLLMProvider(req.Provider, req.Key, s.logger)

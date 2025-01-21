@@ -58,21 +58,6 @@ func NewOpenAILLM(config LLMConfig) *OpenAILLM {
 	return &OpenAILLM{baseLLM{config}}
 }
 
-// CohereLLM implements LLMProvider for Cohere
-type CohereLLM struct {
-	baseLLM
-}
-
-func NewCohereLLM(config LLMConfig) *CohereLLM {
-	if config.BaseURL == "" {
-		config.BaseURL = "https://api.cohere.com/v1/chat"
-	}
-	if config.HTTPClient == nil {
-		config.HTTPClient = DefaultHTTPClient()
-	}
-	return &CohereLLM{baseLLM{config}}
-}
-
 // OnPremLLM implements LLMProvider for on-premises deployment
 type OnPremLLM struct {
 	baseLLM
@@ -174,7 +159,6 @@ func (l *OpenAILLM) Stream(req *GenerateRequest) (<-chan string, <-chan error) {
 
 			var chunk map[string]interface{}
 			if err := json.Unmarshal([]byte(line), &chunk); err != nil {
-				l.config.Logger.Warn("error parsing chunk", "error", err, "line", line)
 				continue
 			}
 
@@ -185,69 +169,6 @@ func (l *OpenAILLM) Stream(req *GenerateRequest) (<-chan string, <-chan error) {
 							textChan <- content
 						}
 					}
-				}
-			}
-		}
-	}()
-
-	return textChan, errChan
-}
-
-func (l *CohereLLM) Stream(req *GenerateRequest) (<-chan string, <-chan error) {
-	textChan := make(chan string)
-	errChan := make(chan error, 1)
-
-	go func() {
-		defer close(textChan)
-		defer close(errChan)
-
-		_, userPrompt := makePrompt(req.Query, req.TaskPrompt, req.References)
-
-		body := map[string]interface{}{
-			"model": req.Model,
-			"message": userPrompt,
-			"stream": true,
-		}
-
-		jsonBody, err := json.Marshal(body)
-		if err != nil {
-			errChan <- fmt.Errorf("error marshaling request: %w", err)
-			return
-		}
-
-		resp, err := l.makeRequest("POST", l.config.BaseURL, jsonBody, map[string]string{
-			"Authorization": "Bearer " + l.config.APIKey,
-		})
-		if err != nil {
-			errChan <- err
-			return
-		}
-		defer resp.Body.Close()
-
-		reader := bufio.NewReader(resp.Body)
-		for {
-			line, err := reader.ReadString('\n')
-			if err == io.EOF {
-				return
-			}
-			if err != nil {
-				errChan <- fmt.Errorf("error reading stream: %w", err)
-				return
-			}
-
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-
-			var chunk map[string]interface{}
-			if err := json.Unmarshal([]byte(line), &chunk); err != nil {
-				continue
-			}
-
-			if eventType, ok := chunk["event_type"].(string); ok && eventType == "text-generation" {
-				if text, ok := chunk["text"].(string); ok && text != "" {
-					textChan <- text
 				}
 			}
 		}
@@ -332,14 +253,9 @@ func (l *OnPremLLM) Stream(req *GenerateRequest) (<-chan string, <-chan error) {
 
 // NewLLMProvider creates a new LLM provider based on the specified type
 func NewLLMProvider(provider, apiKey string, logger *slog.Logger) (LLMProvider, error) {
-	if logger == nil {
-		logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	}
-
 	config := LLMConfig{
 		APIKey:     apiKey,
 		HTTPClient: DefaultHTTPClient(),
-		Logger:     logger,
 	}
 
 	switch strings.ToLower(provider) {
@@ -348,11 +264,6 @@ func NewLLMProvider(provider, apiKey string, logger *slog.Logger) (LLMProvider, 
 			return nil, fmt.Errorf("API key required for OpenAI")
 		}
 		return NewOpenAILLM(config), nil
-	case "cohere":
-		if apiKey == "" {
-			return nil, fmt.Errorf("API key required for Cohere")
-		}
-		return NewCohereLLM(config), nil
 	case "on-prem":
 		return NewOnPremLLM(config)
 	default:

@@ -251,6 +251,7 @@ func (l *OnPremLLM) Stream(req *GenerateRequest) (<-chan string, <-chan error) {
 	return textChan, errChan
 }
 
+// This pattern helps in easily mocking the LLM provider in tests
 // NewLLMProviderFunc is the type for the provider factory function
 type NewLLMProviderFunc func(provider, apiKey string, logger *slog.Logger) (LLMProvider, error)
 

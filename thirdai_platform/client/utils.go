@@ -124,7 +124,7 @@ func (r *httpRequest) Process(resultHandler func(io.Reader) error) error {
 
 	end := time.Now()
 
-	slog.Debug("thirdai platform client", "method", r.method, "endpoint", r.endpoint, "status", res.StatusCode, "duration", end.Sub(start).String(), "headers", r.headers)
+	slog.Debug("thirdai platform client", "method", r.method, "endpoint", r.endpoint, "status", res.StatusCode, "duration", end.Sub(start).String())
 
 	if res.StatusCode != http.StatusOK {
 		content, err := io.ReadAll(res.Body)

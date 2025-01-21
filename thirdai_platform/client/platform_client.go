@@ -70,6 +70,30 @@ func (c *PlatformClient) CreateAPIKey(modelIDs []string, name string, expiry str
 	return response.ApiKey, nil
 }
 
+func (c *PlatformClient) ListAPIKeys() ([]services.APIKeyResponse, error) {
+	var response []services.APIKeyResponse
+
+	err := c.Get("/api/v2/model/list-api-keys").Do(&response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list API keys: %w", err)
+	}
+
+	return response, nil
+}
+
+func (c *PlatformClient) DeleteAPIKey(apiKeyID uuid.UUID) error {
+	body := map[string]uuid.UUID{
+		"api_key_id": apiKeyID,
+	}
+
+	err := c.Post("/api/v2/model/delete-api-key").Json(body).Do(nil)
+	if err != nil {
+		return fmt.Errorf("failed to delete API key: %w", err)
+	}
+
+	return nil
+}
+
 type FileInfo struct {
 	Path     string                 `json:"path"`
 	Location string                 `json:"location"`

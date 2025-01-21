@@ -39,6 +39,17 @@ type CreateAPIKeyRequest struct {
 	Exp      string   `json:"exp"`
 }
 
+type APIKeyResponse struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	CreatedBy uuid.UUID `json:"created_by"`
+	Expiry    time.Time `json:"expiry"`
+}
+
+type deleteRequestBody struct {
+	APIKeyID string `json:"api_key_id"`
+}
+
 func (s *ModelService) Routes() chi.Router {
 	r := chi.NewRouter()
 
@@ -312,11 +323,17 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		parsedModelIDs = append(parsedModelIDs, id)
-	}
 
-	if len(parsedModelIDs) == 0 {
-		http.Error(w, "no valid model_ids provided", http.StatusBadRequest)
-		return
+		// Fetch dependencies for the given model_id
+		var dependencies []schema.ModelDependency
+		if err := s.db.Where("model_id = ?", id).Find(&dependencies).Error; err != nil {
+			http.Error(w, fmt.Sprintf("error fetching dependencies for model_id '%s': %v", id, err), http.StatusInternalServerError)
+			return
+		}
+
+		for _, dep := range dependencies {
+			parsedModelIDs = append(parsedModelIDs, dep.DependencyId)
+		}
 	}
 
 	var models []schema.Model
@@ -372,14 +389,25 @@ func (s *ModelService) DeleteAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prefix := chi.URLParam(r, "prefix")
-	if prefix == "" {
-		http.Error(w, "prefix is required", http.StatusBadRequest)
+	var reqBody deleteRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if reqBody.APIKeyID == "" {
+		http.Error(w, "key id is required", http.StatusBadRequest)
+		return
+	}
+
+	apiKeyId, err := uuid.Parse(reqBody.APIKeyID)
+	if err != nil {
+		http.Error(w, "invalid UUID", http.StatusBadRequest)
 		return
 	}
 
 	var apiKey schema.UserAPIKey
-	if err := s.db.Where("prefix = ?", prefix).First(&apiKey).Error; err != nil {
+	if err := s.db.Where("id = ?", apiKeyId).First(&apiKey).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			http.Error(w, "API key not found", http.StatusNotFound)
 			return
@@ -408,19 +436,22 @@ func (s *ModelService) ListUserAPIKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var userAPIKeys []schema.UserAPIKey
+	var apiKeys []APIKeyResponse
 
 	dbQuery := s.db.Model(&schema.UserAPIKey{})
+
 	if !user.IsAdmin {
 		dbQuery = dbQuery.Where("created_by = ?", user.Id)
 	}
 
-	if err := dbQuery.Preload("Models").Find(&userAPIKeys).Error; err != nil {
+	dbQuery = dbQuery.Select("id, name, created_by, expiry_time as expiry")
+
+	if err := dbQuery.Scan(&apiKeys).Error; err != nil {
 		http.Error(w, "failed to retrieve API keys", http.StatusInternalServerError)
 		return
 	}
 
-	utils.WriteJsonResponse(w, userAPIKeys)
+	utils.WriteJsonResponse(w, apiKeys)
 }
 
 type ModelPermissions struct {

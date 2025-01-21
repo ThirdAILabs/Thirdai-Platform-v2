@@ -57,7 +57,7 @@ func (auth *BasicIdentityProvider) addUserToContext() func(http.Handler) http.Ha
 
 			userUUID, err := uuid.Parse(userId)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("invalid user uuid '%v': %v'", userId, err), http.StatusUnauthorized)
+				http.Error(w, fmt.Sprintf("invalid user uuid '%v': %v", userId, err), http.StatusUnauthorized)
 				return
 			}
 
@@ -77,7 +77,33 @@ func (auth *BasicIdentityProvider) addUserToContext() func(http.Handler) http.Ha
 }
 
 func (auth *BasicIdentityProvider) AuthMiddleware() chi.Middlewares {
-	return chi.Middlewares{auth.jwtManager.Verifier(), auth.jwtManager.Authenticator(), auth.addUserToContext(), auth.auditLog.Middleware}
+	middlewares := chi.Middlewares{
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r)
+			})
+		},
+		auth.jwtManager.Verifier(),
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r)
+			})
+		},
+		auth.jwtManager.Authenticator(),
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r)
+			})
+		},
+		auth.addUserToContext(),
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r)
+			})
+		},
+		auth.auditLog.Middleware,
+	}
+	return middlewares
 }
 
 func (auth *BasicIdentityProvider) AllowDirectSignup() bool {

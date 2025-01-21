@@ -505,16 +505,16 @@ func hashSecret(secret string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// TODO(pratik): Return error relevant error statements
 func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, time.Time, error) {
-	// Extract the API Key from the header
 	fullKey := r.Header.Get("X-API-Key")
+	fmt.Printf("Extracted API Key: %s\n", fullKey) // Debugging API Key extraction
 
 	if fullKey == "" {
 		return uuid.Nil, time.Time{}, nil
 	}
 
 	secret, err := removeApiKeyPrefix(fullKey)
-
 	if err != nil {
 		return uuid.Nil, time.Time{}, nil
 	}
@@ -522,7 +522,6 @@ func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, time.Time, error) 
 	hashedKey := hashSecret(secret)
 
 	var record schema.UserAPIKey
-
 	if err := db.Where("hashkey = ?", hashedKey).Preload("Models").First(&record).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return uuid.Nil, time.Time{}, nil
@@ -537,7 +536,6 @@ func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, time.Time, error) 
 	}
 
 	hashed := hashSecret(secret)
-
 	if hashed != record.HashKey {
 		return uuid.Nil, time.Time{}, nil
 	}
@@ -552,18 +550,7 @@ func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, time.Time, error) 
 			return record.CreatedBy, record.ExpiryTime, nil
 		}
 	}
-
 	return uuid.Nil, time.Time{}, nil
-}
-
-// ChainMiddlewares chains multiple middlewares into a single middleware
-func ChainMiddlewares(middlewares ...func(http.Handler) http.Handler) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		for _, m := range middlewares {
-			next = m(next)
-		}
-		return next
-	}
 }
 
 func eitherUserOrApiKeyAuthMiddleware(
@@ -571,14 +558,13 @@ func eitherUserOrApiKeyAuthMiddleware(
 	userAuthMiddlewares chi.Middlewares,
 ) func(http.Handler) http.Handler {
 
-	userAuthHandler := ChainMiddlewares(userAuthMiddlewares...)
+	userAuthChain := chi.Chain(userAuthMiddlewares...)
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			apiKey := r.Header.Get("X-API-Key")
 
 			if apiKey != "" {
-
 				userID, expiry, err := validateApiKey(db, r)
 
 				if err != nil {
@@ -605,7 +591,9 @@ func eitherUserOrApiKeyAuthMiddleware(
 				return
 			}
 
-			userAuthHandler(next).ServeHTTP(w, r)
+			finalHandler := userAuthChain.Handler(next)
+
+			finalHandler.ServeHTTP(w, r)
 		})
 	}
 }

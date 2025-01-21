@@ -113,8 +113,7 @@ func (c *ModelClient) DeployWithName(autoscaling bool, name string) error {
 		DeploymentName: name,
 	}
 
-	req := c.Post(fmt.Sprintf("/api/v2/deploy/%v", c.modelId)).Json(body).Do(nil)
-	return req
+	return c.Post(fmt.Sprintf("/api/v2/deploy/%v", c.modelId)).Json(body).Do(nil)
 }
 
 func (c *ModelClient) Undeploy() error {

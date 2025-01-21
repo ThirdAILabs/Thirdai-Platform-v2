@@ -334,10 +334,6 @@ func parseCreateAPIKeyRequest(r *http.Request, w http.ResponseWriter) (CreateAPI
 	return req, nil
 }
 
-func validateExpiryDate(exp string) (time.Time, error) {
-	return time.Parse(time.RFC3339, exp)
-}
-
 func (s *ModelService) parseAndValidateModelIDs(modelIDs []uuid.UUID, user schema.User) ([]uuid.UUID, error) {
 	var parsedModelIDs []uuid.UUID
 	for _, id := range modelIDs {

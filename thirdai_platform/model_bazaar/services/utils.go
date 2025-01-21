@@ -473,7 +473,7 @@ func removeApiKeyPrefix(input string) (string, error) {
 	return "", fmt.Errorf("input string must start with the prefix '%s-'", thirdaiPlatformKeyPrefix)
 }
 
-func GenerateApiKey(db *gorm.DB) (string, string, error) {
+func generateApiKey() (string, string, error) {
 	var secret string
 	var secretHash string
 
@@ -508,7 +508,6 @@ func hashSecret(secret string) string {
 // TODO(pratik): Return error relevant error statements
 func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, time.Time, error) {
 	fullKey := r.Header.Get("X-API-Key")
-	fmt.Printf("Extracted API Key: %s\n", fullKey) // Debugging API Key extraction
 
 	if fullKey == "" {
 		return uuid.Nil, time.Time{}, nil
@@ -579,7 +578,8 @@ func eitherUserOrApiKeyAuthMiddleware(
 
 				user, err := schema.GetUser(userID, db)
 				if err != nil {
-					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+					err := schema.NewDbError("getting user using id", err)
+					http.Error(w, fmt.Sprintf("unable to get user: %v", err), http.StatusInternalServerError)
 					return
 				}
 

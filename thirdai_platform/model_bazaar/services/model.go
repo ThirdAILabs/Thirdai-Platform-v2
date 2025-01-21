@@ -275,30 +275,13 @@ func (s *ModelService) ListModelWithWritePermission(w http.ResponseWriter, r *ht
 }
 
 func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
-
-	var req CreateAPIKeyRequest
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	req, err := parseCreateAPIKeyRequest(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if len(req.ModelIDs) == 0 {
-		http.Error(w, "model_ids are required", http.StatusBadRequest)
-		return
-	}
-
-	if strings.TrimSpace(req.Name) == "" {
-		http.Error(w, "name is required", http.StatusBadRequest)
-		return
-	}
-
-	if strings.TrimSpace(req.Exp) == "" {
-		http.Error(w, "expiry date is required", http.StatusBadRequest)
-		return
-	}
-
-	unixTime, err := time.Parse(time.RFC3339, req.Exp)
+	unixTime, err := validateExpiryDate(req.Exp)
 	if err != nil {
 		http.Error(w, "invalid expiry format", http.StatusBadRequest)
 		return
@@ -310,42 +293,15 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var parsedModelIDs []uuid.UUID
-	for _, idStr := range req.ModelIDs {
-		idStr = strings.TrimSpace(idStr)
-		if idStr == "" {
-			continue
-		}
-
-		id, err := uuid.Parse(idStr)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("invalid model_id '%s': %v", idStr, err), http.StatusBadRequest)
-			return
-		}
-		parsedModelIDs = append(parsedModelIDs, id)
-
-		// Fetch dependencies for the given model_id
-		var dependencies []schema.ModelDependency
-		if err := s.db.Where("model_id = ?", id).Find(&dependencies).Error; err != nil {
-			http.Error(w, fmt.Sprintf("error fetching dependencies for model_id '%s': %v", id, err), http.StatusInternalServerError)
-			return
-		}
-
-		for _, dep := range dependencies {
-			parsedModelIDs = append(parsedModelIDs, dep.DependencyId)
-		}
+	parsedModelIDs, err := s.parseAndValidateModelIDs(req.ModelIDs)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
-	var models []schema.Model
-	err = s.db.Preload("Attributes").
-		Preload("Dependencies").
-		Preload("Dependencies.Dependency").
-		Preload("Dependencies.Dependency.User").
-		Where("id IN ?", parsedModelIDs).
-		Where("user_id = ?", user.Id).
-		Find(&models).Error
+	models, err := s.fetchModels(parsedModelIDs, user.Id)
 	if err != nil {
-		http.Error(w, "failed to retrieve models", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -354,32 +310,111 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiKey, hashKey, err := GenerateApiKey(s.db)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	newAPIKey := schema.UserAPIKey{
-		Id:            uuid.New(),
-		HashKey:       hashKey,
-		Name:          req.Name,
-		Models:        models,
-		GeneratedTime: time.Now(),
-		ExpiryTime:    unixTime,
-		CreatedBy:     user.Id,
-	}
-	err = s.db.Create(&newAPIKey).Error
+	apiKey, err := s.createAndSaveAPIKey(req.Name, unixTime, user.Id, models)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to save API key: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Prepare and send the response
-	response := map[string]string{
-		"api_key": apiKey,
+	utils.WriteJsonResponse(w, map[string]string{"api_key": apiKey})
+}
+
+func parseCreateAPIKeyRequest(r *http.Request) (CreateAPIKeyRequest, error) {
+	var req CreateAPIKeyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return req, errors.New("invalid request body")
 	}
-	utils.WriteJsonResponse(w, response)
+
+	if len(req.ModelIDs) == 0 {
+		return req, errors.New("model_ids are required")
+	}
+
+	if strings.TrimSpace(req.Name) == "" {
+		return req, errors.New("name is required")
+	}
+
+	if strings.TrimSpace(req.Exp) == "" {
+		return req, errors.New("expiry date is required")
+	}
+
+	return req, nil
+}
+
+func validateExpiryDate(exp string) (time.Time, error) {
+	return time.Parse(time.RFC3339, exp)
+}
+
+func (s *ModelService) parseAndValidateModelIDs(modelIDs []string) ([]uuid.UUID, error) {
+	var parsedModelIDs []uuid.UUID
+	for _, idStr := range modelIDs {
+		idStr = strings.TrimSpace(idStr)
+		if idStr == "" {
+			continue
+		}
+
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid model_id '%s': %v", idStr, err)
+		}
+		parsedModelIDs = append(parsedModelIDs, id)
+
+		dependencies, err := s.fetchModelDependencies(id)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get dependencies: %v", err)
+		}
+
+		for _, dep := range dependencies {
+			parsedModelIDs = append(parsedModelIDs, dep.DependencyId)
+		}
+	}
+	return parsedModelIDs, nil
+}
+
+func (s *ModelService) fetchModelDependencies(modelID uuid.UUID) ([]schema.ModelDependency, error) {
+	var dependencies []schema.ModelDependency
+	err := s.db.Where("model_id = ?", modelID).Find(&dependencies).Error
+	if err != nil {
+		return nil, schema.NewDbError("getting dependencies using ids", err)
+	}
+	return dependencies, nil
+}
+
+func (s *ModelService) fetchModels(modelIDs []uuid.UUID, userID uuid.UUID) ([]schema.Model, error) {
+	var models []schema.Model
+	err := s.db.Preload("Attributes").
+		Preload("Dependencies").
+		Preload("Dependencies.Dependency").
+		Preload("Dependencies.Dependency.User").
+		Where("id IN ?", modelIDs).
+		Where("user_id = ?", userID).
+		Find(&models).Error
+	if err != nil {
+		return nil, schema.NewDbError("getting models using ids", err)
+	}
+	return models, nil
+}
+
+func (s *ModelService) createAndSaveAPIKey(name string, expiry time.Time, userID uuid.UUID, models []schema.Model) (string, error) {
+	apiKey, hashKey, err := generateApiKey()
+	if err != nil {
+		return "", err
+	}
+
+	newAPIKey := schema.UserAPIKey{
+		Id:            uuid.New(),
+		HashKey:       hashKey,
+		Name:          name,
+		Models:        models,
+		GeneratedTime: time.Now(),
+		ExpiryTime:    expiry,
+		CreatedBy:     userID,
+	}
+
+	if err := s.db.Create(&newAPIKey).Error; err != nil {
+		return "", err
+	}
+
+	return apiKey, nil
 }
 
 func (s *ModelService) DeleteAPIKey(w http.ResponseWriter, r *http.Request) {

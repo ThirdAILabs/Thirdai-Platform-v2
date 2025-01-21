@@ -287,12 +287,6 @@ func (c *client) listModels() ([]services.ModelInfo, error) {
 	return res, err
 }
 
-func (c *client) listModelsWithWriteAccess() ([]services.ModelInfo, error) {
-	var res []services.ModelInfo
-	err := c.Get("/model/list-model-write-access").Do(&res)
-	return res, err
-}
-
 func (c *client) createAPIKey(modelIDs []uuid.UUID, name string, expiry time.Time) (string, error) {
 	requestBody := map[string]interface{}{
 		"model_ids": modelIDs,

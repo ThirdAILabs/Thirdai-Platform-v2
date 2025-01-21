@@ -79,7 +79,6 @@ func (s *ModelService) Routes() chi.Router {
 		r.Use(s.userAuth.AuthMiddleware()...)
 
 		r.Get("/list", s.List)
-		r.Get("/list-model-write-access", s.ListModelWithWritePermission)
 		r.Post("/create-api-key", s.CreateAPIKey)
 		r.Post("/delete-api-key", s.DeleteAPIKey)
 		r.Get("/list-api-keys", s.ListUserAPIKeys)
@@ -184,19 +183,22 @@ func (s *ModelService) Info(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJsonResponse(w, info)
 }
 
-func (s *ModelService) ListModelInfo(user schema.User, withWritePermission bool) ([]ModelInfo, error) {
+func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
+	user, err := auth.UserFromContext(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	var models []schema.Model
 	var result *gorm.DB
-
-	infos := make([]ModelInfo, 0, len(models))
-
 	if user.IsAdmin {
 		result = s.db.Preload("Dependencies").Preload("Dependencies.Dependency").Preload("Attributes").Preload("User").Find(&models)
 	} else {
 		userTeams, err := schema.GetUserTeamIds(user.Id, s.db)
 		if err != nil {
-			return nil, err
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 		result = s.db.
 			Preload("Dependencies").
@@ -212,63 +214,18 @@ func (s *ModelService) ListModelInfo(user schema.User, withWritePermission bool)
 
 	if result.Error != nil {
 		err := schema.NewDbError("listing models", result.Error)
-		return nil, err
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
+	infos := make([]ModelInfo, 0, len(models))
 	for _, model := range models {
 		info, err := convertToModelInfo(model, s.db)
 		if err != nil {
-			return infos, err
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
-		var shouldAdd bool = true
-
-		if withWritePermission {
-			permission, err := auth.GetModelPermissions(model.Id, user, s.db)
-
-			if err != nil {
-				return infos, err
-			}
-			if permission < auth.WritePermission {
-				shouldAdd = false
-			}
-		}
-
-		if shouldAdd {
-			infos = append(infos, info)
-		}
-
-	}
-
-	return infos, nil
-}
-
-func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
-	user, err := auth.UserFromContext(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
-
-	infos, err := s.ListModelInfo(user, false)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	utils.WriteJsonResponse(w, infos)
-}
-
-func (s *ModelService) ListModelWithWritePermission(w http.ResponseWriter, r *http.Request) {
-	user, err := auth.UserFromContext(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	infos, err := s.ListModelInfo(user, true)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		infos = append(infos, info)
 	}
 
 	utils.WriteJsonResponse(w, infos)

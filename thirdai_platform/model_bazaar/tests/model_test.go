@@ -493,7 +493,7 @@ func TestListModelWriteAccess(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	models, err := user1.listModelsWithWriteAccess()
+	models, err := user1.listModels()
 	if err != nil {
 		t.Fatal(err)
 	}

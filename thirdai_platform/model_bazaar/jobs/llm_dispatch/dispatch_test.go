@@ -23,7 +23,6 @@ func (m *MockLLM) Stream(req *GenerateRequest) (<-chan string, <-chan error) {
 		defer close(textChan)
 		defer close(errChan)
 		
-		// Simulate streaming response like in Python test
 		textChan <- "This "
 		textChan <- "is "
 		textChan <- "a test."

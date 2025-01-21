@@ -270,6 +270,6 @@ var NewLLMProvider NewLLMProviderFunc = func(provider, apiKey string, logger *sl
 	case "on-prem":
 		return NewOnPremLLM(config)
 	default:
-		return nil, fmt.Errorf("Unsupported provider: %s", provider)
+		return nil, fmt.Errorf("unsupported provider: %s", provider)
 	}
 } 

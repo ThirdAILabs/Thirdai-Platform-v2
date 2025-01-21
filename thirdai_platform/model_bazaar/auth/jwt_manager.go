@@ -106,10 +106,7 @@ func UserFromContext(r *http.Request) (schema.User, error) {
 	return user, nil
 }
 
-func GetAPIKeyExpiry(ctx context.Context) time.Time {
+func GetAPIKeyExpiry(ctx context.Context) (time.Time, bool) {
 	expiry, ok := ctx.Value(ContextAPIKeyExpiry).(time.Time)
-	if !ok {
-		return time.Time{}
-	}
-	return expiry
+	return expiry, ok
 }

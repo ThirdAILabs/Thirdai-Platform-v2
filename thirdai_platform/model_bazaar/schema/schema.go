@@ -79,7 +79,7 @@ type UserAPIKey struct {
 	Models  []Model `gorm:"many2many:user_api_key_models;constraint:OnDelete:CASCADE;"`
 
 	GeneratedTime time.Time
-	ExpiryTime    time.Time
+	ExpiryTime    time.Time `gorm:"not null"`
 
 	CreatedBy uuid.UUID `gorm:"type:uuid;not null"`
 	User      User      `gorm:"foreignKey:CreatedBy;constraint:OnDelete:CASCADE;"`

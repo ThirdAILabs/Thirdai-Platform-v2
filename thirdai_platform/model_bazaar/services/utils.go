@@ -534,7 +534,7 @@ func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, time.Time, error) 
 		return uuid.Nil, time.Time{}, fmt.Errorf("database error: %w", err)
 	}
 
-	if !record.ExpiryTime.IsZero() && time.Now().After(record.ExpiryTime) {
+	if time.Now().After(record.ExpiryTime) {
 		return uuid.Nil, time.Time{}, ErrExpiredAPIKey
 	}
 

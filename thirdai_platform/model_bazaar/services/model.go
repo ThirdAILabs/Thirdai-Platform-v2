@@ -287,7 +287,7 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parsedModelIDs, err := s.parseAndValidateModelIDs(req.ModelIDs)
+	parsedModelIDs, err := s.parseAndValidateModelIDs(req.ModelIDs, user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -338,9 +338,18 @@ func validateExpiryDate(exp string) (time.Time, error) {
 	return time.Parse(time.RFC3339, exp)
 }
 
-func (s *ModelService) parseAndValidateModelIDs(modelIDs []uuid.UUID) ([]uuid.UUID, error) {
+func (s *ModelService) parseAndValidateModelIDs(modelIDs []uuid.UUID, user schema.User) ([]uuid.UUID, error) {
 	var parsedModelIDs []uuid.UUID
 	for _, id := range modelIDs {
+		permission, err := auth.GetModelPermissions(id, user, s.db)
+		if err != nil {
+			return nil, fmt.Errorf("unauthorized: failed to retrieve permissions for model with ID %s, error: %v", id, err)
+		}
+
+		if permission < auth.WritePermission {
+			return nil, fmt.Errorf("insufficient permissions: you need at least 'write' access to the model (ID: %s) to create an API key", id)
+		}
+
 		parsedModelIDs = append(parsedModelIDs, id)
 
 		dependencies, err := s.fetchModelDependencies(id)
@@ -503,8 +512,7 @@ func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
 
 	var expiration time.Time
 
-	expiry := auth.GetAPIKeyExpiry(r.Context())
-	if !expiry.IsZero() {
+	if expiry, ok := auth.GetAPIKeyExpiry(r.Context()); ok {
 		expiration = expiry
 	} else {
 		expiration, err = s.userAuth.GetTokenExpiration(r)

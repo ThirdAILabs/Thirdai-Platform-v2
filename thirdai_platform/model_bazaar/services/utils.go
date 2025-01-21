@@ -30,6 +30,13 @@ import (
 
 const thirdaiPlatformKeyPrefix = "thirdai_platform_key"
 
+var (
+	ErrMissingAPIKey       = errors.New("API key is missing")
+	ErrInvalidAPIKey       = errors.New("API key is invalid")
+	ErrExpiredAPIKey       = errors.New("API key has expired")
+	ErrAPIKeyModelMismatch = errors.New("API key does not have access to the requested model")
+)
+
 func listModelDependencies(modelId uuid.UUID, db *gorm.DB) ([]schema.Model, error) {
 	visited := map[uuid.UUID]struct{}{}
 	models := []schema.Model{}
@@ -505,17 +512,16 @@ func hashSecret(secret string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// TODO(pratik): Return error relevant error statements
 func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, time.Time, error) {
 	fullKey := r.Header.Get("X-API-Key")
 
 	if fullKey == "" {
-		return uuid.Nil, time.Time{}, nil
+		return uuid.Nil, time.Time{}, ErrMissingAPIKey
 	}
 
 	secret, err := removeApiKeyPrefix(fullKey)
 	if err != nil {
-		return uuid.Nil, time.Time{}, nil
+		return uuid.Nil, time.Time{}, ErrInvalidAPIKey
 	}
 
 	hashedKey := hashSecret(secret)
@@ -523,25 +529,22 @@ func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, time.Time, error) 
 	var record schema.UserAPIKey
 	if err := db.Where("hashkey = ?", hashedKey).Preload("Models").First(&record).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return uuid.Nil, time.Time{}, nil
+			return uuid.Nil, time.Time{}, ErrInvalidAPIKey
 		}
-		return uuid.Nil, time.Time{}, err
+		return uuid.Nil, time.Time{}, fmt.Errorf("database error: %w", err)
 	}
 
-	if !record.ExpiryTime.IsZero() {
-		if time.Now().After(record.ExpiryTime) {
-			return uuid.Nil, time.Time{}, nil
-		}
+	if !record.ExpiryTime.IsZero() && time.Now().After(record.ExpiryTime) {
+		return uuid.Nil, time.Time{}, ErrExpiredAPIKey
 	}
 
-	hashed := hashSecret(secret)
-	if hashed != record.HashKey {
-		return uuid.Nil, time.Time{}, nil
+	if hashSecret(secret) != record.HashKey {
+		return uuid.Nil, time.Time{}, ErrInvalidAPIKey
 	}
 
 	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
-		return uuid.Nil, time.Time{}, err
+		return uuid.Nil, time.Time{}, fmt.Errorf("invalid model_id parameter: %w", err)
 	}
 
 	for _, model := range record.Models {
@@ -549,7 +552,8 @@ func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, time.Time, error) 
 			return record.CreatedBy, record.ExpiryTime, nil
 		}
 	}
-	return uuid.Nil, time.Time{}, nil
+
+	return uuid.Nil, time.Time{}, ErrAPIKeyModelMismatch
 }
 
 func eitherUserOrApiKeyAuthMiddleware(
@@ -567,7 +571,16 @@ func eitherUserOrApiKeyAuthMiddleware(
 				userID, expiry, err := validateApiKey(db, r)
 
 				if err != nil {
-					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+					switch {
+					case errors.Is(err, ErrMissingAPIKey):
+						http.Error(w, err.Error(), http.StatusBadRequest)
+					case errors.Is(err, ErrInvalidAPIKey):
+						http.Error(w, err.Error(), http.StatusUnauthorized)
+					case errors.Is(err, ErrExpiredAPIKey), errors.Is(err, ErrAPIKeyModelMismatch):
+						http.Error(w, err.Error(), http.StatusForbidden)
+					default:
+						http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+					}
 					return
 				}
 

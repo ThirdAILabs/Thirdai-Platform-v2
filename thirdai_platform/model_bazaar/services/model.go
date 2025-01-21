@@ -275,7 +275,7 @@ func (s *ModelService) ListModelWithWritePermission(w http.ResponseWriter, r *ht
 }
 
 func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
-	req, err := parseCreateAPIKeyRequest(r)
+	req, err := parseCreateAPIKeyRequest(r, w)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -313,9 +313,9 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJsonResponse(w, map[string]string{"api_key": apiKey})
 }
 
-func parseCreateAPIKeyRequest(r *http.Request) (CreateAPIKeyRequest, error) {
+func parseCreateAPIKeyRequest(r *http.Request, w http.ResponseWriter) (CreateAPIKeyRequest, error) {
 	var req CreateAPIKeyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if !utils.ParseRequestBody(w, r, &req) {
 		return req, errors.New("invalid request body")
 	}
 

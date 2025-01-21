@@ -82,6 +82,7 @@ type UserAPIKey struct {
 	ExpiryTime    time.Time
 
 	CreatedBy uuid.UUID `gorm:"type:uuid;not null"`
+	User      User      `gorm:"foreignKey:CreatedBy;constraint:OnDelete:CASCADE;"`
 }
 
 type Team struct {

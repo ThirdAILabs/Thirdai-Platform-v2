@@ -14,12 +14,8 @@ func main() {
 	// Create and start server
 	server := llm_dispatch.NewServer()
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8001"
-	}
-
-	logger.Info("starting LLM dispatch service", "port", port)
+	port := "8000"
+	logger.Info("starting LLM generation service", "port", port)
 	if err := server.Run(":" + port); err != nil {
 		logger.Error("server error", "error", err)
 		os.Exit(1)

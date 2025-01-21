@@ -77,33 +77,7 @@ func (auth *BasicIdentityProvider) addUserToContext() func(http.Handler) http.Ha
 }
 
 func (auth *BasicIdentityProvider) AuthMiddleware() chi.Middlewares {
-	middlewares := chi.Middlewares{
-		func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				next.ServeHTTP(w, r)
-			})
-		},
-		auth.jwtManager.Verifier(),
-		func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				next.ServeHTTP(w, r)
-			})
-		},
-		auth.jwtManager.Authenticator(),
-		func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				next.ServeHTTP(w, r)
-			})
-		},
-		auth.addUserToContext(),
-		func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				next.ServeHTTP(w, r)
-			})
-		},
-		auth.auditLog.Middleware,
-	}
-	return middlewares
+	return chi.Middlewares{auth.jwtManager.Verifier(), auth.jwtManager.Authenticator(), auth.addUserToContext(), auth.auditLog.Middleware}
 }
 
 func (auth *BasicIdentityProvider) AllowDirectSignup() bool {

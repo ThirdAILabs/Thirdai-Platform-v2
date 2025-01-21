@@ -57,16 +57,13 @@ class EnterpriseSearchRouter:
         params: inputs.NDBSearchParams,
         token_scheme=Depends(Permissions.verify_permission("read")),
     ):
-        print("Starting the search function")  # Debugging start
 
         token, scheme = token_scheme
-        print(f"Token: {token}, Scheme: {scheme}")  # Debugging token and scheme
 
         if scheme == "api_key":
             headers = {"X-API-Key": token}
         else:
             headers = {"Authorization": f"Bearer {token}"}
-        print(f"Headers: {headers}")  # Debugging headers
 
         try:
             res = self.session.post(
@@ -74,11 +71,7 @@ class EnterpriseSearchRouter:
                 json=params.model_dump(),
                 headers=headers,
             )
-            print(
-                f"Response received. Status code: {res.status_code}"
-            )  # Debugging response status code
         except Exception as e:
-            print(f"Exception during POST request: {e}")  # Debugging request exception
             self.logger.error(f"Exception during POST request: {e}")
             return response(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -86,9 +79,6 @@ class EnterpriseSearchRouter:
             )
 
         if res.status_code != status.HTTP_200_OK:
-            print(
-                f"Non-200 status code received: {res.status_code}"
-            )  # Debugging non-200 response
             self.logger.error(
                 f"Failed retrieval request with status code {res.status_code}. Response: {res.text}",
                 code=LogCode.MODEL_PREDICT,
@@ -100,11 +90,7 @@ class EnterpriseSearchRouter:
 
         try:
             results = inputs.EnterpriseSearchResults.model_validate(res.json()["data"])
-            print("Results successfully parsed.")  # Debugging result parsing
         except Exception as e:
-            print(
-                f"Exception during result parsing: {e}"
-            )  # Debugging parsing exception
             self.logger.error(f"Exception during result parsing: {e}")
             return response(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -112,9 +98,6 @@ class EnterpriseSearchRouter:
             )
 
         if self.guardrail:
-            print(
-                "Guardrail enabled, starting PII redaction."
-            )  # Debugging guardrail check
             label_map = LabelMap()
 
             try:
@@ -124,7 +107,6 @@ class EnterpriseSearchRouter:
                     access_token=token,
                     auth_scheme=scheme,
                 )
-                print("Query text redacted.")  # Debugging query text redaction
 
                 for ref in results.references:
                     ref.text = self.guardrail.redact_pii(
@@ -133,20 +115,12 @@ class EnterpriseSearchRouter:
                         access_token=token,
                         auth_scheme=scheme,
                     )
-                    print(
-                        "Reference text redacted."
-                    )  # Debugging reference text redaction
 
                 results.pii_entities = label_map.get_entities()
-                print("PII entities captured.")  # Debugging PII entities
                 self.logger.debug("Redacted PII from search results")
             except Exception as e:
-                print(
-                    f"Exception during PII redaction: {e}"
-                )  # Debugging redaction exception
                 self.logger.error(f"Exception during PII redaction: {e}")
 
-        print("Returning successful response.")  # Debugging successful return
         return response(
             status_code=status.HTTP_200_OK,
             message="Successful",

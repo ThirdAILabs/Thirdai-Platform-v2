@@ -173,3 +173,5 @@ data/
 **/config.json
 
 .share/
+
+.DS_Store

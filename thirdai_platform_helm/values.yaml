@@ -1,0 +1,56 @@
+replicaCount: 1
+
+# Docker image settings
+image:
+  repository: "my-docker-registry.com/thirdai_platform_main"
+  tag: "v1.0.0"
+  pullPolicy: IfNotPresent
+
+# The name of the Docker credentials secret that you created with kubectl create secret ...
+dockerCredentialsSecret: "docker-credentials-secret"
+
+service:
+  port: 80
+  type: ClusterIP
+
+# Ingress settings (Nginx). Route /api to modelbazaar
+ingress:
+  enabled: true
+  className: "nginx"    
+  hostname: "example.com"
+  path: "/api"
+  tls: false
+
+# EFS CSI Persistent Volume Claim settings
+efs:
+  storageClassName: "efs-sc"
+  size: 1Gi
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: "512Mi"
+  limits:
+    cpu: "1000m"
+    memory: "1Gi"
+
+# License file secret reference
+licenseSecretName: "thirdai-platform-license"
+
+# Example environment variables
+env:
+  PUBLIC_MODEL_BAZAAR_ENDPOINT: "http://thirdaiplatform.com/"
+  LICENSE_PATH: "/model_bazaar/license/ndb_enterprise_license.json"
+  PRIVATE_MODEL_BAZAAR_ENDPOINT: "http://thirdaiplatform.com/"
+  NOMAD_ENDPOINT: "http://172.17.0.1:4646/"
+  SHARE_DIR: "/model_bazaar"
+  JWT_SECRET: "my-jwt-secret"
+  ADMIN_USERNAME: "admin"
+  ADMIN_MAIL: "admin@thirdai.com"
+  ADMIN_PASSWORD: "password"
+  AUTOSCALING_ENABLED: "false"
+  AUTOSCALER_MAX_COUNT: "10"
+  GENAI_KEY: ""
+  IDENTITY_PROVIDER: "my-idp"
+  KEYCLOAK_SERVER_URL: "https://my-keycloak.example.com"
+  USE_SSL_IN_LOGIN: "true"

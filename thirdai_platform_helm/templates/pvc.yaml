@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: modelbazaar-efs-pvc
+spec:
+  storageClassName: {{ .Values.efs.storageClassName }}
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.efs.size | quote }}

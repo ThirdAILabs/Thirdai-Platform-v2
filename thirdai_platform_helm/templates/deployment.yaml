@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: modelbazaar
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: modelbazaar
+  template:
+    metadata:
+      labels:
+        app: modelbazaar
+    spec:
+      # Create these secrets using kubectl commandline
+      imagePullSecrets:
+        - name: {{ .Values.dockerCredentialsSecret }}
+
+      initContainers:
+        - name: init-create-license-dir
+          image: busybox
+          command: ["sh", "-c", "mkdir -p /model_bazaar/license"]
+          volumeMounts:
+            - name: shared-modelbazaar
+              mountPath: /model_bazaar
+
+      containers:
+      - name: modelbazaar
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+          - containerPort: 80
+            name: http
+        env:
+          {{- range $key, $value := .Values.env }}
+          - name: {{ $key }}
+            value: "{{ $value }}"
+          {{- end }}
+
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+        resources:
+          requests:
+            cpu: {{ .Values.resources.requests.cpu }}
+            memory: {{ .Values.resources.requests.memory }}
+          limits:
+            cpu: {{ .Values.resources.limits.cpu }}
+            memory: {{ .Values.resources.limits.memory }}
+
+        volumeMounts:
+          - name: shared-modelbazaar
+            mountPath: /model_bazaar
+          - name: license-file
+            mountPath: /model_bazaar/license/ndb_enterprise_license.json
+            subPath: ndb_enterprise_license.json
+
+      volumes:
+      - name: shared-modelbazaar
+        persistentVolumeClaim:
+          claimName: modelbazaar-efs-pvc
+
+      - name: license-file
+        secret:
+          secretName: {{ .Values.licenseSecretName }}
+          items:
+            - key: ndb_enterprise_license.json
+              path: ndb_enterprise_license.json

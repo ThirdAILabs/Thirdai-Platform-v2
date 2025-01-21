@@ -7,6 +7,8 @@ import (
 	"thirdai_platform/client"
 	"thirdai_platform/model_bazaar/config"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func TestEnterpriseSearchWithGuardrail(t *testing.T) {
@@ -96,10 +98,12 @@ func TestEnterpriseSearchWithGuardrail(t *testing.T) {
 	}
 
 	// use API Key to deploy query
-	enterpriseSearchModelIds := []string{es.GetModelID().String()}
+	enterpriseSearchModelIds := []uuid.UUID{es.GetModelID()}
 
 	apiKeyName := fmt.Sprintf("test-api-key-%s", es.GetModelID().String())
-	expiry := "2026-01-31T23:59:59Z"
+	now := time.Now()
+
+	expiry := now.Add(24 * time.Hour)
 
 	eskApiKey, err := c.CreateAPIKey(enterpriseSearchModelIds, apiKeyName, expiry)
 	if err != nil {

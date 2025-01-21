@@ -10,8 +10,10 @@ import (
 	"net/http/httptest"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/services"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 )
 
 type httpTestRequest struct {
@@ -291,7 +293,7 @@ func (c *client) listModelsWithWriteAccess() ([]services.ModelInfo, error) {
 	return res, err
 }
 
-func (c *client) createAPIKey(modelIDs []string, name string, expiry string) (string, error) {
+func (c *client) createAPIKey(modelIDs []uuid.UUID, name string, expiry time.Time) (string, error) {
 	requestBody := map[string]interface{}{
 		"model_ids": modelIDs,
 		"name":      name,

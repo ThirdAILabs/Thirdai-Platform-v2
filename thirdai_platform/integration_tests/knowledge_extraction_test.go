@@ -6,6 +6,8 @@ import (
 	"testing"
 	"thirdai_platform/client"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func TestKnowledgeExtraction(t *testing.T) {
@@ -127,10 +129,12 @@ func TestKnowledgeExtraction(t *testing.T) {
 		t.Fatal("invalid contents of failed report")
 	}
 
-	knowledgeExtractionModelIds := []string{ke.GetModelID().String()}
+	knowledgeExtractionModelIds := []uuid.UUID{ke.GetModelID()}
 
 	apiKeyName := fmt.Sprintf("test-api-key-%s", ke.GetModelID().String())
-	expiry := "2026-01-31T23:59:59Z"
+	now := time.Now()
+
+	expiry := now.Add(24 * time.Hour)
 
 	keApiKey, err := c.CreateAPIKey(knowledgeExtractionModelIds, apiKeyName, expiry)
 	if err != nil {

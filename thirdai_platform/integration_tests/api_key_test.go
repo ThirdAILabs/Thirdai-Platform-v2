@@ -48,9 +48,11 @@ func TestNdbNlpModelsAPIKeyDeployAndQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ndbModelID := []string{ndb.ModelClient.GetModelID().String()}
+	ndbModelID := []uuid.UUID{ndb.ModelClient.GetModelID()}
 	apiKeyName := fmt.Sprintf("test-api-key-ndb-%s", ndb.ModelClient.GetModelID().String())
-	expiry := "2026-01-31T23:59:59Z"
+	now := time.Now()
+
+	expiry := now.Add(24 * time.Hour)
 
 	ndbApiKey, err := c.CreateAPIKey(ndbModelID, apiKeyName, expiry)
 	if err != nil {
@@ -108,7 +110,7 @@ func TestNdbNlpModelsAPIKeyDeployAndQuery(t *testing.T) {
 		t.Fatal("expected an error because the API key does not allow the NLP model, but got none")
 	}
 
-	nlpModelID := []string{nlp.ModelClient.GetModelID().String()}
+	nlpModelID := []uuid.UUID{nlp.ModelClient.GetModelID()}
 	nlpKeyName := fmt.Sprintf("test-api-key-nlp-%s", nlp.ModelClient.GetModelID().String())
 
 	nlpApiKey, err := c.CreateAPIKey(nlpModelID, nlpKeyName, expiry)

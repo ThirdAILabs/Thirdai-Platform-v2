@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/services"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -52,7 +53,7 @@ func (c *PlatformClient) UseApiKey(api_key string) error {
 	return nil
 }
 
-func (c *PlatformClient) CreateAPIKey(modelIDs []string, name string, expiry string) (string, error) {
+func (c *PlatformClient) CreateAPIKey(modelIDs []uuid.UUID, name string, expiry time.Time) (string, error) {
 	requestBody := map[string]interface{}{
 		"model_ids": modelIDs,
 		"name":      name,

@@ -34,9 +34,9 @@ type ModelService struct {
 }
 
 type CreateAPIKeyRequest struct {
-	ModelIDs []string `json:"model_ids"`
-	Name     string   `json:"name"`
-	Exp      string   `json:"exp"`
+	ModelIDs []uuid.UUID `json:"model_ids"`
+	Name     string      `json:"name"`
+	Exp      time.Time   `json:"exp"`
 }
 
 type APIKeyResponse struct {
@@ -281,12 +281,6 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	unixTime, err := validateExpiryDate(req.Exp)
-	if err != nil {
-		http.Error(w, "invalid expiry format", http.StatusBadRequest)
-		return
-	}
-
 	user, err := auth.UserFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -310,7 +304,7 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiKey, err := s.createAndSaveAPIKey(req.Name, unixTime, user.Id, models)
+	apiKey, err := s.createAndSaveAPIKey(req.Name, req.Exp, user.Id, models)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to save API key: %v", err), http.StatusInternalServerError)
 		return
@@ -333,8 +327,8 @@ func parseCreateAPIKeyRequest(r *http.Request) (CreateAPIKeyRequest, error) {
 		return req, errors.New("name is required")
 	}
 
-	if strings.TrimSpace(req.Exp) == "" {
-		return req, errors.New("expiry date is required")
+	if req.Exp.Before(time.Now()) {
+		return req, errors.New("api key is already expired")
 	}
 
 	return req, nil
@@ -344,18 +338,9 @@ func validateExpiryDate(exp string) (time.Time, error) {
 	return time.Parse(time.RFC3339, exp)
 }
 
-func (s *ModelService) parseAndValidateModelIDs(modelIDs []string) ([]uuid.UUID, error) {
+func (s *ModelService) parseAndValidateModelIDs(modelIDs []uuid.UUID) ([]uuid.UUID, error) {
 	var parsedModelIDs []uuid.UUID
-	for _, idStr := range modelIDs {
-		idStr = strings.TrimSpace(idStr)
-		if idStr == "" {
-			continue
-		}
-
-		id, err := uuid.Parse(idStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid model_id '%s': %v", idStr, err)
-		}
+	for _, id := range modelIDs {
 		parsedModelIDs = append(parsedModelIDs, id)
 
 		dependencies, err := s.fetchModelDependencies(id)

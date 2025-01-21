@@ -9,6 +9,9 @@ import (
 	"testing"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/services"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 func TestModelInfo(t *testing.T) {
@@ -499,10 +502,12 @@ func TestListModelWriteAccess(t *testing.T) {
 		t.Fatalf("Expected 3 models, but got %d", len(models))
 	}
 
-	selectedModelIDs := []string{models[0].ModelId.String(), models[1].ModelId.String()}
+	selectedModelIDs := []uuid.UUID{models[0].ModelId, models[1].ModelId}
 
 	apiKeyName := "test-api-key"
-	expiry := "2026-01-31T23:59:59Z"
+	now := time.Now()
+
+	expiry := now.Add(24 * time.Hour)
 
 	apiKey, err := user1.createAPIKey(selectedModelIDs, apiKeyName, expiry)
 	if err != nil {

@@ -69,7 +69,18 @@ func (s *Server) handleGenerate(w http.ResponseWriter, r *http.Request) {
 	var req GenerateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.logger.Error("invalid request", "error", err)
-		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"detail": "invalid request: " + err.Error()})
+		return
+	}
+
+	// Validate required fields
+	if req.Query == "" {
+		s.logger.Error("missing required field: query")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"detail": "Field required: query"})
 		return
 	}
 
@@ -78,10 +89,20 @@ func (s *Server) handleGenerate(w http.ResponseWriter, r *http.Request) {
 		"model", req.Model,
 	)
 
+	if req.Key == "" {
+		s.logger.Error("missing API key")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"detail": "No generative AI key provided"})
+		return
+	}
+
 	provider, err := NewLLMProvider(req.Provider, req.Key, s.logger)
 	if err != nil {
 		s.logger.Error("failed to create provider", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"detail": err.Error()})
 		return
 	}
 
@@ -95,7 +116,9 @@ func (s *Server) handleGenerate(w http.ResponseWriter, r *http.Request) {
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"detail": "streaming unsupported"})
 		return
 	}
 

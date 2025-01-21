@@ -251,8 +251,11 @@ func (l *OnPremLLM) Stream(req *GenerateRequest) (<-chan string, <-chan error) {
 	return textChan, errChan
 }
 
+// NewLLMProviderFunc is the type for the provider factory function
+type NewLLMProviderFunc func(provider, apiKey string, logger *slog.Logger) (LLMProvider, error)
+
 // NewLLMProvider creates a new LLM provider based on the specified type
-func NewLLMProvider(provider, apiKey string, logger *slog.Logger) (LLMProvider, error) {
+var NewLLMProvider NewLLMProviderFunc = func(provider, apiKey string, logger *slog.Logger) (LLMProvider, error) {
 	config := LLMConfig{
 		APIKey:     apiKey,
 		HTTPClient: DefaultHTTPClient(),
@@ -267,6 +270,6 @@ func NewLLMProvider(provider, apiKey string, logger *slog.Logger) (LLMProvider, 
 	case "on-prem":
 		return NewOnPremLLM(config)
 	default:
-		return nil, fmt.Errorf("unsupported provider: %s", provider)
+		return nil, fmt.Errorf("Unsupported provider: %s", provider)
 	}
 } 

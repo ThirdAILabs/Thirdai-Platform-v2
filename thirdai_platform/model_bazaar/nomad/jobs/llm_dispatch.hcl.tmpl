@@ -41,6 +41,7 @@ job "llm-dispatch" {
           MODEL_BAZAAR_DIR = "{{ .ShareDir }}"
         {{ end }}
       }
+
       config {
         {{ if isDocker .Driver }}  
           {{ with .Driver }}
@@ -53,12 +54,12 @@ job "llm-dispatch" {
             server_address = "{{ .Registry }}"
           }
           {{ end }}
-          command = "python3"
-          args    = ["-m", "uvicorn", "main:app", "--app-dir", "llm_dispatch_job", "--host", "0.0.0.0", "--port", "80"]
+          command = "/bin/sh"
+          args    = ["-c", "cd /app/thirdai_platform/model_bazaar/jobs/llm_dispatch && go run cmd/main.go"]
         {{ else if isLocal .Driver }}
           command = "/bin/sh"
           {{ with .Driver }}
-          args    = ["-c", "cd {{ .PlatformDir }} && {{ .PythonPath }} -m uvicorn main:app --app-dir llm_dispatch_job --host 0.0.0.0 --port ${NOMAD_PORT_llm_dispatch_http}"]
+          args    = ["-c", "cd {{ .PlatformDir }}/thirdai_platform/model_bazaar/jobs/llm_dispatch && go run cmd/main.go"]
           {{ end }}
         {{ end }}
       }

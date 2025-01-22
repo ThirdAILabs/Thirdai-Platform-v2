@@ -294,15 +294,6 @@ func parseCreateAPIKeyRequest(r *http.Request, w http.ResponseWriter) (CreateAPI
 func (s *ModelService) parseAndValidateModelIDs(modelIDs []uuid.UUID, user schema.User) ([]uuid.UUID, error) {
 	var parsedModelIDs []uuid.UUID
 	for _, id := range modelIDs {
-		permission, err := auth.GetModelPermissions(id, user, s.db)
-		if err != nil {
-			return nil, fmt.Errorf("unauthorized: failed to retrieve permissions for model with ID %s, error: %v", id, err)
-		}
-
-		if permission < auth.WritePermission {
-			return nil, fmt.Errorf("insufficient permissions: you need at least 'write' access to the model (ID: %s) to create an API key", id)
-		}
-
 		parsedModelIDs = append(parsedModelIDs, id)
 
 		dependencies, err := s.fetchModelDependencies(id)

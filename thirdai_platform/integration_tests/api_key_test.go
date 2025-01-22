@@ -10,7 +10,65 @@ import (
 	"github.com/google/uuid"
 )
 
-// TODO(pratik): Add tests for rest of the models and their functions
+func createAPIKey(t *testing.T, c *client.PlatformClient, modelID uuid.UUID, prefix string, expiry time.Time) (string, uuid.UUID) {
+	apiKeyName := fmt.Sprintf("%s-%s", prefix, modelID.String())
+
+	apiKey, err := c.CreateAPIKey([]uuid.UUID{modelID}, apiKeyName, expiry)
+	if err != nil {
+		t.Fatalf("Failed to create API key for model %s: %v", modelID, err)
+	}
+
+	if apiKey == "" {
+		t.Fatal("Expected a valid API key, but got an empty string")
+	}
+
+	apiKeys, err := c.ListAPIKeys()
+	if err != nil {
+		t.Fatalf("Failed to list API keys after creating API key: %v", err)
+	}
+
+	var apiKeyID uuid.UUID
+	found := false
+	for _, key := range apiKeys {
+		if key.Name == apiKeyName {
+			apiKeyID = key.ID
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Fatalf("API key with name '%s' not found in the list of API keys", apiKeyName)
+	}
+
+	t.Cleanup(func() {
+		err := c.DeleteAPIKey(apiKeyID)
+		if err != nil {
+			t.Errorf("Failed to delete API key (ID: %s): %v", apiKeyID, err)
+		}
+	})
+
+	return apiKey, apiKeyID
+}
+
+func deployModelApiKey(t *testing.T, modelClient client.ModelClient, force bool, timeout time.Duration) {
+	err := modelClient.Deploy(force)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = modelClient.AwaitDeploy(timeout)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() {
+		err := modelClient.Undeploy()
+		if err != nil {
+			t.Errorf("Failed to undeploy model (ID: %s): %v", modelClient.GetModelID(), err)
+		}
+	})
+}
 
 func TestNdbNlpModelsAPIKeyDeployAndQuery(t *testing.T) {
 	c := getClient(t)
@@ -48,59 +106,14 @@ func TestNdbNlpModelsAPIKeyDeployAndQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ndbModelID := []uuid.UUID{ndb.ModelClient.GetModelID()}
-	apiKeyName := fmt.Sprintf("test-api-key-ndb-%s", ndb.ModelClient.GetModelID().String())
 	now := time.Now()
-
 	expiry := now.Add(24 * time.Hour)
 
-	ndbApiKey, err := c.CreateAPIKey(ndbModelID, apiKeyName, expiry)
-	if err != nil {
-		t.Fatalf("Failed to create NDB API key: %v", err)
-	}
-
-	if ndbApiKey == "" {
-		t.Fatal("Expected a valid NDB API key, but got an empty string")
-	}
-
-	apiKeys, err := c.ListAPIKeys()
-	if err != nil {
-		t.Fatalf("Failed to list API keys after creating NDB API key: %v", err)
-	}
-
-	var ndbApiKeyID uuid.UUID
-	found := false
-	for _, key := range apiKeys {
-		if key.Name == apiKeyName {
-			ndbApiKeyID = key.ID
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		t.Fatalf("NDB API key with name '%s' not found in the list of API keys", apiKeyName)
-	}
-
-	// Register cleanup to delete the NDB API key
-	t.Cleanup(func() {
-		err := c.DeleteAPIKey(ndbApiKeyID)
-		if err != nil {
-			t.Errorf("Failed to delete NDB API key (ID: %d): %v", ndbApiKeyID, err)
-		}
-	})
-
+	ndbModelID := ndb.ModelClient.GetModelID()
+	ndbApiKey, _ := createAPIKey(t, c, ndbModelID, "test-api-key-ndb", expiry)
 	ndb.ModelClient.UseApiKey(ndbApiKey)
 
-	err = ndb.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = ndb.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModelApiKey(t, ndb.ModelClient, false, 100*time.Second)
 
 	checkQuery(ndb, t, true)
 
@@ -110,55 +123,11 @@ func TestNdbNlpModelsAPIKeyDeployAndQuery(t *testing.T) {
 		t.Fatal("expected an error because the API key does not allow the NLP model, but got none")
 	}
 
-	nlpModelID := []uuid.UUID{nlp.ModelClient.GetModelID()}
-	nlpKeyName := fmt.Sprintf("test-api-key-nlp-%s", nlp.ModelClient.GetModelID().String())
-
-	nlpApiKey, err := c.CreateAPIKey(nlpModelID, nlpKeyName, expiry)
-	if err != nil {
-		t.Fatalf("Failed to create NLP API key: %v", err)
-	}
-
-	if nlpApiKey == "" {
-		t.Fatal("Expected a valid NLP API key, but got an empty string")
-	}
-
-	apiKeys, err = c.ListAPIKeys()
-	if err != nil {
-		t.Fatalf("Failed to list API keys after creating NLP API key: %v", err)
-	}
-
-	var nlpApiKeyID uuid.UUID
-	found = false
-	for _, key := range apiKeys {
-		if key.Name == nlpKeyName {
-			nlpApiKeyID = key.ID
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		t.Fatalf("NLP API key with name '%s' not found in the list of API keys", nlpKeyName)
-	}
-
-	t.Cleanup(func() {
-		err := c.DeleteAPIKey(nlpApiKeyID)
-		if err != nil {
-			t.Errorf("Failed to delete NLP API key (ID: %d): %v", nlpApiKeyID, err)
-		}
-	})
-
+	nlpModelID := nlp.ModelClient.GetModelID()
+	nlpApiKey, _ := createAPIKey(t, c, nlpModelID, "test-api-key-nlp", expiry)
 	nlp.ModelClient.UseApiKey(nlpApiKey)
 
-	err = nlp.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = nlp.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	deployModelApiKey(t, nlp.ModelClient, false, 100*time.Second)
 
 	_, err = nlp.Predict("I really like to eat apples", 3)
 	if err != nil {
@@ -172,27 +141,5 @@ func TestNdbNlpModelsAPIKeyDeployAndQuery(t *testing.T) {
 	}
 
 	ndb.ModelClient.UseApiKey(ndbApiKey)
-	err = ndb.Deploy(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = ndb.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Cleanup(func() {
-		err := ndb.Undeploy()
-		if err != nil {
-			t.Errorf("Failed to undeploy NDB model: %v", err)
-		}
-	})
-
-	t.Cleanup(func() {
-		err := nlp.Undeploy()
-		if err != nil {
-			t.Errorf("Failed to undeploy NLP model: %v", err)
-		}
-	})
+	deployModelApiKey(t, ndb.ModelClient, false, 100*time.Second)
 }

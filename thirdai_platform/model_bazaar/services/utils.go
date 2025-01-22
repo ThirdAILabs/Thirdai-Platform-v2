@@ -36,6 +36,31 @@ var (
 	ErrExpiredAPIKey       = errors.New("API key has expired")
 	ErrAPIKeyModelMismatch = errors.New("API key does not have access to the requested model")
 )
+type codedError struct {
+	err  error
+	code int
+}
+
+func (e *codedError) Error() string {
+	return e.err.Error()
+}
+
+func (e *codedError) Unwrap() error {
+	return e.err
+}
+
+func CodedError(err error, code int) error {
+	return &codedError{err: err, code: code}
+}
+
+func GetResponseCode(err error) int {
+	var cerr *codedError
+	if errors.As(err, &cerr) {
+		return cerr.code
+	}
+	slog.Error("non coded error passed to GetResponseCode", "error", err)
+	return http.StatusInternalServerError
+}
 
 func listModelDependencies(modelId uuid.UUID, db *gorm.DB) ([]schema.Model, error) {
 	visited := map[uuid.UUID]struct{}{}
@@ -52,7 +77,11 @@ func listModelDependencies(modelId uuid.UUID, db *gorm.DB) ([]schema.Model, erro
 
 		model, err := schema.GetModel(m, db, true, false, false)
 		if err != nil {
-			return fmt.Errorf("error while listing model dependencies: %w", err)
+			if errors.Is(err, schema.ErrModelNotFound) {
+				return CodedError(err, http.StatusNotFound)
+			}
+			slog.Error("error listing model dependencies", "error", err)
+			return CodedError(fmt.Errorf("error listing model dependencies: %w", err), http.StatusInternalServerError)
 		}
 
 		for _, dep := range model.Dependencies {
@@ -117,7 +146,7 @@ func getModelStatus(model schema.Model, db *gorm.DB, trainStatus bool) (string, 
 		}
 	}
 
-	return "", nil, fmt.Errorf("error finding statuses")
+	return "", nil, CodedError(fmt.Errorf("error finding statuses"), http.StatusInternalServerError)
 }
 
 func countDownstreamModels(modelId uuid.UUID, db *gorm.DB, activeOnly bool) (int64, error) {
@@ -129,7 +158,8 @@ func countDownstreamModels(modelId uuid.UUID, db *gorm.DB, activeOnly bool) (int
 	var count int64
 	result := query.Count(&count)
 	if result.Error != nil {
-		return 0, schema.NewDbError("counting downstream models", result.Error)
+		slog.Error("sql error counting downstream models", "model_id", modelId, "error", result.Error)
+		return 0, CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 	}
 
 	return count, nil
@@ -150,7 +180,8 @@ func getJobLogs(db *gorm.DB, modelId uuid.UUID, job string) ([]string, []string,
 
 	result := db.Where("model_id IN ?", depIds).Where("job = ?", job).Find(&logs)
 	if result.Error != nil {
-		return nil, nil, schema.NewDbError("retrieving job logs", result.Error)
+		slog.Error("sql error listing job logs", "error", result.Error)
+		return nil, nil, CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 	}
 
 	errors := make([]string, 0)
@@ -180,7 +211,10 @@ func getStatusHandler(w http.ResponseWriter, modelId uuid.UUID, db *gorm.DB, job
 	err := db.Transaction(func(txn *gorm.DB) error {
 		model, err := schema.GetModel(modelId, txn, false, false, false)
 		if err != nil {
-			return err
+			if errors.Is(err, schema.ErrModelNotFound) {
+				return CodedError(err, http.StatusNotFound)
+			}
+			return CodedError(err, http.StatusInternalServerError)
 		}
 
 		status, _, err := getModelStatus(model, txn, job == "train")
@@ -192,13 +226,13 @@ func getStatusHandler(w http.ResponseWriter, modelId uuid.UUID, db *gorm.DB, job
 	})
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("retrieving model status: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("retrieving model status: %v", err), GetResponseCode(err))
 		return
 	}
 
 	errors, warnings, err := getJobLogs(db, modelId, job)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("retrieving model job messages: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("retrieving model job messages: %v", err), GetResponseCode(err))
 		return
 	}
 	res.Errors = errors
@@ -227,32 +261,42 @@ func updateStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, jo
 	}
 
 	if err := schema.CheckValidStatus(params.Status); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 
 	slog.Info("updating status for model", "job", job, "status", params.Status, "model_id", modelId)
 
-	result := db.Model(&schema.Model{Id: modelId}).Update(job+"_status", params.Status)
-	if result.Error != nil {
-		err := schema.NewDbError("updating model status", result.Error)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if len(params.Metadata) > 0 {
-		metadataJson, err := json.Marshal(params.Metadata)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("serializing metadata failed: %v", err), http.StatusBadRequest)
-			return
+	err = db.Transaction(func(txn *gorm.DB) error {
+		if err := checkModelExists(txn, modelId); err != nil {
+			return err
 		}
 
-		result := db.Save(&schema.ModelAttribute{ModelId: modelId, Key: "metadata", Value: string(metadataJson)})
+		result := txn.Model(&schema.Model{Id: modelId}).Update(job+"_status", params.Status)
 		if result.Error != nil {
-			err := schema.NewDbError("adding model metadata attribute", result.Error)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			slog.Error("sql error updating model status", "job", job, "status", params.Status, "error", result.Error)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
+
+		if len(params.Metadata) > 0 {
+			metadataJson, err := json.Marshal(params.Metadata)
+			if err != nil {
+				return CodedError(fmt.Errorf("metadata cannot be serialized to json: %w", err), http.StatusBadRequest)
+			}
+
+			result := db.Save(&schema.ModelAttribute{ModelId: modelId, Key: "metadata", Value: string(metadataJson)})
+			if result.Error != nil {
+				slog.Error("sql error adding model metadata attribute", "error", result.Error)
+				return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		slog.Error("error updating model status", "job", job, "error", err)
+		http.Error(w, err.Error(), GetResponseCode(err))
+		return
 	}
 
 	slog.Info("updated status for model successfully", "job", job, "status", params.Status, "model_id", modelId)
@@ -278,15 +322,15 @@ func jobLogHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job stri
 	}
 
 	if params.Level != "warning" && params.Level != "error" {
-		http.Error(w, fmt.Sprintf("invalid log level '%v', must be 'warning' or 'error'", params.Level), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("invalid log level '%v', must be 'warning' or 'error'", params.Level), http.StatusUnprocessableEntity)
 		return
 	}
 
 	log := schema.JobLog{Id: uuid.New(), ModelId: modelId, Job: job, Level: params.Level, Message: params.Message}
 	result := db.Create(&log)
 	if result.Error != nil {
-		err := schema.NewDbError("creating job log", result.Error)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		slog.Error("sql error creating job log", "error", result.Error)
+		http.Error(w, fmt.Sprintf("error creating job log: %v", schema.ErrDbAccessFailed), http.StatusInternalServerError)
 		return
 	}
 
@@ -302,7 +346,11 @@ func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad
 
 	model, err := schema.GetModel(modelId, db, false, false, false)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error getting logs: %v", err), http.StatusBadRequest)
+		if errors.Is(err, schema.ErrModelNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, fmt.Sprintf("error getting logs: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -315,7 +363,8 @@ func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad
 
 	logs, err := c.JobLogs(jobName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error getting logs: %v", err), http.StatusBadRequest)
+		slog.Error("error retrieving job logs from nomad", "error", err)
+		http.Error(w, "error getting logs from nomad", http.StatusInternalServerError)
 		return
 	}
 
@@ -326,13 +375,15 @@ func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad
 func saveConfig(modelId uuid.UUID, jobType string, config interface{}, store storage.Storage) (string, error) {
 	trainConfigData, err := json.MarshalIndent(config, "", "    ")
 	if err != nil {
-		return "", fmt.Errorf("error encoding train config: %w", err)
+		slog.Error("error encoding job config", "error", err)
+		return "", CodedError(errors.New("error encoding job config"), http.StatusInternalServerError)
 	}
 
 	configPath := filepath.Join(storage.ModelPath(modelId), fmt.Sprintf("%v_config.json", jobType))
 	err = store.Write(configPath, bytes.NewReader(trainConfigData))
 	if err != nil {
-		return "", fmt.Errorf("error saving %v config: %w", jobType, err)
+		slog.Error("error saving job config", "error", err)
+		return "", CodedError(errors.New("error saving job config"), http.StatusInternalServerError)
 	}
 
 	// TODO(Any): this is needed because the train/deployment jobs do not use the storage interface
@@ -343,13 +394,13 @@ func saveConfig(modelId uuid.UUID, jobType string, config interface{}, store sto
 func verifyLicenseForNewJob(nomad nomad.NomadClient, license *licensing.LicenseVerifier, jobCpuUsage int) (string, error) {
 	currentCpuUsage, err := nomad.TotalCpuUsage()
 	if err != nil {
-		return "", err
+		return "", CodedError(errors.New("unable to get cpu usage from nomad"), http.StatusInternalServerError)
 	}
 
 	licenseData, err := license.Verify(currentCpuUsage + jobCpuUsage)
 	if err != nil {
 		slog.Error("license verification failed for new job", "error", err)
-		return "", err
+		return "", CodedError(err, http.StatusForbidden)
 	}
 
 	return licenseData.BoltLicenseKey, nil
@@ -359,10 +410,11 @@ func checkForDuplicateModel(db *gorm.DB, modelName string, userId uuid.UUID) err
 	var duplicateModel schema.Model
 	result := db.Limit(1).Find(&duplicateModel, "user_id = ? AND name = ?", userId, modelName)
 	if result.Error != nil {
-		return schema.NewDbError("checking for duplicate model", result.Error)
+		slog.Error("sql error checking for dupliate model", "error", result.Error)
+		return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 	}
 	if result.RowsAffected != 0 {
-		return fmt.Errorf("a model with name %v already exists for user %v", modelName, userId)
+		return CodedError(fmt.Errorf("a model with name %v already exists for user %v", modelName, userId), http.StatusConflict)
 	}
 	return nil
 }
@@ -390,23 +442,29 @@ func saveModel(txn *gorm.DB, model schema.Model, user schema.User) error {
 	if model.BaseModelId != nil {
 		baseModel, err := schema.GetModel(*model.BaseModelId, txn, true, true, false)
 		if err != nil {
-			return fmt.Errorf("error retrieving specified base model %v: %w", *model.BaseModelId, err)
+			if errors.Is(err, schema.ErrModelNotFound) {
+				return CodedError(err, http.StatusNotFound)
+			}
+			return CodedError(fmt.Errorf("error retrieving base model: %w", err), http.StatusInternalServerError)
 		}
 		if baseModel.Type != model.Type {
-			return fmt.Errorf("specified base model has type %v but new model has type %v", baseModel.Type, model.Type)
+			return CodedError(fmt.Errorf("specified base model has type %v but new model has type %v", baseModel.Type, model.Type), http.StatusUnprocessableEntity)
 		}
 
 		perm, err := auth.GetModelPermissions(baseModel.Id, user, txn)
 		if err != nil {
-			return fmt.Errorf("error verifying permissions for base model %v: %w", baseModel.Id, err)
+			if errors.Is(err, schema.ErrModelNotFound) {
+				return CodedError(err, http.StatusNotFound)
+			}
+			return CodedError(fmt.Errorf("error retrieving permissions for base model %v: %w", baseModel.Id, err), http.StatusInternalServerError)
 		}
 
 		if perm < auth.ReadPermission {
-			return fmt.Errorf("user %v does not have permission to access base model %v", model.UserId, baseModel.Id)
+			return CodedError(fmt.Errorf("user %v does not have permission to access base model %v", model.UserId, baseModel.Id), http.StatusForbidden)
 		}
 
 		if baseModel.TrainStatus != schema.Complete {
-			return fmt.Errorf("base model training is not complete, training must be completed before use as base model")
+			return CodedError(errors.New("base model training is not complete, training must be completed before use as base model"), http.StatusUnprocessableEntity)
 		}
 
 		if model.Attributes == nil && baseModel.Attributes != nil {
@@ -433,7 +491,8 @@ func saveModel(txn *gorm.DB, model schema.Model, user schema.User) error {
 
 	result := txn.Create(&model)
 	if result.Error != nil {
-		return schema.NewDbError("creating model entry", result.Error)
+		slog.Error("sql error creating new model entry", "error", result.Error)
+		return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 	}
 
 	return nil
@@ -442,7 +501,8 @@ func saveModel(txn *gorm.DB, model schema.Model, user schema.User) error {
 func checkDiskUsage(storage storage.Storage) error {
 	stats, err := storage.Usage()
 	if err != nil {
-		return err
+		slog.Error("unable to get disk usage from storage", "error", err)
+		return CodedError(errors.New("unable to get disk usage"), http.StatusInternalServerError)
 	}
 	oneMib := uint64(1024 * 1024)
 	// Either 20% disk needs to be free or 20Gb (in case the disk is very large)
@@ -451,7 +511,7 @@ func checkDiskUsage(storage storage.Storage) error {
 		used := (stats.TotalBytes - stats.FreeBytes) / oneMib
 		total := stats.TotalBytes / oneMib
 		delta := (threshold - stats.FreeBytes) / oneMib
-		return fmt.Errorf("insufficient disk space available, usage: %d/%d Mib, please clear %d Mib", used, total, delta)
+		return CodedError(fmt.Errorf("insufficient disk space available, usage: %d/%d Mib, please clear %d Mib", used, total, delta), http.StatusInsufficientStorage)
 	}
 	return nil
 }
@@ -461,7 +521,7 @@ func checkSufficientStorage(storage storage.Storage) func(http.Handler) http.Han
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			if err := checkDiskUsage(storage); err != nil {
 				slog.Error(err.Error())
-				http.Error(w, err.Error(), http.StatusInsufficientStorage)
+				http.Error(w, err.Error(), GetResponseCode(err))
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -609,4 +669,32 @@ func eitherUserOrApiKeyAuthMiddleware(
 			finalHandler.ServeHTTP(w, r)
 		})
 	}
+func checkTeamExists(txn *gorm.DB, teamId uuid.UUID) error {
+	if _, err := schema.GetTeam(teamId, txn); err != nil {
+		if errors.Is(err, schema.ErrTeamNotFound) {
+			return CodedError(err, http.StatusNotFound)
+		}
+		return CodedError(err, http.StatusInternalServerError)
+	}
+	return nil
+}
+
+func checkUserExists(txn *gorm.DB, userId uuid.UUID) error {
+	if _, err := schema.GetUser(userId, txn); err != nil {
+		if errors.Is(err, schema.ErrUserNotFound) {
+			return CodedError(err, http.StatusNotFound)
+		}
+		return CodedError(err, http.StatusInternalServerError)
+	}
+	return nil
+}
+
+func checkModelExists(txn *gorm.DB, modelId uuid.UUID) error {
+	if _, err := schema.GetModel(modelId, txn, false, false, false); err != nil {
+		if errors.Is(err, schema.ErrModelNotFound) {
+			return CodedError(err, http.StatusNotFound)
+		}
+		return CodedError(err, http.StatusInternalServerError)
+	}
+	return nil
 }

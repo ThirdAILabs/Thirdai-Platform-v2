@@ -8,12 +8,19 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"os"
 	"strconv"
 	"time"
+)
+
+var (
+	ErrInvalidLicense   = errors.New("license is invalid")
+	ErrExpiredLicense   = errors.New("license is expired")
+	ErrCpuLimitExceeded = errors.New("maximum cpu limit for license exceeded")
 )
 
 type LicensePayload struct {
@@ -113,7 +120,7 @@ func (v *LicenseVerifier) Verify(currCpuUsage int) (LicensePayload, error) {
 	matchErr := rsa.VerifyPKCS1v15(v.publicKey, crypto.SHA256, hash.Sum(nil), signature)
 	if matchErr != nil {
 		slog.Error("platform license signature doesn't match", "error", err)
-		return LicensePayload{}, fmt.Errorf("license is invalid")
+		return LicensePayload{}, ErrInvalidLicense
 	}
 
 	expiry, err := license.License.Expiry()
@@ -123,7 +130,7 @@ func (v *LicenseVerifier) Verify(currCpuUsage int) (LicensePayload, error) {
 
 	if expiry.Before(time.Now().UTC()) {
 		slog.Error("platform license is expired", "error", err)
-		return LicensePayload{}, fmt.Errorf("license is expired")
+		return LicensePayload{}, ErrExpiredLicense
 	}
 
 	// TODO(Anyone): why is this not just stored as an integer in the license?
@@ -135,7 +142,7 @@ func (v *LicenseVerifier) Verify(currCpuUsage int) (LicensePayload, error) {
 
 	if cpuLimit < currCpuUsage {
 		slog.Error("platform license cpu limit exceeded", "error", err)
-		return LicensePayload{}, fmt.Errorf("maximum cpu usage for license exceeded")
+		return LicensePayload{}, ErrCpuLimitExceeded
 	}
 
 	return license.License, nil

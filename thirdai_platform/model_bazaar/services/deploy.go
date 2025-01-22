@@ -84,7 +84,9 @@ func getDeploymentMemory(modelId uuid.UUID, userSpecified int, attrs map[string]
 	if ok {
 		var metadata map[string]interface{}
 		err := json.Unmarshal([]byte(metadataJson), &metadata)
-		if err == nil {
+		if err != nil {
+			slog.Error("error parsing model metadata", "error", err)
+		} else {
 			if sizeInMemoryAny, ok := metadata["size_in_memory"]; ok {
 				if sizeInMemoryStr, ok := sizeInMemoryAny.(string); ok {
 					if sizeInMemory, err := strconv.Atoi(sizeInMemoryStr); err == nil {
@@ -110,19 +112,26 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 	err := s.db.Transaction(func(txn *gorm.DB) error {
 		perm, err := auth.GetModelPermissions(modelId, user, txn)
 		if err != nil {
-			return fmt.Errorf("unable to retrieve permission for model: %w", err)
+			if errors.Is(err, schema.ErrModelNotFound) {
+				return CodedError(err, http.StatusNotFound)
+			}
+			slog.Error("unable to retrieve permissions for model", "model_id", modelId, "error", err)
+			return CodedError(err, http.StatusInternalServerError)
 		}
 		if perm < auth.OwnerPermission {
-			return fmt.Errorf("user %v does not have permission to deploy model %v", user.Id, modelId)
+			return CodedError(fmt.Errorf("user %v does not have permission to deploy model %v", user.Id, modelId), http.StatusForbidden)
 		}
 
 		model, err := schema.GetModel(modelId, txn, false, true, false)
 		if err != nil {
-			return err
+			if errors.Is(err, schema.ErrModelNotFound) {
+				return CodedError(err, http.StatusNotFound)
+			}
+			return CodedError(err, http.StatusInternalServerError)
 		}
 
 		if model.TrainStatus != schema.Complete {
-			return fmt.Errorf("cannot deploy %v since it has train status %v", model.Id, model.TrainStatus)
+			return CodedError(fmt.Errorf("cannot deploy %v since it has train status %v", model.Id, model.TrainStatus), http.StatusUnprocessableEntity)
 		}
 
 		if model.DeployStatus == schema.Starting || model.DeployStatus == schema.InProgress || model.DeployStatus == schema.Complete {
@@ -140,12 +149,13 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 
 		license, err := verifyLicenseForNewJob(s.nomad, s.license, resources.AllocationMhz)
 		if err != nil {
-			return err
+			return CodedError(err, GetResponseCode(err))
 		}
 
 		token, err := s.jobAuth.CreateModelJwt(modelId, time.Hour*1000*24)
 		if err != nil {
-			return fmt.Errorf("error creating job token: %v", err)
+			slog.Error("job token creation failed", "model_id", modelId, "error", err)
+			return CodedError(errors.New("error setting up model deployment"), http.StatusInternalServerError)
 		}
 
 		if llm, hasLlm := attrs["llm_provider"]; hasLlm {
@@ -178,7 +188,7 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 
 		configPath, err := saveConfig(config.ModelId, "deploy", config, s.storage)
 		if err != nil {
-			return err
+			return CodedError(errors.New("error creating model deployment config"), http.StatusInternalServerError)
 		}
 
 		nomadErr = s.nomad.StartJob(
@@ -206,22 +216,27 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 
 		result := txn.Model(&model).Update("deploy_status", newStatus)
 		if result.Error != nil {
-			return schema.NewDbError("updating model deploy status", result.Error)
+			slog.Error("sql error updating deploy status on job start", "model_id", model.Id, "error", result.Error)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		return nil
 	})
 
+	if err != nil {
+		return CodedError(fmt.Errorf("error starting model deployment: %w", err), GetResponseCode(err))
+	}
+
+	if nomadErr != nil {
+		return CodedError(errors.New("error starting model deployment on nomad"), http.StatusInternalServerError)
+	}
+
 	if requiresOnPremLlm {
 		err := jobs.StartOnPremGenerationJobDefaultArgs(s.nomad, s.storage, s.variables.DockerEnv())
 		if err != nil {
 			slog.Error("error starting on-prem-generation job", "error", err)
-			return fmt.Errorf("unable to start on prem generation job: %w", err)
+			return CodedError(errors.New("unable to start on prem generation job"), http.StatusInternalServerError)
 		}
-	}
-
-	if jerr := errors.Join(err, nomadErr); jerr != nil {
-		return fmt.Errorf("error starting deployment for model %v: %w", modelId, jerr)
 	}
 
 	slog.Info("model deployed successfully", "model_id", modelId)
@@ -240,7 +255,7 @@ type startRequest struct {
 func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -260,7 +275,7 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 
 	deps, err := listModelDependencies(modelId, s.db)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), GetResponseCode(err))
 		return
 	}
 
@@ -271,7 +286,7 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 		}
 		err := s.deployModel(dep.Id, user, params.Autoscaling, params.AutoscalingMin, params.AutoscalingMax, params.Memory, name)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), GetResponseCode(err))
 			return
 		}
 	}
@@ -291,32 +306,37 @@ func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
 	err = s.db.Transaction(func(txn *gorm.DB) error {
 		usedBy, err := countDownstreamModels(modelId, txn, true)
 		if err != nil {
-			return err
+			return fmt.Errorf("error checking if model is a dependend of other models: %w", err)
 		}
 		if usedBy != 0 {
-			return fmt.Errorf("cannot stop deployment for model %v since it is used as a dependency by %d other active models", modelId, usedBy)
+			return CodedError(fmt.Errorf("cannot stop deployment for model %v since it is used as a dependency by %d other active models", modelId, usedBy), http.StatusUnprocessableEntity)
 		}
 
 		model, err := schema.GetModel(modelId, txn, false, false, false)
 		if err != nil {
-			return err
+			if errors.Is(err, schema.ErrModelNotFound) {
+				return CodedError(err, http.StatusNotFound)
+			}
+			return CodedError(err, http.StatusInternalServerError)
 		}
 
 		err = s.nomad.StopJob(model.DeployJobName())
 		if err != nil {
-			return err
+			slog.Error("error stopping deployment", "error", err)
+			return CodedError(errors.New("error stopping deployment job"), http.StatusInternalServerError)
 		}
 
 		result := txn.Model(&model).Update("deploy_status", schema.Stopped)
 		if result.Error != nil {
-			return schema.NewDbError("updating deploy status for stopped model", result.Error)
+			slog.Error("sql error updating deploy status on job stop", "model_id", model.Id, "error", result.Error)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error stopping model deployment: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error stopping model deployment: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -367,7 +387,7 @@ type saveDeployedResponse struct {
 func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error retrieving user id from request: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error retrieving user id from request: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -387,7 +407,10 @@ func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
 	err = s.db.Transaction(func(txn *gorm.DB) error {
 		baseModel, err := schema.GetModel(baseModelId, txn, true, true, false)
 		if err != nil {
-			return err
+			if errors.Is(err, schema.ErrModelNotFound) {
+				return CodedError(err, http.StatusNotFound)
+			}
+			return CodedError(err, http.StatusInternalServerError)
 		}
 
 		err = checkForDuplicateModel(txn, params.ModelName, user.Id)
@@ -402,13 +425,14 @@ func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error saving new deployed model: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error saving new deployed model: %v", err), GetResponseCode(err))
 		return
 	}
 
 	updateToken, err := s.jobAuth.CreateModelJwt(newModelId, time.Hour)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
+		slog.Error("error generating update jwt for save deployed", "error", err)
+		http.Error(w, "error creating save token", http.StatusInternalServerError)
 		return
 	}
 

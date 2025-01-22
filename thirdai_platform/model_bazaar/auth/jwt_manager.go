@@ -84,12 +84,12 @@ func ValueFromContext(r *http.Request, key string) (string, error) {
 func ModelIdFromContext(r *http.Request) (uuid.UUID, error) {
 	value, err := ValueFromContext(r, modelIdKey)
 	if err != nil {
-		return uuid.UUID{}, err
+		return uuid.Nil, err
 	}
 
 	id, err := uuid.Parse(value)
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("invalid uuid '%v' provided: %w", value, err)
+		return uuid.Nil, fmt.Errorf("invalid uuid '%v' provided: %w", value, err)
 	}
 	return id, nil
 }

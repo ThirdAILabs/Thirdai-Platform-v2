@@ -3,6 +3,7 @@ package tests
 import (
 	"bytes"
 	"crypto/rand"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -300,7 +301,7 @@ func TestDeleteModel(t *testing.T) {
 	}
 
 	err = user2.deleteModel(model)
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("user cannot delete another user's models")
 	}
 

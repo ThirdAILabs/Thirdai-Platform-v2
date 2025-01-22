@@ -44,22 +44,16 @@ func URLParam(r *http.Request, key string) (string, error) {
 }
 
 func URLParamUUID(r *http.Request, key string) (uuid.UUID, error) {
-	fmt.Printf("Extracting URL parameter with key: %s\n", key) // Print key being searched
 	param := chi.URLParam(r, key)
-	fmt.Printf("URL parameter retrieved: '%s'\n", param) // Print the retrieved parameter
 
 	if len(param) == 0 {
-		fmt.Printf("Error: missing {%v} URL parameter\n", key) // Print missing parameter error
-		return uuid.UUID{}, fmt.Errorf("missing {%v} URL parameter", key)
+		return uuid.Nil, fmt.Errorf("missing {%v} url parameter", key)
 	}
 
-	fmt.Printf("Parsing UUID: '%s'\n", param) // Print before parsing UUID
 	id, err := uuid.Parse(param)
 	if err != nil {
-		fmt.Printf("Error parsing UUID: '%s', error: %v\n", param, err) // Print parse error details
-		return uuid.UUID{}, fmt.Errorf("invalid uuid '%v' provided: %w", param, err)
+		return uuid.Nil, fmt.Errorf("invalid uuid '%v' provided: %w", param, err)
 	}
 
-	fmt.Printf("UUID successfully parsed: '%s'\n", id.String()) // Print success message
 	return id, nil
 }

@@ -129,8 +129,7 @@ func (m *ModelBazaar) syncTrainStatus(model *schema.Model) {
 	if jobInfo.Status == "dead" || jobNotFound {
 		result := m.db.Model(model).Where("train_status = ?", model.TrainStatus).Update("train_status", schema.Failed)
 		if result.Error != nil {
-			err := schema.NewDbError("updating train status for failed model", result.Error)
-			slog.Error("status sync: update train status", "error", err)
+			slog.Error("status sync: sql error updating train status for failed training", "model_id", model.Id, "error", result.Error)
 			return
 		}
 		slog.Info("status sync: updated train status to failed", "model_id", model.Id)
@@ -153,8 +152,7 @@ func (m *ModelBazaar) syncDeployStatus(model *schema.Model) {
 	if jobInfo.Status == "dead" || jobNotFound {
 		result := m.db.Model(model).Where("deploy_status = ?", model.DeployStatus).Update("deploy_status", schema.Failed)
 		if result.Error != nil {
-			err := schema.NewDbError("updating deploy status for failed model", result.Error)
-			slog.Error("status sync: update deploy status", "error", err)
+			slog.Error("status sync: sql error updating deploy status for failed deployment", "model_id", model.Id, "error", result.Error)
 			return
 		}
 
@@ -171,8 +169,7 @@ func (m *ModelBazaar) statusSync() {
 		Find(&models)
 
 	if result.Error != nil {
-		err := schema.NewDbError("listing active models", result.Error)
-		slog.Error("status sync: list models", "error", err)
+		slog.Error("status sync: sql error querying active models", "error", result.Error)
 		return
 	}
 

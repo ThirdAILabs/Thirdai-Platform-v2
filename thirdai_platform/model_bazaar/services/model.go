@@ -317,7 +317,7 @@ func (s *ModelService) fetchModelDependencies(modelID uuid.UUID) ([]schema.Model
 	var dependencies []schema.ModelDependency
 	err := s.db.Where("model_id = ?", modelID).Find(&dependencies).Error
 	if err != nil {
-		return nil, schema.NewDbError("getting dependencies using ids", err)
+		return nil, err
 	}
 	return dependencies, nil
 }
@@ -332,7 +332,7 @@ func (s *ModelService) fetchModels(modelIDs []uuid.UUID, userID uuid.UUID) ([]sc
 		Where("user_id = ?", userID).
 		Find(&models).Error
 	if err != nil {
-		return nil, schema.NewDbError("getting models using ids", err)
+		return nil, err
 	}
 	return models, nil
 }

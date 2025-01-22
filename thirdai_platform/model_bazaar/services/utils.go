@@ -36,6 +36,7 @@ var (
 	ErrExpiredAPIKey       = errors.New("API key has expired")
 	ErrAPIKeyModelMismatch = errors.New("API key does not have access to the requested model")
 )
+
 type codedError struct {
 	err  error
 	code int
@@ -651,7 +652,6 @@ func eitherUserOrApiKeyAuthMiddleware(
 
 				user, err := schema.GetUser(userID, db)
 				if err != nil {
-					err := schema.NewDbError("getting user using id", err)
 					http.Error(w, fmt.Sprintf("unable to get user: %v", err), http.StatusInternalServerError)
 					return
 				}
@@ -669,6 +669,8 @@ func eitherUserOrApiKeyAuthMiddleware(
 			finalHandler.ServeHTTP(w, r)
 		})
 	}
+}
+
 func checkTeamExists(txn *gorm.DB, teamId uuid.UUID) error {
 	if _, err := schema.GetTeam(teamId, txn); err != nil {
 		if errors.Is(err, schema.ErrTeamNotFound) {

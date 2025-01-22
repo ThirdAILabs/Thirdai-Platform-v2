@@ -145,7 +145,10 @@ func TestKnowledgeExtraction(t *testing.T) {
 		t.Fatal("Expected a valid API key, but got an empty string")
 	}
 
-	ke.ModelClient.UseApiKey(keApiKey)
+	err = ke.ModelClient.UseApiKey(keApiKey)
+	if err != nil {
+		t.Fatal("error using api_key in place of auth token.")
+	}
 
 	questions, err = ke.ListQuestions()
 	if err != nil {

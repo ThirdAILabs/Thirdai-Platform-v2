@@ -111,13 +111,19 @@ func TestNdbNlpModelsAPIKeyDeployAndQuery(t *testing.T) {
 
 	ndbModelID := ndb.ModelClient.GetModelID()
 	ndbApiKey, _ := createAPIKey(t, c, ndbModelID, "test-api-key-ndb", expiry)
-	ndb.ModelClient.UseApiKey(ndbApiKey)
+	err = ndb.ModelClient.UseApiKey(ndbApiKey)
+	if err != nil {
+		t.Fatal("error using api_key in place of auth token.")
+	}
 
 	deployModelApiKey(t, ndb.ModelClient, false, 100*time.Second)
 
 	checkQuery(ndb, t, true)
 
-	nlp.ModelClient.UseApiKey(ndbApiKey)
+	err = nlp.ModelClient.UseApiKey(ndbApiKey)
+	if err != nil {
+		t.Fatal("error using api_key in place of auth token.")
+	}
 	err = nlp.Deploy(false)
 	if err == nil {
 		t.Fatal("expected an error because the API key does not allow the NLP model, but got none")
@@ -125,7 +131,10 @@ func TestNdbNlpModelsAPIKeyDeployAndQuery(t *testing.T) {
 
 	nlpModelID := nlp.ModelClient.GetModelID()
 	nlpApiKey, _ := createAPIKey(t, c, nlpModelID, "test-api-key-nlp", expiry)
-	nlp.ModelClient.UseApiKey(nlpApiKey)
+	err = nlp.ModelClient.UseApiKey(nlpApiKey)
+	if err != nil {
+		t.Fatal("error using api_key in place of auth token.")
+	}
 
 	deployModelApiKey(t, nlp.ModelClient, false, 100*time.Second)
 
@@ -134,12 +143,18 @@ func TestNdbNlpModelsAPIKeyDeployAndQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ndb.ModelClient.UseApiKey(nlpApiKey)
+	err = ndb.ModelClient.UseApiKey(nlpApiKey)
+	if err != nil {
+		t.Fatal("error using api_key in place of auth token.")
+	}
 	err = ndb.Deploy(false)
 	if err == nil {
 		t.Fatal("expected an error because the API key does not allow the NDB model, but got none")
 	}
 
-	ndb.ModelClient.UseApiKey(ndbApiKey)
+	err = ndb.ModelClient.UseApiKey(ndbApiKey)
+	if err != nil {
+		t.Fatal("error using api_key in place of auth token.")
+	}
 	deployModelApiKey(t, ndb.ModelClient, false, 100*time.Second)
 }

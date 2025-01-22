@@ -215,7 +215,7 @@ func (ndb *NeuralDB) Query(query string, topk int, constraints Constraints) ([]C
 	}
 	defer C.QueryResults_free(results)
 
-	nResults := C.uint(C.QueryResults_len(results))
+	nResults := C.QueryResults_len(results)
 	chunks := make([]Chunk, nResults)
 	for i := C.uint(0); i < nResults; i++ {
 		chunks[i].Id = uint64(C.QueryResults_id(results, i))
@@ -324,6 +324,32 @@ func (ndb *NeuralDB) Delete(docId string, keepLatestVersion bool) error {
 	}
 
 	return nil
+}
+
+type Source struct {
+	Document   string
+	DocId      string
+	DocVersion uint32
+}
+
+func (ndb *NeuralDB) Sources() ([]Source, error) {
+	var err *C.char
+	sources := C.NeuralDB_sources(ndb.ndb, &err)
+	if err != nil {
+		defer C.free(unsafe.Pointer(err))
+		return nil, errors.New(C.GoString(err))
+	}
+	defer C.Sources_free(sources)
+
+	nResults := C.Sources_len(sources)
+	output := make([]Source, nResults)
+	for i := C.uint(0); i < nResults; i++ {
+		output[i].Document = C.GoString(C.Sources_document(sources, i))
+		output[i].DocId = C.GoString(C.Sources_doc_id(sources, i))
+		output[i].DocVersion = uint32(C.Sources_doc_version(sources, i))
+	}
+
+	return output, nil
 }
 
 func (ndb *NeuralDB) Save(savePath string) error {

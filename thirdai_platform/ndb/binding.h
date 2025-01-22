@@ -59,6 +59,13 @@ LabelList_t *LabelList_new();
 void LabelList_free(LabelList_t *list);
 void LabelList_append(LabelList_t *list, unsigned long long value);
 
+typedef struct Sources_t Sources_t;
+void Sources_free(Sources_t *sources);
+unsigned int Sources_len(Sources_t* sources);
+const char *Sources_document(Sources_t *sources, unsigned int i);
+const char *Sources_doc_id(Sources_t *sources, unsigned int i);
+unsigned int Sources_doc_version(Sources_t *sources, unsigned int i);
+
 typedef struct NeuralDB_t NeuralDB_t;
 NeuralDB_t *NeuralDB_new(const char *save_path, const char **err_ptr);
 void NeuralDB_free(NeuralDB_t *ndb);
@@ -73,6 +80,7 @@ void NeuralDB_associate(NeuralDB_t *ndb, const StringList_t *sources,
                         const StringList_t *targets, const char **err_ptr);
 void NeuralDB_delete_doc(NeuralDB_t *ndb, const char *doc_id,
                          bool keep_latest_version, const char **err_ptr);
+Sources_t *NeuralDB_sources(NeuralDB_t *ndb, const char **err_ptr);
 void NeuralDB_save(NeuralDB_t *ndb, const char *save_path,
                    const char **err_ptr);
 

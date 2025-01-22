@@ -15,9 +15,10 @@ using thirdai::search::ndb::MetadataMap;
 using thirdai::search::ndb::MetadataValue;
 using thirdai::search::ndb::OnDiskNeuralDB;
 using thirdai::search::ndb::QueryConstraints;
+using thirdai::search::ndb::Source;
 
 void copyError(const std::exception &e, const char **err_ptr) {
-  char *err_msg = new char[std::strlen(e.what())];
+  char *err_msg = new char[std::strlen(e.what()) + 1];
   std::strcpy(err_msg, e.what());
   *err_ptr = err_msg;
 }
@@ -207,6 +208,26 @@ void LabelList_append(LabelList_t *list, unsigned long long value) {
   list->list.emplace_back(std::vector<uint64_t>{value});
 }
 
+struct Sources_t {
+  std::vector<Source> sources;
+};
+
+void Sources_free(Sources_t *sources) { delete sources; }
+
+unsigned int Sources_len(Sources_t *sources) { return sources->sources.size(); }
+
+const char *Sources_document(Sources_t *sources, unsigned int i) {
+  return sources->sources.at(i).document.c_str();
+}
+
+const char *Sources_doc_id(Sources_t *sources, unsigned int i) {
+  return sources->sources.at(i).doc_id.c_str();
+}
+
+unsigned int Sources_doc_version(Sources_t *sources, unsigned int i) {
+  return sources->sources.at(i).doc_version;
+}
+
 struct NeuralDB_t {
   std::unique_ptr<OnDiskNeuralDB> ndb;
 
@@ -253,7 +274,7 @@ QueryResults_t *NeuralDB_query(NeuralDB_t *ndb, const char *query,
       results = ndb->ndb->rank(query, constraints->constraints, topk);
     }
     auto out = new QueryResults_t();
-    out->results = results;
+    out->results = std::move(results);
     return out;
   } catch (const std::exception &e) {
     // TODO(Nicholas): have case for NeuralDBError to return better errors
@@ -293,6 +314,19 @@ void NeuralDB_delete_doc(NeuralDB_t *ndb, const char *doc_id,
     // TODO(Nicholas): have case for NeuralDBError to return better errors
     copyError(e, err_ptr);
     return;
+  }
+}
+
+Sources_t *NeuralDB_sources(NeuralDB_t *ndb, const char **err_ptr) {
+  try {
+    auto sources = ndb->ndb->sources();
+    auto out = new Sources_t();
+    out->sources = std::move(sources);
+    return out;
+  } catch (const std::exception &e) {
+    // TODO(Nicholas): have case for NeuralDBError to return better errors
+    copyError(e, err_ptr);
+    return nullptr;
   }
 }
 

@@ -349,39 +349,23 @@ func runDeleteDocTest(t *testing.T, keepLatestVersion bool) {
 		t.Fatal(err)
 	}
 
-	err = db.Insert("doc_1", "id_1", []string{"a b c d e"}, nil, nil)
-	if err != nil {
-		t.Fatal(err)
+	insertions := []struct {
+		document, doc_id, chunk string
+	}{
+		{document: "doc_1", doc_id: "id_1", chunk: "a b c d e"},
+		{document: "doc_1", doc_id: "id_1", chunk: "a b c d"},
+		{document: "doc_1", doc_id: "id_1", chunk: "a b c"},
+		{document: "doc_2", doc_id: "id_2", chunk: "a b"},
+		{document: "doc_11", doc_id: "id_11", chunk: "x"},
+		{document: "doc_12", doc_id: "id_12", chunk: "x y"},
+		{document: "doc111_13", doc_id: "id111_13", chunk: "x y z"},
 	}
 
-	err = db.Insert("doc_1", "id_1", []string{"a b c d"}, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = db.Insert("doc_1", "id_1", []string{"a b c"}, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = db.Insert("doc_2", "id_2", []string{"a b"}, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = db.Insert("doc_11", "id_11", []string{"x"}, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = db.Insert("doc_12", "id_12", []string{"x y"}, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = db.Insert("doc_11113", "id111_13", []string{"x y z"}, nil, nil)
-	if err != nil {
-		t.Fatal(err)
+	for _, insertion := range insertions {
+		err := db.Insert(insertion.document, insertion.doc_id, []string{insertion.chunk}, nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	checkQuery(t, db, "a b c d e", nil, []uint64{0, 1, 2, 3})
@@ -404,4 +388,73 @@ func TestDeleteDoc(t *testing.T) {
 
 func TestDeleteDocKeepLatestVersion(t *testing.T) {
 	runDeleteDocTest(t, true)
+}
+
+func TestDocVersioning(t *testing.T) {
+	db, err := ndb.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < 5; i++ {
+		for j := 0; j < 4; j++ {
+			err := db.Insert(fmt.Sprintf("%d_%d", i, j+1), fmt.Sprintf("%d", i), []string{"a chunk"}, nil, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	getSources := func() []ndb.Source {
+		sources, err := db.Sources()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		slices.SortFunc(sources, func(a, b ndb.Source) int {
+			if a.Document < b.Document {
+				return -1
+			}
+			if a.Document > b.Document {
+				return 1
+			}
+			return 0
+		})
+		return sources
+	}
+
+	sourcesBefore := getSources()
+	if len(sourcesBefore) != 20 {
+		t.Fatal("incorrect sources")
+	}
+
+	for i, source := range sourcesBefore {
+		docId := i / 4
+		docVersion := (i % 4) + 1
+		if source.Document != fmt.Sprintf("%d_%d", docId, docVersion) ||
+			source.DocId != fmt.Sprintf("%d", docId) ||
+			source.DocVersion != uint32(docVersion) {
+			t.Fatalf("incorrect sources: expected id=%d, version=%d, got %v", docId, docVersion, source)
+		}
+	}
+
+	for i := 0; i < 5; i++ {
+		err := db.Delete(fmt.Sprintf("%d", i), true)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	sourcesAfter := getSources()
+
+	if len(sourcesAfter) != 5 {
+		t.Fatal("incorrect sources")
+	}
+	for i, source := range sourcesAfter {
+		if source.Document != fmt.Sprintf("%d_%d", i, 4) ||
+			source.DocId != fmt.Sprintf("%d", i) ||
+			source.DocVersion != 4 {
+			t.Fatalf("incorrect sources: %v", sourcesAfter)
+		}
+	}
 }

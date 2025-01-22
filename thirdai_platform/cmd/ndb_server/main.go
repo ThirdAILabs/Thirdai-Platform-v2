@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"thirdai_platform/ndb"
+	"thirdai_platform/search/ndb"
 
 	"github.com/go-chi/chi/v5"
 )

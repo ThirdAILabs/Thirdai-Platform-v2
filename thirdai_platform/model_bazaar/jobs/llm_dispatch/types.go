@@ -40,12 +40,3 @@ func DefaultHTTPClient() *http.Client {
 		},
 	}
 }
-
-// LLMProvider defines the interface for LLM implementations
-type LLMProvider interface {
-	// Stream generates text from the LLM in a streaming fashion
-	// Returns a channel for text chunks and a channel for errors
-	// The text channel will be closed when streaming is complete
-	// The error channel will be closed when streaming is complete or an error occurs
-	Stream(req *GenerateRequest) (<-chan string, <-chan error)
-} 

@@ -3,7 +3,9 @@ package llm_dispatch
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -11,6 +13,8 @@ import (
 	"net/url"
 	"os"
 	"strings"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 // baseLLM provides common functionality for all LLM providers
@@ -45,17 +49,12 @@ func (b *baseLLM) makeRequest(method, endpoint string, body []byte, headers map[
 
 // OpenAILLM implements LLMProvider for OpenAI
 type OpenAILLM struct {
-	baseLLM
+	client *openai.Client
 }
 
 func NewOpenAILLM(config LLMConfig) *OpenAILLM {
-	if config.BaseURL == "" {
-		config.BaseURL = "https://api.openai.com/v1/chat/completions"
-	}
-	if config.HTTPClient == nil {
-		config.HTTPClient = DefaultHTTPClient()
-	}
-	return &OpenAILLM{baseLLM{config}}
+	client := openai.NewClient(config.APIKey)
+	return &OpenAILLM{client: client}
 }
 
 // OnPremLLM implements LLMProvider for on-premises deployment
@@ -104,7 +103,7 @@ func makePrompt(query, taskPrompt string, refs []Reference) (string, string) {
 
 func (l *OpenAILLM) Stream(req *GenerateRequest) (<-chan string, <-chan error) {
 	textChan := make(chan string)
-	errChan := make(chan error, 1)
+	errChan := make(chan error)
 
 	go func() {
 		defer close(textChan)
@@ -112,64 +111,41 @@ func (l *OpenAILLM) Stream(req *GenerateRequest) (<-chan string, <-chan error) {
 
 		systemPrompt, userPrompt := makePrompt(req.Query, req.TaskPrompt, req.References)
 
-		body := map[string]interface{}{
-			"model": req.Model,
-			"messages": []map[string]string{
-				{"role": "system", "content": systemPrompt},
-				{"role": "user", "content": userPrompt},
+		stream, err := l.client.CreateChatCompletionStream(
+			context.Background(),
+			openai.ChatCompletionRequest{
+				Model: req.Model,
+				Messages: []openai.ChatCompletionMessage{
+					{
+						Role:    openai.ChatMessageRoleSystem,
+						Content: systemPrompt,
+					},
+					{
+						Role:    openai.ChatMessageRoleUser,
+						Content: userPrompt,
+					},
+				},
+				Stream: true,
 			},
-			"stream": true,
-		}
-
-		jsonBody, err := json.Marshal(body)
+		)
 		if err != nil {
-			errChan <- fmt.Errorf("error marshaling request: %w", err)
+			errChan <- fmt.Errorf("error creating chat completion stream: %w", err)
 			return
 		}
+		defer stream.Close()
 
-		resp, err := l.makeRequest("POST", l.config.BaseURL, jsonBody, map[string]string{
-			"Authorization": "Bearer " + l.config.APIKey,
-		})
-		if err != nil {
-			errChan <- err
-			return
-		}
-		defer resp.Body.Close()
-
-		reader := bufio.NewReader(resp.Body)
 		for {
-			line, err := reader.ReadString('\n')
-			if err == io.EOF {
+			response, err := stream.Recv()
+			if errors.Is(err, io.EOF) {
 				return
 			}
 			if err != nil {
-				errChan <- fmt.Errorf("error reading stream: %w", err)
+				errChan <- fmt.Errorf("error receiving from stream: %w", err)
 				return
 			}
 
-			line = strings.TrimSpace(line)
-			if !strings.HasPrefix(line, "data: ") {
-				continue
-			}
-
-			line = strings.TrimPrefix(line, "data: ")
-			if line == "[DONE]" {
-				return
-			}
-
-			var chunk map[string]interface{}
-			if err := json.Unmarshal([]byte(line), &chunk); err != nil {
-				continue
-			}
-
-			if choices, ok := chunk["choices"].([]interface{}); ok && len(choices) > 0 {
-				if choice, ok := choices[0].(map[string]interface{}); ok {
-					if delta, ok := choice["delta"].(map[string]interface{}); ok {
-						if content, ok := delta["content"].(string); ok && content != "" {
-							textChan <- content
-						}
-					}
-				}
+			if len(response.Choices) > 0 && response.Choices[0].Delta.Content != "" {
+				textChan <- response.Choices[0].Delta.Content
 			}
 		}
 	}()
@@ -250,6 +226,15 @@ func (l *OnPremLLM) Stream(req *GenerateRequest) (<-chan string, <-chan error) {
 
 	return textChan, errChan
 }
+
+// LLMProvider defines the interface for LLM implementations
+type LLMProvider interface {
+	// Stream generates text from the LLM in a streaming fashion
+	// Returns a channel for text chunks and a channel for errors
+	// The text channel will be closed when streaming is complete
+	// The error channel will be closed when streaming is complete or an error occurs
+	Stream(req *GenerateRequest) (<-chan string, <-chan error)
+} 
 
 // This pattern helps in easily mocking the LLM provider in tests
 // NewLLMProviderFunc is the type for the provider factory function

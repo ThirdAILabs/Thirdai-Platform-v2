@@ -114,7 +114,10 @@ func TestEnterpriseSearchWithGuardrail(t *testing.T) {
 		t.Fatal("Expected a valid API key, but got an empty string")
 	}
 
-	es.ModelClient.UseApiKey(eskApiKey)
+	err = es.ModelClient.UseApiKey(eskApiKey)
+	if err != nil {
+		t.Fatal("error using api_key in place of auth token.")
+	}
 
 	results, err = es.Search(query, 5)
 	if err != nil {

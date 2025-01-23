@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"thirdai_platform/model_bazaar/schema"
-	"thirdai_platform/model_bazaar/utils"
+	"thirdai_platform/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"

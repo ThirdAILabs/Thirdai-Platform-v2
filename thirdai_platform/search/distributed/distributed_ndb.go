@@ -1,7 +1,7 @@
 package distributed
 
 import (
-	"encoding/gob"
+	"archive/tar"
 	"errors"
 	"fmt"
 	"io"
@@ -28,46 +28,52 @@ type DistributedNdb struct {
 
 	raft *raft.Raft
 
-	snapshotDir string
+	replicaId     string
+	bindAddr      string
+	localNdbStore string
 }
 
-func New(ndbPath, snapshotDir, bindAddr string, bootstrap bool) (*DistributedNdb, error) {
+type RaftConfig struct {
+	ReplicaId     string
+	BindAddr      string
+	SnapshotStore raft.SnapshotStore
+	LogStore      raft.LogStore
+	StableStore   raft.StableStore
+	Bootstrap     bool
+}
+
+func New(ndbPath string, localNdbStore string, config RaftConfig) (*DistributedNdb, error) {
+	if config.ReplicaId == "" {
+		config.ReplicaId = config.BindAddr
+	}
+
 	raftConfig := raft.DefaultConfig()
-	raftConfig.LocalID = raft.ServerID(bindAddr)
+	raftConfig.LocalID = raft.ServerID(config.ReplicaId)
 
-	addr, err := net.ResolveTCPAddr("tcp", bindAddr)
+	addr, err := net.ResolveTCPAddr("tcp", config.BindAddr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to resolve bind addr: %w", err)
 	}
 
-	transport, err := raft.NewTCPTransport(bindAddr, addr, 3, 10*time.Second, os.Stderr)
+	transport, err := raft.NewTCPTransport(config.BindAddr, addr, 3, 10*time.Second, os.Stderr)
 	if err != nil {
-		return nil, err
-	}
-
-	snapshots, err := raft.NewFileSnapshotStore("TODO", 2, os.Stderr)
-	if err != nil {
-		return nil, fmt.Errorf("file snapshot store: %s", err)
-	}
-
-	loadedNdb, err := ndb.New(ndbPath) // TODO: cleanup ndb on error?
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to create transport: %w", err)
 	}
 
 	dndb := &DistributedNdb{
-		ndb:         loadedNdb,
-		snapshotDir: snapshotDir,
+		replicaId:     config.ReplicaId,
+		bindAddr:      config.BindAddr,
+		localNdbStore: localNdbStore,
 	}
 
-	ra, err := raft.NewRaft(raftConfig, (*distributedNdbFSM)(dndb), raft.NewInmemStore(), raft.NewInmemStore(), snapshots, transport)
+	ra, err := raft.NewRaft(raftConfig, (*distributedNdbFSM)(dndb), config.LogStore, config.StableStore, config.SnapshotStore, transport)
 	if err != nil {
-		return nil, fmt.Errorf("new raft: %s", err)
+		return nil, fmt.Errorf("error constructing raft instance: %w", err)
 	}
 
 	dndb.raft = ra
 
-	if bootstrap {
+	if config.Bootstrap {
 		configuration := raft.Configuration{
 			Servers: []raft.Server{
 				{
@@ -78,11 +84,46 @@ func New(ndbPath, snapshotDir, bindAddr string, bootstrap bool) (*DistributedNdb
 		}
 		err := ra.BootstrapCluster(configuration).Error()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error boostrapping raft cluster: %w", err)
 		}
 	}
 
+	ndbCopyPath := filepath.Join(localNdbStore, uuid.NewString())
+	if err := os.CopyFS(ndbCopyPath, os.DirFS(ndbPath)); err != nil {
+		return nil, fmt.Errorf("error making replica of ndb: %w", err)
+	}
+
+	dndb.ndb, err = ndb.New(ndbCopyPath)
+	if err != nil {
+		return nil, fmt.Errorf("error opening ndb: %w", err)
+	}
+
 	return dndb, nil
+}
+
+func (dndb *DistributedNdb) ReplicaID() string {
+	return dndb.replicaId
+}
+
+func (dndb *DistributedNdb) Addr() string {
+	return dndb.bindAddr
+}
+
+func (dndb *DistributedNdb) IsLeader() bool {
+	return dndb.raft.State() == raft.Leader
+}
+
+func (dndb *DistributedNdb) AddReplica(replicaId, addr string) error {
+	if !dndb.IsLeader() {
+		return ErrNotLeader
+	}
+
+	future := dndb.raft.AddVoter(raft.ServerID(replicaId), raft.ServerAddress(addr), 0, 0)
+	if err := future.Error(); err != nil {
+		return fmt.Errorf("error adding new replica: %w", err)
+	}
+
+	return nil
 }
 
 func (dndb *DistributedNdb) Insert(document, docId string, chunks []string, metadata []map[string]interface{}) error {
@@ -133,7 +174,7 @@ func (dndb *DistributedNdb) Delete(docId string, keepLatestVersion bool) error {
 }
 
 func (dndb *DistributedNdb) applyUpdate(op UpdateOp) error {
-	if dndb.raft.State() != raft.Leader {
+	if !dndb.IsLeader() {
 		return ErrNotLeader
 	}
 
@@ -175,7 +216,7 @@ func (dndb *DistributedNdb) Sources() ([]ndb.Source, error) {
 type distributedNdbFSM DistributedNdb
 
 func (dndb *distributedNdbFSM) Apply(raftLog *raft.Log) interface{} {
-	log, err := DeserializeOp(raftLog.Data)
+	op, err := DeserializeOp(raftLog.Data)
 	if err != nil {
 		slog.Error("error deserializing raft log", "error", err)
 		return err
@@ -184,32 +225,32 @@ func (dndb *distributedNdbFSM) Apply(raftLog *raft.Log) interface{} {
 	dndb.RLock() // Prevent snapshots while applying entries
 	defer dndb.RUnlock()
 
-	if log.Insert != nil {
-		err := dndb.ndb.Insert(log.Insert.Document, log.Insert.DocId, log.Insert.Chunks, log.Insert.Metadata, nil)
+	if op.Insert != nil {
+		err := dndb.ndb.Insert(op.Insert.Document, op.Insert.DocId, op.Insert.Chunks, op.Insert.Metadata, nil)
 		if err != nil {
 			slog.Error("ndb insert failed", "error", err)
 			return fmt.Errorf("ndb insert failed: %w", err)
 		}
 	}
 
-	if log.Delete != nil {
-		err := dndb.ndb.Delete(log.Delete.DocId, log.Delete.KeepLatest)
+	if op.Delete != nil {
+		err := dndb.ndb.Delete(op.Delete.DocId, op.Delete.KeepLatest)
 		if err != nil {
 			slog.Error("ndb delete failed", "error", err)
 			return fmt.Errorf("ndb delete failed: %w", err)
 		}
 	}
 
-	if log.Upvote != nil {
-		err := dndb.ndb.Finetune([]string{log.Upvote.Query}, []uint64{log.Upvote.Label})
+	if op.Upvote != nil {
+		err := dndb.ndb.Finetune([]string{op.Upvote.Query}, []uint64{op.Upvote.Label})
 		if err != nil {
 			slog.Error("ndb upvote failed", "error", err)
 			return fmt.Errorf("ndb upvote failed: %w", err)
 		}
 	}
 
-	if log.Associate != nil {
-		err := dndb.ndb.Associate([]string{log.Associate.Source}, []string{log.Associate.Target})
+	if op.Associate != nil {
+		err := dndb.ndb.Associate([]string{op.Associate.Source}, []string{op.Associate.Target})
 		if err != nil {
 			slog.Error("ndb associate failed", "error", err)
 			return fmt.Errorf("ndb associate failed: %w", err)
@@ -223,7 +264,7 @@ func (dndb *distributedNdbFSM) Snapshot() (raft.FSMSnapshot, error) {
 	dndb.Lock()
 	defer dndb.Unlock()
 
-	snapshotPath := filepath.Join(dndb.snapshotDir, uuid.NewString())
+	snapshotPath := filepath.Join(dndb.localNdbStore, uuid.NewString())
 
 	if err := dndb.ndb.Save(snapshotPath); err != nil {
 		return nil, fmt.Errorf("ndb save failed: %w", err)
@@ -232,18 +273,53 @@ func (dndb *distributedNdbFSM) Snapshot() (raft.FSMSnapshot, error) {
 	return &ndbSnapshot{path: snapshotPath}, nil
 }
 
+func saveFile(dstPath string, src io.Reader) error {
+	file, err := os.Create(dstPath)
+	if err != nil {
+		return fmt.Errorf("error creating local file from tar file '%s' from snapshot: %w", dstPath, err)
+	}
+	defer file.Close()
+
+	if _, err := io.Copy(file, src); err != nil {
+		return fmt.Errorf("error writing local file from tar file '%s' from snapshot: %w", dstPath, err)
+	}
+
+	return nil
+}
+
 func (dndb *distributedNdbFSM) Restore(snapshotReader io.ReadCloser) error {
 	defer snapshotReader.Close()
 
-	var snapshot ndbSnapshot
-	if err := gob.NewDecoder(snapshotReader).Decode(&snapshot); err != nil {
-		slog.Error("error reading snapshot data", "error", err)
-		return fmt.Errorf("error reading snapshot data: %w", err)
+	snapshotPath := filepath.Join(dndb.localNdbStore, uuid.NewString())
+
+	reader := tar.NewReader(snapshotReader)
+
+	for {
+		header, err := reader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("error reading snapshot: %w", err)
+		}
+
+		path := filepath.Join(snapshotPath, header.Name)
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(path, 0777); err != nil {
+				return fmt.Errorf("error creating subdirectory '%s' from snapshot: %w", path, err)
+			}
+		case tar.TypeReg:
+			if err := saveFile(path, reader); err != nil {
+				return err
+			}
+		}
 	}
 
-	snapshotNdb, err := ndb.New(snapshot.path)
+	snapshotNdb, err := ndb.New(snapshotPath)
 	if err != nil {
-		slog.Error("error loading ndb from snapshot", "path", snapshot.path, "error", err)
+		slog.Error("error loading ndb from snapshot", "path", snapshotPath, "error", err)
 		return fmt.Errorf("error loading ndb from snapshot: %w", err)
 	}
 
@@ -261,10 +337,16 @@ type ndbSnapshot struct {
 }
 
 func (snapshot *ndbSnapshot) Persist(sink raft.SnapshotSink) error {
-	if err := gob.NewEncoder(sink).Encode(snapshot); err != nil {
-		slog.Error("error saving snapshot", "error", err)
+	archive := tar.NewWriter(sink)
+
+	if err := archive.AddFS(os.DirFS(snapshot.path)); err != nil {
 		sink.Cancel()
-		return fmt.Errorf("error saving snapshot: %w", err)
+		return err
+	}
+
+	if err := archive.Close(); err != nil {
+		sink.Cancel()
+		return err
 	}
 
 	return sink.Close()

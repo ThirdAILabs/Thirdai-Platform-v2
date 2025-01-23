@@ -55,7 +55,7 @@ func New(ndbPath, snapshotDir, bindAddr string, bootstrap bool) (*DistributedNdb
 		snapshotDir: snapshotDir,
 	}
 
-	ra, err := raft.NewRaft(raftConfig, dndb, raft.NewInmemStore(), raft.NewInmemStore(), snapshots, transport)
+	ra, err := raft.NewRaft(raftConfig, (*distributedNdbFSM)(dndb), raft.NewInmemStore(), raft.NewInmemStore(), snapshots, transport)
 	if err != nil {
 		return nil, fmt.Errorf("new raft: %s", err)
 	}
@@ -80,7 +80,92 @@ func New(ndbPath, snapshotDir, bindAddr string, bootstrap bool) (*DistributedNdb
 	return dndb, nil
 }
 
-func (dndb *DistributedNdb) Apply(raftLog *raft.Log) interface{} {
+func (dndb *DistributedNdb) Insert(document, docId string, chunks []string, metadata []map[string]interface{}) error {
+	// This is a little bit of a leaky abstraction but performing this check here is
+	// so that we don't have to wait for raft to apply the insert to find out if the
+	// args are valid.
+	if err := ndb.CheckInsertArgs(document, docId, chunks, metadata); err != nil {
+		return err
+	}
+
+	log := LogEntry{
+		Insert: &InsertLogData{
+			Document: document, DocId: docId, Chunks: chunks, Metadata: metadata,
+		},
+	}
+
+	return dndb.applyUpdate(log)
+}
+
+func (dndb *DistributedNdb) Upvote(query string, label uint64) error {
+	log := LogEntry{
+		Upvote: &UpvoteLogData{
+			Query: query, Label: label,
+		},
+	}
+
+	return dndb.applyUpdate(log)
+}
+
+func (dndb *DistributedNdb) Associate(source, target string) error {
+	log := LogEntry{
+		Associate: &AssociateLogData{
+			Source: source, Target: target,
+		},
+	}
+
+	return dndb.applyUpdate(log)
+}
+
+func (dndb *DistributedNdb) Delete(docId string, keepLatestVersion bool) error {
+	log := LogEntry{
+		Delete: &DeleteLogData{
+			DocId: docId,
+		},
+	}
+
+	return dndb.applyUpdate(log)
+}
+
+func (dndb *DistributedNdb) applyUpdate(log LogEntry) error {
+	serializedLog, err := log.SerializeLog()
+	if err != nil {
+		return err
+	}
+
+	future := dndb.raft.Apply(serializedLog, 0)
+
+	if err := future.Error(); err != nil {
+		return fmt.Errorf("error applying update: %w", err)
+	}
+
+	res := future.Response()
+	if err, ok := res.(error); ok {
+		return err
+	}
+
+	return nil
+}
+
+func (dndb *DistributedNdb) Query(query string, topk int, constraints ndb.Constraints) ([]ndb.Chunk, error) {
+	dndb.RLock() // Prevent snapshots while reading from ndb
+	defer dndb.RUnlock()
+
+	return dndb.ndb.Query(query, topk, constraints)
+}
+
+func (dndb *DistributedNdb) Sources() ([]ndb.Source, error) {
+	dndb.RLock() // Prevent snapshots while reading from ndb
+	defer dndb.RUnlock()
+
+	return dndb.ndb.Sources()
+}
+
+// The FSM methods need to be public to be called by raft, but defining them on
+// a non exported type ensures that they cannot be called outside of this package.
+type distributedNdbFSM DistributedNdb
+
+func (dndb *distributedNdbFSM) Apply(raftLog *raft.Log) interface{} {
 	dndb.RLock() // Prevent snapshots while applying entries
 	defer dndb.RUnlock()
 
@@ -125,7 +210,7 @@ func (dndb *DistributedNdb) Apply(raftLog *raft.Log) interface{} {
 	return nil
 }
 
-func (dndb *DistributedNdb) Snapshot() (raft.FSMSnapshot, error) {
+func (dndb *distributedNdbFSM) Snapshot() (raft.FSMSnapshot, error) {
 	dndb.Lock()
 	defer dndb.Unlock()
 
@@ -138,7 +223,7 @@ func (dndb *DistributedNdb) Snapshot() (raft.FSMSnapshot, error) {
 	return &ndbSnapshot{path: snapshotPath}, nil
 }
 
-func (dndb *DistributedNdb) Restore(snapshotReader io.ReadCloser) error {
+func (dndb *distributedNdbFSM) Restore(snapshotReader io.ReadCloser) error {
 	defer snapshotReader.Close()
 
 	var snapshot ndbSnapshot

@@ -54,10 +54,10 @@ func newMetadataValue(value interface{}) (*C.MetadataValue_t, error) {
 	}
 }
 
-func newDocument(document, doc_id string) *C.Document_t {
+func newDocument(document, docId string) *C.Document_t {
 	documentCStr := C.CString(document)
 	defer C.free(unsafe.Pointer(documentCStr))
-	docIdCStr := C.CString(doc_id)
+	docIdCStr := C.CString(docId)
 	defer C.free(unsafe.Pointer(docIdCStr))
 
 	doc := C.Document_new(documentCStr, docIdCStr)
@@ -86,14 +86,14 @@ func addMetadata(doc *C.Document_t, i int, key string, value interface{}) error 
 	return nil
 }
 
-func CheckInsertArgs(document, doc_id string, chunks []string, metadata []map[string]interface{}) error {
+func CheckInsertArgs(document, docId string, chunks []string, metadata []map[string]interface{}) error {
 	if len(document) == 0 {
 		return fmt.Errorf("document must not be empty string")
 	}
-	if len(doc_id) == 0 {
+	if len(docId) == 0 {
 		return fmt.Errorf("doc_id must not be empty string")
 	}
-	if strings.ContainsRune(doc_id, ';') {
+	if strings.ContainsRune(docId, ';') {
 		return fmt.Errorf("doc_id cannot contain ';'")
 	}
 	if metadata != nil && len(chunks) != len(metadata) {
@@ -114,12 +114,12 @@ func CheckInsertArgs(document, doc_id string, chunks []string, metadata []map[st
 	return nil
 }
 
-func (ndb *NeuralDB) Insert(document, doc_id string, chunks []string, metadata []map[string]interface{}, version *uint) error {
-	if err := CheckInsertArgs(document, doc_id, chunks, metadata); err != nil {
+func (ndb *NeuralDB) Insert(document, docId string, chunks []string, metadata []map[string]interface{}, version *uint) error {
+	if err := CheckInsertArgs(document, docId, chunks, metadata); err != nil {
 		return err
 	}
 
-	doc := newDocument(document, doc_id)
+	doc := newDocument(document, docId)
 	defer C.Document_free(doc)
 	for _, chunk := range chunks {
 		addChunk(doc, chunk)

@@ -13,7 +13,7 @@ type InsertLogData struct {
 	Metadata []map[string]interface{}
 }
 
-type DeleteLocData struct {
+type DeleteLogData struct {
 	DocId      string
 	KeepLatest bool
 }
@@ -30,7 +30,7 @@ type AssociateLogData struct {
 
 type LogEntry struct {
 	Insert    *InsertLogData
-	Delete    *DeleteLocData
+	Delete    *DeleteLogData
 	Upvote    *UpvoteLogData
 	Associate *AssociateLogData
 }

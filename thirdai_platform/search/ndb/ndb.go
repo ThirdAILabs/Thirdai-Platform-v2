@@ -9,6 +9,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"unsafe"
 )
 
@@ -85,7 +86,39 @@ func addMetadata(doc *C.Document_t, i int, key string, value interface{}) error 
 	return nil
 }
 
+func CheckInsertArgs(document, doc_id string, chunks []string, metadata []map[string]interface{}) error {
+	if len(document) == 0 {
+		return fmt.Errorf("document must not be empty string")
+	}
+	if len(doc_id) == 0 {
+		return fmt.Errorf("doc_id must not be empty string")
+	}
+	if strings.ContainsRune(doc_id, ';') {
+		return fmt.Errorf("doc_id cannot contain ';'")
+	}
+	if metadata != nil && len(chunks) != len(metadata) {
+		return fmt.Errorf("len of metadata must match the len of chunks if metadata is specified")
+	}
+
+	for _, metadata := range metadata {
+		for key, value := range metadata {
+			switch value.(type) {
+			case bool, int, float32, float64, string:
+				// pass
+			default:
+				return fmt.Errorf("unsupported metadata type %T for key %s value %v: type must be bool, int, float, or string", value, key, value)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (ndb *NeuralDB) Insert(document, doc_id string, chunks []string, metadata []map[string]interface{}, version *uint) error {
+	if err := CheckInsertArgs(document, doc_id, chunks, metadata); err != nil {
+		return err
+	}
+
 	doc := newDocument(document, doc_id)
 	defer C.Document_free(doc)
 	for _, chunk := range chunks {
@@ -93,9 +126,6 @@ func (ndb *NeuralDB) Insert(document, doc_id string, chunks []string, metadata [
 	}
 
 	if metadata != nil {
-		if len(chunks) != len(metadata) {
-			return fmt.Errorf("len of metadata must match the len of chunks if metadata is specified")
-		}
 		for i, m := range metadata {
 			for k, v := range m {
 				err := addMetadata(doc, i, k, v)
@@ -270,9 +300,16 @@ func newLabelList(values []uint64) *C.LabelList_t {
 	return list
 }
 
-func (ndb *NeuralDB) Finetune(queries []string, labels []uint64) error {
+func CheckFinetuneArgs(queries []string, labels []uint64) error {
 	if len(queries) != len(labels) {
 		return fmt.Errorf("len of queries must match len of labels")
+	}
+	return nil
+}
+
+func (ndb *NeuralDB) Finetune(queries []string, labels []uint64) error {
+	if err := CheckFinetuneArgs(queries, labels); err != nil {
+		return err
 	}
 
 	queryList := newStringList(queries)
@@ -291,9 +328,16 @@ func (ndb *NeuralDB) Finetune(queries []string, labels []uint64) error {
 	return nil
 }
 
-func (ndb *NeuralDB) Associate(sources, targets []string) error {
+func CheckAssociateArgs(sources, targets []string) error {
 	if len(sources) != len(targets) {
 		return fmt.Errorf("len of sources must match length of targets")
+	}
+	return nil
+}
+
+func (ndb *NeuralDB) Associate(sources, targets []string) error {
+	if err := CheckAssociateArgs(sources, targets); err != nil {
+		return err
 	}
 
 	sourceList := newStringList(sources)

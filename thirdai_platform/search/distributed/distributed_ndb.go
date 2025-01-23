@@ -2,6 +2,7 @@ package distributed
 
 import (
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -14,6 +15,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/raft"
+)
+
+var (
+	ErrNotLeader = errors.New("operation can only be applied by leader")
 )
 
 type DistributedNdb struct {
@@ -88,47 +93,51 @@ func (dndb *DistributedNdb) Insert(document, docId string, chunks []string, meta
 		return err
 	}
 
-	log := LogEntry{
-		Insert: &InsertLogData{
+	op := UpdateOp{
+		Insert: &InsertOp{
 			Document: document, DocId: docId, Chunks: chunks, Metadata: metadata,
 		},
 	}
 
-	return dndb.applyUpdate(log)
+	return dndb.applyUpdate(op)
 }
 
 func (dndb *DistributedNdb) Upvote(query string, label uint64) error {
-	log := LogEntry{
-		Upvote: &UpvoteLogData{
+	op := UpdateOp{
+		Upvote: &UpvoteOp{
 			Query: query, Label: label,
 		},
 	}
 
-	return dndb.applyUpdate(log)
+	return dndb.applyUpdate(op)
 }
 
 func (dndb *DistributedNdb) Associate(source, target string) error {
-	log := LogEntry{
-		Associate: &AssociateLogData{
+	op := UpdateOp{
+		Associate: &AssociateOp{
 			Source: source, Target: target,
 		},
 	}
 
-	return dndb.applyUpdate(log)
+	return dndb.applyUpdate(op)
 }
 
 func (dndb *DistributedNdb) Delete(docId string, keepLatestVersion bool) error {
-	log := LogEntry{
-		Delete: &DeleteLogData{
+	op := UpdateOp{
+		Delete: &DeleteOp{
 			DocId: docId,
 		},
 	}
 
-	return dndb.applyUpdate(log)
+	return dndb.applyUpdate(op)
 }
 
-func (dndb *DistributedNdb) applyUpdate(log LogEntry) error {
-	serializedLog, err := log.SerializeLog()
+func (dndb *DistributedNdb) applyUpdate(op UpdateOp) error {
+	if dndb.raft.State() != raft.Leader {
+		return ErrNotLeader
+	}
+
+	serializedLog, err := op.Serialize()
 	if err != nil {
 		return err
 	}
@@ -166,14 +175,14 @@ func (dndb *DistributedNdb) Sources() ([]ndb.Source, error) {
 type distributedNdbFSM DistributedNdb
 
 func (dndb *distributedNdbFSM) Apply(raftLog *raft.Log) interface{} {
-	dndb.RLock() // Prevent snapshots while applying entries
-	defer dndb.RUnlock()
-
-	log, err := DeserializeLog(raftLog.Data)
+	log, err := DeserializeOp(raftLog.Data)
 	if err != nil {
 		slog.Error("error deserializing raft log", "error", err)
 		return err
 	}
+
+	dndb.RLock() // Prevent snapshots while applying entries
+	defer dndb.RUnlock()
 
 	if log.Insert != nil {
 		err := dndb.ndb.Insert(log.Insert.Document, log.Insert.DocId, log.Insert.Chunks, log.Insert.Metadata, nil)

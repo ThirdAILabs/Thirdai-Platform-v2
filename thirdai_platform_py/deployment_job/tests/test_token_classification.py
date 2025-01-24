@@ -80,7 +80,7 @@ def mock_check_permission(token: str, permission_type: str = "read"):
     return True
 
 
-def mock_deployment_permissions(token):
+def mock_deployment_permissions(token, auth_scheme):
     return {
         "read": True,
         "write": True,

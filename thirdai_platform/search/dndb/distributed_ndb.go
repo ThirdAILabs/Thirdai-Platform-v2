@@ -1,4 +1,4 @@
-package distributed
+package dndb
 
 import (
 	"archive/tar"
@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"thirdai_platform/search/ndb"
 	"time"
 
@@ -21,12 +22,13 @@ var (
 	ErrNotLeader = errors.New("operation can only be applied by leader")
 )
 
-type DistributedNdb struct {
+type DNdb struct {
 	sync.RWMutex
 
 	ndb ndb.NeuralDB
 
-	raft *raft.Raft
+	raft            *raft.Raft
+	lastUpdateIndex atomic.Uint64
 
 	replicaId     string
 	bindAddr      string
@@ -42,7 +44,7 @@ type RaftConfig struct {
 	Bootstrap     bool
 }
 
-func New(ndbPath string, localNdbStore string, config RaftConfig) (*DistributedNdb, error) {
+func New(ndbPath string, localNdbStore string, config RaftConfig) (*DNdb, error) {
 	if config.ReplicaId == "" {
 		config.ReplicaId = config.BindAddr
 	}
@@ -60,7 +62,7 @@ func New(ndbPath string, localNdbStore string, config RaftConfig) (*DistributedN
 		return nil, fmt.Errorf("unable to create transport: %w", err)
 	}
 
-	dndb := &DistributedNdb{
+	dndb := &DNdb{
 		replicaId:     config.ReplicaId,
 		bindAddr:      config.BindAddr,
 		localNdbStore: localNdbStore,
@@ -101,19 +103,19 @@ func New(ndbPath string, localNdbStore string, config RaftConfig) (*DistributedN
 	return dndb, nil
 }
 
-func (dndb *DistributedNdb) ReplicaID() string {
+func (dndb *DNdb) ReplicaID() string {
 	return dndb.replicaId
 }
 
-func (dndb *DistributedNdb) Addr() string {
+func (dndb *DNdb) Addr() string {
 	return dndb.bindAddr
 }
 
-func (dndb *DistributedNdb) IsLeader() bool {
+func (dndb *DNdb) IsLeader() bool {
 	return dndb.raft.State() == raft.Leader
 }
 
-func (dndb *DistributedNdb) AddReplica(replicaId, addr string) error {
+func (dndb *DNdb) AddReplica(replicaId, addr string) error {
 	if !dndb.IsLeader() {
 		return ErrNotLeader
 	}
@@ -126,12 +128,16 @@ func (dndb *DistributedNdb) AddReplica(replicaId, addr string) error {
 	return nil
 }
 
-func (dndb *DistributedNdb) Insert(document, docId string, chunks []string, metadata []map[string]interface{}) error {
+type UpdateResult struct {
+	Index uint64
+}
+
+func (dndb *DNdb) Insert(document, docId string, chunks []string, metadata []map[string]interface{}) (UpdateResult, error) {
 	// This is a little bit of a leaky abstraction but performing this check here is
 	// so that we don't have to wait for raft to apply the insert to find out if the
 	// args are valid.
 	if err := ndb.CheckInsertArgs(document, docId, chunks, metadata); err != nil {
-		return err
+		return UpdateResult{}, err
 	}
 
 	op := UpdateOp{
@@ -143,7 +149,7 @@ func (dndb *DistributedNdb) Insert(document, docId string, chunks []string, meta
 	return dndb.applyUpdate(op)
 }
 
-func (dndb *DistributedNdb) Upvote(query string, label uint64) error {
+func (dndb *DNdb) Upvote(query string, label uint64) (UpdateResult, error) {
 	op := UpdateOp{
 		Upvote: &UpvoteOp{
 			Query: query, Label: label,
@@ -153,7 +159,7 @@ func (dndb *DistributedNdb) Upvote(query string, label uint64) error {
 	return dndb.applyUpdate(op)
 }
 
-func (dndb *DistributedNdb) Associate(source, target string) error {
+func (dndb *DNdb) Associate(source, target string) (UpdateResult, error) {
 	op := UpdateOp{
 		Associate: &AssociateOp{
 			Source: source, Target: target,
@@ -163,7 +169,7 @@ func (dndb *DistributedNdb) Associate(source, target string) error {
 	return dndb.applyUpdate(op)
 }
 
-func (dndb *DistributedNdb) Delete(docId string, keepLatestVersion bool) error {
+func (dndb *DNdb) Delete(docId string, keepLatestVersion bool) (UpdateResult, error) {
 	op := UpdateOp{
 		Delete: &DeleteOp{
 			DocId: docId,
@@ -173,38 +179,42 @@ func (dndb *DistributedNdb) Delete(docId string, keepLatestVersion bool) error {
 	return dndb.applyUpdate(op)
 }
 
-func (dndb *DistributedNdb) applyUpdate(op UpdateOp) error {
+func (dndb *DNdb) applyUpdate(op UpdateOp) (UpdateResult, error) {
 	if !dndb.IsLeader() {
-		return ErrNotLeader
+		return UpdateResult{}, ErrNotLeader
 	}
 
 	serializedLog, err := op.Serialize()
 	if err != nil {
-		return err
+		return UpdateResult{}, err
 	}
 
 	future := dndb.raft.Apply(serializedLog, 0)
 
 	if err := future.Error(); err != nil {
-		return fmt.Errorf("error applying update: %w", err)
+		return UpdateResult{}, fmt.Errorf("error applying update: %w", err)
 	}
 
 	res := future.Response()
 	if err, ok := res.(error); ok {
-		return err
+		return UpdateResult{}, err
 	}
 
-	return nil
+	return UpdateResult{Index: future.Index()}, nil
 }
 
-func (dndb *DistributedNdb) Query(query string, topk int, constraints ndb.Constraints) ([]ndb.Chunk, error) {
+func (dndb *DNdb) LastUpdateIndex() uint64 {
+	return dndb.lastUpdateIndex.Load()
+}
+
+func (dndb *DNdb) Query(query string, topk int, constraints ndb.Constraints) ([]ndb.Chunk, error) {
 	dndb.RLock() // Prevent snapshots while reading from ndb
 	defer dndb.RUnlock()
 
 	return dndb.ndb.Query(query, topk, constraints)
 }
 
-func (dndb *DistributedNdb) Sources() ([]ndb.Source, error) {
+func (dndb *DNdb) Sources() ([]ndb.Source, error) {
 	dndb.RLock() // Prevent snapshots while reading from ndb
 	defer dndb.RUnlock()
 
@@ -213,7 +223,7 @@ func (dndb *DistributedNdb) Sources() ([]ndb.Source, error) {
 
 // The FSM methods need to be public to be called by raft, but defining them on
 // a non exported type ensures that they cannot be called outside of this package.
-type distributedNdbFSM DistributedNdb
+type distributedNdbFSM DNdb
 
 func (dndb *distributedNdbFSM) Apply(raftLog *raft.Log) interface{} {
 	op, err := DeserializeOp(raftLog.Data)
@@ -256,6 +266,8 @@ func (dndb *distributedNdbFSM) Apply(raftLog *raft.Log) interface{} {
 			return fmt.Errorf("ndb associate failed: %w", err)
 		}
 	}
+
+	dndb.lastUpdateIndex.Store(raftLog.Index)
 
 	return nil
 }

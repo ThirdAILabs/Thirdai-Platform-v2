@@ -184,16 +184,13 @@ class NDBRouter:
         """
         try:
             results = self.model.predict(**params.model_dump())
-            print(f"Prediction results: {results}")  # Debugging prediction results
         except Exception as e:
-            print(f"Exception during prediction: {e}")  # Debugging prediction exception
             self.logger.error(f"Exception during prediction: {e}")
             return response(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 message="Prediction error: " + str(e),
             )
 
-        print("Returning prediction response.")  # Debugging response return
         return response(
             status_code=status.HTTP_200_OK,
             message="Successful",

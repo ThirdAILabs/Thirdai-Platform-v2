@@ -340,7 +340,8 @@ func (s *ModelService) fetchModelsInTransaction(tx *gorm.DB, modelIDs []uuid.UUI
 		Where("user_id = ?", userID).
 		Find(&models).Error
 	if err != nil {
-		return nil, err
+		slog.Error("sql error fetching models", "error", err)
+		return nil, CodedError(schema.ErrModelNotFound, http.StatusInternalServerError)
 	}
 	return models, nil
 }
@@ -362,7 +363,8 @@ func (s *ModelService) createAndSaveAPIKeyInTransaction(tx *gorm.DB, name string
 	}
 
 	if err := tx.Create(&newAPIKey).Error; err != nil {
-		return "", err
+		slog.Error("sql error creating user api keys", "error", err)
+		return "", CodedError(schema.ErrUserAPIKeyNotFound, http.StatusInternalServerError)
 	}
 
 	return apiKey, nil
@@ -406,7 +408,6 @@ func (s *ModelService) DeleteAPIKey(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "failed to delete API key", http.StatusInternalServerError)
 			return err
 		}
-
 		return nil
 	}); err != nil {
 		if err.Error() != "forbidden access" {

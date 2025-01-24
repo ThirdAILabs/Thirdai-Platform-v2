@@ -162,8 +162,7 @@ type baseClient struct {
 	apiKey    string
 }
 
-func (c *baseClient) Get(endpoint string) *httpRequest {
-	r := newHttpRequest("GET", c.baseUrl, endpoint)
+func (c *baseClient) addAuthHeaders(r *httpRequest) *httpRequest {
 	if c.authToken != "" {
 		return r.Auth(c.authToken)
 	}
@@ -171,28 +170,21 @@ func (c *baseClient) Get(endpoint string) *httpRequest {
 		return r.Header("X-API-Key", c.apiKey)
 	}
 	return r
+}
+
+func (c *baseClient) Get(endpoint string) *httpRequest {
+	r := newHttpRequest("GET", c.baseUrl, endpoint)
+	return c.addAuthHeaders(r)
 }
 
 func (c *baseClient) Post(endpoint string) *httpRequest {
 	r := newHttpRequest("POST", c.baseUrl, endpoint)
-	if c.authToken != "" {
-		return r.Auth(c.authToken)
-	}
-	if c.apiKey != "" {
-		return r.Header("X-API-Key", c.apiKey)
-	}
-	return r
+	return c.addAuthHeaders(r)
 }
 
 func (c *baseClient) Delete(endpoint string) *httpRequest {
 	r := newHttpRequest("DELETE", c.baseUrl, endpoint)
-	if c.authToken != "" {
-		return r.Auth(c.authToken)
-	}
-	if c.apiKey != "" {
-		return r.Header("X-API-Key", c.apiKey)
-	}
-	return r
+	return c.addAuthHeaders(r)
 }
 
 func (c *baseClient) UseApiKey(api_key string) error {

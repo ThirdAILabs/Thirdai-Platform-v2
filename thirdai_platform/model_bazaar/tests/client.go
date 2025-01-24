@@ -121,8 +121,15 @@ type client struct {
 	userId    string
 }
 
-func (c *client) Get(endpoint string) *httpTestRequest {
-	r := newHttpTestRequest(c.api, "GET", endpoint)
+func (c *client) UseApiKey(api_key string) error {
+
+	c.apiKey = api_key
+	c.authToken = ""
+	c.userId = ""
+	return nil
+}
+
+func (c *client) addAuthHeaders(r *httpTestRequest) *httpTestRequest {
 	if c.authToken != "" {
 		return r.Auth(c.authToken)
 	}
@@ -130,28 +137,21 @@ func (c *client) Get(endpoint string) *httpTestRequest {
 		return r.Header("X-API-Key", c.apiKey)
 	}
 	return r
+}
+
+func (c *client) Get(endpoint string) *httpTestRequest {
+	r := newHttpTestRequest(c.api, "GET", endpoint)
+	return c.addAuthHeaders(r)
 }
 
 func (c *client) Post(endpoint string) *httpTestRequest {
 	r := newHttpTestRequest(c.api, "POST", endpoint)
-	if c.authToken != "" {
-		return r.Auth(c.authToken)
-	}
-	if c.apiKey != "" {
-		return r.Header("X-API-Key", c.apiKey)
-	}
-	return r
+	return c.addAuthHeaders(r)
 }
 
 func (c *client) Delete(endpoint string) *httpTestRequest {
 	r := newHttpTestRequest(c.api, "DELETE", endpoint)
-	if c.authToken != "" {
-		return r.Auth(c.authToken)
-	}
-	if c.apiKey != "" {
-		return r.Header("X-API-Key", c.apiKey)
-	}
-	return r
+	return c.addAuthHeaders(r)
 }
 
 type loginInfo struct {
@@ -304,6 +304,30 @@ func (c *client) createAPIKey(modelIDs []uuid.UUID, name string, expiry time.Tim
 	}
 
 	return response.ApiKey, nil
+}
+
+func (c *client) ListAPIKeys() ([]services.APIKeyResponse, error) {
+	var response []services.APIKeyResponse
+
+	err := c.Get("/model/list-api-keys").Do(&response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list API keys: %w", err)
+	}
+
+	return response, nil
+}
+
+func (c *client) DeleteAPIKey(apiKeyID uuid.UUID) error {
+	body := map[string]uuid.UUID{
+		"api_key_id": apiKeyID,
+	}
+
+	err := c.Post("/model/delete-api-key").Json(body).Do(nil)
+	if err != nil {
+		return fmt.Errorf("failed to delete API key: %w", err)
+	}
+
+	return nil
 }
 
 func (c *client) deleteModel(modelId string) error {

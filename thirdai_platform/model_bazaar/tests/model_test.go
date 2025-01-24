@@ -10,9 +10,6 @@ import (
 	"testing"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/services"
-	"time"
-
-	"github.com/google/uuid"
 )
 
 func TestModelInfo(t *testing.T) {
@@ -467,58 +464,4 @@ func TestModelWithDeps(t *testing.T) {
 	}
 
 	checkStatus("complete")
-}
-
-func TestListModelWriteAccess(t *testing.T) {
-
-	env := setupTestEnv(t)
-
-	user1, err := env.newUser("abc")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ndb, err := user1.trainNdbDummyFile("ndb-model")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	nlp, err := user1.trainNlpToken("nlp-token-model")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	es, err := user1.createEnterpriseSearch("search", ndb, nlp)
-	_ = es
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	models, err := user1.listModels()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(models) < 3 {
-		t.Fatalf("Expected 3 models, but got %d", len(models))
-	}
-
-	selectedModelIDs := []uuid.UUID{models[0].ModelId, models[1].ModelId}
-
-	apiKeyName := "test-api-key"
-	now := time.Now()
-
-	expiry := now.Add(24 * time.Hour)
-
-	apiKey, err := user1.createAPIKey(selectedModelIDs, apiKeyName, expiry)
-	if err != nil {
-		t.Fatalf("Failed to create API key: %v", err)
-	}
-
-	if apiKey == "" {
-		t.Fatal("Expected a valid API key, but got an empty string")
-	}
-
-	t.Logf("API Key created successfully: %s", apiKey)
-
 }

@@ -74,7 +74,7 @@ type User struct {
 type UserAPIKey struct {
 	Id uuid.UUID `gorm:"type:uuid;primaryKey"`
 
-	HashKey string  `gorm:"column:hashkey;unique;size:500;not null"`
+	HashKey string  `gorm:"column:hashkey;unique;size:500;not null;index"` // Added `index` as we use this field for comparing
 	Name    string  `gorm:"size:500;not null"`
 	Models  []Model `gorm:"many2many:user_api_key_models;constraint:OnDelete:CASCADE;"`
 

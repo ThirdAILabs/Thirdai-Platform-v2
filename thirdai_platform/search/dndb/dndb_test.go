@@ -85,19 +85,24 @@ func createCluster(t *testing.T, nNodes int, ndbPath string) []*dndb.DNdb {
 	return cluster
 }
 
-func TestBasicReplication(t *testing.T) {
+func createSimpleNdb(t *testing.T) string {
 	ndbPath := t.TempDir()
 	ndb, err := ndb.New(ndbPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	defer ndb.Free()
+
 	if err := ndb.Insert("doc1", "id1", []string{"a b", "x y"}, nil, nil); err != nil {
-		ndb.Free()
 		t.Fatal(err)
 	}
 
-	ndb.Free()
+	return ndbPath
+}
+
+func TestBasicReplication(t *testing.T) {
+	ndbPath := createSimpleNdb(t)
 
 	cluster := createCluster(t, 3, ndbPath)
 
@@ -122,14 +127,107 @@ func TestBasicReplication(t *testing.T) {
 	}
 }
 
-func TestAddNewReplica(t *testing.T) {
+func createClusterAndAddReplica(t *testing.T, snapshot bool) {
+	ndbPath := createSimpleNdb(t)
 
+	cluster := createCluster(t, 3, ndbPath)
+
+	leader := waitForLeader(t, 10*time.Second, cluster)
+
+	var updateIdx uint64
+	for i := 0; i < 10; i++ {
+		update, err := leader.Insert(fmt.Sprintf("new-%d", i), fmt.Sprintf("%d-%d", i, i), []string{fmt.Sprintf("%d %d", i, i+1)}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		updateIdx = update.Index
+	}
+
+	if snapshot {
+		if err := leader.ForceSnapshot(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	newReplica, err := dndb.New(ndbPath, t.TempDir(), createConfig("node3", "localhost:3003", false))
+	if err != nil {
+		t.Fatalf("error creating new replica: %v", err)
+	}
+
+	sourcesBefore, err := newReplica.Sources()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sourcesBefore) != 1 {
+		t.Fatal("new replica should only have initial source before joining cluster")
+	}
+
+	if err := leader.AddReplica(newReplica.ReplicaID(), newReplica.Addr()); err != nil {
+		t.Fatalf("error adding new replica to cluster: %v", err)
+	}
+
+	waitForUpdate(t, 10*time.Second, newReplica, updateIdx)
+
+	sourcesAfter, err := newReplica.Sources()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sourcesAfter) != 11 {
+		t.Fatal("new replica should have all sources after joining cluster")
+	}
 }
 
-func TestRemoveReplica(t *testing.T) {
+func TestAddNewReplica(t *testing.T) {
+	createClusterAndAddReplica(t, false)
+}
 
+func TestAddNewReplicaWithSnapshot(t *testing.T) {
+	createClusterAndAddReplica(t, true)
 }
 
 func TestRemoveLeader(t *testing.T) {
+	ndbPath := createSimpleNdb(t)
 
+	cluster := createCluster(t, 3, ndbPath)
+
+	leader1 := waitForLeader(t, 10*time.Second, cluster)
+
+	update1, err := leader1.Insert("doc2", "id2", []string{"a b c", "x y z"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	waitForUpdate(t, 10*time.Second, leader1, update1.Index)
+
+	if err := leader1.RemoveReplica(leader1.ReplicaID()); err != nil {
+		t.Fatal(err)
+	}
+
+	leader2 := waitForLeader(t, 10*time.Second, cluster)
+
+	if leader1.ReplicaID() == leader2.ReplicaID() {
+		t.Fatal("leader should change")
+	}
+
+	update2, err := leader2.Insert("doc3", "id4", []string{"a b c d", "w x y z"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, node := range cluster {
+		if node == leader1 {
+			continue
+		}
+
+		waitForUpdate(t, 10*time.Second, node, update2.Index)
+
+		results, err := node.Query("w x", 6, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(results) != 3 || results[0].Text != "w x y z" {
+			t.Fatalf("incorrect results: %v", results)
+		}
+	}
 }

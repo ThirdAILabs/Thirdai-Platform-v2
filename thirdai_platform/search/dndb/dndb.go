@@ -128,6 +128,32 @@ func (dndb *DNdb) AddReplica(replicaId, addr string) error {
 	return nil
 }
 
+func (dndb *DNdb) RemoveReplica(replicaId string) error {
+	if !dndb.IsLeader() {
+		return ErrNotLeader
+	}
+
+	future := dndb.raft.RemoveServer(raft.ServerID(replicaId), 0, 0)
+	if err := future.Error(); err != nil {
+		return fmt.Errorf("error removing replica: %w", err)
+	}
+
+	return nil
+}
+
+func (dndb *DNdb) ForceSnapshot() error {
+	if !dndb.IsLeader() {
+		return ErrNotLeader
+	}
+
+	future := dndb.raft.Snapshot()
+	if err := future.Error(); err != nil {
+		return fmt.Errorf("error creating snapshot: %w", err)
+	}
+
+	return nil
+}
+
 type UpdateResult struct {
 	Index uint64
 }

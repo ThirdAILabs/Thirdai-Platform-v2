@@ -8,7 +8,7 @@ import (
 )
 
 func TestCreateDeleteTeams(t *testing.T) {
-	env := setupTestEnv(t)
+	env := setupPrivateDBEnv(t)
 
 	admin, err := env.adminClient()
 	if err != nil {
@@ -73,7 +73,7 @@ func TestCreateDeleteTeams(t *testing.T) {
 }
 
 func TestAddRemoveTeamUsers(t *testing.T) {
-	env := setupTestEnv(t)
+	env := setupPrivateDBEnv(t)
 
 	admin, err := env.adminClient()
 	if err != nil {
@@ -169,7 +169,7 @@ func TestAddRemoveTeamUsers(t *testing.T) {
 }
 
 func TestTeamAdmins(t *testing.T) {
-	env := setupTestEnv(t)
+	env := setupPrivateDBEnv(t)
 
 	admin, err := env.adminClient()
 	if err != nil {
@@ -259,7 +259,7 @@ func TestTeamAdmins(t *testing.T) {
 }
 
 func TestListTeamsAndTeamUsers(t *testing.T) {
-	env := setupTestEnv(t)
+	env := setupPrivateDBEnv(t)
 
 	admin, err := env.adminClient()
 	if err != nil {
@@ -335,7 +335,7 @@ func TestListTeamsAndTeamUsers(t *testing.T) {
 }
 
 func TestTeamModels(t *testing.T) {
-	env := setupTestEnv(t)
+	env := setupPrivateDBEnv(t)
 
 	admin, err := env.adminClient()
 	if err != nil {

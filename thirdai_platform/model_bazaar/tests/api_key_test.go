@@ -12,7 +12,7 @@ import (
 )
 
 func TestAPIKeyBasicCRUD(t *testing.T) {
-	env := setupTestEnv(t)
+	env := setupSharedDBEnv(t)
 
 	user, err := env.newUser("user1")
 	if err != nil {
@@ -71,7 +71,7 @@ func TestAPIKeyBasicCRUD(t *testing.T) {
 }
 
 func TestAPIKeyPermissions(t *testing.T) {
-	env := setupTestEnv(t)
+	env := setupSharedDBEnv(t)
 
 	user, err := env.newUser("userA")
 	if err != nil {
@@ -99,7 +99,7 @@ func TestAPIKeyPermissions(t *testing.T) {
 }
 
 func TestAPIKeyModelInfo(t *testing.T) {
-	env := setupTestEnv(t)
+	env := setupSharedDBEnv(t)
 
 	user, err := env.newUser("userB")
 	if err != nil {
@@ -143,7 +143,7 @@ func TestAPIKeyModelInfo(t *testing.T) {
 }
 
 func TestAPIKeyExpiration(t *testing.T) {
-	env := setupTestEnv(t)
+	env := setupSharedDBEnv(t)
 
 	user, err := env.newUser("exp-user")
 	if err != nil {
@@ -164,7 +164,7 @@ func TestAPIKeyExpiration(t *testing.T) {
 }
 
 func TestAPIKeyDeletedNoAccess(t *testing.T) {
-	env := setupTestEnv(t)
+	env := setupSharedDBEnv(t)
 
 	user, err := env.newUser("delete-user")
 	if err != nil {
@@ -193,7 +193,11 @@ func TestAPIKeyDeletedNoAccess(t *testing.T) {
 		t.Fatalf("api key should have worked, but got error: %v", err)
 	}
 
-	user.login(loginInfo{Email: "delete-user@mail.com", Password: "delete-user_password"})
+	err = user.login(loginInfo{Email: "delete-user@mail.com", Password: "delete-user_password"})
+	if err != nil {
+		t.Fatalf("failed to login: %v", err)
+	}
+
 	userKeys, err := user.ListAPIKeys()
 	if err != nil {
 		t.Fatalf("failed to list API keys: %v", err)
@@ -230,7 +234,7 @@ func TestAPIKeyDeletedNoAccess(t *testing.T) {
 }
 
 func TestAPIKeyDependencies(t *testing.T) {
-	env := setupTestEnv(t)
+	env := setupSharedDBEnv(t)
 
 	user, err := env.newUser("dep-user")
 	if err != nil {
@@ -275,9 +279,9 @@ func TestAPIKeyDependencies(t *testing.T) {
 }
 
 func TestAPIKeyUsageAfterExpiration(t *testing.T) {
-	env := setupTestEnv(t)
+	env := setupSharedDBEnv(t)
 
-	user, err := env.newUser("exp-user")
+	user, err := env.newUser("api-exp-user")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,7 +320,7 @@ func TestAPIKeyUsageAfterExpiration(t *testing.T) {
 }
 
 func TestAPIKeyAccessDifferentModel(t *testing.T) {
-	env := setupTestEnv(t)
+	env := setupSharedDBEnv(t)
 
 	user, err := env.newUser("access-user")
 	if err != nil {

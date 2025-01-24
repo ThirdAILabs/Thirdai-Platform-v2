@@ -3,6 +3,7 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"thirdai_platform/model_bazaar/storage"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -31,9 +33,25 @@ const (
 	adminPassword = "admin_password123"
 )
 
-func setupTestEnv(t *testing.T) *testEnv {
-	// Shared cache for each connection, to show migration changes for each connection
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+func setupPrivateDBEnv(t *testing.T) *testEnv {
+	return setupTestEnv(t, false)
+}
+
+func setupSharedDBEnv(t *testing.T) *testEnv {
+	return setupTestEnv(t, true)
+}
+
+func setupTestEnv(t *testing.T, sharedDB bool) *testEnv {
+
+	var dsn string
+	if sharedDB {
+		dsn = "file::memory:?cache=shared"
+	} else {
+		uniqueID := uuid.New().String()
+		dsn = fmt.Sprintf("file:%s?mode=memory&cache=private", uniqueID)
+	}
+
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}

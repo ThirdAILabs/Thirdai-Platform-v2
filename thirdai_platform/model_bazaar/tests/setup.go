@@ -32,7 +32,7 @@ const (
 )
 
 func setupTestEnv(t *testing.T) *testEnv {
-	// Shared cache for each connection, to show migration changes for each connections
+	// Shared cache for each connection, to show migration changes for each connection
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)

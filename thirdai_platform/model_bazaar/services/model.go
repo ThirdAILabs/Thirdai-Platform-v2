@@ -48,7 +48,7 @@ type APIKeyResponse struct {
 }
 
 type deleteRequestBody struct {
-	APIKeyID string `json:"api_key_id"`
+	APIKeyID uuid.UUID `json:"api_key_id"`
 }
 
 func (s *ModelService) Routes() chi.Router {
@@ -249,30 +249,38 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parsedModelIDs, err := s.parseAndValidateModelIDs(req.ModelIDs, user)
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		parsedModelIDs, err := s.parseAndValidateModelIDs(req.ModelIDs, user)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return err
+		}
+
+		models, err := s.fetchModelsInTransaction(tx, parsedModelIDs, user.Id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return err
+		}
+
+		if len(models) != len(parsedModelIDs) {
+			http.Error(w, "some model_ids are invalid or do not belong to the user", http.StatusBadRequest)
+			return fmt.Errorf("invalid model IDs")
+		}
+
+		apiKey, err := s.createAndSaveAPIKeyInTransaction(tx, req.Name, req.Exp, user.Id, models)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to save API key: %v", err), http.StatusInternalServerError)
+			return err
+		}
+
+		utils.WriteJsonResponse(w, map[string]string{"api_key": apiKey})
+		return nil
+	})
+
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		// transaction error has already been handled and an appropriate HTTP response sent.
 		return
 	}
-
-	models, err := s.fetchModels(parsedModelIDs, user.Id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if len(models) != len(parsedModelIDs) {
-		http.Error(w, "some model_ids are invalid or do not belong to the user", http.StatusBadRequest)
-		return
-	}
-
-	apiKey, err := s.createAndSaveAPIKey(req.Name, req.Exp, user.Id, models)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to save API key: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	utils.WriteJsonResponse(w, map[string]string{"api_key": apiKey})
 }
 
 func parseCreateAPIKeyRequest(r *http.Request, w http.ResponseWriter) (CreateAPIKeyRequest, error) {
@@ -322,9 +330,9 @@ func (s *ModelService) fetchModelDependencies(modelID uuid.UUID) ([]schema.Model
 	return dependencies, nil
 }
 
-func (s *ModelService) fetchModels(modelIDs []uuid.UUID, userID uuid.UUID) ([]schema.Model, error) {
+func (s *ModelService) fetchModelsInTransaction(tx *gorm.DB, modelIDs []uuid.UUID, userID uuid.UUID) ([]schema.Model, error) {
 	var models []schema.Model
-	err := s.db.Preload("Attributes").
+	err := tx.Preload("Attributes").
 		Preload("Dependencies").
 		Preload("Dependencies.Dependency").
 		Preload("Dependencies.Dependency.User").
@@ -337,7 +345,7 @@ func (s *ModelService) fetchModels(modelIDs []uuid.UUID, userID uuid.UUID) ([]sc
 	return models, nil
 }
 
-func (s *ModelService) createAndSaveAPIKey(name string, expiry time.Time, userID uuid.UUID, models []schema.Model) (string, error) {
+func (s *ModelService) createAndSaveAPIKeyInTransaction(tx *gorm.DB, name string, expiry time.Time, userID uuid.UUID, models []schema.Model) (string, error) {
 	apiKey, hashKey, err := generateApiKey()
 	if err != nil {
 		return "", err
@@ -353,7 +361,7 @@ func (s *ModelService) createAndSaveAPIKey(name string, expiry time.Time, userID
 		CreatedBy:     userID,
 	}
 
-	if err := s.db.Create(&newAPIKey).Error; err != nil {
+	if err := tx.Create(&newAPIKey).Error; err != nil {
 		return "", err
 	}
 
@@ -368,39 +376,42 @@ func (s *ModelService) DeleteAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var reqBody deleteRequestBody
-	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+	if !utils.ParseRequestBody(w, r, &reqBody) {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	if reqBody.APIKeyID == "" {
+	if reqBody.APIKeyID == uuid.Nil {
 		http.Error(w, "key id is required", http.StatusBadRequest)
 		return
 	}
 
-	apiKeyId, err := uuid.Parse(reqBody.APIKeyID)
-	if err != nil {
-		http.Error(w, "invalid UUID", http.StatusBadRequest)
-		return
-	}
-
-	var apiKey schema.UserAPIKey
-	if err := s.db.Where("id = ?", apiKeyId).First(&apiKey).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			http.Error(w, "API key not found", http.StatusNotFound)
-			return
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		var apiKey schema.UserAPIKey
+		if err := tx.First(&apiKey, "id = ?", reqBody.APIKeyID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				http.Error(w, "API key not found", http.StatusNotFound)
+				return err
+			}
+			http.Error(w, "failed to retrieve API key", http.StatusInternalServerError)
+			return err
 		}
-		http.Error(w, "failed to retrieve API key", http.StatusInternalServerError)
-		return
-	}
 
-	if apiKey.CreatedBy != user.Id && !user.IsAdmin {
-		http.Error(w, "you do not own this key", http.StatusForbidden)
-		return
-	}
+		if apiKey.CreatedBy != user.Id && !user.IsAdmin {
+			http.Error(w, "you do not own this key", http.StatusForbidden)
+			return fmt.Errorf("forbidden access")
+		}
 
-	if err := s.db.Delete(&apiKey).Error; err != nil {
-		http.Error(w, "failed to delete API key", http.StatusInternalServerError)
+		if err := tx.Delete(&apiKey).Error; err != nil {
+			http.Error(w, "failed to delete API key", http.StatusInternalServerError)
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		if err.Error() != "forbidden access" {
+			http.Error(w, "an error occurred during the transaction", http.StatusInternalServerError)
+		}
 		return
 	}
 

@@ -32,7 +32,8 @@ const (
 )
 
 func setupTestEnv(t *testing.T) *testEnv {
-	db, err := gorm.Open(sqlite.Open("file::memory:"), &gorm.Config{})
+	// Shared cache for each connection, to show migration changes for each connections
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +41,7 @@ func setupTestEnv(t *testing.T) *testEnv {
 	err = db.AutoMigrate(
 		&schema.Model{}, &schema.ModelAttribute{}, &schema.ModelDependency{},
 		&schema.User{}, &schema.Team{}, &schema.UserTeam{}, &schema.JobLog{},
-		&schema.Upload{},
+		&schema.Upload{}, &schema.UserAPIKey{},
 	)
 	if err != nil {
 		t.Fatal(err)

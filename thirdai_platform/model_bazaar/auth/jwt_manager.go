@@ -21,19 +21,11 @@ func NewJwtManager(secret []byte) *JwtManager {
 }
 
 func (m *JwtManager) Verifier() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return jwtauth.Verifier(m.auth)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			next.ServeHTTP(w, r)
-		}))
-	}
+	return jwtauth.Verifier(m.auth)
 }
 
 func (m *JwtManager) Authenticator() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return jwtauth.Authenticator(m.auth)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			next.ServeHTTP(w, r)
-		}))
-	}
+	return jwtauth.Authenticator(m.auth)
 }
 
 const (

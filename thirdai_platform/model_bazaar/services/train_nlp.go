@@ -35,7 +35,7 @@ func (opts *NlpTokenTrainRequest) validate() error {
 	}
 
 	if opts.BaseModelId != nil && opts.ModelOptions != nil {
-		allErrors = append(allErrors, fmt.Errorf("nly model options or base model can be specified for training"))
+		allErrors = append(allErrors, fmt.Errorf("Only model options or base model can be specified for training"))
 	}
 	if opts.ModelOptions == nil && opts.BaseModelId == nil {
 		opts.ModelOptions = new(config.NlpTokenOptions)

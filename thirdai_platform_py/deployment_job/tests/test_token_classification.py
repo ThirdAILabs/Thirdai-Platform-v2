@@ -73,7 +73,7 @@ def create_token_classification_model(tmp_dir: str):
 
 
 def mock_verify_permission(permission_type: str = "read"):
-    return lambda: ""
+    return lambda: "", ""
 
 
 def mock_check_permission(token: str, permission_type: str = "read"):

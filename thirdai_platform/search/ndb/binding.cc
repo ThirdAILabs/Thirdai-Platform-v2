@@ -297,7 +297,7 @@ void NeuralDB_finetune(NeuralDB_t *ndb, const StringList_t *queries,
 void NeuralDB_associate(NeuralDB_t *ndb, const StringList_t *sources,
                         const StringList_t *targets, const char **err_ptr) {
   try {
-    ndb->ndb->associate(sources->list, targets->list, 4);
+    ndb->ndb->associate(sources->list, targets->list, 1);
   } catch (const std::exception &e) {
     // TODO(Nicholas): have case for NeuralDBError to return better errors
     copyError(e, err_ptr);

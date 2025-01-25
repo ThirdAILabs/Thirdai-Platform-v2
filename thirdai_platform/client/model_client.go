@@ -16,6 +16,10 @@ type ModelClient struct {
 	deploymentName *string
 }
 
+func NewModelClient(baseUrl string, authToken string, modelId uuid.UUID) ModelClient {
+	return ModelClient{baseClient: baseClient{baseUrl: baseUrl, authToken: authToken}, modelId: modelId}
+}
+
 func (c *ModelClient) deploymentId() string {
 	if c.deploymentName != nil {
 		return *c.deploymentName
@@ -132,6 +136,12 @@ func (c *ModelClient) Download(dstPath string) error {
 			return err
 		},
 	)
+}
+
+func (c *ModelClient) GetPermissions() (services.ModelPermissions, error) {
+	var res services.ModelPermissions
+	err := c.Get(fmt.Sprintf("/model/%v/permissions", c.modelId)).Do(&res)
+	return res, err
 }
 
 type newModelResponse struct {

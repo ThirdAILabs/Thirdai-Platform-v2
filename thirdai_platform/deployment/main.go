@@ -1,4 +1,4 @@
-package main
+package deployment
 
 import (
 	"flag"
@@ -7,68 +7,20 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"thirdai_platform/model_bazaar/auth"
-	"thirdai_platform/model_bazaar/jobs"
-	"thirdai_platform/model_bazaar/licensing"
+	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/nomad"
-	"thirdai_platform/model_bazaar/schema"
-	"thirdai_platform/model_bazaar/services"
-	"thirdai_platform/model_bazaar/storage"
-	"time"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/joho/godotenv"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	"thirdai_platform/utils"
 )
 
-
-type ndbDeploymentEnv struct {
-	PublicModelBazaarEndpoint  string
-	PrivateModelBazaarEndpoint string
-	LicensePath                string
-	NomadEndpoint              string
-	NomadToken                 string
-	ShareDir                   string
-	JwtSecret                  string
-
-	AdminUsername string
-	AdminEmail    string
-	AdminPassword string
-
-	// LlmAutoscalingEnabled bool // TODO: is this needed
-	GenAiKey string
-
-	IdentityProvider      string
-	KeycloakServerUrl     string
-	UseSslInLogin         bool
-	KeycloakAdminUsername string
-	keycloakAdminPassword string
-
-	MajorityCriticalServiceNodes int
-
-	DockerRegistry string
-	DockerUsername string
-	DockerPassword string
-	Tag            string
-	BackendImage   string
-	FrontendImage  string
-
-	// These args are only needed if backend image is not specified, this is used to run locally.
-	PythonPath  string
-	PlatformDir string
-
-	DatabaseUri  string
-	GrafanaDbUri string
+type deploymentEnv struct {
+	ConfigPath string
+	JobToken   string
 
 	CloudCredentials nomad.CloudCredentials
 }
-
 
 /**
  * ==========================================================================
@@ -78,7 +30,7 @@ type ndbDeploymentEnv struct {
  * ==== the system.                                                      ====
  * ==========================================================================
  */
- func loadEnv() ndbDeploymentEnv {
+func loadEnv() deploymentEnv {
 	missingEnvs := []string{}
 
 	requiredEnv := func(key string) string {
@@ -90,49 +42,17 @@ type ndbDeploymentEnv struct {
 		return env
 	}
 
-	env := ndbDeploymentEnv{
-		PublicModelBazaarEndpoint:  requiredEnv("PUBLIC_MODEL_BAZAAR_ENDPOINT"),
-		PrivateModelBazaarEndpoint: requiredEnv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
-		LicensePath:                requiredEnv("LICENSE_PATH"),
-		NomadEndpoint:              requiredEnv("NOMAD_ENDPOINT"),
-		NomadToken:                 requiredEnv("TASK_RUNNER_TOKEN"),
-		ShareDir:                   requiredEnv("SHARE_DIR"),
-		JwtSecret:                  requiredEnv("JWT_SECRET"),
-
-		AdminUsername: requiredEnv("ADMIN_USERNAME"),
-		AdminEmail:    requiredEnv("ADMIN_MAIL"),
-		AdminPassword: requiredEnv("ADMIN_PASSWORD"),
-
-		GenAiKey: optionalEnv("GENAI_KEY"),
-
-		IdentityProvider:      requiredEnv("IDENTITY_PROVIDER"),
-		KeycloakServerUrl:     optionalEnv("KEYCLOAK_SERVER_URL"),
-		UseSslInLogin:         boolEnvVar("USE_SSL_IN_LOGIN"),
-		KeycloakAdminUsername: optionalEnv("KEYCLOAK_ADMIN_USER"),
-		keycloakAdminPassword: optionalEnv("KEYCLOAK_ADMIN_PASSWORD"),
-
-		MajorityCriticalServiceNodes: intEnvVar("MAJORITY_CRITICAL_SERVICE_NODES", 1),
-
-		DockerRegistry: requiredEnv("DOCKER_REGISTRY"),
-		DockerUsername: requiredEnv("DOCKER_USERNAME"),
-		DockerPassword: requiredEnv("DOCKER_PASSWORD"),
-		Tag:            optionalEnv("TAG"),
-		BackendImage:   optionalEnv("JOBS_IMAGE_NAME"),
-		FrontendImage:  optionalEnv("FRONTEND_IMAGE_NAME"),
-
-		PythonPath:  optionalEnv("PYTHON_PATH"),
-		PlatformDir: optionalEnv("PLATFORM_DIR"),
-
-		DatabaseUri:  requiredEnv("DATABASE_URI"),
-		GrafanaDbUri: requiredEnv("GRAFANA_DB_URL"),
+	env := deploymentEnv{
+		ConfigPath: requiredEnv("CONFIG_PATH"),
+		JobToken:   requiredEnv("JOB_TOKEN"),
 
 		CloudCredentials: nomad.CloudCredentials{
-			AwsAccessKey:       optionalEnv("AWS_ACCESS_KEY"),
-			AwsAccessSecret:    optionalEnv("AWS_ACCESS_SECRET"),
-			AwsRegionName:      optionalEnv("AWS_REGION_NAME"),
-			AzureAccountName:   optionalEnv("AZURE_ACCOUNT_NAME"),
-			AzureAccountKey:    optionalEnv("AZURE_ACCOUNT_KEY"),
-			GcpCredentialsFile: optionalEnv("GCP_CREDENTIALS_FILE"),
+			AwsAccessKey:       utils.OptionalEnv("AWS_ACCESS_KEY"),
+			AwsAccessSecret:    utils.OptionalEnv("AWS_ACCESS_SECRET"),
+			AwsRegionName:      utils.OptionalEnv("AWS_REGION_NAME"),
+			AzureAccountName:   utils.OptionalEnv("AZURE_ACCOUNT_NAME"),
+			AzureAccountKey:    utils.OptionalEnv("AZURE_ACCOUNT_KEY"),
+			GcpCredentialsFile: utils.OptionalEnv("GCP_CREDENTIALS_FILE"),
 		},
 	}
 
@@ -140,15 +60,14 @@ type ndbDeploymentEnv struct {
 		log.Fatalf("The following required env vars are missing: %s", strings.Join(missingEnvs, ", "))
 	}
 
-	if env.BackendImage == "" && (env.PythonPath == "" || env.PlatformDir == "") {
-		log.Fatal("If JOBS_IMAGE_NAME env var is not specified then PYTHON_PATH and PLATFORM_DIR env vars must be provided.")
-	} else if (env.BackendImage != "" || env.FrontendImage != "") && env.Tag == "" {
-		log.Fatal("If JOBS_IMAGE_NAME or FRONTEND_IMAGE_NAME env vars are specified then TAG must be specified as well.")
-	}
-
 	return env
 }
 
+func initLogging(logFile *os.File) {
+	log.SetFlags(log.Lshortfile | log.Ltime | log.Ldate)
+	log.SetOutput(io.MultiWriter(logFile, os.Stderr))
+	slog.Info("logging initialized", "log_file", logFile.Name())
+}
 
 func main() {
 	port := flag.Int("port", 8000, "Port to run server on")
@@ -157,8 +76,28 @@ func main() {
 
 	env := loadEnv()
 
-	r := chi.NewRouter()
-	r.Mount("/api/v2", model_bazaar.Routes())
+	config, err := config.LoadConfig(env.ConfigPath)
+	if err != nil {
+		log.Fatalf("could not reads deployment config: %v", err.Error())
+	}
+
+	logFile, err := os.OpenFile(filepath.Join(config.ModelBazaarDir, "logs/", config.ModelId.String(), "deployment.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		log.Fatalf("error opening log file: %v", err)
+	}
+	defer logFile.Close()
+
+	initLogging(logFile)
+
+	reporter := Reporter{config.ModelBazaarEndpoint, config.ModelId.String(), env.JobToken}
+
+	ndbrouter, err := NewNdbRouter(config, reporter)
+	if err != nil {
+		log.Fatalf("failed to setup deployment router: %v", err)
+	}
+	defer ndbrouter.Close()
+	
+	r := ndbrouter.Routes()
 
 	slog.Info("starting server", "port", *port)
 	err = http.ListenAndServe(fmt.Sprintf(":%d", *port), r)

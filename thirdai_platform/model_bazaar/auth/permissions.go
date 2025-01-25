@@ -114,7 +114,7 @@ func modelPermissionToString(perm modelPermission) string {
 	case NoPermission:
 		return "None"
 	case ReadPermission:
-		return "'Read"
+		return "Read"
 	case WritePermission:
 		return "Write"
 	case OwnerPermission:

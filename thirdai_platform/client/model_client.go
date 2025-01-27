@@ -140,7 +140,17 @@ func (c *ModelClient) Download(dstPath string) error {
 
 func (c *ModelClient) GetPermissions() (services.ModelPermissions, error) {
 	var res services.ModelPermissions
-	err := c.Get(fmt.Sprintf("/model/%v/permissions", c.modelId)).Do(&res)
+	err := c.Get(fmt.Sprintf("/api/v2/model/%v/permissions", c.modelId)).Do(&res)
+	return res, err
+}
+
+func (c *ModelClient) UpdateDeployStatusInternal(status string) error {
+	return c.Post(fmt.Sprintf("/api/v2/deploy/%v/update-status", c.modelId)).Do(nil)
+}
+
+func (c *ModelClient) GetDeployStatusInternal() (services.StatusResponse, error) {
+	var res services.StatusResponse
+	err := c.Get(fmt.Sprintf("/api/v2/deploy/%v/status-internal", c.modelId)).Do(&res)
 	return res, err
 }
 

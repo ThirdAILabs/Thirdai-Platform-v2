@@ -20,7 +20,7 @@ type DeployConfig struct {
 	Options             map[string]string `json:"options"`
 }
 
-func LoadConfig(configPath string) (*DeployConfig, error) {
+func LoadDeployConfig(configPath string) (*DeployConfig, error) {
     configData, err := os.ReadFile(configPath)
     if err != nil {
         return nil, fmt.Errorf("error reading config file: %w", err)

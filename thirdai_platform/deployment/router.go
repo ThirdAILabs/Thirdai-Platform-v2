@@ -11,6 +11,7 @@ import (
 	"thirdai_platform/utils"
 
 	"thirdai_platform/model_bazaar/config"
+	"thirdai_platform/client"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -19,11 +20,11 @@ import (
 type NdbRouter struct {
 	ndb         ndb.NeuralDB
 	config      *config.DeployConfig
-	reporter    Reporter
+	reporter    client.ModelClient
 	permissions Permissions
 }
 
-func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, error) {
+func NewNdbRouter(config *config.DeployConfig, reporter client.ModelClient) (*NdbRouter, error) {
 	ndbPath := filepath.Join(config.ModelBazaarDir, "model", config.ModelId.String(), "model", "model.ndb")
 	ndb, err := ndb.New(ndbPath)
 	if err != nil {
@@ -59,7 +60,7 @@ func (m *NdbRouter) Routes() chi.Router {
 		r.Post("/associate", m.Associate)
 		r.Post("/implicit-feedback", m.ImplicitFeedback)
 		r.Get("/sources", m.Sources)
-		r.Post("/save", m.Save) // TODO(david) Check low disk usage
+		r.Post("/save", m.Save) // TODO Check low disk usage
 		r.Get("/highlighted-pdf", m.HighlightedPdf)
 
 	})

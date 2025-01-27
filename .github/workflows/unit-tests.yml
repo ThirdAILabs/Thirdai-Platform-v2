@@ -33,6 +33,7 @@ jobs:
           repository: ThirdAILabs/Universe
           ssh-key: ${{ secrets.UNIVERSE_ACCESS_KEY }}
           path: ./Universe
+          submodules: 'recursive'
 
       - name: set up go >=1.23.1
         uses: actions/setup-go@v5
@@ -41,9 +42,6 @@ jobs:
 
       - name: build universe library
         run: |
-          pwd 
-          ls .
-          ls ./Universe
           cd ./Universe
           bin/build.py -f THIRDAI_BUILD_LICENSE THIRDAI_CHECK_LICENSE
       

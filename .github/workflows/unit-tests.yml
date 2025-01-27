@@ -32,6 +32,7 @@ jobs:
         with:
           repository: ThirdAILabs/Universe
           ssh-key: ${{ secrets.UNIVERSE_ACCESS_KEY }}
+          path: ./universe-lib
 
       - name: set up go >=1.23.1
         uses: actions/setup-go@v5
@@ -40,16 +41,16 @@ jobs:
 
       - name: build universe library
         run: |
-          cd Universe
+          cd ./universe-lib/Universe
           bin/build.py -f THIRDAI_BUILD_LICENSE THIRDAI_CHECK_LICENSE
       
       - name: copy libraries for bindings
         run: |
           mkdir -p thirdai_platform/search/ndb/lib/linux_x64
-          cp Universe/build/libthirdai.a thirdai_platform/search/ndb/lib/linux_x64
-          cp Universe/build/deps/rocksdb/librocksdb.a thirdai_platform/search/ndb/lib/linux_x64
-          cp Universe/build/deps/utf8proc/libutf8proc.a thirdai_platform/search/ndb/lib/linux_x64
-          cp Universe/build/deps/cryptopp-cmake/cryptopp/libcryptopp.a thirdai_platform/search/ndb/lib/linux_x64
+          cp ./universe-lib/Universe/build/libthirdai.a thirdai_platform/search/ndb/lib/linux_x64
+          cp ./universe-lib/Universe/build/deps/rocksdb/librocksdb.a thirdai_platform/search/ndb/lib/linux_x64
+          cp ./universe-lib/Universe/build/deps/utf8proc/libutf8proc.a thirdai_platform/search/ndb/lib/linux_x64
+          cp ./universe-lib/Universe/build/deps/cryptopp-cmake/cryptopp/libcryptopp.a thirdai_platform/search/ndb/lib/linux_x64
 
       - name: run backend unit tests
         run: |

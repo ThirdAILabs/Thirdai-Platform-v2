@@ -684,7 +684,6 @@ export class ModelService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...this.authHeader(),
         },
         body: JSON.stringify(args),
         signal: signal,

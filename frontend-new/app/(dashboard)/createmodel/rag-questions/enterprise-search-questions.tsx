@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Workflow } from '@/lib/backend';
 import { CardDescription } from '@/components/ui/card';
-import { Button, TextField, Stepper, Step, StepLabel, Box } from '@mui/material';
+import { Button, TextField, Typography, Stepper, Step, StepLabel, Box } from '@mui/material';
 import { useRouter } from 'next/navigation';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import DropdownMenu from '@/components/ui/dropDownMenu';
 import { create_enterprise_search_workflow, EnterpriseSearchOptions } from '@/lib/backend';
 import SemanticSearchQuestions from '../semantic-search-questions';
 import NERQuestions from '../nlp-questions/ner-questions';
-
-interface ChatbotQuestionsProps {
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+interface EnterpriseSearchQuestionsProps {
   models: Workflow[];
   workflowNames: string[];
 }
@@ -17,10 +16,14 @@ interface ChatbotQuestionsProps {
 enum LlmProvider {
   OpenAI = 'openai',
   OnPrem = 'on-prem',
-  SelfHosted = 'self-host',
+  SelfHosted = 'self-hosted',
+  None = 'none',
 }
 
-const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNames }) => {
+const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
+  models,
+  workflowNames,
+}) => {
   const [currentStep, setCurrentStep] = useState(0);
 
   // Knowledge base state
@@ -48,18 +51,6 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
     );
   }, [models]);
 
-  // Sentiment Analysis state
-  const [ifUseNLPClassifier, setIfUseNLPClassifier] = useState<string | null>(null);
-  const [nlpClassifierIdentifier, setNlpClassifierIdentifier] = useState<string | null>(null);
-  const [nlpClassifierModelId, setNlpClassifierModelId] = useState<string | null>(null);
-  const [existingNLPClassifierModels, setExistingNLPClassifierModels] = useState<Workflow[]>([]);
-
-  useEffect(() => {
-    setExistingNLPClassifierModels(
-      models.filter((model) => model.type === 'udt' && model.sub_type === 'text')
-    );
-  }, [models]);
-
   const [modelName, setModelName] = useState('');
   const [llmType, setLlmType] = useState<LlmProvider | null>(null);
   const router = useRouter();
@@ -68,15 +59,28 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
 
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [isNameValid, setIsNameValid] = useState(false);
+  const [showLLMStep, setShowLLMStep] = useState(false);
 
   const validateAppName = (name: string): string => {
     if (!name) return 'App name is required.';
-    if (name.includes(' ')) return 'The app name cannot contain spaces.';
-    if (name.includes('.')) return "The app name cannot contain periods ('.')";
+    if (name.includes(' ')) return 'The app name cannot contain spaces. Please remove the spaces.';
+    if (name.includes('.'))
+      return "The app name cannot contain periods ('.'). Please remove the periods.";
     if (!/^[\w-]+$/.test(name))
       return 'The app name can only contain letters, numbers, underscores, and hyphens.';
-    if (workflowNames.includes(name)) return 'An app with the same name already exists.';
+    if (workflowNames.includes(name))
+      return 'An app with the same name already exists. Please choose a different name.';
     return '';
+  };
+
+  const handleStepClick = (stepIndex: number) => {
+    // Only allow clicking on completed steps or the next available step
+    if (
+      completedSteps.includes(stepIndex) ||
+      stepIndex === Math.min(currentStep, completedSteps.length)
+    ) {
+      setCurrentStep(stepIndex);
+    }
   };
 
   const handleNext = () => {
@@ -93,6 +97,16 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
     }
   };
 
+  const handlePrevious = () => {
+    // When go back from LLM step to Knowledgebase, hide LLM step
+    if (currentStep == 2) {
+      setShowLLMStep(false);
+    }
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
   const handleSubmit = async () => {
     setIsLoading(true);
 
@@ -100,26 +114,22 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
       let options: EnterpriseSearchOptions = {
         retrieval_id: ssModelId || '',
         guardrail_id: grModelId || '',
-        nlp_classifier_id: nlpClassifierModelId || '',
         llm_provider: '',
-        default_mode: 'chat',
+        default_mode: 'search',
       };
 
-      switch (llmType) {
-        case LlmProvider.OpenAI:
-          options.llm_provider = 'openai';
-          break;
-        case LlmProvider.OnPrem:
-          options.llm_provider = 'on-prem';
-          break;
-        case LlmProvider.SelfHosted:
-          options.llm_provider = 'self-host';
-          break;
-        default:
-          console.error('Invalid LLM type selected');
-          alert('Invalid LLM type selected');
-          setIsLoading(false);
-          return;
+      if (llmType && llmType !== LlmProvider.None) {
+        switch (llmType) {
+          case LlmProvider.OpenAI:
+            options.llm_provider = 'openai';
+            break;
+          case LlmProvider.OnPrem:
+            options.llm_provider = 'on-prem';
+            break;
+          case LlmProvider.SelfHosted:
+            options.llm_provider = 'self-host';
+            break;
+        }
       }
 
       options = Object.fromEntries(
@@ -157,6 +167,17 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
     if (ssModel) {
       setSsModelId(ssModel.model_id);
     }
+  };
+
+  // Function to check if a valid knowledge base is selected
+  const isValidKnowledgeBaseSelected = () => {
+    if (ifUseExistingSS === 'Yes') {
+      return Boolean(ssIdentifier && ssModelId); // Must have both identifier and model ID
+    }
+    if (ifUseExistingSS === 'No') {
+      return createdSS && ssModelId; // Must have created a new SS and have model ID
+    }
+    return false;
   };
 
   const handleGrIdentifier = (grID: string) => {
@@ -265,6 +286,34 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
               )}
             </>
           )}
+
+          {isValidKnowledgeBaseSelected() && (
+            <div className="mt-8">
+              <CardDescription>
+                Would you like to add an LLM to your enterprise search?
+              </CardDescription>
+              <div className="flex gap-4 mt-4">
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    setShowLLMStep(true);
+                    setCurrentStep(2);
+                  }}
+                >
+                  Yes, add LLM
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    handleSubmit();
+                    router.push('/');
+                  }}
+                >
+                  No, finish setup
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       ),
     },
@@ -272,10 +321,9 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
       title: 'LLM',
       content: (
         <div>
-          {/* LLM selection */}
           <div>
             <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
-              LLM
+              LLM (Optional)
             </span>
             <div>
               <CardDescription>Choose an LLM for generating answers</CardDescription>
@@ -300,11 +348,16 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
                 >
                   Self-host
                 </Button>
+                <Button
+                  variant={llmType === LlmProvider.None ? 'contained' : 'outlined'}
+                  onClick={() => setLlmType(LlmProvider.None)}
+                >
+                  None
+                </Button>
               </div>
             </div>
           </div>
 
-          {/* LLM Guardrail */}
           <div>
             <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
               LLM Guardrail (Optional)
@@ -414,77 +467,6 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
               </>
             )}
           </div>
-
-          {/* Sentiment Analysis */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: '20px' }}>
-              <span className="block text-lg font-semibold">Sentiment Analysis (Optional)</span>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span style={{ marginLeft: '8px', cursor: 'pointer' }}>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="w-5 h-5"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="8" x2="12" y2="8" />
-                      <line x1="12" y1="12" x2="12" y2="16" />
-                    </svg>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="right" style={{ maxWidth: '250px' }}>
-                  A sentiment analysis model can determine the emotional tone behind a user&apos;s
-                  query, providing insights into their attitude and emotional state.
-                </TooltipContent>
-              </Tooltip>
-            </div>
-
-            <CardDescription>Would you like to detect sentiment of user query?</CardDescription>
-            <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
-              <Button
-                variant={ifUseNLPClassifier === 'Yes' ? 'contained' : 'outlined'}
-                onClick={() => setIfUseNLPClassifier('Yes')}
-              >
-                Yes
-              </Button>
-              <Button
-                variant={ifUseNLPClassifier === 'No' ? 'contained' : 'outlined'}
-                onClick={() => {
-                  setNlpClassifierIdentifier(null);
-                  setIfUseNLPClassifier('No');
-                }}
-              >
-                No
-              </Button>
-            </div>
-
-            {ifUseNLPClassifier === 'Yes' && (
-              <div style={{ marginTop: '20px' }}>
-                <CardDescription>Choose from existing sentiment analysis models</CardDescription>
-                <div className="mt-2">
-                  <DropdownMenu
-                    title="Please choose a model"
-                    handleSelectedTeam={(selectedValue: string, modelId?: string) => {
-                      setNlpClassifierIdentifier(selectedValue);
-                      if (modelId) {
-                        setNlpClassifierModelId(modelId);
-                      }
-                    }}
-                    teams={existingNLPClassifierModels.map((model) => ({
-                      id: model.model_id,
-                      name: model.username + '/' + model.model_name,
-                    }))}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       ),
     },
@@ -493,7 +475,6 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
   const missingRequirements = [];
   if (!modelName) missingRequirements.push('App Name is not specified (Step 1)');
   if (!ssModelId) missingRequirements.push('Retrieval app is not specified (Step 2)');
-  if (!llmType) missingRequirements.push('LLM Type is not specified (Step 3)');
 
   const errorMessage = missingRequirements.length > 0 && (
     <div>
@@ -511,59 +492,79 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
 
   return (
     <div>
-      <div
-        className="mb-4"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'flex-start',
-          rowGap: '15px',
-          columnGap: '15px',
-        }}
-      >
-        <Box sx={{ width: '100%' }}>
-          <Stepper activeStep={currentStep}>
-            {steps.map((step, index) => {
-              const stepProps: { completed?: boolean } = {};
-              const labelProps: {
-                optional?: React.ReactNode;
-              } = {};
-              return (
-                <Step key={step.title} {...stepProps}>
+      <Box sx={{ width: '100%' }}>
+        <Stepper activeStep={currentStep}>
+          {steps.map((step, index) => {
+            const stepProps: { completed?: boolean } = {};
+            const labelProps: {
+              optional?: React.ReactNode;
+            } = {};
+            return (
+              <Step key={step.title} {...stepProps}>
+                {step.title === 'LLM' ? (
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <StepLabel {...labelProps}>{step.title}</StepLabel>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span style={{ marginLeft: '8px', cursor: 'pointer' }}>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="w-5 h-5"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="16" x2="12" y2="12" />
+                            <line x1="12" y1="8" x2="12.01" y2="8" />
+                          </svg>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" style={{ maxWidth: '300px' }}>
+                        <strong>This step is optional</strong>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                ) : (
                   <StepLabel {...labelProps}>{step.title}</StepLabel>
-                </Step>
-              );
-            })}
-          </Stepper>
-        </Box>
-      </div>
+                )}
+              </Step>
+            );
+          })}
+        </Stepper>
+      </Box>
 
       {/* Step Content */}
       <div className="mt-8">{steps[currentStep].content}</div>
 
-      {/* Step Controls */}
-      <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'space-between' }}>
-        {currentStep > 0 ? (
-          <Button onClick={() => setCurrentStep(currentStep - 1)}>Previous</Button>
-        ) : (
-          <div></div>
-        )}
+      {/* Step Controls - only show if not on Knowledge Base step or LLM not chosen yet */}
+      {!(currentStep === 1 && ssModelId) && (
+        <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'flex-end' }}>
+          {currentStep > 0 && (
+            <Button onClick={handlePrevious} sx={{ mr: 2 }}>
+              Previous
+            </Button>
+          )}
 
-        {currentStep < steps.length - 1 ? (
-          <Button onClick={handleNext} disabled={currentStep === 0 && (!modelName || !isNameValid)}>
-            Next
-          </Button>
-        ) : (
-          <Button
-            onClick={handleSubmit}
-            disabled={isLoading || !(ssModelId && modelName && llmType)}
-          >
-            {isLoading ? 'Creating...' : 'Create'}
-          </Button>
-        )}
-      </div>
+          {currentStep < steps.length - 1 ? (
+            <Button
+              onClick={handleNext}
+              disabled={currentStep === 0 && (!modelName || !isNameValid)}
+            >
+              Next
+            </Button>
+          ) : (
+            <Button onClick={handleSubmit} disabled={isLoading || !(ssModelId && modelName)}>
+              {isLoading ? 'Creating...' : 'Create'}
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
 
-export default ChatbotQuestions;
+export default EnterpriseSearchQuestions;

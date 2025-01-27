@@ -263,28 +263,40 @@ interface TrainNdbParams {
   formData: FormData;
 }
 
-export function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
-  // Retrieve the access token from local storage
+export async function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
   const accessToken = getAccessToken();
+  const apiUrl = `${thirdaiPlatformBaseUrl}/api/v2/train/ndb`;
+  formData.append('model_name', JSON.stringify(name));
+  console.log("API URL:", apiUrl);
+  console.log("Access Token:", accessToken);
+  console.log("FormData:", [...formData.entries()]);
 
-  // Set the default authorization header for axios
-  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: formData,
+    });
+    console.log("HUE HUE", response);
+    if (!response.ok) {
+      // const errorData = await response.json();
+      // console.error("Error Response:", errorData);
+      // throw new Error(errorData.detail || 'Failed to run model');
+      throw new Error("Failed to create model");
+    }
 
-  return new Promise((resolve, reject) => {
-    axios
-      .post(`${thirdaiPlatformBaseUrl}/api/train/ndb?model_name=${name}`, formData)
-      .then((res) => {
-        resolve(res.data);
-      })
-      .catch((err) => {
-        if (err.response && err.response.data) {
-          reject(new Error(err.response.data.detail || 'Failed to run model'));
-        } else {
-          reject(new Error('Failed to run model'));
-        }
-      });
-  });
+    const data = await response.json();
+    console.log("Response Data:", data);
+    return data;
+  } catch (error) {
+    console.error('Error training NDB model:', error);
+    throw error;
+  }
 }
+
+
 
 // src/interfaces/TrainNdbParams.ts
 export interface JobOptions {
@@ -605,7 +617,7 @@ export function trainTextClassifierWithCSV({
             reject(
               new Error(
                 (axiosError.response.data as any).detail ||
-                  'Failed to train text classification model'
+                'Failed to train text classification model'
               )
             );
           } else {
@@ -737,7 +749,7 @@ export function trainTokenClassifierWithCSV({
             reject(
               new Error(
                 (axiosError.response.data as any).detail ||
-                  'Failed to train token classification model'
+                'Failed to train token classification model'
               )
             );
           } else {
@@ -916,7 +928,7 @@ export function trainTokenClassifierFromCSV({
             reject(
               new Error(
                 (axiosError.response.data as any).detail ||
-                  'Failed to train token classification model'
+                'Failed to train token classification model'
               )
             );
           } else {
@@ -1059,32 +1071,39 @@ export interface Workflow {
   publish_date: string;
   username: string;
   user_email: string;
+  team_id: string | null;
   attributes: Attributes;
   dependencies: Dependency[];
   size: string;
   size_in_memory: string;
 }
 
-export function fetchWorkflows(): Promise<Workflow[]> {
-  const accessToken = getAccessToken();
+export async function fetchWorkflows(): Promise<Workflow[]> {
+  const accessToken = getAccessToken(); // Ensure this function retrieves the correct access token
 
-  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+  try {
+    const response = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/model/list`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
 
-  return new Promise((resolve, reject) => {
-    axios
-      .get(`${thirdaiPlatformBaseUrl}/api/model/list`)
-      .then((res) => {
-        resolve(res.data.data); // Assuming the data is inside `data` field
-      })
-      .catch((err) => {
-        if (err.response && err.response.data) {
-          reject(new Error(err.response.data.detail || 'Failed to fetch workflows'));
-        } else {
-          reject(new Error('Failed to fetch workflows'));
-        }
-      });
-  });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to fetch workflows');
+    }
+
+    const data = await response.json();
+    return data; // Assuming the data is in the `data` field
+  } catch (error) {
+    console.error('Error fetching workflows:', error);
+    throw error;
+  }
 }
+
+
 
 interface ValidateWorkflowResponse {
   status: string;
@@ -1224,40 +1243,88 @@ export async function getWorkflowDetails(workflow_id: string): Promise<WorkflowD
   });
 }
 
-export function userEmailLogin(
+// export async function userEmailLogin(
+//   email: string,
+//   password: string,
+//   setAccessToken: (token: string) => void
+// ): Promise<any> {
+//   try {
+//     const apiUrl = `${thirdaiPlatformBaseUrl}/api/v2/user/login`;
+
+//     const response = await fetch(apiUrl, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify({ email, password }),
+//     });
+
+//     if (!response.ok) {
+//       const errorMessage = await response.text();
+//       throw new Error(`Request failed: ${response.status} - ${errorMessage}`);
+//     }
+
+//     const data = await response.json();
+//     const accessToken = data.access_token;
+//     const userId = data.user_id;
+
+//     if (accessToken) {
+//       localStorage.setItem('accessToken', accessToken);
+//       setAccessToken(accessToken);
+//       console.log("Jai Shree Ram");
+//     }
+
+//     if (userId) {
+//       localStorage.setItem('user_id', userId);
+//     }
+
+//     console.log('Login successful:', { userId, accessToken });
+//     console.log("DATA: ", data);
+//     return data;
+//   } catch (error) {
+//     console.error('Error logging in:', error);
+//     throw error;
+//   }
+// }
+export async function userEmailLogin(
   email: string,
   password: string,
-  setAccessToken: (token: string) => void
+  setAccessToken: (token: string | null | undefined) => void
 ): Promise<any> {
-  return new Promise((resolve, reject) => {
-    axios
-      .get(`${thirdaiPlatformBaseUrl}/api/user/email-login`, {
-        headers: {
-          Authorization: `Basic ${window.btoa(`${email}:${password}`)}`,
-        },
-      })
-      .then((res) => {
-        const accessToken = res.data.data.access_token;
+  try {
+    const apiUrl = `${thirdaiPlatformBaseUrl}/api/v2/user/login`;
 
-        if (accessToken) {
-          // Store accessToken into local storage, replacing any existing one.
-          localStorage.setItem('accessToken', accessToken);
-          setAccessToken(accessToken);
-        }
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
 
-        const username = res.data.data.user.username;
+    if (!response.ok) {
+      const errorMessage = await response.text();
+      throw new Error(`Request failed: ${response.status} - ${errorMessage}`);
+    }
 
-        if (username) {
-          localStorage.setItem('username', username);
-        }
+    const data = await response.json();
+    const accessToken = data.access_token;
+    const userId = data.user_id;
 
-        resolve(res.data);
-      })
-      .catch((err) => {
-        reject(err);
-      });
-  });
+    if (accessToken) {
+      setAccessToken(accessToken); // Set the token in context first
+    } else {
+      throw new Error('No access token received from server');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error logging in:', error);
+    setAccessToken(null); // Clear token on error
+    throw error;
+  }
 }
+
 
 export function SyncKeycloakUser(
   accessToken: string,
@@ -1316,22 +1383,29 @@ export function SyncKeycloakUser(
   });
 }
 
-export function userRegister(email: string, password: string, username: string) {
-  return new Promise((resolve, reject) => {
-    axios
-      .post(`${thirdaiPlatformBaseUrl}/api/user/email-signup-basic`, {
-        email,
-        password,
-        username,
-      })
-      .then((res) => {
-        resolve(res.data);
-      })
-      .catch((err) => {
-        reject(err);
-      });
-  });
+export async function userRegister(email: string, password: string, username: string): Promise<any> {
+  try {
+    const response = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/user/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password, username }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to register user');
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error during user registration:', error);
+    throw error;
+  }
 }
+
 
 interface TokenClassificationExample {
   name: string;
@@ -2003,21 +2077,30 @@ interface TeamResponse {
 }
 
 export async function fetchAllModels(): Promise<{ data: ModelResponse[] }> {
-  const accessToken = getAccessToken(); // Make sure this function is implemented elsewhere in your codebase
+  const accessToken = getAccessToken(); // Ensure this function exists and correctly retrieves the access token
+  try {
+    const response = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/model/list`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
 
-  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch models');
+    }
 
-  return new Promise((resolve, reject) => {
-    axios
-      .get(`${thirdaiPlatformBaseUrl}/api/model/list`)
-      .then((res) => {
-        resolve(res.data);
-      })
-      .catch((err) => {
-        reject(err);
-      });
-  });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching models:', error);
+    throw error;
+  }
 }
+
+
 
 export async function fetchAllTeams(): Promise<{ data: TeamResponse[] }> {
   const accessToken = getAccessToken();
@@ -2026,9 +2109,9 @@ export async function fetchAllTeams(): Promise<{ data: TeamResponse[] }> {
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/team/list`)
+      .get(`${thirdaiPlatformBaseUrl}/api/v2/team/list`)
       .then((res) => {
-        resolve(res.data);
+        resolve(res);
       })
       .catch((err) => {
         reject(err);
@@ -2043,9 +2126,9 @@ export async function fetchAllUsers(): Promise<{ data: UserResponse[] }> {
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/user/list`)
+      .get(`${thirdaiPlatformBaseUrl}/api/v2/user/list`)
       .then((res) => {
-        resolve(res.data);
+        resolve(res);
       })
       .catch((err) => {
         reject(err);
@@ -2357,16 +2440,28 @@ export async function accessTokenUser(accessToken: string | null) {
     return null;
   }
 
-  // Set the default authorization header for axios
-  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
   try {
-    const response = await axios.get(`${thirdaiPlatformBaseUrl}/api/user/info`);
-    return response.data.data as User;
+    const response = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/user/info`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("data of user with accessToken: ", data);
+    return data as User;
   } catch (error) {
+    console.error('Error fetching user info:', error);
     return null;
   }
 }
+
 
 export async function fetchAutoCompleteQueries(modelId: string, query: string) {
   const accessToken = getAccessToken();
@@ -2436,40 +2531,3 @@ export async function fetchFeedback(username: string, modelName: string) {
     throw error;
   }
 }
-
-export interface SelfHostedLLM {
-  endpoint: string;
-  api_key: string;
-}
-
-export interface LLMAPIResponse {
-  status: string;
-  message: string;
-  data?: SelfHostedLLM;
-}
-
-export const getSelfHostedLLM = (): Promise<LLMAPIResponse> => {
-  const accessToken = getAccessToken();
-  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-  return axios.get(`${deploymentBaseUrl}/api/integrations/self-hosted-llm`).then((res) => res.data);
-};
-
-export const addSelfHostedLLM = (data: SelfHostedLLM): Promise<LLMAPIResponse> => {
-  const accessToken = getAccessToken();
-  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
-  return axios
-    .post(`${deploymentBaseUrl}/api/integrations/self-hosted-llm`, {
-      endpoint: data.endpoint,
-      api_key: data.api_key,
-    })
-    .then((res) => res.data);
-};
-
-export const deleteSelfHostedLLM = (): Promise<LLMAPIResponse> => {
-  const accessToken = getAccessToken();
-  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-  return axios
-    .delete(`${deploymentBaseUrl}/api/integrations/self-hosted-llm`)
-    .then((res) => res.data);
-};

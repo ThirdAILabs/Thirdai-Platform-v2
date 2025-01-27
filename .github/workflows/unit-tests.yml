@@ -61,7 +61,7 @@ jobs:
         run: |
           cd thirdai_platform && go test ./search/ndb -v
 
-  train-job-unit-tests:
+  python-unit-tests:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -75,114 +75,32 @@ jobs:
       run: |
         pip3 install -r thirdai_platform_py/requirements.txt
         pip3 install pytest
+        pip3 install httpx
         pip3 install pyopenssl --upgrade
 
-    - name: run unit tests
+    - name: test train job
       run: |
         cd thirdai_platform_py
         python3 -m pytest train_job -v
 
-  recovery-snapshot-unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: install dependencies
-      run: |
-        pip3 install -r thirdai_platform_py/requirements.txt
-        pip3 install pytest
-        pip3 install pyopenssl --upgrade
-
-    - name: run unit tests
+    - name: test recovery snapshot job
       run: |
         cd thirdai_platform_py
         python3 -m pytest recovery_snapshot_job -v
-  
-  llm-gen-unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: install dependencies
-      run: |
-        pip3 install -r thirdai_platform_py/requirements.txt
-        pip3 install httpx
-        pip3 install pytest
-
-    - name: run unit tests
+    - name: test llm dispatch job
       run: |
         cd thirdai_platform_py
         python3 -m pytest llm_dispatch_job -v
 
-  llm-cache-unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: install dependencies
-      run: |
-        pip3 install -r thirdai_platform_py/requirements.txt
-        pip3 install httpx
-        pip3 install pytest
-
-    - name: run unit tests
+    - name: test llm cache job
       run: |
         python3 -m pytest ./thirdai_platform_py/llm_cache_job -v
 
-  platform-common-tests:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: install dependencies
-      run: |
-        pip3 install -r thirdai_platform_py/requirements.txt
-        pip3 install httpx
-        pip3 install pytest
-
-    - name: run unit tests
+    - name: test feedback storage
       run: |
         python3 -m pytest ./thirdai_platform_py/tests -v
 
-  deployment-job-unit-tests:
-    runs-on: ubuntu-latest-8-cores
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: install dependencies
-      run: |
-        pip3 install -r thirdai_platform_py/requirements.txt
-        pip3 install pyopenssl --upgrade
-        pip3 install pytest
-
-    - name: run unit tests
-      # These have to be run individually because otherwise global variables 
-      # don't get reset correctly between tests. 
-      # TODO(Nicholas): Refactor the deployment job to avoid this.
+    - name: test deployment job
       run: |
         python3 -m pytest ./thirdai_platform_py/deployment_job -v

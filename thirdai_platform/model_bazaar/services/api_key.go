@@ -96,10 +96,14 @@ func validateApiKey(db *gorm.DB, r *http.Request) (uuid.UUID, time.Time, error) 
 		return uuid.Nil, time.Time{}, fmt.Errorf("invalid model_id parameter: %w", err)
 	}
 
-	for _, model := range record.Models {
-		if model.Id == modelId {
-			return record.CreatedBy, record.ExpiryTime, nil
+	if !record.AllModels {
+		for _, model := range record.Models {
+			if model.Id == modelId {
+				return record.CreatedBy, record.ExpiryTime, nil
+			}
 		}
+	} else {
+		return record.CreatedBy, record.ExpiryTime, nil
 	}
 
 	return uuid.Nil, time.Time{}, ErrAPIKeyModelMismatch

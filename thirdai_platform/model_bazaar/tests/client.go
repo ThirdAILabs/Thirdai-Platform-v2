@@ -288,16 +288,18 @@ func (c *client) listModels() ([]services.ModelInfo, error) {
 	return res, err
 }
 
-func (c *client) createAPIKey(modelIDs []uuid.UUID, name string, expiry time.Time) (string, error) {
+func (c *client) createAPIKey(modelIDs []uuid.UUID, name string, expiry time.Time, allModels bool) (string, error) {
 	requestBody := map[string]interface{}{
-		"model_ids": modelIDs,
-		"name":      name,
-		"exp":       expiry,
+		"model_ids":  modelIDs,
+		"name":       name,
+		"exp":        expiry,
+		"all_models": allModels,
 	}
 
 	var response struct {
 		ApiKey string `json:"api_key"`
 	}
+
 	err := c.Post("/model/create-api-key").Json(requestBody).Do(&response)
 	if err != nil {
 		return "", fmt.Errorf("failed to create API key: %w", err)

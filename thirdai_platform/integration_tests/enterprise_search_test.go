@@ -105,7 +105,7 @@ func TestEnterpriseSearchWithGuardrail(t *testing.T) {
 
 	expiry := now.Add(24 * time.Hour)
 
-	eskApiKey, err := c.CreateAPIKey(enterpriseSearchModelIds, apiKeyName, expiry)
+	eskApiKey, err := c.CreateAPIKey(enterpriseSearchModelIds, apiKeyName, expiry, false)
 	if err != nil {
 		t.Fatalf("Failed to create API key: %v", err)
 	}

@@ -78,6 +78,8 @@ type UserAPIKey struct {
 	Name    string  `gorm:"size:500;not null"`
 	Models  []Model `gorm:"many2many:user_api_key_models;constraint:OnDelete:CASCADE;"`
 
+	AllModels bool `gorm:"default:false;not null"`
+
 	GeneratedTime time.Time
 	ExpiryTime    time.Time `gorm:"not null"`
 

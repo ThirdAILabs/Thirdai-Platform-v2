@@ -35,9 +35,10 @@ type ModelService struct {
 }
 
 type CreateAPIKeyRequest struct {
-	ModelIDs []uuid.UUID `json:"model_ids"`
-	Name     string      `json:"name"`
-	Exp      time.Time   `json:"exp"`
+	ModelIDs  []uuid.UUID `json:"model_ids"`
+	Name      string      `json:"name"`
+	Exp       time.Time   `json:"exp"`
+	AllModels bool        `json:"all_models"`
 }
 
 type APIKeyResponse struct {
@@ -267,7 +268,14 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 			return fmt.Errorf("invalid model IDs")
 		}
 
-		apiKey, err := s.createAndSaveAPIKeyInTransaction(tx, req.Name, req.Exp, user.Id, models)
+		apiKey, err := s.createAndSaveAPIKeyInTransaction(
+			tx,
+			req.Name,
+			req.Exp,
+			user.Id,
+			models,
+			req.AllModels,
+		)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to save API key: %v", err), http.StatusInternalServerError)
 			return err
@@ -289,8 +297,8 @@ func parseCreateAPIKeyRequest(r *http.Request, w http.ResponseWriter) (CreateAPI
 		return req, errors.New("invalid request body")
 	}
 
-	if len(req.ModelIDs) == 0 {
-		return req, errors.New("model_ids are required")
+	if !req.AllModels && len(req.ModelIDs) == 0 {
+		return req, errors.New("model_ids are required if all_models is false")
 	}
 
 	if strings.TrimSpace(req.Name) == "" {
@@ -346,7 +354,15 @@ func (s *ModelService) fetchModelsInTransaction(tx *gorm.DB, modelIDs []uuid.UUI
 	return models, nil
 }
 
-func (s *ModelService) createAndSaveAPIKeyInTransaction(tx *gorm.DB, name string, expiry time.Time, userID uuid.UUID, models []schema.Model) (string, error) {
+func (s *ModelService) createAndSaveAPIKeyInTransaction(
+	tx *gorm.DB,
+	name string,
+	expiry time.Time,
+	userID uuid.UUID,
+	models []schema.Model,
+	allModels bool,
+) (string, error) {
+
 	apiKey, hashKey, err := generateApiKey()
 	if err != nil {
 		return "", err
@@ -357,6 +373,7 @@ func (s *ModelService) createAndSaveAPIKeyInTransaction(tx *gorm.DB, name string
 		HashKey:       hashKey,
 		Name:          name,
 		Models:        models,
+		AllModels:     allModels,
 		GeneratedTime: time.Now(),
 		ExpiryTime:    expiry,
 		CreatedBy:     userID,

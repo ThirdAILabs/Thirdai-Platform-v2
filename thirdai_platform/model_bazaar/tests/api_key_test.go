@@ -27,7 +27,7 @@ func TestAPIKeyBasicCRUD(t *testing.T) {
 	keyName := "my-api-key"
 	expiry := time.Now().Add(24 * time.Hour)
 
-	apiKeyVal, err := user.createAPIKey([]uuid.UUID{uuid.MustParse(modelID)}, keyName, expiry)
+	apiKeyVal, err := user.createAPIKey([]uuid.UUID{uuid.MustParse(modelID)}, keyName, expiry, false)
 	if err != nil {
 		t.Fatalf("failed to create API key: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestAPIKeyPermissions(t *testing.T) {
 
 	apiKeyName := "perm-key"
 	expiry := time.Now().Add(24 * time.Hour)
-	apiKeyVal, err := user.createAPIKey([]uuid.UUID{uuid.MustParse(modelID)}, apiKeyName, expiry)
+	apiKeyVal, err := user.createAPIKey([]uuid.UUID{uuid.MustParse(modelID)}, apiKeyName, expiry, false)
 	if err != nil {
 		t.Fatalf("failed to create API key: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestAPIKeyModelInfo(t *testing.T) {
 
 	apiKeyName := "info-key"
 	expiry := time.Now().Add(24 * time.Hour)
-	apiKeyVal, err := user.createAPIKey([]uuid.UUID{uuid.MustParse(modelID)}, apiKeyName, expiry)
+	apiKeyVal, err := user.createAPIKey([]uuid.UUID{uuid.MustParse(modelID)}, apiKeyName, expiry, false)
 	if err != nil {
 		t.Fatalf("failed to create API key: %v", err)
 	}
@@ -157,7 +157,7 @@ func TestAPIKeyExpiration(t *testing.T) {
 
 	apiKeyName := "expired-key"
 	expiry := time.Now().Add(-1 * time.Hour)
-	_, err = user.createAPIKey([]uuid.UUID{uuid.MustParse(modelID)}, apiKeyName, expiry)
+	_, err = user.createAPIKey([]uuid.UUID{uuid.MustParse(modelID)}, apiKeyName, expiry, false)
 	if err == nil {
 		t.Fatal("expected error when creating an already expired API key, but got success.")
 	}
@@ -178,7 +178,7 @@ func TestAPIKeyDeletedNoAccess(t *testing.T) {
 
 	apiKeyName := "delete-me-key"
 	expiry := time.Now().Add(24 * time.Hour)
-	apiKeyVal, err := user.createAPIKey([]uuid.UUID{uuid.MustParse(modelID)}, apiKeyName, expiry)
+	apiKeyVal, err := user.createAPIKey([]uuid.UUID{uuid.MustParse(modelID)}, apiKeyName, expiry, false)
 	if err != nil {
 		t.Fatalf("failed to create API key: %v", err)
 	}
@@ -263,7 +263,7 @@ func TestAPIKeyDependencies(t *testing.T) {
 
 	apiKeyName := "dep-key"
 	expiry := time.Now().Add(24 * time.Hour)
-	apiKeyVal, err := user.createAPIKey([]uuid.UUID{uuid.MustParse(esID)}, apiKeyName, expiry)
+	apiKeyVal, err := user.createAPIKey([]uuid.UUID{uuid.MustParse(esID)}, apiKeyName, expiry, false)
 	if err != nil {
 		t.Fatalf("failed to create API key: %v", err)
 	}
@@ -293,7 +293,7 @@ func TestAPIKeyUsageAfterExpiration(t *testing.T) {
 
 	apiKeyName := "temp-key"
 	expiry := time.Now().Add(2 * time.Second)
-	apiKeyVal, err := user.createAPIKey([]uuid.UUID{uuid.MustParse(modelID)}, apiKeyName, expiry)
+	apiKeyVal, err := user.createAPIKey([]uuid.UUID{uuid.MustParse(modelID)}, apiKeyName, expiry, false)
 	if err != nil {
 		t.Fatalf("failed to create API key: %v", err)
 	}
@@ -339,7 +339,7 @@ func TestAPIKeyAccessDifferentModel(t *testing.T) {
 
 	apiKeyName := "model1-key"
 	expiry := time.Now().Add(24 * time.Hour)
-	apiKeyVal, err := user.createAPIKey([]uuid.UUID{uuid.MustParse(model1ID)}, apiKeyName, expiry)
+	apiKeyVal, err := user.createAPIKey([]uuid.UUID{uuid.MustParse(model1ID)}, apiKeyName, expiry, false)
 	if err != nil {
 		t.Fatalf("failed to create API key for model1: %v", err)
 	}
@@ -368,5 +368,75 @@ func TestAPIKeyAccessDifferentModel(t *testing.T) {
 	}
 	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatalf("expected ErrUnauthorized when accessing model2's info, got: %v", err)
+	}
+}
+
+func TestAPIKeyAccessAllModels(t *testing.T) {
+	env := setupSharedDBEnv(t)
+
+	user, err := env.newUser("all-models-user")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	initialModelID, err := user.trainNdbDummyFile("initial-model")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	apiKeyName := "all-models-key"
+	expiry := time.Now().Add(24 * time.Hour)
+	apiKeyVal, err := user.createAPIKey([]uuid.UUID{}, apiKeyName, expiry, true)
+	if err != nil {
+		t.Fatalf("failed to create API key with AllModels access: %v", err)
+	}
+	if apiKeyVal == "" {
+		t.Fatal("expected a valid API key, but got an empty string")
+	}
+
+	err = user.UseApiKey(apiKeyVal)
+	if err != nil {
+		t.Fatalf("failed to set API key: %v", err)
+	}
+
+	initialInfo, err := user.modelInfo(initialModelID)
+	if err != nil {
+		t.Fatalf("failed to access initial model with API key: %v", err)
+	}
+	if initialInfo.ModelId.String() != initialModelID {
+		t.Fatalf("expected model_id %s, got %s", initialModelID, initialInfo.ModelId.String())
+	}
+
+	err = user.login(loginInfo{Email: "all-models-user@mail.com", Password: "all-models-user_password"})
+	if err != nil {
+		t.Fatalf("failed to login: %v", err)
+	}
+
+	newModelID, err := user.trainNdbDummyFile("new-model-after-key")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = user.UseApiKey(apiKeyVal)
+	if err != nil {
+		t.Fatalf("failed to set API key: %v", err)
+	}
+
+	newInfo, err := user.modelInfo(newModelID)
+	if err != nil {
+		t.Fatalf("failed to access new model with API key: %v", err)
+	}
+	if newInfo.ModelId.String() != newModelID {
+		t.Fatalf("expected model_id %s, got %s", newModelID, newInfo.ModelId.String())
+	}
+
+	_, err = user.modelPermissions(initialModelID)
+	if err != nil {
+		t.Fatalf("API key should have access to initial model, but got error: %v", err)
+	}
+
+	_, err = user.modelPermissions(newModelID)
+	if err != nil {
+		t.Fatalf("API key should have access to new model, but got error: %v", err)
 	}
 }

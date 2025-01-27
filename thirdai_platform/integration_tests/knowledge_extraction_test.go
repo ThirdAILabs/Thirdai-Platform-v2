@@ -152,7 +152,7 @@ func TestKnowledgeExtraction(t *testing.T) {
 
 	expiry := now.Add(24 * time.Hour)
 
-	keApiKey, err := c.CreateAPIKey(knowledgeExtractionModelIds, apiKeyName, expiry)
+	keApiKey, err := c.CreateAPIKey(knowledgeExtractionModelIds, apiKeyName, expiry, false)
 	if err != nil {
 		t.Fatalf("Failed to create API key: %v", err)
 	}

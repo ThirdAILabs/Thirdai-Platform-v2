@@ -13,7 +13,7 @@ import (
 func createAPIKey(t *testing.T, c *client.PlatformClient, modelID uuid.UUID, prefix string, expiry time.Time) (string, uuid.UUID) {
 	apiKeyName := fmt.Sprintf("%s-%s", prefix, modelID.String())
 
-	apiKey, err := c.CreateAPIKey([]uuid.UUID{modelID}, apiKeyName, expiry)
+	apiKey, err := c.CreateAPIKey([]uuid.UUID{modelID}, apiKeyName, expiry, false)
 	if err != nil {
 		t.Fatalf("Failed to create API key for model %s: %v", modelID, err)
 	}

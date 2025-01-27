@@ -66,7 +66,7 @@ func TestGenerateTextStream(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer()
+			router := NewRouter()
 
 			var refs []Reference
 			for _, text := range tt.references {
@@ -90,7 +90,7 @@ func TestGenerateTextStream(t *testing.T) {
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
-			server.router.ServeHTTP(w, req)
+			router.ServeHTTP(w, req)
 
 			if w.Code != http.StatusOK {
 				t.Errorf("Expected status code %d, got %d", http.StatusOK, w.Code)
@@ -130,7 +130,7 @@ func TestGenerateTextStream(t *testing.T) {
 }
 
 func TestMissingAPIKey(t *testing.T) {
-	server := NewServer()
+	router := NewRouter()
 
 	request := map[string]interface{}{
 		"query":    "test query",
@@ -146,7 +146,7 @@ func TestMissingAPIKey(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
-	server.router.ServeHTTP(w, req)
+	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, w.Code)
@@ -164,7 +164,7 @@ func TestMissingAPIKey(t *testing.T) {
 }
 
 func TestUnsupportedProvider(t *testing.T) {
-	server := NewServer()
+	router := NewRouter()
 
 	request := map[string]interface{}{
 		"query":    "test query",
@@ -181,7 +181,7 @@ func TestUnsupportedProvider(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
-	server.router.ServeHTTP(w, req)
+	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, w.Code)
@@ -199,7 +199,7 @@ func TestUnsupportedProvider(t *testing.T) {
 }
 
 func TestInvalidRequestBody(t *testing.T) {
-	server := NewServer()
+	router := NewRouter()
 
 	// Missing required 'query' field
 	request := map[string]interface{}{
@@ -216,7 +216,7 @@ func TestInvalidRequestBody(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
-	server.router.ServeHTTP(w, req)
+	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, w.Code)
@@ -234,12 +234,12 @@ func TestInvalidRequestBody(t *testing.T) {
 }
 
 func TestHealthCheck(t *testing.T) {
-	server := NewServer()
+	router := NewRouter()
 
 	req := httptest.NewRequest("GET", "/llm-dispatch/health", nil)
 	w := httptest.NewRecorder()
 
-	server.router.ServeHTTP(w, req)
+	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, w.Code)

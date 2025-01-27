@@ -54,14 +54,22 @@ job "llm-dispatch" {
             server_address = "{{ .Registry }}"
           }
           {{ end }}
-          command = "/bin/sh"
-          args    = ["-c", "cd /app/thirdai_platform/model_bazaar/jobs/llm_dispatch && go run cmd/main.go"]
+          command = "/bin/bash"
+          args    = ["-c", "cd /app/thirdai_platform/llm_dispatch && go run cmd/main.go"]
         {{ else if isLocal .Driver }}
-          command = "/bin/sh"
+          command = "/bin/bash"
           {{ with .Driver }}
-          args    = ["-c", "cd {{ .PlatformDir }}/thirdai_platform/model_bazaar/jobs/llm_dispatch && go run cmd/main.go"]
+          args    = ["-c", "cd {{ .PlatformDir }}/thirdai_platform/llm_dispatch && go run cmd/main.go"]
           {{ end }}
         {{ end }}
+      }
+
+      template {
+        data = <<EOH
+{{ .EnvVars }}
+EOH
+        destination = "secrets/file.env"
+        env         = true
       }
 
       resources {

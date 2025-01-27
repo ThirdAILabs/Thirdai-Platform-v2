@@ -39,6 +39,7 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
+	github.com/sashabaranov/go-openai v1.36.1 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/segmentio/ksuid v1.0.4 // indirect
 	golang.org/x/net v0.21.0 // indirect

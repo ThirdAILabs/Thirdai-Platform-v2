@@ -1,5 +1,6 @@
 #include "binding.h"
-#include "include/OnDiskNeuralDB.h"
+#include "Licensing.h"
+#include "OnDiskNeuralDB.h"
 #include <algorithm>
 #include <cstring>
 #include <iostream>
@@ -82,7 +83,7 @@ void Document_set_version(Document_t *doc, unsigned int version) {
 
 void Document_add_metadata(Document_t *doc, unsigned int i, const char *key,
                            const MetadataValue_t *value) {
-  doc->metadata[i][key] = value->value;
+  doc->metadata.at(i)[key] = value->value;
 }
 
 struct MetadataList_t {
@@ -295,9 +296,10 @@ void NeuralDB_finetune(NeuralDB_t *ndb, const StringList_t *queries,
 }
 
 void NeuralDB_associate(NeuralDB_t *ndb, const StringList_t *sources,
-                        const StringList_t *targets, const char **err_ptr) {
+                        const StringList_t *targets, unsigned int strength,
+                        const char **err_ptr) {
   try {
-    ndb->ndb->associate(sources->list, targets->list, 4);
+    ndb->ndb->associate(sources->list, targets->list, strength);
   } catch (const std::exception &e) {
     // TODO(Nicholas): have case for NeuralDBError to return better errors
     copyError(e, err_ptr);
@@ -338,4 +340,10 @@ void NeuralDB_save(NeuralDB_t *ndb, const char *save_path,
     copyError(e, err_ptr);
     return;
   }
+}
+
+void set_license_key(const char *key) { thirdai::licensing::activate(key); }
+
+void set_license_path(const char *path) {
+  thirdai::licensing::setLicensePath(path);
 }

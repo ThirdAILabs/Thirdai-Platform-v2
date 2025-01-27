@@ -342,8 +342,20 @@ void NeuralDB_save(NeuralDB_t *ndb, const char *save_path,
   }
 }
 
-void set_license_key(const char *key) { thirdai::licensing::activate(key); }
+void set_license_key(const char *key, const char **err_ptr) {
+  try {
+    thirdai::licensing::activate(key);
+  } catch (const std::exception &e) {
+    copyError(e, err_ptr);
+    return;
+  }
+}
 
-void set_license_path(const char *path) {
-  thirdai::licensing::setLicensePath(path);
+void set_license_path(const char *path, const char **err_ptr) {
+  try {
+    thirdai::licensing::setLicensePath(path);
+  } catch (const std::exception &e) {
+    copyError(e, err_ptr);
+    return;
+  }
 }

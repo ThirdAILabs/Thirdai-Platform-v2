@@ -1,7 +1,7 @@
 package ndb
 
-// #cgo linux LDFLAGS: -L./lib/linux_x64 -lthirdai -lrocksdb -lutf8proc -fopenmp
-// #cgo darwin LDFLAGS: -L./lib/macos_arm64 -lthirdai -lrocksdb -lutf8proc -L/opt/homebrew/opt/libomp/lib/ -lomp
+// #cgo linux LDFLAGS: -L./lib/linux_x64 -lthirdai -lrocksdb -lutf8proc -fopenmp -lssl -lcrypto
+// #cgo darwin LDFLAGS: -L./lib/macos_arm64 -lthirdai -lrocksdb -lutf8proc -lcryptopp -L/opt/homebrew/opt/libomp/lib/ -lomp -L/opt/homebrew/Cellar/openssl@3/3.4.0/lib/ -lssl -lcrypto
 // #cgo CXXFLAGS: -O3 -fPIC -std=c++17 -I./include -fvisibility=hidden
 // #include "binding.h"
 // #include <stdlib.h>
@@ -413,16 +413,30 @@ func (ndb *NeuralDB) Save(savePath string) error {
 	return nil
 }
 
-func SetLicenseKey(key string) {
+func SetLicenseKey(key string) error {
 	keyCStr := C.CString(key)
 	defer C.free(unsafe.Pointer(keyCStr))
 
-	C.set_license_key(keyCStr)
+	var err *C.char
+	C.set_license_key(keyCStr, &err)
+	if err != nil {
+		defer C.free(unsafe.Pointer(err))
+		return errors.New(C.GoString(err))
+	}
+
+	return nil
 }
 
-func SetLicensePath(path string) {
+func SetLicensePath(path string) error {
 	pathCStr := C.CString(path)
 	defer C.free(unsafe.Pointer(pathCStr))
 
-	C.set_license_path(pathCStr)
+	var err *C.char
+	C.set_license_path(pathCStr, &err)
+	if err != nil {
+		defer C.free(unsafe.Pointer(err))
+		return errors.New(C.GoString(err))
+	}
+
+	return nil
 }

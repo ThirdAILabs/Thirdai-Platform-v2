@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"thirdai_platform/ndb"
+	"thirdai_platform/search/ndb"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -38,7 +38,7 @@ func (s *NDBServer) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chunks, err := s.ndb.Query(req.Query, req.Topk)
+	chunks, err := s.ndb.Query(req.Query, req.Topk, nil)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("ndb query error: %v", err), http.StatusInternalServerError)
 		return

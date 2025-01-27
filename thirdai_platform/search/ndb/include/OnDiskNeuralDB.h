@@ -3,6 +3,7 @@
 #include "Chunk.h"
 #include "NeuralDB.h"
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -33,7 +34,9 @@ public:
                  const std::vector<std::string> &targets,
                  uint32_t strength) final;
 
-  void deleteDoc(const DocId &doc_id, uint32_t doc_version) final;
+  void deleteDocVersion(const DocId &doc_id, uint32_t doc_version) final;
+
+  void deleteDoc(const DocId &doc_id, bool keep_latest_version) final;
 
   void prune() final;
 

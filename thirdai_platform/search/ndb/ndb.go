@@ -2,6 +2,7 @@ package ndb
 
 // #cgo linux LDFLAGS: -L./lib/linux_x64 -lthirdai -lrocksdb -lutf8proc -lcryptopp -fopenmp -lssl -lcrypto
 // #cgo darwin LDFLAGS: -L./lib/macos_arm64 -lthirdai -lrocksdb -lutf8proc -lcryptopp -L/opt/homebrew/opt/libomp/lib/ -lomp -L/opt/homebrew/Cellar/openssl@3/3.4.0/lib/ -lssl -lcrypto
+// #cgo CFLAGS: -O3
 // #cgo CXXFLAGS: -O3 -fPIC -std=c++17 -I./include -fvisibility=hidden
 // #include "binding.h"
 // #include <stdlib.h>

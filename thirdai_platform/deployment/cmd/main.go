@@ -1,4 +1,4 @@
-package deployment
+package main
 
 import (
 	"flag"
@@ -13,6 +13,7 @@ import (
 	"strings"
 	"thirdai_platform/client"
 	"thirdai_platform/model_bazaar/config"
+	"thirdai_platform/deployment"
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/utils"
 )
@@ -98,7 +99,7 @@ func main() {
 
 	initLogging(logFile)
 
-	ndbrouter, err := NewNdbRouter(config, reporter)
+	ndbrouter, err := deployment.NewNdbRouter(config, reporter)
 	if err != nil {
 		reporter.UpdateDeployStatusInternal("failed")
 		log.Fatalf("failed to setup deployment router: %v", err)

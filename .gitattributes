@@ -1,0 +1,8 @@
+linux_x64/libcryptopp.a filter=lfs diff=lfs merge=lfs -text
+linux_x64/librocksdb.a filter=lfs diff=lfs merge=lfs -text
+linux_x64/libthirdai.a filter=lfs diff=lfs merge=lfs -text
+linux_x64/libutf8proc.a filter=lfs diff=lfs merge=lfs -text
+macos_arm64/libcryptopp.a filter=lfs diff=lfs merge=lfs -text
+macos_arm64/librocksdb.a filter=lfs diff=lfs merge=lfs -text
+macos_arm64/libthirdai.a filter=lfs diff=lfs merge=lfs -text
+macos_arm64/libutf8proc.a filter=lfs diff=lfs merge=lfs -text

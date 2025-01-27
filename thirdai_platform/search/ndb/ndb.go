@@ -126,13 +126,11 @@ func (ndb *NeuralDB) Insert(document, docId string, chunks []string, metadata []
 		addChunk(doc, chunk)
 	}
 
-	if metadata != nil {
-		for i, m := range metadata {
-			for k, v := range m {
-				err := addMetadata(doc, i, k, v)
-				if err != nil {
-					return err
-				}
+	for i, m := range metadata { // this handles if metadata is nil
+		for k, v := range m {
+			err := addMetadata(doc, i, k, v)
+			if err != nil {
+				return err
 			}
 		}
 	}

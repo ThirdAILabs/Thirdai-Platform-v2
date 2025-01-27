@@ -23,7 +23,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  backend-unit-tests:
+  go-unit-tests:
     runs-on: ubuntu-latest-8-cores
     steps:
       - uses: actions/checkout@v2
@@ -36,6 +36,10 @@ jobs:
       - name: run backend unit tests
         run: |
           cd thirdai_platform && go test ./model_bazaar/tests -v
+
+      - name: run ndb unit tests
+        run: |
+          cd thirdai_platform && go test ./search/ndb -v
 
   train-job-unit-tests:
     runs-on: ubuntu-latest

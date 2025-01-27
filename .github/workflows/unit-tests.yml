@@ -39,11 +39,12 @@ jobs:
         with:
           go-version: '>=1.23.1'
 
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-
       - name: build universe library
         run: |
+          pwd 
+          ls .
+          ls ./universe-lib
+          ls ./universe-lib/Universe
           cd ./universe-lib/Universe
           bin/build.py -f THIRDAI_BUILD_LICENSE THIRDAI_CHECK_LICENSE
       

@@ -1,0 +1,3 @@
+[submodule "lib/Universe"]
+	path = lib/Universe
+	url = https://github.com/ThirdAILabs/Universe

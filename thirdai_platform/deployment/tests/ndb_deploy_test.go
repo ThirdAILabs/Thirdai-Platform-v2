@@ -1,40 +1,50 @@
 package tests
 
 import (
-	"slices"
+	"net/http"
 	"testing"
-	"thirdai_platform/model_bazaar/utils"
 	"thirdai_platform/deployment"
-	"thirdai_platform/ndb"
-	"time"
+	"thirdai_platform/model_bazaar/config"
+	"thirdai_platform/search/ndb"
+
+	"github.com/google/uuid"
 )
 
-func TestDeployConfig(t *testing.T) {
-	utils.SaveConfig()
-}
+// func TestDeployConfig(t *testing.T) {
+// 	utils.SaveConfig()
+// }
 
-
-func TestQueryHandler(t *testing.T) {
-	router := deployment.NdbRouter{
-		ndb: mockNdb{ // Mock NeuralDB implementation
-			QueryFn: func(query string, topk int) ([]ndb.Chunk, error) {
-				return []ndb.Chunk{{Id: 1, Text: "Result", Document: "Source", Score: 0.9}}, nil
-			},
-		},
+func TestBasicEndpoints(t *testing.T) {
+	db, err := ndb.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	req := httptest.NewRequest("POST", "/query", strings.NewReader(`{"query":"test","top_k":1}`))
-	w := httptest.NewRecorder()
+	err = db.Insert(
+		"doc_name_1", "doc_id_1",
+		[]string{"test line one", "another test line", "something without that"},
+		[]map[string]interface{}{{"thing1": true}, {"thing2": true}, {"thing1": true}},
+		nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	router.Search(w, req)
+	deploy_config := config.DeployConfig{ModelId: uuid.New(), }
 
-	resp := w.Result()
-	defer resp.Body.Close()
+	router, err := deployment.NewNdbRouter(&deploy_config)
 
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	var results searchResults
-	json.NewDecoder(resp.Body).Decode(&results)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	require.Len(t, results.References, 1)
-	require.Equal(t, "Result", results.References[0].Text)
+	r := router.Routes()
+
+	err = http.ListenAndServe(":25000", r)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+
+
 }

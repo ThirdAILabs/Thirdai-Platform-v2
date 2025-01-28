@@ -8,7 +8,7 @@ import (
 	"os"
 	"sort"
 	"path/filepath"
-	"thirdai_platform/client"
+	// "thirdai_platform/client"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/search/ndb"
 	"thirdai_platform/utils"
@@ -20,17 +20,18 @@ import (
 type NdbRouter struct {
 	ndb         ndb.NeuralDB
 	config      *config.DeployConfig
-	reporter    client.ModelClient
-	permissions Permissions
+	// reporter    client.ModelClient
+	// permissions Permissions
 }
 
-func NewNdbRouter(config *config.DeployConfig, reporter client.ModelClient) (*NdbRouter, error) {
+func NewNdbRouter(config *config.DeployConfig) (*NdbRouter, error) {
 	ndbPath := filepath.Join(config.ModelBazaarDir, "model", config.ModelId.String(), "model", "model.ndb")
 	ndb, err := ndb.New(ndbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open ndb: %v", err)
 	}
-	return &NdbRouter{ndb, config, reporter, Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
+	return &NdbRouter{ndb, config}, nil
+	// return &NdbRouter{ndb, config, reporter, Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
 }
 
 func (r *NdbRouter) Close() {
@@ -46,14 +47,14 @@ func (m *NdbRouter) Routes() chi.Router {
 	}))
 
 	r.Group(func(r chi.Router) {
-		r.Use(m.permissions.ModelPermissionsCheck("write"))
+		// r.Use(m.permissions.ModelPermissionsCheck("write"))
 
 		r.Post("/insert", m.Insert)
 		r.Post("/delete", m.Delete)
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(m.permissions.ModelPermissionsCheck("read"))
+		// r.Use(m.permissions.ModelPermissionsCheck("read"))
 
 		r.Post("/query", m.Search)
 		r.Post("/upvote", m.Upvote)

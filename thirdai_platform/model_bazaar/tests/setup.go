@@ -3,7 +3,6 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,7 +14,6 @@ import (
 	"thirdai_platform/model_bazaar/storage"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -34,12 +32,7 @@ const (
 )
 
 func setupTestEnv(t *testing.T) *testEnv {
-
-	var dsn string
-	uniqueID := uuid.New().String()
-	dsn = fmt.Sprintf("file:%s?mode=memory&cache=private", uniqueID)
-
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("file::memory:"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}

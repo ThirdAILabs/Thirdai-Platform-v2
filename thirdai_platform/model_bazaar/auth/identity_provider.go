@@ -1,7 +1,9 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"thirdai_platform/model_bazaar/schema"
 	"time"
@@ -9,6 +11,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+)
+
+var (
+	ErrUserNotFoundWithEmail = errors.New("no user found for given email")
+	ErrInvalidCredentials    = errors.New("invalid login credentials")
+	ErrGeneratingJwt         = errors.New("error generating jwt")
+	ErrEmailAlreadyInUse     = errors.New("email is already in use")
+	ErrUsernameAlreadyInUse  = errors.New("username is already in use")
 )
 
 type LoginResult struct {
@@ -49,12 +59,14 @@ func addInitialAdminToDb(db *gorm.DB, userId uuid.UUID, username, email string, 
 		var existingUser schema.User
 		result := txn.Limit(1).Find(&existingUser, "id = ? or username = ? or email = ?", userId, username, email)
 		if result.Error != nil {
-			return schema.NewDbError("checking if admin has already been added", result.Error)
+			slog.Error("sql error checking if admin has already been added", "error", result.Error)
+			return schema.ErrDbAccessFailed
 		}
 		if result.RowsAffected == 0 {
 			result := txn.Create(&user)
 			if result.Error != nil {
-				return schema.NewDbError("creating initial admin", result.Error)
+				slog.Error("sql error creating initial admin user", "error", result.Error)
+				return schema.ErrDbAccessFailed
 			}
 		}
 		return nil

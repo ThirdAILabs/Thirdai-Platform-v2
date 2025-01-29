@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"thirdai_platform/model_bazaar/schema"
@@ -15,12 +16,12 @@ func AdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
 			user, err := UserFromContext(r)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
 			if !user.IsAdmin {
-				http.Error(w, fmt.Sprintf("user %v is not an admin", user.Id), http.StatusUnauthorized)
+				http.Error(w, fmt.Sprintf("user %v is not an admin", user.Id), http.StatusForbidden)
 				return
 			}
 
@@ -30,13 +31,16 @@ func AdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 	}
 }
 
-func isTeamAdmin(teamId, userId uuid.UUID, db *gorm.DB) bool {
+func isTeamAdmin(teamId, userId uuid.UUID, db *gorm.DB) (bool, error) {
 	userTeam, err := schema.GetUserTeam(teamId, userId, db)
-	if err != nil || userTeam == nil {
-		return false
+	if err != nil {
+		if errors.Is(err, schema.ErrUserTeamNotFound) {
+			return false, nil
+		}
+		return false, err
 	}
 
-	return userTeam.IsTeamAdmin
+	return userTeam.IsTeamAdmin, nil
 }
 
 func AdminOrTeamAdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
@@ -50,12 +54,18 @@ func AdminOrTeamAdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 
 			user, err := UserFromContext(r)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
-			if !user.IsAdmin && !isTeamAdmin(teamId, user.Id, db) {
-				http.Error(w, "user must be admin or team admin to access endpoint", http.StatusUnauthorized)
+			isAdmin, err := isTeamAdmin(teamId, user.Id, db)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			if !user.IsAdmin && !isAdmin {
+				http.Error(w, "user must be admin or team admin to access endpoint", http.StatusForbidden)
 				return
 			}
 
@@ -65,13 +75,16 @@ func AdminOrTeamAdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 	}
 }
 
-func isTeamMember(teamId, userId uuid.UUID, db *gorm.DB) bool {
-	userTeam, err := schema.GetUserTeam(teamId, userId, db)
-	if err != nil || userTeam == nil {
-		return false
+func isTeamMember(teamId, userId uuid.UUID, db *gorm.DB) (bool, error) {
+	_, err := schema.GetUserTeam(teamId, userId, db)
+	if err != nil {
+		if errors.Is(err, schema.ErrUserTeamNotFound) {
+			return false, nil
+		}
+		return false, err
 	}
 
-	return true
+	return true, nil
 }
 
 func TeamMemberOnly(db *gorm.DB) func(http.Handler) http.Handler {
@@ -85,12 +98,18 @@ func TeamMemberOnly(db *gorm.DB) func(http.Handler) http.Handler {
 
 			user, err := UserFromContext(r)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
-			if !user.IsAdmin && !isTeamMember(teamId, user.Id, db) {
-				http.Error(w, "user must be team member to access endpoint", http.StatusUnauthorized)
+			isMember, err := isTeamMember(teamId, user.Id, db)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			if !user.IsAdmin && !isMember {
+				http.Error(w, "user must be team member to access endpoint", http.StatusForbidden)
 				return
 			}
 
@@ -148,17 +167,18 @@ func GetModelPermissions(modelId uuid.UUID, user schema.User, db *gorm.DB) (mode
 	if model.Access == schema.Protected && model.TeamId != nil {
 		userTeam, err := schema.GetUserTeam(*model.TeamId, user.Id, db)
 		if err != nil {
+			if errors.Is(err, schema.ErrUserTeamNotFound) {
+				return NoPermission, nil
+			}
 			return NoPermission, err
 		}
-		if userTeam != nil {
-			if userTeam.IsTeamAdmin {
-				return OwnerPermission, nil
-			}
-			if model.DefaultPermission == schema.WritePerm {
-				return WritePermission, nil
-			}
-			return ReadPermission, nil
+		if userTeam.IsTeamAdmin {
+			return OwnerPermission, nil
 		}
+		if model.DefaultPermission == schema.WritePerm {
+			return WritePermission, nil
+		}
+		return ReadPermission, nil
 	}
 
 	return NoPermission, nil
@@ -175,13 +195,17 @@ func ModelPermissionOnly(db *gorm.DB, minPermission modelPermission) func(http.H
 
 			user, err := UserFromContext(r)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
 			permission, err := GetModelPermissions(modelId, user, db)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
+				if errors.Is(err, schema.ErrModelNotFound) {
+					http.Error(w, err.Error(), http.StatusNotFound)
+					return
+				}
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
@@ -191,7 +215,7 @@ func ModelPermissionOnly(db *gorm.DB, minPermission modelPermission) func(http.H
 			}
 
 			required, actual := modelPermissionToString(minPermission), modelPermissionToString(permission)
-			http.Error(w, fmt.Sprintf("user %v does not have required permission for model %v (required=%v, actual=%v)", user.Id, modelId, required, actual), http.StatusUnauthorized)
+			http.Error(w, fmt.Sprintf("user %v does not have required permission for model %v (required=%v, actual=%v)", user.Id, modelId, required, actual), http.StatusForbidden)
 		}
 		return http.HandlerFunc(hfn)
 	}

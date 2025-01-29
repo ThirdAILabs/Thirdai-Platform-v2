@@ -50,12 +50,12 @@ func URLParam(r *http.Request, key string) (string, error) {
 func URLParamUUID(r *http.Request, key string) (uuid.UUID, error) {
 	param := chi.URLParam(r, key)
 	if len(param) == 0 {
-		return uuid.UUID{}, fmt.Errorf("missing {%v} url parameter", key)
+		return uuid.Nil, fmt.Errorf("missing {%v} url parameter", key)
 	}
 
 	id, err := uuid.Parse(param)
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("invalid uuid '%v' provided: %w", param, err)
+		return uuid.Nil, fmt.Errorf("invalid uuid '%v' provided: %w", param, err)
 	}
 
 	return id, nil

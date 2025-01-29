@@ -1,8 +1,9 @@
 package ndb
 
-// #cgo linux LDFLAGS: -L. -lthirdai -lrocksdb -lutf8proc -fopenmp
-// #cgo darwin LDFLAGS: -L. -lthirdai -lrocksdb -lutf8proc -L/opt/homebrew/opt/libomp/lib/ -lomp
-// #cgo CXXFLAGS: -O3 -fPIC -std=c++17 -I. -fvisibility=hidden
+// #cgo linux LDFLAGS: -L./lib/linux_x64 -lthirdai -lrocksdb -lutf8proc -lcryptopp -fopenmp -lssl -lcrypto
+// #cgo darwin LDFLAGS: -L./lib/macos_arm64 -lthirdai -lrocksdb -lutf8proc -lcryptopp -L/opt/homebrew/opt/libomp/lib/ -lomp -L/opt/homebrew/Cellar/openssl@3/3.4.0/lib/ -lssl -lcrypto
+// #cgo CFLAGS: -O3
+// #cgo CXXFLAGS: -O3 -fPIC -std=c++17 -I./include -fvisibility=hidden
 // #include "binding.h"
 // #include <stdlib.h>
 import "C"
@@ -54,10 +55,10 @@ func newMetadataValue(value interface{}) (*C.MetadataValue_t, error) {
 	}
 }
 
-func newDocument(document, doc_id string) *C.Document_t {
+func newDocument(document, docId string) *C.Document_t {
 	documentCStr := C.CString(document)
 	defer C.free(unsafe.Pointer(documentCStr))
-	docIdCStr := C.CString(doc_id)
+	docIdCStr := C.CString(docId)
 	defer C.free(unsafe.Pointer(docIdCStr))
 
 	doc := C.Document_new(documentCStr, docIdCStr)
@@ -86,14 +87,14 @@ func addMetadata(doc *C.Document_t, i int, key string, value interface{}) error 
 	return nil
 }
 
-func CheckInsertArgs(document, doc_id string, chunks []string, metadata []map[string]interface{}) error {
+func CheckInsertArgs(document, docId string, chunks []string, metadata []map[string]interface{}) error {
 	if len(document) == 0 {
 		return fmt.Errorf("document must not be empty string")
 	}
-	if len(doc_id) == 0 {
+	if len(docId) == 0 {
 		return fmt.Errorf("doc_id must not be empty string")
 	}
-	if strings.ContainsRune(doc_id, ';') {
+	if strings.ContainsRune(docId, ';') {
 		return fmt.Errorf("doc_id cannot contain ';'")
 	}
 	if metadata != nil && len(chunks) != len(metadata) {
@@ -114,24 +115,22 @@ func CheckInsertArgs(document, doc_id string, chunks []string, metadata []map[st
 	return nil
 }
 
-func (ndb *NeuralDB) Insert(document, doc_id string, chunks []string, metadata []map[string]interface{}, version *uint) error {
-	if err := CheckInsertArgs(document, doc_id, chunks, metadata); err != nil {
+func (ndb *NeuralDB) Insert(document, docId string, chunks []string, metadata []map[string]interface{}, version *uint) error {
+	if err := CheckInsertArgs(document, docId, chunks, metadata); err != nil {
 		return err
 	}
 
-	doc := newDocument(document, doc_id)
+	doc := newDocument(document, docId)
 	defer C.Document_free(doc)
 	for _, chunk := range chunks {
 		addChunk(doc, chunk)
 	}
 
-	if metadata != nil {
-		for i, m := range metadata {
-			for k, v := range m {
-				err := addMetadata(doc, i, k, v)
-				if err != nil {
-					return err
-				}
+	for i, m := range metadata { // this handles if metadata is nil
+		for k, v := range m {
+			err := addMetadata(doc, i, k, v)
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -220,6 +219,9 @@ type Chunk struct {
 }
 
 func (ndb *NeuralDB) Query(query string, topk int, constraints Constraints) ([]Chunk, error) {
+	if topk <= 0 {
+		return nil, errors.New("topk must be > 0")
+	}
 	queryCStr := C.CString(query)
 	defer C.free(unsafe.Pointer(queryCStr))
 
@@ -335,7 +337,7 @@ func CheckAssociateArgs(sources, targets []string) error {
 	return nil
 }
 
-func (ndb *NeuralDB) Associate(sources, targets []string) error {
+func (ndb *NeuralDB) Associate(sources, targets []string, strength uint32) error {
 	if err := CheckAssociateArgs(sources, targets); err != nil {
 		return err
 	}
@@ -347,7 +349,7 @@ func (ndb *NeuralDB) Associate(sources, targets []string) error {
 	defer C.StringList_free(targetList)
 
 	var err *C.char
-	C.NeuralDB_associate(ndb.ndb, sourceList, targetList, &err)
+	C.NeuralDB_associate(ndb.ndb, sourceList, targetList, C.uint(strength), &err)
 	if err != nil {
 		defer C.free(unsafe.Pointer(err))
 		return errors.New(C.GoString(err))
@@ -402,6 +404,34 @@ func (ndb *NeuralDB) Save(savePath string) error {
 
 	var err *C.char
 	C.NeuralDB_save(ndb.ndb, savePathCStr, &err)
+	if err != nil {
+		defer C.free(unsafe.Pointer(err))
+		return errors.New(C.GoString(err))
+	}
+
+	return nil
+}
+
+func SetLicenseKey(key string) error {
+	keyCStr := C.CString(key)
+	defer C.free(unsafe.Pointer(keyCStr))
+
+	var err *C.char
+	C.set_license_key(keyCStr, &err)
+	if err != nil {
+		defer C.free(unsafe.Pointer(err))
+		return errors.New(C.GoString(err))
+	}
+
+	return nil
+}
+
+func SetLicensePath(path string) error {
+	pathCStr := C.CString(path)
+	defer C.free(unsafe.Pointer(pathCStr))
+
+	var err *C.char
+	C.set_license_path(pathCStr, &err)
 	if err != nil {
 		defer C.free(unsafe.Pointer(err))
 		return errors.New(C.GoString(err))

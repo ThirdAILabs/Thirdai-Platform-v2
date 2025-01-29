@@ -49,7 +49,7 @@ public:
     return std::get<float>(_value);
   }
 
-  const std::string& asStr() const {
+  const std::string &asStr() const {
     checkType(MetadataType::Str);
     return std::get<std::string>(_value);
   }
@@ -133,24 +133,6 @@ public:
 
 private:
   MetadataValue _value;
-};
-
-class AnyOf final : public Constraint {
-public:
-  explicit AnyOf(std::vector<MetadataValue> values)
-      : _values(std::move(values)) {}
-
-  static std::shared_ptr<AnyOf> make(std::vector<MetadataValue> values) {
-    return std::make_shared<AnyOf>(std::move(values));
-  }
-
-  bool matches(const MetadataValue &value) const final {
-    return std::any_of(_values.begin(), _values.end(),
-                       [&value](const auto &v) { return value.equals(v); });
-  }
-
-private:
-  std::vector<MetadataValue> _values;
 };
 
 class LessThan final : public Constraint {

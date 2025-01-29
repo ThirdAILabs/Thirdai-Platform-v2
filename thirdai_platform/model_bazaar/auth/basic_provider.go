@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"thirdai_platform/model_bazaar/schema"
 	"time"
@@ -51,19 +52,23 @@ func (auth *BasicIdentityProvider) addUserToContext() func(http.Handler) http.Ha
 		handler := func(w http.ResponseWriter, r *http.Request) {
 			userId, err := ValueFromContext(r, userIdKey)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
 			userUUID, err := uuid.Parse(userId)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("invalid user uuid '%v': %v'", userId, err), http.StatusUnauthorized)
+				http.Error(w, fmt.Sprintf("invalid user uuid '%v': %v'", userId, err), http.StatusBadRequest)
 				return
 			}
 
 			user, err := schema.GetUser(userUUID, auth.db)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("unable to find user %v: %v", userId, err), http.StatusUnauthorized)
+				if errors.Is(err, schema.ErrUserNotFound) {
+					http.Error(w, err.Error(), http.StatusNotFound)
+					return
+				}
+				http.Error(w, fmt.Sprintf("unable to find user %v: %v", userId, err), http.StatusInternalServerError)
 				return
 			}
 
@@ -89,19 +94,20 @@ func (auth *BasicIdentityProvider) LoginWithEmail(email, password string) (Login
 	result := auth.db.First(&user, "email = ?", email)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return LoginResult{}, fmt.Errorf("no user found with email %v", email)
+			return LoginResult{}, ErrUserNotFoundWithEmail
 		}
-		return LoginResult{}, schema.NewDbError("locating user for email", result.Error)
+		slog.Error("sql error looking up user by email", "error", result.Error)
+		return LoginResult{}, schema.ErrDbAccessFailed
 	}
 
 	err := bcrypt.CompareHashAndPassword(user.Password, []byte(password))
 	if err != nil {
-		return LoginResult{}, fmt.Errorf("email and password do not match")
+		return LoginResult{}, ErrInvalidCredentials
 	}
 
 	token, err := auth.jwtManager.CreateUserJwt(user.Id)
 	if err != nil {
-		return LoginResult{}, fmt.Errorf("login failed: %w", err)
+		return LoginResult{}, ErrGeneratingJwt
 	}
 
 	return LoginResult{UserId: user.Id, AccessToken: token}, nil
@@ -114,7 +120,7 @@ func (auth *BasicIdentityProvider) LoginWithToken(accessToken string) (LoginResu
 func (auth *BasicIdentityProvider) CreateUser(username, email, password string) (uuid.UUID, error) {
 	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("error encrypting password: %w", err)
+		return uuid.Nil, fmt.Errorf("error encrypting password: %w", err)
 	}
 
 	newUser := schema.User{Id: uuid.New(), Username: username, Email: email, Password: hashedPwd, IsAdmin: false}
@@ -123,26 +129,28 @@ func (auth *BasicIdentityProvider) CreateUser(username, email, password string) 
 		var existingUser schema.User
 		result := txn.Limit(1).Find(&existingUser, "username = ? or email = ?", username, email)
 		if result.Error != nil {
-			return schema.NewDbError("checking for existing username/email", result.Error)
+			slog.Error("sql error checking for existing username/email", "error", result.Error)
+			return schema.ErrDbAccessFailed
 		}
 		if result.RowsAffected != 0 {
 			if existingUser.Username == username {
-				return fmt.Errorf("username '%v' is already in use", username)
+				return ErrUsernameAlreadyInUse
 			} else {
-				return fmt.Errorf("email '%v' is already in use", email)
+				return ErrEmailAlreadyInUse
 			}
 		}
 
 		result = txn.Create(&newUser)
 		if result.Error != nil {
-			return schema.NewDbError("creating new user entry", result.Error)
+			slog.Error("sql error creating new user entry", "error", result.Error)
+			return schema.ErrDbAccessFailed
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("error creating new user: %w", err)
+		return uuid.Nil, fmt.Errorf("error creating new user: %w", err)
 	}
 
 	return newUser.Id, nil

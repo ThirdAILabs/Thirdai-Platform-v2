@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -100,11 +102,11 @@ type ModelInfo struct {
 func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 	trainStatus, _, err := getModelStatus(model, db, true)
 	if err != nil {
-		return ModelInfo{}, fmt.Errorf("error retrieving model status: %w", err)
+		return ModelInfo{}, fmt.Errorf("error retrieving model train status: %w", err)
 	}
 	deployStatus, _, err := getModelStatus(model, db, false)
 	if err != nil {
-		return ModelInfo{}, fmt.Errorf("error retrieving model status: %w", err)
+		return ModelInfo{}, fmt.Errorf("error retrieving model deploy status: %w", err)
 	}
 
 	attributes := make(map[string]string, len(model.Attributes))
@@ -147,13 +149,17 @@ func (s *ModelService) Info(w http.ResponseWriter, r *http.Request) {
 
 	model, err := schema.GetModel(modelId, s.db, true, true, true)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		if errors.Is(err, schema.ErrModelNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	info, err := convertToModelInfo(model, s.db)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), GetResponseCode(err))
 		return
 	}
 
@@ -163,7 +169,7 @@ func (s *ModelService) Info(w http.ResponseWriter, r *http.Request) {
 func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -174,7 +180,7 @@ func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 	} else {
 		userTeams, err := schema.GetUserTeamIds(user.Id, s.db)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "error loading user teams to determine model access", http.StatusInternalServerError)
 			return
 		}
 		result = s.db.
@@ -190,8 +196,8 @@ func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if result.Error != nil {
-		err := schema.NewDbError("listing models", result.Error)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		slog.Error("sql error list accessible models", "error", err)
+		http.Error(w, fmt.Sprintf("unable to list models: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -199,7 +205,7 @@ func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 	for _, model := range models {
 		info, err := convertToModelInfo(model, s.db)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), GetResponseCode(err))
 			return
 		}
 		infos = append(infos, info)
@@ -225,19 +231,24 @@ func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
 
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error getting user_id: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error getting user_id: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	permission, err := auth.GetModelPermissions(modelId, user, s.db)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error retrieving model permissions: %v", err), http.StatusBadRequest)
+		if errors.Is(err, schema.ErrModelNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, fmt.Sprintf("error retrieving model permissions: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	expiration, err := s.userAuth.GetTokenExpiration(r)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error retrieving token expiration: %v", err), http.StatusBadRequest)
+		slog.Error("error retrieving jwt expiration", "error", err)
+		http.Error(w, "error retrieving token expiration", http.StatusInternalServerError)
 		return
 	}
 
@@ -259,7 +270,8 @@ func countTrainingChildModels(db *gorm.DB, modelId uuid.UUID) (int64, error) {
 		Count(&childModels)
 
 	if result.Error != nil {
-		return 0, schema.NewDbError("counting child models", result.Error)
+		slog.Error("sql error counting child models", "error", result.Error)
+		return 0, CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 	}
 	return childModels, nil
 }
@@ -272,12 +284,20 @@ func (s *ModelService) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
+		model, err := schema.GetModel(modelId, txn, false, false, false)
+		if err != nil {
+			if errors.Is(err, schema.ErrModelNotFound) {
+				return CodedError(err, http.StatusNotFound)
+			}
+			return CodedError(err, http.StatusInternalServerError)
+		}
+
 		usedBy, err := countDownstreamModels(modelId, txn, false)
 		if err != nil {
 			return err
 		}
 		if usedBy != 0 {
-			return fmt.Errorf("cannot delete model %v since it is used as a dependency by %d other models", modelId, usedBy)
+			return CodedError(fmt.Errorf("cannot delete model %v since it is used as a dependency by %d other models", modelId, usedBy), http.StatusUnprocessableEntity)
 		}
 
 		childModels, err := countTrainingChildModels(txn, modelId)
@@ -285,49 +305,48 @@ func (s *ModelService) Delete(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if childModels != 0 {
-			return fmt.Errorf("cannot delete model %v since it is being used as a base model for %d actively training models", modelId, childModels)
-		}
-
-		model, err := schema.GetModel(modelId, txn, false, false, false)
-		if err != nil {
-			return err
+			return CodedError(fmt.Errorf("cannot delete model %v since it is being used as a base model for %d actively training models", modelId, childModels), http.StatusUnprocessableEntity)
 		}
 
 		if model.TrainStatus == schema.Starting || model.TrainStatus == schema.InProgress {
 			err = s.nomad.StopJob(model.TrainJobName())
 			if err != nil {
-				return err
+				slog.Error("error stopping train job when deleting model", "model_id", modelId, "error", err)
+				return CodedError(errors.New("error stopping model train job"), http.StatusInternalServerError)
 			}
 		}
 
 		if model.DeployStatus == schema.Starting || model.DeployStatus == schema.InProgress || model.DeployStatus == schema.Complete {
 			err = s.nomad.StopJob(model.DeployJobName())
 			if err != nil {
-				return err
+				slog.Error("error stopping deploy job when deleting model", "model_id", modelId, "error", err)
+				return CodedError(errors.New("error stopping model deploy job"), http.StatusInternalServerError)
 			}
 		}
 
 		err = s.storage.Delete(storage.ModelPath(modelId))
 		if err != nil {
-			return fmt.Errorf("error deleting model date: %v", err)
+			slog.Error("error deleting model directory", "model_id", modelId, "error", err)
+			return CodedError(errors.New("error deleting model data"), http.StatusInternalServerError)
 		}
 
 		err = s.storage.Delete(storage.DataPath(modelId))
 		if err != nil {
-			return fmt.Errorf("error deleting model date: %v", err)
+			slog.Error("error deleting model data directory", "model_id", modelId, "error", err)
+			return CodedError(errors.New("error deleting model data"), http.StatusInternalServerError)
 		}
 
-		// TODO(Nicholas): ensure all relations (deps, attrs, teams, etc) are cleaned up
 		result := txn.Delete(&model)
 		if result.Error != nil {
-			return schema.NewDbError("deleting model", result.Error)
+			slog.Error("sql error deleting model", "model_id", modelId, "error", result.Error)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error deleting model: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error deleting model: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -346,7 +365,7 @@ func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
 
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error retrieving user id from request: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error retrieving user id from request: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -359,20 +378,22 @@ func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
 
 		result := txn.Create(&model)
 		if result.Error != nil {
-			return schema.NewDbError("creating model entry", result.Error)
+			slog.Error("sql error creating model for upload", "error", result.Error)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error creating new model: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error creating new model: %v", err), GetResponseCode(err))
 		return
 	}
 
 	uploadToken, err := s.uploadSessionAuth.CreateModelJwt(model.Id, 10*time.Minute)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error creating upload token for model %v: %v", model.Name, err), http.StatusBadRequest)
+		slog.Error("error creating upload token", "model_id", model.Id, "error", err)
+		http.Error(w, "error creating upload token for model", http.StatusInternalServerError)
 		return
 	}
 
@@ -401,7 +422,8 @@ func (s *ModelService) UploadChunk(w http.ResponseWriter, r *http.Request) {
 
 	err = s.storage.Write(path, r.Body)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error uploading chunk %d to storage: %v", chunkIdx, err), http.StatusBadRequest)
+		slog.Error("error uploading chunk to storage", "model_id", modelId, "chunk_idx", chunkIdx, "error", err)
+		http.Error(w, "error uploading chunk to storage", http.StatusInternalServerError)
 		return
 	}
 
@@ -416,7 +438,8 @@ type uploadCommitResponse struct {
 func (s *ModelService) combineChunks(modelId uuid.UUID) error {
 	chunks, err := s.storage.List(filepath.Join(storage.ModelPath(modelId), "chunks"))
 	if err != nil {
-		return fmt.Errorf("error listing chunks for model upload: %w", err)
+		slog.Error("error listing chunks for model upload", "error", err)
+		return CodedError(errors.New("error accessing uploaded data"), http.StatusInternalServerError)
 	}
 
 	chunkSet := make(map[string]bool)
@@ -428,23 +451,27 @@ func (s *ModelService) combineChunks(modelId uuid.UUID) error {
 	for i := 0; i < len(chunks); i++ {
 		chunkPath := strconv.Itoa(i)
 		if !chunkSet[chunkPath] {
-			return fmt.Errorf("chunk %d is missing", i)
+			return CodedError(fmt.Errorf("chunk %d is missing", i), http.StatusBadRequest)
 		}
 
 		chunk, err := s.storage.Read(filepath.Join(storage.ModelPath(modelId), "chunks", chunkPath))
 		if err != nil {
-			return fmt.Errorf("error reading chunk %d: %w", i, err)
+			slog.Error("error reading chunk from upload", "model_id", modelId, "chunk_idx", i, "error", err)
+			return CodedError(errors.New("error accessing uploaded data"), http.StatusInternalServerError)
 		}
 		defer chunk.Close()
 
 		err = s.storage.Append(modelZipfile, chunk)
 		if err != nil {
-			return fmt.Errorf("error writing chunk %d: %w", i, err)
+			slog.Error("error appending chunk", "model_id", modelId, "chunk_idx", i, "error", err)
+			return CodedError(errors.New("error accessing uploaded data"), http.StatusInternalServerError)
 		}
 	}
 
 	if err := s.storage.Unzip(modelZipfile); err != nil {
-		return fmt.Errorf("error unzipping model, please ensure upload is valid zipfile as returned when downloading a model: %w", err)
+		slog.Error("error unzipping model archive", "model_id", modelId, "error", err)
+		// This could be because the upload is corrupted, or because an internal error
+		return CodedError(errors.New("error opening model archive"), http.StatusInternalServerError)
 	}
 
 	return nil
@@ -470,15 +497,13 @@ func (s *ModelService) completeUpload(model *schema.Model) error {
 		}
 	}
 
-	return s.db.Transaction(func(txn *gorm.DB) error {
-		result := txn.Save(model)
-		if result.Error != nil {
-			err := schema.NewDbError("updating model on upload commit", result.Error)
-			return err
-		}
+	result := s.db.Save(model)
+	if result.Error != nil {
+		slog.Error("sql error updating model info on upload commit", "model_id", model.Id, "error", result.Error)
+		return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
+	}
 
-		return nil
-	})
+	return nil
 }
 
 type ModelMetadata struct {
@@ -490,11 +515,13 @@ func saveModelMetadata(s storage.Storage, model schema.Model) error {
 	metadata := ModelMetadata{Type: model.Type, Attributes: model.GetAttributes()}
 	buf := new(bytes.Buffer)
 	if err := json.NewEncoder(buf).Encode(metadata); err != nil {
-		return fmt.Errorf("error serializing model metadata: %w", err)
+		slog.Error("error serializing metadata for model download", "model_id", model.Id, "error", err)
+		return CodedError(errors.New("error creating metadata for download archive"), http.StatusInternalServerError)
 	}
 
 	if err := s.Write(storage.ModelMetadataPath(model.Id), buf); err != nil {
-		return fmt.Errorf("error saving model metadata: %w", err)
+		slog.Error("error saving metadata for model download", "model_id", model.Id, "error", err)
+		return CodedError(errors.New("error creating metadata for download archive"), http.StatusInternalServerError)
 	}
 
 	return nil
@@ -503,13 +530,15 @@ func saveModelMetadata(s storage.Storage, model schema.Model) error {
 func (s *ModelService) loadModelMetadata(modelId uuid.UUID) (ModelMetadata, error) {
 	rawMetadata, err := s.storage.Read(storage.ModelMetadataPath(modelId))
 	if err != nil {
-		return ModelMetadata{}, fmt.Errorf("error opening model metadata: %w", err)
+		slog.Error("error opening model metadata", "model_id", modelId, "error", err)
+		return ModelMetadata{}, CodedError(errors.New("error loading model metadata"), http.StatusInternalServerError)
 	}
 	defer rawMetadata.Close()
 
 	var metadata ModelMetadata
 	if err := json.NewDecoder(rawMetadata).Decode(&metadata); err != nil {
-		return ModelMetadata{}, fmt.Errorf("error parsing model metadata: %w", err)
+		slog.Error("error parsing model metadata", "model_id", modelId, "error", err)
+		return ModelMetadata{}, CodedError(errors.New("error loading model metadata"), http.StatusInternalServerError)
 	}
 
 	return metadata, nil
@@ -524,19 +553,23 @@ func (s *ModelService) UploadCommit(w http.ResponseWriter, r *http.Request) {
 
 	model, err := schema.GetModel(modelId, s.db, false, false, false)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error retrieving model: %v", err), http.StatusBadRequest)
+		if errors.Is(err, schema.ErrModelNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, fmt.Sprintf("error retrieving model: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	if err := s.combineChunks(modelId); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), GetResponseCode(err))
 		return
 	}
 
 	// TODO(Anyone): add checksum
 
 	if err := s.completeUpload(&model); err != nil {
-		http.Error(w, fmt.Sprintf("error completing model upload: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error completing model upload: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -552,28 +585,33 @@ func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
 
 	model, err := schema.GetModel(modelId, s.db, true, true, false)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error retrieving model: %v", err), http.StatusBadRequest)
+		if errors.Is(err, schema.ErrModelNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, fmt.Sprintf("error retrieving model: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	if model.TrainStatus != schema.Complete {
-		http.Error(w, fmt.Sprintf("can only download model with successfully completed training, model has train status %s", model.TrainStatus), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("can only download model with successfully completed training, model has train status %s", model.TrainStatus), http.StatusUnprocessableEntity)
 		return
 	}
 
 	if len(model.Dependencies) > 0 {
-		http.Error(w, "downloading models with dependencies is not yet supported", http.StatusBadRequest)
+		http.Error(w, "downloading models with dependencies is not yet supported", http.StatusUnprocessableEntity)
 		return
 	}
 
 	if err := saveModelMetadata(s.storage, model); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), GetResponseCode(err))
 		return
 	}
 
 	downloadPath := filepath.Join(storage.ModelPath(model.Id), "model")
 	if err := s.storage.Zip(downloadPath); err != nil {
-		http.Error(w, fmt.Sprintf("error preparing zipfile for model download: %v", err), http.StatusBadRequest)
+		slog.Error("error preparing zipfile for model download", "model_id", modelId, "error", err)
+		http.Error(w, "error preparing model download archive", http.StatusInternalServerError)
 		return
 	}
 
@@ -585,7 +623,8 @@ func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
 
 	file, err := s.storage.Read(downloadPath + ".zip")
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error opening model for download: %v", err), http.StatusBadRequest)
+		slog.Error("error opening model zipfile for download", "model_id", modelId, "error", err)
+		http.Error(w, "error reading model download archive", http.StatusInternalServerError)
 		return
 	}
 	defer file.Close()
@@ -597,17 +636,20 @@ func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
 		readN, err := buffer.Read(chunk)
 		isEof := err == io.EOF
 		if err != nil && !isEof {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			slog.Error("error reading chunk of model archive", "model_id", modelId, "error", err)
+			http.Error(w, "error reading from model download archive", http.StatusInternalServerError)
 			return
 		}
 
 		writeN, err := w.Write(chunk[:readN])
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			slog.Error("error writing model download chunk", "model_id", modelId, "error", err)
+			http.Error(w, fmt.Sprintf("error sending model download chunk: %v", err), http.StatusInternalServerError)
 			return
 		}
 		if writeN != readN {
-			http.Error(w, fmt.Sprintf("expected to write %d bytes to stream, wrote %d", readN, writeN), http.StatusInternalServerError)
+			slog.Error("error writing model download chunk", "model_id", modelId, "error", fmt.Sprintf("expected to write %d bytes to stream, wrote %d", readN, writeN))
+			http.Error(w, "error sending model download chunk", http.StatusInternalServerError)
 			return
 		}
 		flusher.Flush() // Sends chunk
@@ -635,18 +677,18 @@ func (s *ModelService) UpdateAccess(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := schema.CheckValidAccess(params.Access); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 
 	result := s.db.Model(&schema.Model{Id: modelId}).Update("access", params.Access)
 	if result.Error != nil {
-		err := schema.NewDbError("updating model access", result.Error)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		slog.Error("sql error updating model access", "model_id", modelId, "error", result.Error)
+		http.Error(w, fmt.Sprintf("error updating model access: %v", schema.ErrDbAccessFailed), http.StatusInternalServerError)
 		return
 	}
 	if result.RowsAffected != 1 {
-		http.Error(w, fmt.Sprintf("unable to update access for model %v, please check that the model exists", modelId), http.StatusBadRequest)
+		http.Error(w, schema.ErrModelNotFound.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -670,18 +712,18 @@ func (s *ModelService) UpdateDefaultPermission(w http.ResponseWriter, r *http.Re
 	}
 
 	if err := schema.CheckValidPermission(params.Permission); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 
 	result := s.db.Model(&schema.Model{Id: modelId}).Update("default_permission", params.Permission)
 	if result.Error != nil {
-		err := schema.NewDbError("updating model default permission", result.Error)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		slog.Error("sql error updating model default permission", "model_id", modelId, "error", result.Error)
+		http.Error(w, fmt.Sprintf("error updating model default permission: %v", schema.ErrDbAccessFailed), http.StatusInternalServerError)
 		return
 	}
 	if result.RowsAffected != 1 {
-		http.Error(w, fmt.Sprintf("unable to update default permission for model %v, please check that the model exists", modelId), http.StatusBadRequest)
+		http.Error(w, schema.ErrModelNotFound.Error(), http.StatusNotFound)
 		return
 	}
 

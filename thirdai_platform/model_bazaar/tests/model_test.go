@@ -13,7 +13,7 @@ import (
 )
 
 func TestModelInfo(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	client, err := env.newUser("abc")
 	if err != nil {
@@ -46,7 +46,7 @@ func checkPermissions(c client, t *testing.T, modelId string, read, write, owner
 }
 
 func TestPublicModelPermissions(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	admin, err := env.adminClient()
 	if err != nil {
@@ -92,7 +92,7 @@ func TestPublicModelPermissions(t *testing.T) {
 }
 
 func TestProtectedModelPermissions(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	admin, err := env.adminClient()
 	if err != nil {
@@ -171,7 +171,7 @@ func TestProtectedModelPermissions(t *testing.T) {
 }
 
 func TestListModels(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	admin, err := env.adminClient()
 	if err != nil {
@@ -275,7 +275,7 @@ func TestListModels(t *testing.T) {
 }
 
 func TestDeleteModel(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	admin, err := env.adminClient()
 	if err != nil {
@@ -334,7 +334,7 @@ func randomBytes(n int) []byte {
 }
 
 func TestDownloadUpload(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	user, err := env.newUser("abc")
 	if err != nil {
@@ -378,7 +378,7 @@ func TestDownloadUpload(t *testing.T) {
 }
 
 func TestModelWithDeps(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	user, err := env.newUser("abc")
 	if err != nil {

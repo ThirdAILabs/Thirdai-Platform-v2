@@ -8,7 +8,7 @@ import (
 )
 
 func TestDeploy(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	client, err := env.newUser("abc")
 	if err != nil {

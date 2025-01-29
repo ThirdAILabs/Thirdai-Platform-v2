@@ -16,7 +16,7 @@ import (
 )
 
 func TestTrain(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	client, err := env.newUser("abc")
 	if err != nil {
@@ -99,7 +99,7 @@ func createUploadBody(t *testing.T, files []struct{ name, data string }) (io.Rea
 }
 
 func TestFileUpload(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	client, err := env.newUser("abc")
 	if err != nil {
@@ -164,7 +164,7 @@ func TestFileUpload(t *testing.T) {
 }
 
 func TestUseUploadInTrain(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	user1, err := env.newUser("abc")
 	if err != nil {
@@ -200,7 +200,7 @@ func TestUseUploadInTrain(t *testing.T) {
 }
 
 func TestTrainReport(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	client, err := env.newUser("abc")
 	if err != nil {

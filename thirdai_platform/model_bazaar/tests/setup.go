@@ -33,23 +33,11 @@ const (
 	adminPassword = "admin_password123"
 )
 
-func setupPrivateDBEnv(t *testing.T) *testEnv {
-	return setupTestEnv(t, false)
-}
-
-func setupSharedDBEnv(t *testing.T) *testEnv {
-	return setupTestEnv(t, true)
-}
-
-func setupTestEnv(t *testing.T, sharedDB bool) *testEnv {
+func setupTestEnv(t *testing.T) *testEnv {
 
 	var dsn string
-	if sharedDB {
-		dsn = "file::memory:?cache=shared"
-	} else {
-		uniqueID := uuid.New().String()
-		dsn = fmt.Sprintf("file:%s?mode=memory&cache=private", uniqueID)
-	}
+	uniqueID := uuid.New().String()
+	dsn = fmt.Sprintf("file:%s?mode=memory&cache=private", uniqueID)
 
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {

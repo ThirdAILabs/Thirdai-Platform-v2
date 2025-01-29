@@ -251,7 +251,7 @@ func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = s.db.Transaction(func(tx *gorm.DB) error {
-		parsedModelIDs, err := s.parseAndValidateModelIDs(req.ModelIDs, user)
+		parsedModelIDs, err := s.parseAndValidateModelIDs(tx, req.ModelIDs)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return err
@@ -312,12 +312,12 @@ func parseCreateAPIKeyRequest(r *http.Request, w http.ResponseWriter) (CreateAPI
 	return req, nil
 }
 
-func (s *ModelService) parseAndValidateModelIDs(modelIDs []uuid.UUID, user schema.User) ([]uuid.UUID, error) {
+func (s *ModelService) parseAndValidateModelIDs(tx *gorm.DB, modelIDs []uuid.UUID) ([]uuid.UUID, error) {
 	var parsedModelIDs []uuid.UUID
 	for _, id := range modelIDs {
 		parsedModelIDs = append(parsedModelIDs, id)
 
-		dependencies, err := s.fetchModelDependencies(id)
+		dependencies, err := s.fetchModelDependencies(tx, id)
 		if err != nil {
 			return nil, fmt.Errorf("unable to get dependencies: %v", err)
 		}
@@ -329,9 +329,9 @@ func (s *ModelService) parseAndValidateModelIDs(modelIDs []uuid.UUID, user schem
 	return parsedModelIDs, nil
 }
 
-func (s *ModelService) fetchModelDependencies(modelID uuid.UUID) ([]schema.ModelDependency, error) {
+func (s *ModelService) fetchModelDependencies(tx *gorm.DB, modelID uuid.UUID) ([]schema.ModelDependency, error) {
 	var dependencies []schema.ModelDependency
-	err := s.db.Where("model_id = ?", modelID).Find(&dependencies).Error
+	err := tx.Where("model_id = ?", modelID).Find(&dependencies).Error
 	if err != nil {
 		return nil, err
 	}

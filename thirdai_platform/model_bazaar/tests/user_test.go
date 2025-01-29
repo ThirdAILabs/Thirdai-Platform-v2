@@ -8,7 +8,7 @@ import (
 )
 
 func TestSignupAndLogin(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	for i := 0; i < 5; i++ {
 		username := fmt.Sprintf("user%d", i)
@@ -53,7 +53,7 @@ func TestSignupAndLogin(t *testing.T) {
 }
 
 func TestAddUser(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	admin, err := env.adminClient()
 	if err != nil {
@@ -88,7 +88,7 @@ func TestAddUser(t *testing.T) {
 }
 
 func TestUserInfo(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	admin, err := env.adminClient()
 	if err != nil {
@@ -129,7 +129,7 @@ func TestUserInfo(t *testing.T) {
 }
 
 func TestListUsers(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	admin, err := env.adminClient()
 	if err != nil {
@@ -213,7 +213,7 @@ func checkAdminStatus(c client, t *testing.T, isAdmin bool) {
 }
 
 func TestPromoteDemoteAdmin(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	admin, err := env.adminClient()
 	if err != nil {
@@ -282,7 +282,7 @@ func TestPromoteDemoteAdmin(t *testing.T) {
 }
 
 func TestDeleteUser(t *testing.T) {
-	env := setupPrivateDBEnv(t)
+	env := setupTestEnv(t)
 
 	admin, err := env.adminClient()
 	if err != nil {

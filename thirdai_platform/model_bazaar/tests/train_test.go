@@ -157,7 +157,7 @@ func TestFileUpload(t *testing.T) {
 		body, contentType := createUploadBody(t, files)
 		var res map[string]string
 		err := client.Post("/train/upload-data?sub_dir=a/b").Header("Content-Type", contentType).Body(body).Do(&res)
-		if err == nil || !strings.Contains(err.Error(), "status 400") {
+		if err == nil || !strings.Contains(err.Error(), "status 422") {
 			t.Fatal(err)
 		}
 	}
@@ -190,7 +190,7 @@ func TestUseUploadInTrain(t *testing.T) {
 
 	_, err = user2.trainNdb("bad-upload", config.TrainFile{Location: "upload", Path: uploadRes["upload_id"]})
 	if err == nil || !strings.Contains(err.Error(), "does not have permission to access upload") {
-		t.Fatal("user cannot access another user's upload")
+		t.Fatalf("user cannot access another user's upload: %v", err)
 	}
 
 	_, err = user1.trainNdb("bad-upload", config.TrainFile{Location: "upload", Path: uploadRes["upload_id"]})

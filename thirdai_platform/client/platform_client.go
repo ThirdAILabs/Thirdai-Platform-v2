@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/services"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -40,6 +41,58 @@ func (c *PlatformClient) Login(email, password string) error {
 
 	c.authToken = data["access_token"]
 	c.userId = data["user_id"]
+
+	return nil
+}
+
+func (c *PlatformClient) UseApiKey(api_key string) error {
+
+	c.apiKey = api_key
+	c.authToken = ""
+	c.userId = ""
+	return nil
+}
+
+func (c *PlatformClient) CreateAPIKey(modelIDs []uuid.UUID, name string, expiry time.Time, allModels bool) (string, error) {
+	requestBody := map[string]interface{}{
+		"model_ids":  modelIDs,
+		"name":       name,
+		"exp":        expiry,
+		"all_models": allModels,
+	}
+
+	var response struct {
+		ApiKey string `json:"api_key"`
+	}
+
+	err := c.Post("/api/v2/model/create-api-key").Json(requestBody).Do(&response)
+	if err != nil {
+		return "", fmt.Errorf("failed to create API key: %w", err)
+	}
+
+	return response.ApiKey, nil
+}
+
+func (c *PlatformClient) ListAPIKeys() ([]services.APIKeyResponse, error) {
+	var response []services.APIKeyResponse
+
+	err := c.Get("/api/v2/model/list-api-keys").Do(&response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list API keys: %w", err)
+	}
+
+	return response, nil
+}
+
+func (c *PlatformClient) DeleteAPIKey(apiKeyID uuid.UUID) error {
+	body := map[string]uuid.UUID{
+		"api_key_id": apiKeyID,
+	}
+
+	err := c.Post("/api/v2/model/delete-api-key").Json(body).Do(nil)
+	if err != nil {
+		return fmt.Errorf("failed to delete API key: %w", err)
+	}
 
 	return nil
 }

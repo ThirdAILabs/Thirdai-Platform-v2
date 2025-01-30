@@ -1,7 +1,9 @@
 package services
 
 import (
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/schema"
@@ -79,22 +81,24 @@ func (s *TeamService) CreateTeam(w http.ResponseWriter, r *http.Request) {
 		var existingTeam schema.Team
 		result := txn.Limit(1).Find(&existingTeam, "name = ?", params.Name)
 		if result.Error != nil {
-			return schema.NewDbError("checking for existing team with name", result.Error)
+			slog.Error("sql error checking for duplicate team name", "error", result.Error)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 		if result.RowsAffected != 0 {
-			return fmt.Errorf("team with name %v already exists", params.Name)
+			return CodedError(fmt.Errorf("team with name %v already exists", params.Name), http.StatusConflict)
 		}
 
 		result = txn.Create(&newTeam)
 		if result.Error != nil {
-			return schema.NewDbError("creating new team entry", result.Error)
+			slog.Error("sql error creating new team", "error", result.Error)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error creating team: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error creating team: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -111,29 +115,27 @@ func (s *TeamService) DeleteTeam(w http.ResponseWriter, r *http.Request) {
 	team := schema.Team{Id: teamId}
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
-		exists, err := schema.TeamExists(txn, team.Id)
-		if err != nil {
+		if err := checkTeamExists(txn, team.Id); err != nil {
 			return err
-		}
-		if !exists {
-			return fmt.Errorf("team %v does not exists", team.Id)
 		}
 
 		result := txn.Delete(&team)
 		if result.Error != nil {
-			return schema.NewDbError("deleting team", result.Error)
+			slog.Error("sql error deleting team", "team_id", teamId, "error", result.Error)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		result = txn.Model(&schema.Model{}).Where("team_id = ?", team.Id).Update("team_id", nil).Update("access", schema.Private)
 		if result.Error != nil {
-			return schema.NewDbError("updating access for models after deleting team", result.Error)
+			slog.Error("sql error updating model permissions after team deletion", "team_id", teamId, "error", result.Error)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error deleting team: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error deleting team: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -155,32 +157,25 @@ func (s *TeamService) AddUserToTeam(w http.ResponseWriter, r *http.Request) {
 	userTeam := schema.UserTeam{UserId: userId, TeamId: teamId}
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
-		teamExists, err := schema.TeamExists(txn, teamId)
-		if err != nil {
+		if err := checkTeamExists(txn, teamId); err != nil {
 			return err
-		}
-		if !teamExists {
-			return fmt.Errorf("team %v does not exists", teamId)
 		}
 
-		userExists, err := schema.UserExists(txn, userId)
-		if err != nil {
+		if err := checkUserExists(txn, userId); err != nil {
 			return err
-		}
-		if !userExists {
-			return fmt.Errorf("user %v does not exists", userId)
 		}
 
 		result := txn.Create(&userTeam)
 		if result.Error != nil {
-			return schema.NewDbError("creating new user_team entry", result.Error)
+			slog.Error("sql error creating new user_team entry", "error", result.Error)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error adding user to team: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error adding user to team: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -200,37 +195,31 @@ func (s *TeamService) RemoveUserFromTeam(w http.ResponseWriter, r *http.Request)
 	}
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
-		teamExists, err := schema.TeamExists(txn, teamId)
-		if err != nil {
+		if err := checkTeamExists(txn, teamId); err != nil {
 			return err
-		}
-		if !teamExists {
-			return fmt.Errorf("team %v does not exists", teamId)
 		}
 
-		userExists, err := schema.UserExists(txn, userId)
-		if err != nil {
+		if err := checkUserExists(txn, userId); err != nil {
 			return err
-		}
-		if !userExists {
-			return fmt.Errorf("user %v does not exists", userId)
 		}
 
 		result := txn.Delete(&schema.UserTeam{UserId: userId, TeamId: teamId})
 		if result.Error != nil {
-			return schema.NewDbError("deleting user_team entry", result.Error)
+			slog.Error("sql error deleting user_team entry", "team_id", teamId, "user_id", userId, "error", result.Error)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		result = txn.Model(&schema.Model{}).Where("team_id = ? and user_id = ?", teamId, userId).Update("team_id", nil).Update("access", schema.Private)
 		if result.Error != nil {
-			return schema.NewDbError("updating model permissions after removing user from team", result.Error)
+			slog.Error("sql error updating model permissions after removing user from team", "team_id", teamId, "user_id", userId, "error", result.Error)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error removing user from team: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error removing user from team: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -250,43 +239,35 @@ func (s *TeamService) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
-		teamExists, err := schema.TeamExists(txn, teamId)
-		if err != nil {
+		if err := checkTeamExists(txn, teamId); err != nil {
 			return err
-		}
-		if !teamExists {
-			return fmt.Errorf("team %v does not exists", teamId)
-		}
-
-		modelExists, err := schema.ModelExists(txn, modelId)
-		if err != nil {
-			return err
-		}
-		if !modelExists {
-			return fmt.Errorf("model %v does not exists", modelId)
 		}
 
 		model, err := schema.GetModel(modelId, txn, false, false, false)
 		if err != nil {
-			return err
+			if errors.Is(err, schema.ErrModelNotFound) {
+				return CodedError(err, http.StatusNotFound)
+			}
+			return CodedError(err, http.StatusInternalServerError)
 		}
 
 		if model.TeamId != nil {
-			return fmt.Errorf("model %v is already assigned to team", modelId)
+			return CodedError(fmt.Errorf("model %v is already assigned to team", modelId), http.StatusConflict)
 		}
 
 		model.TeamId = &teamId
 
 		result := txn.Save(&model)
 		if result.Error != nil {
-			return schema.NewDbError("updating model team permission", result.Error)
+			slog.Error("sql error updating model team", "model_id", modelId, "error", result.Error)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error adding model to team: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error adding model to team: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -306,32 +287,25 @@ func (s *TeamService) RemoveModelFromTeam(w http.ResponseWriter, r *http.Request
 	}
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
-		teamExists, err := schema.TeamExists(txn, teamId)
-		if err != nil {
+		if err := checkTeamExists(txn, teamId); err != nil {
 			return err
-		}
-		if !teamExists {
-			return fmt.Errorf("team %v does not exists", teamId)
 		}
 
-		modelExists, err := schema.ModelExists(txn, modelId)
-		if err != nil {
+		if err := checkModelExists(txn, modelId); err != nil {
 			return err
-		}
-		if !modelExists {
-			return fmt.Errorf("model %v does not exists", modelId)
 		}
 
 		result := txn.Model(&schema.Model{}).Where("id = ? and team_id = ?", modelId, teamId).Update("team_id", nil)
 		if result.Error != nil {
-			return schema.NewDbError("updating model team permission", result.Error)
+			slog.Error("sql error updating model team after removing from team", "model_id", modelId, "error", result.Error)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error removing model from team: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error removing model from team: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -351,32 +325,25 @@ func (s *TeamService) AddTeamAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
-		teamExists, err := schema.TeamExists(txn, teamId)
-		if err != nil {
+		if err := checkTeamExists(txn, teamId); err != nil {
 			return err
-		}
-		if !teamExists {
-			return fmt.Errorf("team %v does not exists", teamId)
 		}
 
-		userExists, err := schema.UserExists(txn, userId)
-		if err != nil {
+		if err := checkUserExists(txn, userId); err != nil {
 			return err
-		}
-		if !userExists {
-			return fmt.Errorf("user %v does not exists", userId)
 		}
 
 		result := txn.Save(&schema.UserTeam{TeamId: teamId, UserId: userId, IsTeamAdmin: true})
 		if result.Error != nil {
-			return schema.NewDbError("updating user team admin permission", result.Error)
+			slog.Error("sql error updating user to team admin", "user_id", userId, "team_id", teamId, "error", result.Error)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error adding team admin: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error adding team admin: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -396,32 +363,25 @@ func (s *TeamService) RemoveTeamAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = s.db.Transaction(func(txn *gorm.DB) error {
-		teamExists, err := schema.TeamExists(txn, teamId)
-		if err != nil {
+		if err := checkTeamExists(txn, teamId); err != nil {
 			return err
-		}
-		if !teamExists {
-			return fmt.Errorf("team %v does not exists", teamId)
 		}
 
-		userExists, err := schema.UserExists(txn, userId)
-		if err != nil {
+		if err := checkUserExists(txn, userId); err != nil {
 			return err
-		}
-		if !userExists {
-			return fmt.Errorf("user %v does not exists", userId)
 		}
 
 		result := txn.Save(&schema.UserTeam{TeamId: teamId, UserId: userId, IsTeamAdmin: false})
 		if result.Error != nil {
-			return schema.NewDbError("updating user team admin permission", result.Error)
+			slog.Error("sql error removing user team admin permission", "user_id", userId, "team_id", teamId, "error", result.Error)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error removing team admin: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error removing team admin: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -436,7 +396,7 @@ type TeamInfo struct {
 func (s *TeamService) List(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -447,15 +407,15 @@ func (s *TeamService) List(w http.ResponseWriter, r *http.Request) {
 	} else {
 		userTeams, err := schema.GetUserTeamIds(user.Id, s.db)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		result = s.db.Where("id IN ?", userTeams).Find(&teams)
 	}
 
 	if result.Error != nil {
-		err := schema.NewDbError("retrieving accessible teams", result.Error)
-		http.Error(w, fmt.Sprintf("error listing teams: %v", err), http.StatusBadRequest)
+		slog.Error("sql error listing accessible teams", "user_id", user.Id, "error", result.Error)
+		http.Error(w, fmt.Sprintf("error listing teams: %v", schema.ErrDbAccessFailed), http.StatusInternalServerError)
 		return
 	}
 
@@ -481,21 +441,16 @@ func (s *TeamService) TeamUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	teamExists, err := schema.TeamExists(s.db, teamId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if !teamExists {
-		http.Error(w, fmt.Sprintf("team %v does not exist", teamId), http.StatusBadRequest)
+	if err := checkTeamExists(s.db, teamId); err != nil {
+		http.Error(w, err.Error(), GetResponseCode(err))
 		return
 	}
 
 	var users []schema.UserTeam
 	result := s.db.Preload("User").Where("team_id = ?", teamId).Find(&users)
 	if result.Error != nil {
-		err := schema.NewDbError("retrieving team users", result.Error)
-		http.Error(w, fmt.Sprintf("error listing team users: %v", err), http.StatusBadRequest)
+		slog.Error("sql error listing team users", "team_id", teamId, "error", result.Error)
+		http.Error(w, fmt.Sprintf("error listing team users: %v", schema.ErrDbAccessFailed), http.StatusInternalServerError)
 		return
 	}
 
@@ -519,13 +474,8 @@ func (s *TeamService) TeamModels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	teamExists, err := schema.TeamExists(s.db, teamId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if !teamExists {
-		http.Error(w, fmt.Sprintf("team %v does not exist", teamId), http.StatusBadRequest)
+	if err := checkTeamExists(s.db, teamId); err != nil {
+		http.Error(w, err.Error(), GetResponseCode(err))
 		return
 	}
 
@@ -536,8 +486,8 @@ func (s *TeamService) TeamModels(w http.ResponseWriter, r *http.Request) {
 		Find(&models)
 
 	if result.Error != nil {
-		err := schema.NewDbError("retrieving team models", result.Error)
-		http.Error(w, fmt.Sprintf("error listing team models: %v", err), http.StatusBadRequest)
+		slog.Error("sql error listing team models", "team_id", teamId, "error", result.Error)
+		http.Error(w, fmt.Sprintf("error listing team models: %v", schema.ErrDbAccessFailed), http.StatusInternalServerError)
 		return
 	}
 
@@ -545,7 +495,7 @@ func (s *TeamService) TeamModels(w http.ResponseWriter, r *http.Request) {
 	for _, model := range models {
 		info, err := convertToModelInfo(model, s.db)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), GetResponseCode(err))
 			return
 		}
 		infos = append(infos, info)

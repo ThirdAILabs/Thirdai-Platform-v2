@@ -20,6 +20,10 @@ func NewModelClient(baseUrl string, authToken string, modelId uuid.UUID) ModelCl
 	return ModelClient{BaseClient: BaseClient{baseUrl: baseUrl, authToken: authToken}, modelId: modelId}
 }
 
+func (c *ModelClient) GetModelID() uuid.UUID {
+	return c.modelId
+}
+
 func (c *ModelClient) deploymentId() string {
 	if c.deploymentName != nil {
 		return *c.deploymentName

@@ -82,10 +82,10 @@ def create_ndbv2_model(tmp_dir: str, on_disk: bool):
 
 
 def mock_verify_permission(permission_type: str = "read"):
-    return lambda: ""
+    return lambda: ("", "")
 
 
-def mock_check_permission(token: str, permission_type: str = "read"):
+def mock_check_permission(token: str, auth_scheme: str, permission_type: str = "read"):
     return True
 
 

@@ -159,34 +159,43 @@ func (r *httpRequest) Do(result interface{}) error {
 type BaseClient struct {
 	baseUrl   string
 	authToken string
+	apiKey    string
 }
 
 func NewBaseClient(baseUrl string, authToken string) BaseClient {
 	return BaseClient{baseUrl: baseUrl, authToken: authToken}
 }
 
-func (c *BaseClient) Get(endpoint string) *httpRequest {
-	r := newHttpRequest("GET", c.baseUrl, endpoint)
+func (c *BaseClient) addAuthHeaders(r *httpRequest) *httpRequest {
 	if c.authToken != "" {
 		return r.Auth(c.authToken)
 	}
+	if c.apiKey != "" {
+		return r.Header("X-API-Key", c.apiKey)
+	}
 	return r
+}
+
+func (c *BaseClient) Get(endpoint string) *httpRequest {
+	r := newHttpRequest("GET", c.baseUrl, endpoint)
+	return c.addAuthHeaders(r)
 }
 
 func (c *BaseClient) Post(endpoint string) *httpRequest {
 	r := newHttpRequest("POST", c.baseUrl, endpoint)
-	if c.authToken != "" {
-		return r.Auth(c.authToken)
-	}
-	return r
+	return c.addAuthHeaders(r)
 }
 
 func (c *BaseClient) Delete(endpoint string) *httpRequest {
 	r := newHttpRequest("DELETE", c.baseUrl, endpoint)
-	if c.authToken != "" {
-		return r.Auth(c.authToken)
-	}
-	return r
+	return c.addAuthHeaders(r)
+}
+
+func (c *BaseClient) UseApiKey(api_key string) error {
+
+	c.apiKey = api_key
+	c.authToken = ""
+	return nil
 }
 
 func addFilesToMultipart(writer *multipart.Writer, files []FileInfo) error {

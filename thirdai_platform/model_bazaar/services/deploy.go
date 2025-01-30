@@ -38,8 +38,9 @@ type DeployService struct {
 func (s *DeployService) Routes() chi.Router {
 	r := chi.NewRouter()
 
+	eitherOrMiddleware := eitherUserOrApiKeyAuthMiddleware(s.db, s.userAuth.AuthMiddleware())
 	r.Route("/{model_id}", func(r chi.Router) {
-		r.Use(s.userAuth.AuthMiddleware()...)
+		r.Use(eitherOrMiddleware)
 
 		r.Group(func(r chi.Router) {
 			r.Use(auth.ModelPermissionOnly(s.db, auth.OwnerPermission))

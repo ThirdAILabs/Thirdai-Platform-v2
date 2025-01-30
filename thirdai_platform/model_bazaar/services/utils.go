@@ -20,6 +20,15 @@ import (
 	"gorm.io/gorm"
 )
 
+const thirdaiPlatformKeyPrefix = "thirdai_platform_key"
+
+var (
+	ErrMissingAPIKey       = errors.New("API key is missing")
+	ErrInvalidAPIKey       = errors.New("API key is invalid")
+	ErrExpiredAPIKey       = errors.New("API key has expired")
+	ErrAPIKeyModelMismatch = errors.New("API key does not have access to the requested model")
+)
+
 type codedError struct {
 	err  error
 	code int

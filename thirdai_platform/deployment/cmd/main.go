@@ -19,8 +19,6 @@ import (
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/utils"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type deploymentEnv struct {

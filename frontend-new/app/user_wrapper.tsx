@@ -79,7 +79,6 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
       localStorage.removeItem('accessToken');
     }
   }, [accessToken]);
-
   return (
     <UserContext.Provider value={{ user, accessToken, setAccessToken, logout }}>
       {children}

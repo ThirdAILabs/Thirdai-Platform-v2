@@ -39,7 +39,7 @@ type User = {
 const getModels = async () => {
   try {
     const response = await fetchAllModels();
-    const modelData = response.data.map(
+    const modelData = response?.map(
       (model): Model => ({
         name: model.model_name,
         type:
@@ -48,7 +48,7 @@ const getModels = async () => {
             : model.access_level === 'protected'
               ? 'Protected Model'
               : 'Public Model',
-        owner: model.username,
+        owner: model.Username,
         users: [],
         team: model.team_id !== 'None' ? model.team_id : undefined,
         teamAdmin: undefined,

@@ -263,40 +263,126 @@ interface TrainNdbParams {
   formData: FormData;
 }
 
-export async function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
-  const accessToken = getAccessToken();
-  const apiUrl = `${thirdaiPlatformBaseUrl}/api/v2/train/ndb`;
-  formData.append('model_name', JSON.stringify(name));
-  console.log("API URL:", apiUrl);
-  console.log("Access Token:", accessToken);
-  console.log("FormData:", [...formData.entries()]);
+// export async function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
+//   const accessToken = getAccessToken();
+//   const apiUrl = `${thirdaiPlatformBaseUrl}/api/v2/train/ndb`;
+//   formData.append('model_name', JSON.stringify(name));
+//   console.log("API URL:", apiUrl)
+//   console.log("Access Token:", accessToken);
+//   console.log("FormData:", [...formData.entries()]);
 
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
-      body: formData,
-    });
-    console.log("HUE HUE", response);
-    if (!response.ok) {
-      // const errorData = await response.json();
-      // console.error("Error Response:", errorData);
-      // throw new Error(errorData.detail || 'Failed to run model');
-      throw new Error("Failed to create model");
-    }
+//   try {
+//     const response = await fetch(apiUrl, {
+//       method: 'POST',
+//       headers: {
+//         'Authorization': `Bearer ${accessToken}`,
+//       },
+//       body: formData,
+//     });
 
-    const data = await response.json();
-    console.log("Response Data:", data);
-    return data;
-  } catch (error) {
-    console.error('Error training NDB model:', error);
-    throw error;
-  }
+//     if (!response.ok) {
+//       const errorData = await response.json();
+//       console.error("Error Response:", errorData);
+//       throw new Error(errorData.detail || 'Failed to run model');
+//     }
+
+//     const data = await response.json();
+//     console.log("Response Data:", data);
+//     return data;
+//   } catch (error) {
+//     console.error('Error training NDB model:', error);
+//     throw error;
+//   }
+// }
+
+
+// export async function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
+//   const accessToken = getAccessToken();
+//   const apiUrl = `${thirdaiPlatformBaseUrl}/api/v2/train/ndb`;
+
+//   // Create JSON payload
+//   const requestData = {
+//     model_name: name.replace(/-/g, '_'),
+//     model_options: {},
+//     data: {
+//       unsupervised_files: Array.from(formData.getAll('files')).map(file => ({
+//         path: (file as File).name.replace(/-/g, '_'),
+//         location: 'upload'
+//       }))
+//     }
+//   };
+
+//   const response = await fetch(apiUrl, {
+//     method: 'POST',
+//     headers: {
+//       'Authorization': `Bearer ${accessToken}`,
+//       'Content-Type': 'application/json'
+//     },
+//     body: JSON.stringify(requestData)
+//   });
+
+//   if (!response.ok) {
+//     const errorText = await response.text();
+//     throw new Error(`Training failed: ${errorText}`);
+//   }
+
+//   return await response.json();
+// }
+
+
+interface UploadResponse {
+  upload_id: string;
 }
 
+export async function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
+  const accessToken = getAccessToken();
 
+  // Step 1: Upload files first
+  const uploadResponse = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/train/upload-data`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`
+    },
+    body: formData
+  });
+
+  if (!uploadResponse.ok) {
+    const error = await uploadResponse.json();
+    throw new Error(error.detail || 'Failed to upload files');
+  }
+
+  const { upload_id } = await uploadResponse.json() as UploadResponse;
+  console.log('Upload response:', upload_id); // Debug log
+
+  // Step 2: Train NDB with upload ID
+  const requestData = {
+    model_name: name,
+    model_options: {},
+    data: {
+      unsupervised_files: [{
+        path: upload_id,
+        location: 'upload'
+      }]
+    }
+  };
+
+  const trainResponse = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/train/ndb`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestData)
+  });
+
+  if (!trainResponse.ok) {
+    const error = await trainResponse.json();
+    throw new Error(error.detail || 'Failed to train NDB model');
+  }
+  const trainData = await trainResponse.json();
+  console.log('Train NDB response:', trainData);
+  return trainData;
+}
 
 // src/interfaces/TrainNdbParams.ts
 export interface JobOptions {
@@ -1006,6 +1092,7 @@ export interface EnterpriseSearchOptions {
   nlp_classifier_id?: string;
   llm_provider?: string;
   default_mode?: string;
+  model_name: string;
 }
 
 interface CreateWorkflowParams {
@@ -1021,16 +1108,11 @@ export function create_enterprise_search_workflow({
 
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
-  // Prepare URLSearchParams to pass workflow_name as a query parameter
-  const params = new URLSearchParams({
-    workflow_name,
-  });
-
   return new Promise((resolve, reject) => {
     axios
       .post(
-        `${thirdaiPlatformBaseUrl}/api/workflow/enterprise-search?${params.toString()}`,
-        options // Pass the options object as the request body
+        `${thirdaiPlatformBaseUrl}/api/v2/workflow/enterprise-search`,
+        options
       )
       .then((res) => {
         resolve(res.data);
@@ -1065,7 +1147,7 @@ export interface Workflow {
   model_id: string;
   model_name: string;
   type: string;
-  sub_type: string;
+  access: string;
   train_status: string;
   deploy_status: string;
   publish_date: string;
@@ -1097,6 +1179,7 @@ export async function fetchWorkflows(): Promise<Workflow[]> {
 
     const data = await response.json();
     return data; // Assuming the data is in the `data` field
+
   } catch (error) {
     console.error('Error fetching workflows:', error);
     throw error;
@@ -1189,20 +1272,14 @@ interface DeleteWorkflowResponse {
 }
 
 export async function delete_workflow(
-  username: string,
-  model_name: string
+  model_id: string,
 ): Promise<DeleteWorkflowResponse> {
   const accessToken = getAccessToken();
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
-  const params = new URLSearchParams({
-    model_identifier: createModelIdentifier(username, model_name),
-  });
-
   return new Promise((resolve, reject) => {
     axios
-      .post<DeleteWorkflowResponse>(
-        `${thirdaiPlatformBaseUrl}/api/model/delete?${params.toString()}`
+      .delete<DeleteWorkflowResponse>(
+        `${thirdaiPlatformBaseUrl}/api/v2/model/${model_id.toString()}`
       )
       .then((res) => {
         resolve(res.data);
@@ -1243,63 +1320,23 @@ export async function getWorkflowDetails(workflow_id: string): Promise<WorkflowD
   });
 }
 
-// export async function userEmailLogin(
-//   email: string,
-//   password: string,
-//   setAccessToken: (token: string) => void
-// ): Promise<any> {
-//   try {
-//     const apiUrl = `${thirdaiPlatformBaseUrl}/api/v2/user/login`;
-
-//     const response = await fetch(apiUrl, {
-//       method: 'POST',
-//       headers: {
-//         'Content-Type': 'application/json',
-//       },
-//       body: JSON.stringify({ email, password }),
-//     });
-
-//     if (!response.ok) {
-//       const errorMessage = await response.text();
-//       throw new Error(`Request failed: ${response.status} - ${errorMessage}`);
-//     }
-
-//     const data = await response.json();
-//     const accessToken = data.access_token;
-//     const userId = data.user_id;
-
-//     if (accessToken) {
-//       localStorage.setItem('accessToken', accessToken);
-//       setAccessToken(accessToken);
-//       console.log("Jai Shree Ram");
-//     }
-
-//     if (userId) {
-//       localStorage.setItem('user_id', userId);
-//     }
-
-//     console.log('Login successful:', { userId, accessToken });
-//     console.log("DATA: ", data);
-//     return data;
-//   } catch (error) {
-//     console.error('Error logging in:', error);
-//     throw error;
-//   }
-// }
 export async function userEmailLogin(
   email: string,
   password: string,
   setAccessToken: (token: string | null | undefined) => void
 ): Promise<any> {
   try {
+    console.log("Email:", email, "Password:", password);
     const apiUrl = `${thirdaiPlatformBaseUrl}/api/v2/user/login`;
 
+    // Create Base64 encoded credentials
+    const base64Credentials = btoa(`${email}:${password}`);
     const response = await fetch(apiUrl, {
-      method: 'POST',
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
+        'Accept': 'application/json',
+        'Authorization': `Basic ${base64Credentials}`
+      }
     });
 
     if (!response.ok) {
@@ -1309,7 +1346,6 @@ export async function userEmailLogin(
 
     const data = await response.json();
     const accessToken = data.access_token;
-    const userId = data.user_id;
 
     if (accessToken) {
       setAccessToken(accessToken); // Set the token in context first
@@ -1320,7 +1356,7 @@ export async function userEmailLogin(
     return data;
   } catch (error) {
     console.error('Error logging in:', error);
-    setAccessToken(null); // Clear token on error
+    setAccessToken(null);
     throw error;
   }
 }
@@ -1429,10 +1465,7 @@ function tokenClassifierDatagenForm(modelGoal: string, categories: Category[]) {
 interface TrainTokenClassifierResponse {
   status_code: number;
   message: string;
-  data: {
-    model_id: string;
-    user_id: string;
-  };
+  model_id: string;
 }
 
 type Example = {
@@ -1444,7 +1477,39 @@ type Category = {
   examples: Example[];
   description: string;
 };
+interface Tag {
+  name: string;
+  examples?: string[];
+  description?: string;
+  status?: 'uninserted';
+}
 
+interface TokenOptions {
+  tags: Tag[];
+  num_sentences_to_generate?: number;
+  num_samples_per_tag?: number;
+  templates_per_sample?: number;
+}
+
+interface DatagenRequest {
+  model_name: string;
+  base_model_id?: string | null;
+  task_prompt: string;
+  llm_provider?: string;
+  test_size?: number;
+  token_options: TokenOptions;
+  train_options?: {
+    epochs?: number;
+    learning_rate?: number;
+    batch_size?: number;
+    max_in_memory_batches?: number;
+    test_split?: number;
+  };
+  job_options?: {
+    allocation_cores?: number;
+    allocation_memory?: number;
+  };
+}
 export function trainTokenClassifier(
   modelName: string,
   modelGoal: string,
@@ -1456,18 +1521,31 @@ export function trainTokenClassifier(
   // Set the default authorization header for axios
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
-  const formData = new FormData();
-  formData.append(
-    'datagen_options',
-    JSON.stringify({
-      task_prompt: modelGoal,
-      datagen_options: tokenClassifierDatagenForm(modelGoal, categories),
-    })
-  );
+  const requestData: DatagenRequest = {
+    model_name: modelName,
+    task_prompt: modelGoal,
+    llm_provider: 'openai',
+    token_options: {
+      tags: categories.map(category => ({
+        name: category?.name,
+        examples: category?.examples.map(ex => ex.text),
+        description: category?.description,
+      })),
+      num_sentences_to_generate: 2000,
+      num_samples_per_tag: 10,
+      templates_per_sample: 4
+    },
+    train_options: {
+      epochs: 5,
+      batch_size: 1000,
+      test_split: 0.2
+    }
+  };
 
+  console.log("Request data:", requestData);
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/train/nlp-datagen?model_name=${modelName}`, formData)
+      .post(`${thirdaiPlatformBaseUrl}/api/v2/train/nlp-datagen`, requestData)
       .then((res) => {
         resolve(res.data);
       })
@@ -1498,16 +1576,82 @@ function sentenceClassifierDatagenForm(examples: SentenceClassificationExample[]
   return {
     sub_type: 'text',
     samples_per_label: Math.max(Math.ceil(numSentences / labels.length), 50),
-    target_labels: labels,
+    labels: labels,
   };
 }
 
 interface TrainSentenceClassifierResponse {
   status_code: number;
   message: string;
-  data: {
-    model_id: string;
-    user_id: string;
+  model_id: string;
+  user_id: string;
+}
+
+// export function trainSentenceClassifier(
+//   modelName: string,
+//   modelGoal: string,
+//   examples: SentenceClassificationExample[]
+// ): Promise<TrainSentenceClassifierResponse> {
+//   // Retrieve the access token from local storage
+//   const accessToken = getAccessToken();
+
+//   // Set the default authorization header for axios
+//   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+//   const formData = new FormData();
+//   formData.append(
+//     'datagen_options',
+//     JSON.stringify({
+//       task_prompt: modelGoal,
+//       datagen_options: sentenceClassifierDatagenForm(examples),
+//     })
+//   );
+
+//   return new Promise((resolve, reject) => {
+//     axios
+//       .post(`${thirdaiPlatformBaseUrl}/api/train/nlp-datagen?model_name=${modelName}`, formData)
+//       .then((res) => {
+//         console.log(res);
+//         resolve(res.data);
+//       })
+//       .catch((err) => {
+//         if (err.response && err.response.data) {
+//           reject(new Error(err.response.data.detail || 'Failed to run model'));
+//         } else {
+//           reject(new Error('Failed to run model'));
+//         }
+//       });
+//   });
+// }
+
+interface TextOptions {
+  labels: {
+    name: string;
+    examples?: string[];
+    description?: string;
+    status?: 'uninserted';
+  }[];
+  samples_per_label: number;
+  sub_type: string;
+}
+
+export interface NLPDatagenRequest {
+  model_name: string;
+  base_model_id?: string | null;
+  task_prompt: string;
+  llm_provider?: string;
+  test_size?: number;
+  text_options: TextOptions;
+  train_options?: {
+    epochs?: number;
+    learning_rate?: number;
+    batch_size?: number;
+    max_in_memory_batches?: number;
+    test_split?: number;
+  };
+  job_options?: {
+    allocation_cores?: number;
+    allocation_memory?: number;
   };
 }
 
@@ -1516,30 +1660,42 @@ export function trainSentenceClassifier(
   modelGoal: string,
   examples: SentenceClassificationExample[]
 ): Promise<TrainSentenceClassifierResponse> {
-  // Retrieve the access token from local storage
   const accessToken = getAccessToken();
 
-  // Set the default authorization header for axios
-  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
-  const formData = new FormData();
-  formData.append(
-    'datagen_options',
-    JSON.stringify({
-      task_prompt: modelGoal,
-      datagen_options: sentenceClassifierDatagenForm(examples),
-    })
-  );
+  const requestData: NLPDatagenRequest = {
+    model_name: modelName,
+    task_prompt: modelGoal,
+    llm_provider: 'openai',
+    test_size: 0.1,
+    text_options: {
+      ...sentenceClassifierDatagenForm(examples), // Spread operator to include all properties
+    },
+    train_options: {
+      epochs: 5,
+      learning_rate: 0.0001,
+      batch_size: 1000,
+      test_split: 0.2
+    }
+  };
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/train/nlp-datagen?model_name=${modelName}`, formData)
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/v2/train/nlp-datagen`,
+        requestData,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
       .then((res) => {
         console.log(res);
         resolve(res.data);
       })
       .catch((err) => {
-        if (err.response && err.response.data) {
+        if (err.response?.data) {
           reject(new Error(err.response.data.detail || 'Failed to run model'));
         } else {
           reject(new Error('Failed to run model'));
@@ -1547,6 +1703,7 @@ export function trainSentenceClassifier(
       });
   });
 }
+
 
 function useAccessToken() {
   const [accessToken, setAccessToken] = useState<string | undefined>();
@@ -2053,7 +2210,7 @@ interface ModelResponse {
   training_time: string;
   type: string;
   user_email: string;
-  username: string;
+  Username: string;
 }
 
 interface UserTeamInfo {
@@ -2076,7 +2233,7 @@ interface TeamResponse {
   name: string;
 }
 
-export async function fetchAllModels(): Promise<{ data: ModelResponse[] }> {
+export async function fetchAllModels(): Promise<ModelResponse[]> {
   const accessToken = getAccessToken(); // Ensure this function exists and correctly retrieves the access token
   try {
     const response = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/model/list`, {
@@ -2094,6 +2251,7 @@ export async function fetchAllModels(): Promise<{ data: ModelResponse[] }> {
 
     const data = await response.json();
     return data;
+
   } catch (error) {
     console.error('Error fetching models:', error);
     throw error;
@@ -2177,16 +2335,13 @@ export async function updateModelAccessLevel(
   });
 }
 
-export async function deleteModel(model_identifier: string): Promise<void> {
+export async function deleteModel(model_id: string): Promise<void> {
   const accessToken = getAccessToken(); // Ensure this function is implemented elsewhere in your codebase
 
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
-  const params = new URLSearchParams({ model_identifier });
-
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/model/delete?${params.toString()}`)
+      .delete(`${thirdaiPlatformBaseUrl}/api/v2/model/${model_id.toString()}`)
       .then(() => {
         resolve();
       })
@@ -2424,7 +2579,7 @@ export async function updateModel(modelIdentifier: string): Promise<void> {
 export interface Team {
   team_id: string;
   team_name: string;
-  role: 'user' | 'team_admin' | 'global_admin';
+  team_admin: boolean;
 }
 
 export interface User {
@@ -2434,7 +2589,17 @@ export interface User {
   global_admin: boolean;
   teams: Team[];
 }
-
+interface APIUserResponse {
+  id: string;
+  username: string;
+  email: string;
+  admin: boolean;
+  teams: {
+    team_id: string;
+    team_name: string;
+    team_admin: boolean;
+  }[];
+}
 export async function accessTokenUser(accessToken: string | null) {
   if (accessToken === null) {
     return null;
@@ -2453,9 +2618,19 @@ export async function accessTokenUser(accessToken: string | null) {
       throw new Error(`Request failed: ${response.status}`);
     }
 
-    const data = await response.json();
-    console.log("data of user with accessToken: ", data);
-    return data as User;
+    const data = await response.json() as APIUserResponse;
+    const transformedData: User = {
+      id: data.id,
+      username: data.username,
+      email: data.email,
+      global_admin: data.admin,
+      teams: data.teams.map(team => ({
+        team_id: team.team_id,
+        team_name: team.team_name,
+        team_admin: team.team_admin
+      }))
+    };
+    return transformedData;
   } catch (error) {
     console.error('Error fetching user info:', error);
     return null;

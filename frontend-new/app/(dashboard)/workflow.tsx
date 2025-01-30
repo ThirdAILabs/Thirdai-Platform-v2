@@ -80,22 +80,25 @@ export function WorkFlow({
   const toggleCollapseIcon = () => {
     setIsCollapsed(!isCollapsed);
   };
+
   useEffect(() => {
+    async function getModelsData() {
+      const modelData = await getModels();
+      const tempModelOwner: { [key: string]: string } = {}; // TypeScript object to store name as key and owner as value
+      if (modelData) {
+        for (let index = 0; index < modelData.length; index++) {
+          const name = modelData[index].name;
+          const owner = modelData[index].owner;
+          tempModelOwner[name] = owner;
+        }
+      }
+      setModelOwner(tempModelOwner);
+    }
+
     getModelsData();
   }, []);
 
-  async function getModelsData() {
-    const modelData = await getModels();
-    const tempModelOwner: { [key: string]: string } = {}; // TypeScript object to store name as key and owner as value
-    if (modelData) {
-      for (let index = 0; index < modelData.length; index++) {
-        const name = modelData[index].name;
-        const owner = modelData[index].owner;
-        tempModelOwner[name] = owner;
-      }
-    }
-    setModelOwner(tempModelOwner);
-  }
+
   function goToEndpoint() {
     switch (workflow.type) {
       case 'enterprise-search': {
@@ -122,7 +125,7 @@ export function WorkFlow({
       }
       case 'udt': {
         let prefix;
-        switch (workflow.sub_type) {
+        switch (workflow.access) {
           case 'token':
             prefix = '/token-classification';
             break;
@@ -219,11 +222,11 @@ export function WorkFlow({
         setDeployType('Enterprise Search');
       }
     } else if (workflow.type === 'udt') {
-      if (workflow.sub_type === 'document') {
+      if (workflow.access === 'document') {
         setDeployType('Document Classification');
-      } else if (workflow.sub_type === 'token') {
+      } else if (workflow.access === 'token') {
         setDeployType('Text Extraction');
-      } else if (workflow.sub_type === 'text') {
+      } else if (workflow.access === 'text') {
         setDeployType('Text Classification');
       }
     } else if (workflow.type === 'enterprise-search') {
@@ -364,7 +367,8 @@ export function WorkFlow({
       setTimeout(() => document.body.removeChild(errorToast), 2000);
     }
   };
-
+  // Parse IST date string and convert to local date
+  const formattedDate = workflow.publish_date.split(' ')[0];
   return (
     <>
       <TableRow>
@@ -399,11 +403,12 @@ export function WorkFlow({
         </TableCell>
         <TableCell className="hidden md:table-cell text-center font-medium">{deployType}</TableCell>
         <TableCell className="hidden md:table-cell text-center font-medium">
-          {new Date(workflow.publish_date).toLocaleDateString('en-US', {
+          {/* {new Date(workflow.publish_date).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
-          })}
+          })} */}
+          {formattedDate}
         </TableCell>
         <TableCell className="hidden md:table-cell text-center font-medium">
           <Button
@@ -467,8 +472,7 @@ export function WorkFlow({
                       if (window.confirm('Are you sure you want to delete this workflow?')) {
                         try {
                           const response = await delete_workflow(
-                            workflow.username,
-                            workflow.model_name
+                            workflow.model_id
                           );
                           console.log('Workflow deleted successfully:', response);
                         } catch (error) {

@@ -75,14 +75,7 @@ func checkSources(t *testing.T, testServer *httptest.Server, sources []string) {
 		t.Fatalf("expected status 200, got %d", resp.StatusCode)
 	}
 
-	var data struct {
-		Sources []struct {
-			Source   string `json:"source"`
-			SourceID string `json:"source_id"`
-			Version  uint32 `json:"version"`
-		}
-	}
-
+	var data deployment.Sources
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		t.Fatalf("failed to decode /query response: %v", err)
 	}
@@ -93,8 +86,117 @@ func checkSources(t *testing.T, testServer *httptest.Server, sources []string) {
 	}
 }
 
-// TODO(david) split this test into multiple unit tests
-// TODO(david) reuse the tests from the integration tests and use the NDBClient? api is slightly different now though
+func checkQuery(t *testing.T, testServer *httptest.Server, query string, reference_ids []int) {
+	body := map[string]interface{}{
+		"query": query,
+		"top_k": 2,
+	}
+	bodyBytes, _ := json.Marshal(body)
+	resp, err := http.Post(testServer.URL+"/query", "application/json", bytes.NewReader(bodyBytes))
+	if err != nil {
+		t.Fatalf("POST /query failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	var data deployment.SearchResults
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		t.Fatalf("failed to decode /query response: %v", err)
+	}
+
+	assert.True(t, len(data.References) != 0)
+
+	returned_reference_ids := make([]int, len(data.References))
+	for i, ref := range data.References {
+		returned_reference_ids[i] = ref.Id
+	}
+
+	for _, id := range reference_ids {
+		assert.True(t, slices.Contains(returned_reference_ids, id))
+	}
+}
+
+func doUpvote(t *testing.T, testServer *httptest.Server, query string, reference_id int) {
+	body := map[string]interface{}{
+		"text_id_pairs": []map[string]interface{}{
+			{
+				"query_text":     query,
+				"reference_id":   reference_id,
+				"reference_text": "test line one",
+			},
+		},
+	}
+	bodyBytes, _ := json.Marshal(body)
+	resp, err := http.Post(testServer.URL+"/upvote", "application/json", bytes.NewReader(bodyBytes))
+	if err != nil {
+		t.Fatalf("POST /upvote failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+}
+
+func doAssociate(t *testing.T, testServer *httptest.Server, source string, target string) {
+	body := map[string]interface{}{
+		"text_pairs": []map[string]interface{}{
+			{"source": source, "target": target},
+		},
+	}
+	bodyBytes, _ := json.Marshal(body)
+	resp, err := http.Post(testServer.URL+"/associate", "application/json", bytes.NewReader(bodyBytes))
+	if err != nil {
+		t.Fatalf("POST /associate failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+}
+
+func doInsert(t *testing.T, testServer *httptest.Server) {
+	body := map[string]interface{}{
+		"document": "doc_name_2",
+		"doc_id":   "doc_id_2",
+		"chunks":   []string{"a new word", "another new word"},
+		"metadata": []map[string]interface{}{
+			{"example": true},
+			{"another": "test"},
+		},
+	}
+	bodyBytes, _ := json.Marshal(body)
+	resp, err := http.Post(testServer.URL+"/insert", "application/json", bytes.NewReader(bodyBytes))
+	if err != nil {
+		t.Fatalf("POST /insert failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+}
+
+func doDelete(t *testing.T, testServer *httptest.Server, source_ids []string) {
+	body := map[string]interface{}{
+		"source_ids": source_ids,
+	}
+	bodyBytes, _ := json.Marshal(body)
+	resp, err := http.Post(testServer.URL+"/delete", "application/json", bytes.NewReader(bodyBytes))
+	if err != nil {
+		t.Fatalf("POST /delete failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+}
+
 func TestBasicEndpoints(t *testing.T) {
 	testServer, err := makeNdbServer(t)
 	if err != nil {
@@ -102,126 +204,24 @@ func TestBasicEndpoints(t *testing.T) {
 	}
 	defer testServer.Close()
 
+	checkSources(t, testServer, []string{"doc_id_1"})
 	checkHealth(t, testServer)
+	checkQuery(t, testServer, "test line", []int{0, 1})
 
-	t.Run("Query", func(t *testing.T) {
-		body := map[string]interface{}{
-			"query": "test line",
-			"top_k": 2,
-		}
-		bodyBytes, _ := json.Marshal(body)
-		resp, err := http.Post(testServer.URL+"/query", "application/json", bytes.NewReader(bodyBytes))
-		if err != nil {
-			t.Fatalf("POST /query failed: %v", err)
-		}
-		defer resp.Body.Close()
+	doAssociate(t, testServer, "source", "test line")
+	checkQuery(t, testServer, "source", []int{0, 1})
 
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected status 200, got %d", resp.StatusCode)
-		}
+	doUpvote(t, testServer, "unrelated query", 2)
+	checkQuery(t, testServer, "unrelated query", []int{2})
 
-		var data struct {
-			References []struct {
-				ID     int    `json:"id"`
-				Text   string `json:"text"`
-				Source string `json:"source"`
-				Score  float32
-			} `json:"references"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-			t.Fatalf("failed to decode /query response: %v", err)
-		}
-
-		assert.True(t, len(data.References) != 0)
-
-		reference_ids := make([]int, len(data.References))
-		for i, ref := range data.References {
-			reference_ids[i] = ref.ID
-		}
-
-		assert.True(t, slices.Contains(reference_ids, 0))
-		assert.True(t, slices.Contains(reference_ids, 1))
-	})
-
-	t.Run("Insert", func(t *testing.T) {
-		body := map[string]interface{}{
-			"document": "doc_name_2",
-			"doc_id":   "doc_id_2",
-			"chunks":   []string{"a new word", "another new word"},
-			"metadata": []map[string]interface{}{
-				{"example": true},
-				{"another": "test"},
-			},
-		}
-		bodyBytes, _ := json.Marshal(body)
-		resp, err := http.Post(testServer.URL+"/insert", "application/json", bytes.NewReader(bodyBytes))
-		if err != nil {
-			t.Fatalf("POST /insert failed: %v", err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected status 200, got %d", resp.StatusCode)
-		}
-
-		// TODO When you make a query for "word" you receive references 3 and 4
-	})
-
-	t.Run("Delete", func(t *testing.T) {
-		body := map[string]interface{}{
-			"source_ids": []string{"doc_id_1"},
-		}
-		bodyBytes, _ := json.Marshal(body)
-		resp, err := http.Post(testServer.URL+"/delete", "application/json", bytes.NewReader(bodyBytes))
-		if err != nil {
-			t.Fatalf("POST /delete failed: %v", err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected status 200, got %d", resp.StatusCode)
-		}
-	})
-
-	t.Run("Upvote", func(t *testing.T) {
-		body := map[string]interface{}{
-			"text_id_pairs": []map[string]interface{}{
-				{
-					"query_text":     "haha",
-					"reference_id":   0,
-					"reference_text": "test line one",
-				},
-			},
-		}
-		bodyBytes, _ := json.Marshal(body)
-		resp, err := http.Post(testServer.URL+"/upvote", "application/json", bytes.NewReader(bodyBytes))
-		if err != nil {
-			t.Fatalf("POST /upvote failed: %v", err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected status 200, got %d", resp.StatusCode)
-		}
-	})
-
-	t.Run("Associate", func(t *testing.T) {
-		body := map[string]interface{}{
-			"text_pairs": []map[string]interface{}{
-				{"source": "chunk A", "target": "test line one"},
-			},
-		}
-		bodyBytes, _ := json.Marshal(body)
-		resp, err := http.Post(testServer.URL+"/associate", "application/json", bytes.NewReader(bodyBytes))
-		if err != nil {
-			t.Fatalf("POST /associate failed: %v", err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected status 200, got %d", resp.StatusCode)
-		}
-	})
-
+	doInsert(t, testServer)
+	checkSources(t, testServer, []string{"doc_id_1", "doc_id_2"})
+	doDelete(t, testServer, []string{"doc_id_1"})
 	checkSources(t, testServer, []string{"doc_id_2"})
 }
+
+func TestSaveLoadDeployConfig(t *testing.T) {}
+
+func TestPermissionsLogic(t *testing.T) {}
+
+func TestStatusReporting(t *testing.T) {}

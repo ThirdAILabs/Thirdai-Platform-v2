@@ -3,12 +3,11 @@ package deployment
 import (
 	"encoding/json"
 	"fmt"
-	// "log/slog"
 	"log"
 	"net/http"
 	"os"
-	"sort"
 	"path/filepath"
+	"sort"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/search/ndb"
 	"thirdai_platform/utils"
@@ -18,10 +17,10 @@ import (
 )
 
 type NdbRouter struct {
-	Ndb         ndb.NeuralDB
-	Config      *config.DeployConfig
-	reporter    Reporter
-	permissions Permissions
+	Ndb    ndb.NeuralDB
+	Config *config.DeployConfig
+	// reporter    Reporter
+	// permissions Permissions
 }
 
 func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, error) {
@@ -30,7 +29,8 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to open ndb: %v", err)
 	}
-	return &NdbRouter{ndb, config, reporter, Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
+	return &NdbRouter{ndb, config}, nil
+	// return &NdbRouter{ndb, config, reporter, Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
 }
 
 func (r *NdbRouter) Close() {
@@ -46,23 +46,22 @@ func (m *NdbRouter) Routes() chi.Router {
 	}))
 
 	r.Group(func(r chi.Router) {
-		r.Use(m.permissions.ModelPermissionsCheck("write"))
+		// r.Use(m.permissions.ModelPermissionsCheck("write"))
 
 		r.Post("/insert", m.Insert)
 		r.Post("/delete", m.Delete)
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(m.permissions.ModelPermissionsCheck("read"))
+		// r.Use(m.permissions.ModelPermissionsCheck("read"))
 
 		r.Post("/query", m.Search)
 		r.Post("/upvote", m.Upvote)
 		r.Post("/associate", m.Associate)
-		r.Post("/implicit-feedback", m.ImplicitFeedback)
 		r.Get("/sources", m.Sources)
 		r.Post("/save", m.Save) // TODO Check low disk usage
+		r.Post("/implicit-feedback", m.ImplicitFeedback)
 		r.Get("/highlighted-pdf", m.HighlightedPdf)
-
 	})
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -72,78 +71,31 @@ func (m *NdbRouter) Routes() chi.Router {
 	return r
 }
 
-func (s *NdbRouter) Insert(w http.ResponseWriter, r *http.Request) {
-	type insertRequest struct {
-		Document string                   `json:"document"`
-		DocId    string                   `json:"doc_id"`
-		Chunks   []string                 `json:"chunks"`
-		Metadata []map[string]interface{} `json:"metadata,omitempty"`
-		Version  *uint                    `json:"version,omitempty"`
-	}
-
-	var req insertRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	if err := s.Ndb.Insert(req.Document, req.DocId, req.Chunks, req.Metadata, req.Version); err != nil {
-		http.Error(w, fmt.Sprintf("insert error: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	utils.WriteSuccess(w)
+// TODO(any) add reranking and context radius options
+type ConstraintInput struct {
+	Op    string      `json:"op"`
+	Value interface{} `json:"value"`
 }
 
-func (s *NdbRouter) Delete(w http.ResponseWriter, r *http.Request) {
-	type deleteRequest struct {
-		DocIds            []string `json:"source_ids"`
-		KeepLatestVersion *bool    `json:"keep_latest_version,omitempty"`
-	}
+type SearchRequest struct {
+	Query       string                     `json:"query"`
+	Topk        int                        `json:"top_k"`
+	Constraints map[string]ConstraintInput `json:"constraints,omitempty"`
+}
 
-	var req deleteRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
-		return
-	}
+type SearchResult struct {
+	Id     int     `json:"id"`
+	Text   string  `json:"text"`
+	Source string  `json:"source"`
+	Score  float32 `json:"score"`
+}
 
-	keepLatest := false
-	if req.KeepLatestVersion != nil {
-		keepLatest = *req.KeepLatestVersion
-	}
-
-	for _, docID := range req.DocIds {
-		if err := s.Ndb.Delete(docID, keepLatest); err != nil {
-			http.Error(w, fmt.Sprintf("delete error for doc '%s': %v", docID, err), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	utils.WriteSuccess(w)
+type SearchResults struct {
+	References []SearchResult `json:"references"`
 }
 
 func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
-	//TODO(any) add reranking and context radius options
-	type constraintInput struct {
-		Op    string      `json:"op"`
-		Value interface{} `json:"value"`
-	}
-	type searchRequest struct {
-		Query       string                     `json:"query"`
-		Topk        int                        `json:"top_k"`
-		Constraints map[string]constraintInput `json:"constraints,omitempty"`
-	}
-	type searchResult struct {
-		Id     int     `json:"id"`
-		Text   string  `json:"text"`
-		Source string  `json:"source"`
-		Score  float32 `json:"score"`
-	}
-	type searchResults struct {
-		References []searchResult `json:"references"`
-	}
-
-	var req searchRequest
+	var req SearchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
 		return
@@ -170,9 +122,9 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results := searchResults{References: make([]searchResult, len(chunks))}
+	results := SearchResults{References: make([]SearchResult, len(chunks))}
 	for i, chunk := range chunks {
-		results.References[i] = searchResult{
+		results.References[i] = SearchResult{
 			Id:     int(chunk.Id),
 			Text:   chunk.Text,
 			Source: chunk.Document,
@@ -186,17 +138,68 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *NdbRouter) Upvote(w http.ResponseWriter, r *http.Request) {
-	type upvoteInputSingle struct {
-		QueryText     string `json:"query_text"`
-		ReferenceId   int    `json:"reference_id"`
-		ReferenceText string `json:"reference_text"`
-	}
-	type upvoteInput struct {
-		TextIdPairs []upvoteInputSingle `json:"text_id_pairs"`
+type InsertRequest struct {
+	Document string                   `json:"document"`
+	DocId    string                   `json:"doc_id"`
+	Chunks   []string                 `json:"chunks"`
+	Metadata []map[string]interface{} `json:"metadata,omitempty"`
+	Version  *uint                    `json:"version,omitempty"`
+}
+
+func (s *NdbRouter) Insert(w http.ResponseWriter, r *http.Request) {
+	var req InsertRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
+		return
 	}
 
-	var req upvoteInput
+	if err := s.Ndb.Insert(req.Document, req.DocId, req.Chunks, req.Metadata, req.Version); err != nil {
+		http.Error(w, fmt.Sprintf("insert error: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteSuccess(w)
+}
+
+type DeleteRequest struct {
+	DocIds            []string `json:"source_ids"`
+	KeepLatestVersion *bool    `json:"keep_latest_version,omitempty"`
+}
+
+func (s *NdbRouter) Delete(w http.ResponseWriter, r *http.Request) {
+	var req DeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	keepLatest := false
+	if req.KeepLatestVersion != nil {
+		keepLatest = *req.KeepLatestVersion
+	}
+
+	for _, docID := range req.DocIds {
+		if err := s.Ndb.Delete(docID, keepLatest); err != nil {
+			http.Error(w, fmt.Sprintf("delete error for doc '%s': %v", docID, err), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	utils.WriteSuccess(w)
+}
+
+type UpvoteInputSingle struct {
+	QueryText     string `json:"query_text"`
+	ReferenceId   int    `json:"reference_id"`
+	ReferenceText string `json:"reference_text"`
+}
+
+type UpvoteInput struct {
+	TextIdPairs []UpvoteInputSingle `json:"text_id_pairs"`
+}
+
+func (s *NdbRouter) Upvote(w http.ResponseWriter, r *http.Request) {
+	var req UpvoteInput
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
 		return
@@ -217,17 +220,18 @@ func (s *NdbRouter) Upvote(w http.ResponseWriter, r *http.Request) {
 	utils.WriteSuccess(w)
 }
 
-func (s *NdbRouter) Associate(w http.ResponseWriter, r *http.Request) {
-	type associateInputSingle struct {
-		Source string `json:"source"`
-		Target string `json:"target"`
-	}
-	type associateInput struct {
-		TextPairs []associateInputSingle `json:"text_pairs"`
-		Strength *uint32 `json:"strength,omitempty"`
-	}
+type AssociateInputSingle struct {
+	Source string `json:"source"`
+	Target string `json:"target"`
+}
 
-	var req associateInput
+type AssociateInput struct {
+	TextPairs []AssociateInputSingle `json:"text_pairs"`
+	Strength  *uint32                `json:"strength,omitempty"`
+}
+
+func (s *NdbRouter) Associate(w http.ResponseWriter, r *http.Request) {
+	var req AssociateInput
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
 		return
@@ -253,7 +257,17 @@ func (s *NdbRouter) Associate(w http.ResponseWriter, r *http.Request) {
 	utils.WriteSuccess(w)
 }
 
-//TODO(any) change the "source" field to return the full source path?
+type Source struct {
+	Source   string `json:"source"`
+	SourceID string `json:"source_id"`
+	Version  uint32 `json:"version"`
+}
+
+type Sources struct {
+	Sources []Source `json:"sources"`
+}
+
+// TODO(any) change the "source" field to return the full source path?
 func (s *NdbRouter) Sources(w http.ResponseWriter, r *http.Request) {
 	srcs, err := s.Ndb.Sources()
 	if err != nil {
@@ -265,19 +279,9 @@ func (s *NdbRouter) Sources(w http.ResponseWriter, r *http.Request) {
 		return srcs[i].Document < srcs[j].Document
 	})
 
-	type sourceOutput struct {
-		Source   string `json:"source"`
-		SourceID string `json:"source_id"`
-		Version  uint32 `json:"version"`
-	}
-
-	type sourceResults struct {
-		Sources []sourceOutput `json:"sources"`
-	}
-
-	results := sourceResults{Sources: make([]sourceOutput, len(srcs))}
+	results := Sources{Sources: make([]Source, len(srcs))}
 	for i, doc := range srcs {
-		results.Sources[i] = sourceOutput{
+		results.Sources[i] = Source{
 			Source:   doc.Document,
 			SourceID: doc.DocId,
 			Version:  doc.DocVersion,

@@ -55,15 +55,29 @@ class EnterpriseSearchRouter:
     def search(
         self,
         params: inputs.NDBSearchParams,
-        token: str = Depends(Permissions.verify_permission("read")),
+        token_scheme=Depends(Permissions.verify_permission("read")),
     ):
-        res = self.session.post(
-            url=urljoin(self.retrieval_endpoint, "search"),
-            json=params.model_dump(),
-            headers={
-                "Authorization": f"Bearer {token}",
-            },
-        )
+
+        token, scheme = token_scheme
+
+        if scheme == "api_key":
+            headers = {"X-API-Key": token}
+        else:
+            headers = {"Authorization": f"Bearer {token}"}
+
+        try:
+            res = self.session.post(
+                url=urljoin(self.retrieval_endpoint, "search"),
+                json=params.model_dump(),
+                headers=headers,
+            )
+        except Exception as e:
+            self.logger.error(f"Exception during POST request: {e}")
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message="Failed to make POST request: " + str(e),
+            )
+
         if res.status_code != status.HTTP_200_OK:
             self.logger.error(
                 f"Failed retrieval request with status code {res.status_code}. Response: {res.text}",
@@ -71,24 +85,41 @@ class EnterpriseSearchRouter:
             )
             return response(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                message="Unable to get resutls from retrieval model: " + str(res),
+                message="Unable to get results from retrieval model: " + str(res),
             )
 
-        results = inputs.EnterpriseSearchResults.model_validate(res.json()["data"])
+        try:
+            results = inputs.EnterpriseSearchResults.model_validate(res.json()["data"])
+        except Exception as e:
+            self.logger.error(f"Exception during result parsing: {e}")
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message="Error parsing results: " + str(e),
+            )
 
         if self.guardrail:
             label_map = LabelMap()
 
-            results.query_text = self.guardrail.redact_pii(
-                text=results.query_text, access_token=token, label_map=label_map
-            )
-
-            for ref in results.references:
-                ref.text = self.guardrail.redact_pii(
-                    text=ref.text, access_token=token, label_map=label_map
+            try:
+                results.query_text = self.guardrail.redact_pii(
+                    text=results.query_text,
+                    label_map=label_map,
+                    access_token=token,
+                    auth_scheme=scheme,
                 )
-            results.pii_entities = label_map.get_entities()
-            self.logger.debug("Redacted PII from search results")
+
+                for ref in results.references:
+                    ref.text = self.guardrail.redact_pii(
+                        text=ref.text,
+                        label_map=label_map,
+                        access_token=token,
+                        auth_scheme=scheme,
+                    )
+
+                results.pii_entities = label_map.get_entities()
+                self.logger.debug("Redacted PII from search results")
+            except Exception as e:
+                self.logger.error(f"Exception during PII redaction: {e}")
 
         return response(
             status_code=status.HTTP_200_OK,
@@ -99,7 +130,7 @@ class EnterpriseSearchRouter:
     def unredact(
         self,
         args: inputs.UnredactArgs,
-        token: str = Depends(Permissions.verify_permission("read")),
+        _=Depends(Permissions.verify_permission("read")),
     ):
         if self.guardrail:
             unredacted_text = self.guardrail.unredact_pii(args.text, args.pii_entities)

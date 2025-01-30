@@ -25,7 +25,7 @@ def test_logger():
         shutil.rmtree(log_dir)
 
 
-def fake_ner_output(text, access_token):
+def fake_ner_output(text, access_token, auth_scheme):
     tokens = [
         ("my", "O"),
         ("neighbor", "O"),
@@ -62,11 +62,11 @@ def test_guardrail(test_logger):
 
     expected_redacted_pii = "my neighbor is [NAME#0] on [ADDRESS#1] he has a cat named [NAME#2] we call him [NAME#2]"
 
-    redacted = guardrail.redact_pii("", "", label_map)
+    redacted = guardrail.redact_pii("", label_map, "", "")
     assert redacted == expected_redacted_pii
 
     # Check that labels are reused between calls
-    assert guardrail.redact_pii("", "", label_map) == expected_redacted_pii
+    assert guardrail.redact_pii("", label_map, "", "") == expected_redacted_pii
 
     expected_unredacted_pii = "my neighbor is rick on main street he has a cat named robert we call him robert"
 

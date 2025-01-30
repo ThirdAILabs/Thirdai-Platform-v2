@@ -10,8 +10,10 @@ import (
 	"net/http/httptest"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/services"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 )
 
 type httpTestRequest struct {
@@ -93,10 +95,11 @@ func (r *httpTestRequest) Do(result interface{}) error {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		if res.StatusCode == http.StatusUnauthorized {
-			return ErrUnauthorized
+		err := fmt.Errorf("%v request to endpoint %v returned status %d, content '%v'", r.method, r.endpoint, res.StatusCode, w.Body.String())
+		if res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden {
+			return errors.Join(ErrUnauthorized, err)
 		}
-		return fmt.Errorf("%v request to endpoint %v returned status %d, content '%v'", r.method, r.endpoint, res.StatusCode, w.Body.String())
+		return err
 	}
 
 	if result != nil {
@@ -114,31 +117,41 @@ var ErrUnauthorized = errors.New("unauthorized")
 type client struct {
 	api       chi.Router
 	authToken string
+	apiKey    string
 	userId    string
+}
+
+func (c *client) UseApiKey(api_key string) error {
+
+	c.apiKey = api_key
+	c.authToken = ""
+	c.userId = ""
+	return nil
+}
+
+func (c *client) addAuthHeaders(r *httpTestRequest) *httpTestRequest {
+	if c.authToken != "" {
+		return r.Auth(c.authToken)
+	}
+	if c.apiKey != "" {
+		return r.Header("X-API-Key", c.apiKey)
+	}
+	return r
 }
 
 func (c *client) Get(endpoint string) *httpTestRequest {
 	r := newHttpTestRequest(c.api, "GET", endpoint)
-	if c.authToken != "" {
-		return r.Auth(c.authToken)
-	}
-	return r
+	return c.addAuthHeaders(r)
 }
 
 func (c *client) Post(endpoint string) *httpTestRequest {
 	r := newHttpTestRequest(c.api, "POST", endpoint)
-	if c.authToken != "" {
-		return r.Auth(c.authToken)
-	}
-	return r
+	return c.addAuthHeaders(r)
 }
 
 func (c *client) Delete(endpoint string) *httpTestRequest {
 	r := newHttpTestRequest(c.api, "DELETE", endpoint)
-	if c.authToken != "" {
-		return r.Auth(c.authToken)
-	}
-	return r
+	return c.addAuthHeaders(r)
 }
 
 type loginInfo struct {
@@ -275,6 +288,50 @@ func (c *client) listModels() ([]services.ModelInfo, error) {
 	return res, err
 }
 
+func (c *client) createAPIKey(modelIDs []uuid.UUID, name string, expiry time.Time, allModels bool) (string, error) {
+	requestBody := map[string]interface{}{
+		"model_ids":  modelIDs,
+		"name":       name,
+		"exp":        expiry,
+		"all_models": allModels,
+	}
+
+	var response struct {
+		ApiKey string `json:"api_key"`
+	}
+
+	err := c.Post("/model/create-api-key").Json(requestBody).Do(&response)
+	if err != nil {
+		return "", fmt.Errorf("failed to create API key: %w", err)
+	}
+
+	return response.ApiKey, nil
+}
+
+func (c *client) ListAPIKeys() ([]services.APIKeyResponse, error) {
+	var response []services.APIKeyResponse
+
+	err := c.Get("/model/list-api-keys").Do(&response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list API keys: %w", err)
+	}
+
+	return response, nil
+}
+
+func (c *client) DeleteAPIKey(apiKeyID uuid.UUID) error {
+	body := map[string]uuid.UUID{
+		"api_key_id": apiKeyID,
+	}
+
+	err := c.Post("/model/delete-api-key").Json(body).Do(nil)
+	if err != nil {
+		return fmt.Errorf("failed to delete API key: %w", err)
+	}
+
+	return nil
+}
+
 func (c *client) deleteModel(modelId string) error {
 	return c.Delete(fmt.Sprintf("/model/%v", modelId)).Do(nil)
 }
@@ -385,10 +442,11 @@ func (c *client) downloadModel(modelId string) (io.Reader, error) {
 
 	res := w.Result()
 	if res.StatusCode != http.StatusOK {
-		if res.StatusCode == http.StatusUnauthorized {
-			return nil, ErrUnauthorized
+		err := fmt.Errorf("get %v failed with status %d and res '%v'", endpoint, res.StatusCode, w.Body.String())
+		if res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden {
+			return nil, errors.Join(ErrUnauthorized, err)
 		}
-		return nil, fmt.Errorf("get %v failed with status %d and res '%v'", endpoint, res.StatusCode, w.Body.String())
+		return nil, err
 	}
 
 	dst := new(bytes.Buffer)

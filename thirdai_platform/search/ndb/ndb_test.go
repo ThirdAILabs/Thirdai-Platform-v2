@@ -9,6 +9,13 @@ import (
 	"thirdai_platform/search/ndb"
 )
 
+func init() {
+	const licensePath = "../../../.test_license/thirdai.license"
+	if err := ndb.SetLicensePath(licensePath); err != nil {
+		panic(err)
+	}
+}
+
 func checkQuery(t *testing.T, ndb ndb.NeuralDB, query string, constraints ndb.Constraints, expectedIds []uint64) {
 	results, err := ndb.Query(query, len(expectedIds), constraints)
 	if err != nil {
@@ -372,6 +379,9 @@ func runDeleteDocTest(t *testing.T, keepLatestVersion bool) {
 	checkQuery(t, db, "x y z", nil, []uint64{6, 5, 4})
 
 	err = db.Delete("id_1", keepLatestVersion)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if keepLatestVersion {
 		checkQuery(t, db, "a b c d e", nil, []uint64{2, 3})

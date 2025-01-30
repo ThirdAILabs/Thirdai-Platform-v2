@@ -145,6 +145,9 @@ type InsertRequest struct {
 	Version  *uint                    `json:"version,omitempty"`
 }
 
+
+//TODO how to do insert from files that already have been uploaded? 
+// do we need go bindings for documents or to parse them with a service beforehand?
 func (s *NdbRouter) Insert(w http.ResponseWriter, r *http.Request) {
 	var req InsertRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

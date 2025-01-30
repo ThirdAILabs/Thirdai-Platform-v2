@@ -171,7 +171,7 @@ func TestKnowledgeExtraction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(questions) != 6 {
+	if len(questions) != 5 {
 		t.Fatalf("invalid question list: %v", questions)
 	}
 

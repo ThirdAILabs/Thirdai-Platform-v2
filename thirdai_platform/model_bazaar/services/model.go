@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
@@ -33,11 +34,30 @@ type ModelService struct {
 	uploadSessionAuth *auth.JwtManager
 }
 
+type CreateAPIKeyRequest struct {
+	ModelIDs  []uuid.UUID `json:"model_ids"`
+	Name      string      `json:"name"`
+	Exp       time.Time   `json:"exp"`
+	AllModels bool        `json:"all_models"`
+}
+
+type APIKeyResponse struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	CreatedBy uuid.UUID `json:"created_by"`
+	Expiry    time.Time `json:"expiry"`
+}
+
+type deleteRequestBody struct {
+	APIKeyID uuid.UUID `json:"api_key_id"`
+}
+
 func (s *ModelService) Routes() chi.Router {
 	r := chi.NewRouter()
 
+	eitherOrMiddleware := eitherUserOrApiKeyAuthMiddleware(s.db, s.userAuth.AuthMiddleware())
 	r.Route("/{model_id}", func(r chi.Router) {
-		r.Use(s.userAuth.AuthMiddleware()...)
+		r.Use(eitherOrMiddleware)
 
 		r.Get("/permissions", s.Permissions)
 
@@ -61,6 +81,9 @@ func (s *ModelService) Routes() chi.Router {
 		r.Use(s.userAuth.AuthMiddleware()...)
 
 		r.Get("/list", s.List)
+		r.Post("/create-api-key", s.CreateAPIKey)
+		r.Post("/delete-api-key", s.DeleteAPIKey)
+		r.Get("/list-api-keys", s.ListUserAPIKeys)
 		r.With(checkSufficientStorage(s.storage)).Post("/upload", s.UploadStart)
 	})
 
@@ -214,6 +237,230 @@ func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJsonResponse(w, infos)
 }
 
+func (s *ModelService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
+	req, err := parseCreateAPIKeyRequest(r, w)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	user, err := auth.UserFromContext(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		parsedModelIDs, err := s.parseAndValidateModelIDs(tx, req.ModelIDs)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return err
+		}
+
+		models, err := s.fetchModelsInTransaction(tx, parsedModelIDs, user.Id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return err
+		}
+
+		if len(models) != len(parsedModelIDs) {
+			http.Error(w, "some model_ids are invalid or do not belong to the user", http.StatusBadRequest)
+			return fmt.Errorf("invalid model IDs")
+		}
+
+		apiKey, err := s.createAndSaveAPIKeyInTransaction(
+			tx,
+			req.Name,
+			req.Exp,
+			user.Id,
+			models,
+			req.AllModels,
+		)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to save API key: %v", err), http.StatusInternalServerError)
+			return err
+		}
+
+		utils.WriteJsonResponse(w, map[string]string{"api_key": apiKey})
+		return nil
+	})
+
+	if err != nil {
+		// transaction error has already been handled and an appropriate HTTP response sent.
+		return
+	}
+}
+
+func parseCreateAPIKeyRequest(r *http.Request, w http.ResponseWriter) (CreateAPIKeyRequest, error) {
+	var req CreateAPIKeyRequest
+	if !utils.ParseRequestBody(w, r, &req) {
+		return req, errors.New("invalid request body")
+	}
+
+	if !req.AllModels && len(req.ModelIDs) == 0 {
+		return req, errors.New("model_ids are required if all_models is false")
+	}
+
+	if strings.TrimSpace(req.Name) == "" {
+		return req, errors.New("name is required")
+	}
+
+	if req.Exp.Before(time.Now()) {
+		return req, errors.New("api key is already expired")
+	}
+
+	return req, nil
+}
+
+func (s *ModelService) parseAndValidateModelIDs(tx *gorm.DB, modelIDs []uuid.UUID) ([]uuid.UUID, error) {
+	var parsedModelIDs []uuid.UUID
+	for _, id := range modelIDs {
+		parsedModelIDs = append(parsedModelIDs, id)
+
+		dependencies, err := s.fetchModelDependencies(tx, id)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get dependencies: %v", err)
+		}
+
+		for _, dep := range dependencies {
+			parsedModelIDs = append(parsedModelIDs, dep.DependencyId)
+		}
+	}
+	return parsedModelIDs, nil
+}
+
+func (s *ModelService) fetchModelDependencies(tx *gorm.DB, modelID uuid.UUID) ([]schema.ModelDependency, error) {
+	var dependencies []schema.ModelDependency
+	err := tx.Where("model_id = ?", modelID).Find(&dependencies).Error
+	if err != nil {
+		return nil, err
+	}
+	return dependencies, nil
+}
+
+func (s *ModelService) fetchModelsInTransaction(tx *gorm.DB, modelIDs []uuid.UUID, userID uuid.UUID) ([]schema.Model, error) {
+	var models []schema.Model
+	err := tx.Preload("Attributes").
+		Preload("Dependencies").
+		Preload("Dependencies.Dependency").
+		Preload("Dependencies.Dependency.User").
+		Where("id IN ?", modelIDs).
+		Where("user_id = ?", userID).
+		Find(&models).Error
+	if err != nil {
+		slog.Error("sql error fetching models", "error", err)
+		return nil, CodedError(schema.ErrModelNotFound, http.StatusInternalServerError)
+	}
+	return models, nil
+}
+
+func (s *ModelService) createAndSaveAPIKeyInTransaction(
+	tx *gorm.DB,
+	name string,
+	expiry time.Time,
+	userID uuid.UUID,
+	models []schema.Model,
+	allModels bool,
+) (string, error) {
+
+	apiKey, hashKey, err := generateApiKey()
+	if err != nil {
+		return "", err
+	}
+
+	newAPIKey := schema.UserAPIKey{
+		Id:            uuid.New(),
+		HashKey:       hashKey,
+		Name:          name,
+		Models:        models,
+		AllModels:     allModels,
+		GeneratedTime: time.Now(),
+		ExpiryTime:    expiry,
+		CreatedBy:     userID,
+	}
+
+	if err := tx.Create(&newAPIKey).Error; err != nil {
+		slog.Error("sql error creating user api keys", "error", err)
+		return "", CodedError(schema.ErrUserAPIKeyNotFound, http.StatusInternalServerError)
+	}
+
+	return apiKey, nil
+}
+
+func (s *ModelService) DeleteAPIKey(w http.ResponseWriter, r *http.Request) {
+	user, err := auth.UserFromContext(r)
+	if err != nil {
+		http.Error(w, "invalid or missing user", http.StatusUnauthorized)
+		return
+	}
+
+	var reqBody deleteRequestBody
+	if !utils.ParseRequestBody(w, r, &reqBody) {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if reqBody.APIKeyID == uuid.Nil {
+		http.Error(w, "key id is required", http.StatusBadRequest)
+		return
+	}
+
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		var apiKey schema.UserAPIKey
+		if err := tx.First(&apiKey, "id = ?", reqBody.APIKeyID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				http.Error(w, "API key not found", http.StatusNotFound)
+				return err
+			}
+			http.Error(w, "failed to retrieve API key", http.StatusInternalServerError)
+			return err
+		}
+
+		if apiKey.CreatedBy != user.Id && !user.IsAdmin {
+			http.Error(w, "you do not own this key", http.StatusForbidden)
+			return fmt.Errorf("forbidden access")
+		}
+
+		if err := tx.Delete(&apiKey).Error; err != nil {
+			http.Error(w, "failed to delete API key", http.StatusInternalServerError)
+			return err
+		}
+		return nil
+	}); err != nil {
+		if err.Error() != "forbidden access" {
+			http.Error(w, "an error occurred during the transaction", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	utils.WriteSuccess(w)
+}
+
+func (s *ModelService) ListUserAPIKeys(w http.ResponseWriter, r *http.Request) {
+	user, err := auth.UserFromContext(r)
+	if err != nil {
+		http.Error(w, "Unauthorized: invalid or missing user", http.StatusUnauthorized)
+		return
+	}
+
+	var apiKeys []APIKeyResponse
+
+	dbQuery := s.db.Model(&schema.UserAPIKey{})
+
+	if !user.IsAdmin {
+		dbQuery = dbQuery.Where("created_by = ?", user.Id)
+	}
+
+	dbQuery = dbQuery.Select("id, name, created_by, expiry_time as expiry")
+
+	if err := dbQuery.Scan(&apiKeys).Error; err != nil {
+		http.Error(w, "failed to retrieve API keys", http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJsonResponse(w, apiKeys)
+}
+
 type ModelPermissions struct {
 	Read     bool      `json:"read"`
 	Write    bool      `json:"write"`
@@ -245,11 +492,17 @@ func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	expiration, err := s.userAuth.GetTokenExpiration(r)
-	if err != nil {
-		slog.Error("error retrieving jwt expiration", "error", err)
-		http.Error(w, "error retrieving token expiration", http.StatusInternalServerError)
-		return
+	var expiration time.Time
+
+	if expiry, ok := auth.GetAPIKeyExpiry(r.Context()); ok {
+		expiration = expiry
+	} else {
+		expiration, err = s.userAuth.GetTokenExpiration(r)
+		if err != nil {
+			slog.Error("error retrieving jwt expiration", "error", err)
+			http.Error(w, "error retrieving token expiration", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	res := ModelPermissions{

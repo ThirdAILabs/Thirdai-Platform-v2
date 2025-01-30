@@ -389,7 +389,7 @@ func (auth *KeycloakIdentityProvider) middleware() func(http.Handler) http.Handl
 			}
 
 			reqCtx := r.Context()
-			reqCtx = context.WithValue(reqCtx, userRequestContextKey, user)
+			reqCtx = context.WithValue(reqCtx, UserRequestContextKey, user)
 			next.ServeHTTP(w, r.WithContext(reqCtx))
 		}
 

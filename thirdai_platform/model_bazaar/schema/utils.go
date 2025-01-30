@@ -9,11 +9,12 @@ import (
 )
 
 var (
-	ErrUserNotFound     = errors.New("user not found")
-	ErrModelNotFound    = errors.New("model not found")
-	ErrTeamNotFound     = errors.New("team not found")
-	ErrUserTeamNotFound = errors.New("user team relationship not found")
-	ErrDbAccessFailed   = errors.New("db access failed")
+	ErrUserNotFound       = errors.New("user not found")
+	ErrModelNotFound      = errors.New("model not found")
+	ErrTeamNotFound       = errors.New("team not found")
+	ErrUserTeamNotFound   = errors.New("user team relationship not found")
+	ErrUserAPIKeyNotFound = errors.New("user api key not found")
+	ErrDbAccessFailed     = errors.New("db access failed")
 )
 
 func GetUser(userId uuid.UUID, db *gorm.DB) (User, error) {

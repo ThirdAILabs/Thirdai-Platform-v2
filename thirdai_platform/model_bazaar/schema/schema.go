@@ -32,6 +32,8 @@ type Model struct {
 
 	TeamId *uuid.UUID `gorm:"type:uuid"`
 	Team   *Team      `gorm:"constraint:OnDelete:SET NULL"`
+
+	UserAPIKeys []UserAPIKey `gorm:"many2many:user_api_key_models;"`
 }
 
 func (m *Model) GetAttributes() map[string]string {
@@ -67,6 +69,22 @@ type User struct {
 
 	Models []Model
 	Teams  []UserTeam `gorm:"constraint:OnDelete:CASCADE"`
+}
+
+type UserAPIKey struct {
+	Id uuid.UUID `gorm:"type:uuid;primaryKey"`
+
+	HashKey string  `gorm:"column:hashkey;unique;size:500;not null;index"` // Added `index` as we use this field for comparing
+	Name    string  `gorm:"size:500;not null"`
+	Models  []Model `gorm:"many2many:user_api_key_models;constraint:OnDelete:CASCADE;"`
+
+	AllModels bool `gorm:"default:false;not null"`
+
+	GeneratedTime time.Time
+	ExpiryTime    time.Time `gorm:"not null"`
+
+	CreatedBy uuid.UUID `gorm:"type:uuid;not null"`
+	User      User      `gorm:"foreignKey:CreatedBy;constraint:OnDelete:CASCADE;"`
 }
 
 type Team struct {

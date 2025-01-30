@@ -19,6 +19,8 @@ import (
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/utils"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type deploymentEnv struct {
@@ -78,10 +80,6 @@ func initLogging(logFile *os.File) {
 // The reason we have a separate runApp function is because the defer calls don't
 // run if we exit with log.Fatalf, so instead we return an err here and fail outside
 func runApp() error {
-	defer func() {
-		log.Println("Deferred cleanup called from runApp")
-	}()
-
 	port := flag.Int("port", 8000, "Port to run server on")
 
 	flag.Parse()
@@ -120,6 +118,7 @@ func runApp() error {
 	go func() {
 		time.Sleep(10 * time.Second)
 		reporter.UpdateDeployStatusInternal("complete")
+		slog.Info("updated deploy status to complete")
 	}()
 
 	srv := &http.Server{
@@ -127,7 +126,7 @@ func runApp() error {
 		Handler: r,
 	}
 
-	/* We need to listen to an interrupt in this way to ensure the defer calls
+	/* We need to listen for an interrupt in this way to ensure the defer calls
 	go through correctly in case of a shutdown and so we can update the job
 	status to "stopped"
 	srv.Shutdown shuts down the server without interrupting valid connections
@@ -150,10 +149,13 @@ func runApp() error {
 	if err != nil && err != http.ErrServerClosed {
 		reporter.UpdateDeployStatusInternal("failed")
 		return fmt.Errorf("listen and serve returned error: %w", err)
+	} else if err == http.ErrServerClosed {
+		slog.Info("exited server with err=http.ErrServerClosed")
 	}
 
 	<-idleConnsClosed
 	reporter.UpdateDeployStatusInternal("stopped")
+	slog.Info("updated deploy status to stopped")
 	return nil
 }
 

@@ -36,8 +36,7 @@ func (m *MockPermissions) ModelPermissionsCheck(permission_type string) func(htt
 	}
 }
 
-func makeNdbServer(t *testing.T, mockPermissions MockPermissions) *httptest.Server {
-	modelbazaardir := t.TempDir()
+func makeNdbServer(t *testing.T, modelbazaardir string) *httptest.Server {
 	modelID := uuid.New()
 	modelDir := filepath.Join(modelbazaardir, "models", modelID.String(), "model", "model.ndb")
 
@@ -58,6 +57,8 @@ func makeNdbServer(t *testing.T, mockPermissions MockPermissions) *httptest.Serv
 		ModelId:        modelID,
 		ModelBazaarDir: modelbazaardir,
 	}
+
+	mockPermissions := MockPermissions{}
 
 	router := deployment.NdbRouter{Ndb: db, Config: &deployConfig, Permissions: &mockPermissions}
 
@@ -185,9 +186,8 @@ func doDelete(t *testing.T, testServer *httptest.Server, source_ids []string) {
 }
 
 func TestBasicEndpoints(t *testing.T) {
-	mockPermissions := MockPermissions{}
-
-	testServer := makeNdbServer(t, mockPermissions)
+	modelbazaardir := t.TempDir()
+	testServer := makeNdbServer(t, modelbazaardir)
 	defer testServer.Close()
 
 	checkSources(t, testServer, []string{"doc_id_1"})
@@ -236,3 +236,5 @@ func TestSaveLoadDeployConfig(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedConfig, loadedConfig, "Loaded config should match the expected config")
 }
+
+// TODO unit tests for constraints, full source paths, insertion of large files

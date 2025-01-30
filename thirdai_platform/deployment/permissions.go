@@ -10,6 +10,12 @@ import (
 	"github.com/google/uuid"
 )
 
+// Use an interface so we can mock it for unit tests
+type PermissionsInterface interface {
+	GetModelPermissions(token string) (services.ModelPermissions, error)
+	ModelPermissionsCheck(permissionType string) func(http.Handler) http.Handler
+}
+
 type Permissions struct {
 	ModelBazaarEndpoint string
 	ModelId             uuid.UUID

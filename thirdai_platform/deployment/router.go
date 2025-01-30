@@ -17,10 +17,10 @@ import (
 )
 
 type NdbRouter struct {
-	Ndb    ndb.NeuralDB
-	Config *config.DeployConfig
-	reporter    Reporter
-	permissions Permissions
+	Ndb         ndb.NeuralDB
+	Config      *config.DeployConfig
+	Reporter    Reporter
+	Permissions PermissionsInterface
 }
 
 func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, error) {
@@ -29,7 +29,7 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to open ndb: %v", err)
 	}
-	return &NdbRouter{ndb, config, reporter, Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
+	return &NdbRouter{ndb, config, reporter, &Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
 }
 
 func (r *NdbRouter) Close() {
@@ -45,18 +45,18 @@ func (m *NdbRouter) Routes() chi.Router {
 	}))
 
 	r.Group(func(r chi.Router) {
-		// r.Use(m.permissions.ModelPermissionsCheck("write"))
+		r.Use(m.Permissions.ModelPermissionsCheck("write"))
 
 		r.Post("/insert", m.Insert)
 		r.Post("/delete", m.Delete)
+		r.Post("/upvote", m.Upvote)
+		r.Post("/associate", m.Associate)
 	})
 
 	r.Group(func(r chi.Router) {
-		// r.Use(m.permissions.ModelPermissionsCheck("read"))
+		r.Use(m.Permissions.ModelPermissionsCheck("read"))
 
 		r.Post("/query", m.Search)
-		r.Post("/upvote", m.Upvote)
-		r.Post("/associate", m.Associate)
 		r.Get("/sources", m.Sources)
 		r.Post("/save", m.Save) // TODO Check low disk usage
 		r.Post("/implicit-feedback", m.ImplicitFeedback)

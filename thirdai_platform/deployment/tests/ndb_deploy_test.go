@@ -12,6 +12,7 @@ import (
 
 	"thirdai_platform/deployment"
 	"thirdai_platform/model_bazaar/config"
+	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/search/ndb"
 
@@ -19,7 +20,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func makeNdbServer(t *testing.T) *httptest.Server {
+type MockPermissions struct {
+	GetModelPermissionsFunc   func(string) (services.ModelPermissions, error)
+	ModelPermissionsCheckFunc func(string) func(http.Handler) http.Handler
+	History                   map[string]int
+}
+
+func (m *MockPermissions) GetModelPermissions(token string) (services.ModelPermissions, error) {
+	return services.ModelPermissions{Read: true, Write: true}, nil // Grant all permissions
+}
+
+func (m *MockPermissions) ModelPermissionsCheck(permission_type string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return next
+	}
+}
+
+func makeNdbServer(t *testing.T, mockPermissions MockPermissions) *httptest.Server {
 	modelbazaardir := t.TempDir()
 	modelID := uuid.New()
 	modelDir := filepath.Join(modelbazaardir, "models", modelID.String(), "model", "model.ndb")
@@ -41,7 +58,8 @@ func makeNdbServer(t *testing.T) *httptest.Server {
 		ModelId:        modelID,
 		ModelBazaarDir: modelbazaardir,
 	}
-	router := deployment.NdbRouter{Ndb: db, Config: &deployConfig}
+
+	router := deployment.NdbRouter{Ndb: db, Config: &deployConfig, Permissions: &mockPermissions}
 
 	r := router.Routes()
 	testServer := httptest.NewServer(r)
@@ -54,7 +72,7 @@ func checkHealth(t *testing.T, testServer *httptest.Server) {
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func checkSources(t *testing.T, testServer *httptest.Server, sources []string) {
@@ -62,7 +80,7 @@ func checkSources(t *testing.T, testServer *httptest.Server, sources []string) {
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	var data deployment.Sources
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
@@ -85,7 +103,7 @@ func checkQuery(t *testing.T, testServer *httptest.Server, query string, referen
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	var data deployment.SearchResults
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
@@ -119,7 +137,7 @@ func doUpvote(t *testing.T, testServer *httptest.Server, query string, reference
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func doAssociate(t *testing.T, testServer *httptest.Server, source string, target string) {
@@ -133,7 +151,7 @@ func doAssociate(t *testing.T, testServer *httptest.Server, source string, targe
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func doInsert(t *testing.T, testServer *httptest.Server) {
@@ -151,7 +169,7 @@ func doInsert(t *testing.T, testServer *httptest.Server) {
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func doDelete(t *testing.T, testServer *httptest.Server, source_ids []string) {
@@ -163,11 +181,13 @@ func doDelete(t *testing.T, testServer *httptest.Server, source_ids []string) {
 	assert.NoError(t, err)
 	defer resp.Body.Close()
 
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func TestBasicEndpoints(t *testing.T) {
-	testServer := makeNdbServer(t)
+	mockPermissions := MockPermissions{}
+
+	testServer := makeNdbServer(t, mockPermissions)
 	defer testServer.Close()
 
 	checkSources(t, testServer, []string{"doc_id_1"})
@@ -216,7 +236,3 @@ func TestSaveLoadDeployConfig(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedConfig, loadedConfig, "Loaded config should match the expected config")
 }
-
-func TestPermissionsLogic(t *testing.T) {}
-
-func TestStatusReporting(t *testing.T) {}

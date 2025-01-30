@@ -37,15 +37,15 @@ func checkReports(t *testing.T, ke *client.KnowledgeExtractionClient, expectedAn
 		if err != nil {
 			t.Fatal(err)
 		}
-	}
 
-	reports, err := ke.ListReports()
-	if err != nil {
-		t.Fatal(err)
-	}
+		reports, err := ke.ListReports()
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	if len(reports) != 1 || reports[0].ReportId != reportId {
-		t.Fatalf("incorrect reports returned: %v", reports)
+		if len(reports) != 1 || reports[0].ReportId != reportId {
+			t.Fatalf("incorrect reports returned: %v", reports)
+		}
 	}
 
 	report, err := ke.AwaitReport(reportId, 200*time.Second)

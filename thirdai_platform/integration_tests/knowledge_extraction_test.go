@@ -69,7 +69,7 @@ func checkReports(t *testing.T, ke *client.KnowledgeExtractionClient, expectedAn
 		}
 	}
 
-	if reuseReportId == nil {
+	if reuseReportId != nil {
 		err = ke.DeleteReport(reportId)
 		if err != nil {
 			t.Fatal(err)

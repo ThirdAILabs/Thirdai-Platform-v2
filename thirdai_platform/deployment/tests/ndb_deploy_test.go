@@ -12,21 +12,20 @@ import (
 
 	"thirdai_platform/deployment"
 	"thirdai_platform/model_bazaar/config"
+	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/search/ndb"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
-func makeNdbServer(t *testing.T) (*httptest.Server, error) {
+func makeNdbServer(t *testing.T) *httptest.Server {
 	modelbazaardir := t.TempDir()
 	modelID := uuid.New()
 	modelDir := filepath.Join(modelbazaardir, "models", modelID.String(), "model", "model.ndb")
 
 	db, err := ndb.New(modelDir)
-	if err != nil {
-		return nil, err
-	}
+	assert.NoError(t, err)
 
 	err = db.Insert(
 		"doc_name_1", "doc_id_1",
@@ -34,9 +33,7 @@ func makeNdbServer(t *testing.T) (*httptest.Server, error) {
 		[]map[string]interface{}{{"thing1": true}, {"thing2": true}, {"thing1": true}},
 		nil,
 	)
-	if err != nil {
-		return nil, err
-	}
+	assert.NoError(t, err)
 
 	slog.Info("NDB initialized successfully")
 
@@ -49,31 +46,23 @@ func makeNdbServer(t *testing.T) (*httptest.Server, error) {
 	r := router.Routes()
 	testServer := httptest.NewServer(r)
 
-	return testServer, nil
+	return testServer
 }
 
 func checkHealth(t *testing.T, testServer *httptest.Server) {
 	resp, err := http.Get(testServer.URL + "/health")
-	if err != nil {
-		t.Fatalf("GET /health request failed: %v", err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", resp.StatusCode)
-	}
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
 }
 
 func checkSources(t *testing.T, testServer *httptest.Server, sources []string) {
 	resp, err := http.Get(testServer.URL + "/sources")
-	if err != nil {
-		t.Fatalf("GET /sources failed: %v", err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", resp.StatusCode)
-	}
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
 
 	var data deployment.Sources
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
@@ -93,14 +82,10 @@ func checkQuery(t *testing.T, testServer *httptest.Server, query string, referen
 	}
 	bodyBytes, _ := json.Marshal(body)
 	resp, err := http.Post(testServer.URL+"/query", "application/json", bytes.NewReader(bodyBytes))
-	if err != nil {
-		t.Fatalf("POST /query failed: %v", err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", resp.StatusCode)
-	}
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
 
 	var data deployment.SearchResults
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
@@ -131,14 +116,10 @@ func doUpvote(t *testing.T, testServer *httptest.Server, query string, reference
 	}
 	bodyBytes, _ := json.Marshal(body)
 	resp, err := http.Post(testServer.URL+"/upvote", "application/json", bytes.NewReader(bodyBytes))
-	if err != nil {
-		t.Fatalf("POST /upvote failed: %v", err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", resp.StatusCode)
-	}
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
 }
 
 func doAssociate(t *testing.T, testServer *httptest.Server, source string, target string) {
@@ -149,14 +130,10 @@ func doAssociate(t *testing.T, testServer *httptest.Server, source string, targe
 	}
 	bodyBytes, _ := json.Marshal(body)
 	resp, err := http.Post(testServer.URL+"/associate", "application/json", bytes.NewReader(bodyBytes))
-	if err != nil {
-		t.Fatalf("POST /associate failed: %v", err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", resp.StatusCode)
-	}
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
 }
 
 func doInsert(t *testing.T, testServer *httptest.Server) {
@@ -171,14 +148,10 @@ func doInsert(t *testing.T, testServer *httptest.Server) {
 	}
 	bodyBytes, _ := json.Marshal(body)
 	resp, err := http.Post(testServer.URL+"/insert", "application/json", bytes.NewReader(bodyBytes))
-	if err != nil {
-		t.Fatalf("POST /insert failed: %v", err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", resp.StatusCode)
-	}
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
 }
 
 func doDelete(t *testing.T, testServer *httptest.Server, source_ids []string) {
@@ -187,21 +160,14 @@ func doDelete(t *testing.T, testServer *httptest.Server, source_ids []string) {
 	}
 	bodyBytes, _ := json.Marshal(body)
 	resp, err := http.Post(testServer.URL+"/delete", "application/json", bytes.NewReader(bodyBytes))
-	if err != nil {
-		t.Fatalf("POST /delete failed: %v", err)
-	}
+	assert.NoError(t, err)
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", resp.StatusCode)
-	}
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
 }
 
 func TestBasicEndpoints(t *testing.T) {
-	testServer, err := makeNdbServer(t)
-	if err != nil {
-		t.Fatalf("Failed to make ndb server: %v", err)
-	}
+	testServer := makeNdbServer(t)
 	defer testServer.Close()
 
 	checkSources(t, testServer, []string{"doc_id_1"})
@@ -220,7 +186,36 @@ func TestBasicEndpoints(t *testing.T) {
 	checkSources(t, testServer, []string{"doc_id_2"})
 }
 
-func TestSaveLoadDeployConfig(t *testing.T) {}
+func TestSaveLoadDeployConfig(t *testing.T) {
+	expectedConfig := &config.DeployConfig{
+		ModelId:             uuid.New(),
+		UserId:              uuid.New(),
+		ModelType:           "test-model",
+		ModelBazaarDir:      "/bazaar/model",
+		HostDir:             "/host/model",
+		ModelBazaarEndpoint: "http://localhost:8080",
+		LicenseKey:          "test-license-key",
+		JobAuthToken:        "test-auth-token",
+		Autoscaling:         true,
+		Options: map[string]string{
+			"param1": "value1",
+			"param2": "value2",
+		},
+	}
+
+	tmp_dir := t.TempDir()
+	store := storage.NewSharedDisk(tmp_dir)
+
+	configData, err := json.MarshalIndent(expectedConfig, "", "    ")
+	assert.NoError(t, err)
+
+	err = store.Write("deploy_config.json", bytes.NewReader(configData))
+	assert.NoError(t, err)
+
+	loadedConfig, err := config.LoadDeployConfig(filepath.Join(tmp_dir, "deploy_config.json"))
+	assert.NoError(t, err)
+	assert.Equal(t, expectedConfig, loadedConfig, "Loaded config should match the expected config")
+}
 
 func TestPermissionsLogic(t *testing.T) {}
 

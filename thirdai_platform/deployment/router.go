@@ -19,8 +19,8 @@ import (
 type NdbRouter struct {
 	Ndb    ndb.NeuralDB
 	Config *config.DeployConfig
-	// reporter    Reporter
-	// permissions Permissions
+	reporter    Reporter
+	permissions Permissions
 }
 
 func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, error) {
@@ -29,8 +29,7 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to open ndb: %v", err)
 	}
-	return &NdbRouter{ndb, config}, nil
-	// return &NdbRouter{ndb, config, reporter, Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
+	return &NdbRouter{ndb, config, reporter, Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
 }
 
 func (r *NdbRouter) Close() {

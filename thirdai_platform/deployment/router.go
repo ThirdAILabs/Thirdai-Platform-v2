@@ -3,12 +3,12 @@ package deployment
 import (
 	"encoding/json"
 	"fmt"
+	// "log/slog"
 	"log"
 	"net/http"
 	"os"
 	"sort"
 	"path/filepath"
-	// "thirdai_platform/client"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/search/ndb"
 	"thirdai_platform/utils"
@@ -18,24 +18,23 @@ import (
 )
 
 type NdbRouter struct {
-	ndb         ndb.NeuralDB
-	config      *config.DeployConfig
-	// reporter    client.ModelClient
-	// permissions Permissions
+	Ndb         ndb.NeuralDB
+	Config      *config.DeployConfig
+	reporter    Reporter
+	permissions Permissions
 }
 
-func NewNdbRouter(config *config.DeployConfig) (*NdbRouter, error) {
-	ndbPath := filepath.Join(config.ModelBazaarDir, "model", config.ModelId.String(), "model", "model.ndb")
+func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, error) {
+	ndbPath := filepath.Join(config.ModelBazaarDir, "models", config.ModelId.String(), "model", "model.ndb")
 	ndb, err := ndb.New(ndbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open ndb: %v", err)
 	}
-	return &NdbRouter{ndb, config}, nil
-	// return &NdbRouter{ndb, config, reporter, Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
+	return &NdbRouter{ndb, config, reporter, Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
 }
 
 func (r *NdbRouter) Close() {
-	r.ndb.Free()
+	r.Ndb.Free()
 }
 
 func (m *NdbRouter) Routes() chi.Router {
@@ -47,14 +46,14 @@ func (m *NdbRouter) Routes() chi.Router {
 	}))
 
 	r.Group(func(r chi.Router) {
-		// r.Use(m.permissions.ModelPermissionsCheck("write"))
+		r.Use(m.permissions.ModelPermissionsCheck("write"))
 
 		r.Post("/insert", m.Insert)
 		r.Post("/delete", m.Delete)
 	})
 
 	r.Group(func(r chi.Router) {
-		// r.Use(m.permissions.ModelPermissionsCheck("read"))
+		r.Use(m.permissions.ModelPermissionsCheck("read"))
 
 		r.Post("/query", m.Search)
 		r.Post("/upvote", m.Upvote)
@@ -88,7 +87,7 @@ func (s *NdbRouter) Insert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.ndb.Insert(req.Document, req.DocId, req.Chunks, req.Metadata, req.Version); err != nil {
+	if err := s.Ndb.Insert(req.Document, req.DocId, req.Chunks, req.Metadata, req.Version); err != nil {
 		http.Error(w, fmt.Sprintf("insert error: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -114,7 +113,7 @@ func (s *NdbRouter) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, docID := range req.DocIds {
-		if err := s.ndb.Delete(docID, keepLatest); err != nil {
+		if err := s.Ndb.Delete(docID, keepLatest); err != nil {
 			http.Error(w, fmt.Sprintf("delete error for doc '%s': %v", docID, err), http.StatusInternalServerError)
 			return
 		}
@@ -165,7 +164,7 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	chunks, err := s.ndb.Query(req.Query, req.Topk, constraints)
+	chunks, err := s.Ndb.Query(req.Query, req.Topk, constraints)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("ndb query error: %v", err), http.StatusInternalServerError)
 		return
@@ -210,7 +209,7 @@ func (s *NdbRouter) Upvote(w http.ResponseWriter, r *http.Request) {
 		labels[i] = uint64(pair.ReferenceId)
 	}
 
-	if err := s.ndb.Finetune(queries, labels); err != nil {
+	if err := s.Ndb.Finetune(queries, labels); err != nil {
 		http.Error(w, fmt.Sprintf("upvote error: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -225,12 +224,18 @@ func (s *NdbRouter) Associate(w http.ResponseWriter, r *http.Request) {
 	}
 	type associateInput struct {
 		TextPairs []associateInputSingle `json:"text_pairs"`
+		Strength *uint32 `json:"strength,omitempty"`
 	}
 
 	var req associateInput
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
 		return
+	}
+
+	var strength uint32 = 4
+	if req.Strength != nil {
+		strength = *req.Strength
 	}
 
 	sources := make([]string, len(req.TextPairs))
@@ -240,7 +245,7 @@ func (s *NdbRouter) Associate(w http.ResponseWriter, r *http.Request) {
 		targets[i] = pair.Target
 	}
 
-	if err := s.ndb.Associate(sources, targets); err != nil {
+	if err := s.Ndb.Associate(sources, targets, strength); err != nil {
 		http.Error(w, fmt.Sprintf("associate error: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -250,7 +255,7 @@ func (s *NdbRouter) Associate(w http.ResponseWriter, r *http.Request) {
 
 //TODO(any) change the "source" field to return the full source path?
 func (s *NdbRouter) Sources(w http.ResponseWriter, r *http.Request) {
-	srcs, err := s.ndb.Sources()
+	srcs, err := s.Ndb.Sources()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("sources error: %v", err), http.StatusInternalServerError)
 		return
@@ -266,9 +271,13 @@ func (s *NdbRouter) Sources(w http.ResponseWriter, r *http.Request) {
 		Version  uint32 `json:"version"`
 	}
 
-	results := make([]sourceOutput, len(srcs))
+	type sourceResults struct {
+		Sources []sourceOutput `json:"sources"`
+	}
+
+	results := sourceResults{Sources: make([]sourceOutput, len(srcs))}
 	for i, doc := range srcs {
-		results[i] = sourceOutput{
+		results.Sources[i] = sourceOutput{
 			Source:   doc.Document,
 			SourceID: doc.DocId,
 			Version:  doc.DocVersion,

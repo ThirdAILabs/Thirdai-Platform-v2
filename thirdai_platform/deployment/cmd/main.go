@@ -1,21 +1,24 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"log/slog"
-	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"thirdai_platform/client"
-	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/deployment"
+	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/utils"
+	"time"
 )
 
 type deploymentEnv struct {
@@ -72,7 +75,13 @@ func initLogging(logFile *os.File) {
 	slog.Info("logging initialized", "log_file", logFile.Name())
 }
 
-func main() {
+// The reason we have a separate runApp function is because the defer calls don't
+// run if we exit with log.Fatalf, so instead we return an err here and fail outside
+func runApp() error {
+	defer func() {
+		log.Println("Deferred cleanup called from runApp")
+	}()
+
 	port := flag.Int("port", 8000, "Port to run server on")
 
 	flag.Parse()
@@ -81,20 +90,16 @@ func main() {
 
 	config, err := config.LoadDeployConfig(env.ConfigPath)
 	if err != nil {
-		log.Fatalf("could not reads deployment config: %v", err.Error())
+		return fmt.Errorf("could not read deployment config: %w", err)
 	}
 
-	// TODO(david) should we inherit the ModelClient and implement new methods
-	// for update status instead of adding them directly to ModelClient?
-	reporter := client.NewModelClient(config.ModelBazaarEndpoint, env.JobToken, config.ModelId)
+	reporter := deployment.Reporter{BaseClient: client.NewBaseClient(config.ModelBazaarEndpoint, env.JobToken), ModelId: config.ModelId.String()}
 
 	logFile, err := os.OpenFile(filepath.Join(config.ModelBazaarDir, "logs/", config.ModelId.String(), "deployment.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
 		reporter.UpdateDeployStatusInternal("failed")
-		log.Fatalf("error opening log file: %v", err)
+		return fmt.Errorf("error opening log file: %w", err)
 	}
-	//TODO (david) I think these defer calls don't run if we exit with log.Fatalf
-	// we might need to move this code to a separate function that returns on error
 	defer logFile.Close()
 
 	initLogging(logFile)
@@ -102,30 +107,58 @@ func main() {
 	ndbrouter, err := deployment.NewNdbRouter(config, reporter)
 	if err != nil {
 		reporter.UpdateDeployStatusInternal("failed")
-		log.Fatalf("failed to setup deployment router: %v", err)
+		return fmt.Errorf("failed to setup deployment router: %w", err)
 	}
 	defer ndbrouter.Close()
 
 	r := ndbrouter.Routes()
 
-	server := &http.Server{
+	/* If we report the server is complete before traefik updates, a user might
+	fire a request to this deployment before traefik is ready, and that request
+	will fail. Since traefik updates are every 5 seconds, this should be a safeguard.
+	The caveat is any code that comes after this should not take more than 10s. */
+	go func() {
+		time.Sleep(10 * time.Second)
+		reporter.UpdateDeployStatusInternal("complete")
+	}()
+
+	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", *port),
 		Handler: r,
 	}
 
-	listener, err := net.Listen("tcp", server.Addr)
-	if err != nil {
-		reporter.UpdateDeployStatusInternal("failed")
-		log.Fatalf("failed to start listener: %v", err)
-	}
-	defer listener.Close()
+	/* We need to listen to an interrupt in this way to ensure the defer calls
+	go through correctly in case of a shutdown and so we can update the job
+	status to "stopped"
+	srv.Shutdown shuts down the server without interrupting valid connections
+	https://pkg.go.dev/net/http#Server.Shutdown */
+	idleConnsClosed := make(chan struct{})
+	go func() {
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+		<-sigCh
 
-	slog.Info("server is ready to receive requests", "port", *port)
-	reporter.UpdateDeployStatusInternal("complete")
+		slog.Info("shutdown signal received")
+		if err := srv.Shutdown(context.Background()); err != nil {
+			slog.Error("HTTP server Shutdown", "err", err)
+		}
+		close(idleConnsClosed)
+	}()
 
-	err = server.Serve(listener)
+	slog.Info("starting server", "port", *port)
+	err = srv.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		reporter.UpdateDeployStatusInternal("failed")
-		log.Fatalf("listen and serve returned error: %v", err.Error())
+		return fmt.Errorf("listen and serve returned error: %w", err)
+	}
+
+	<-idleConnsClosed
+	reporter.UpdateDeployStatusInternal("stopped")
+	return nil
+}
+
+func main() {
+	if err := runApp(); err != nil {
+		log.Fatalf("fatal error: %v", err)
 	}
 }

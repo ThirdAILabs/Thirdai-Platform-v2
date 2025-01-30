@@ -11,13 +11,13 @@ import (
 )
 
 type ModelClient struct {
-	baseClient
+	BaseClient
 	modelId        uuid.UUID
 	deploymentName *string
 }
 
 func NewModelClient(baseUrl string, authToken string, modelId uuid.UUID) ModelClient {
-	return ModelClient{baseClient: baseClient{baseUrl: baseUrl, authToken: authToken}, modelId: modelId}
+	return ModelClient{BaseClient: BaseClient{baseUrl: baseUrl, authToken: authToken}, modelId: modelId}
 }
 
 func (c *ModelClient) deploymentId() string {
@@ -141,16 +141,6 @@ func (c *ModelClient) Download(dstPath string) error {
 func (c *ModelClient) GetPermissions() (services.ModelPermissions, error) {
 	var res services.ModelPermissions
 	err := c.Get(fmt.Sprintf("/api/v2/model/%v/permissions", c.modelId)).Do(&res)
-	return res, err
-}
-
-func (c *ModelClient) UpdateDeployStatusInternal(status string) error {
-	return c.Post(fmt.Sprintf("/api/v2/deploy/%v/update-status", c.modelId)).Do(nil)
-}
-
-func (c *ModelClient) GetDeployStatusInternal() (services.StatusResponse, error) {
-	var res services.StatusResponse
-	err := c.Get(fmt.Sprintf("/api/v2/deploy/%v/status-internal", c.modelId)).Do(&res)
 	return res, err
 }
 

@@ -156,12 +156,16 @@ func (r *httpRequest) Do(result interface{}) error {
 	})
 }
 
-type baseClient struct {
+type BaseClient struct {
 	baseUrl   string
 	authToken string
 }
 
-func (c *baseClient) Get(endpoint string) *httpRequest {
+func NewBaseClient(baseUrl string, authToken string) BaseClient {
+	return BaseClient{baseUrl: baseUrl, authToken: authToken}
+}
+
+func (c *BaseClient) Get(endpoint string) *httpRequest {
 	r := newHttpRequest("GET", c.baseUrl, endpoint)
 	if c.authToken != "" {
 		return r.Auth(c.authToken)
@@ -169,7 +173,7 @@ func (c *baseClient) Get(endpoint string) *httpRequest {
 	return r
 }
 
-func (c *baseClient) Post(endpoint string) *httpRequest {
+func (c *BaseClient) Post(endpoint string) *httpRequest {
 	r := newHttpRequest("POST", c.baseUrl, endpoint)
 	if c.authToken != "" {
 		return r.Auth(c.authToken)
@@ -177,7 +181,7 @@ func (c *baseClient) Post(endpoint string) *httpRequest {
 	return r
 }
 
-func (c *baseClient) Delete(endpoint string) *httpRequest {
+func (c *BaseClient) Delete(endpoint string) *httpRequest {
 	r := newHttpRequest("DELETE", c.baseUrl, endpoint)
 	if c.authToken != "" {
 		return r.Auth(c.authToken)

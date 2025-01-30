@@ -22,13 +22,14 @@ var (
 	ErrNotLeader = errors.New("operation can only be applied by leader")
 )
 
-type DNdb struct {
+type DNDB struct {
 	sync.RWMutex
 
 	ndb ndb.NeuralDB
 
 	raft            *raft.Raft
 	lastUpdateIndex atomic.Uint64
+	transport       raft.Transport
 
 	replicaId     string
 	bindAddr      string
@@ -44,9 +45,9 @@ type RaftConfig struct {
 	Bootstrap     bool
 }
 
-func New(ndbPath string, localNdbStore string, config RaftConfig) (*DNdb, error) {
+func New(ndbPath string, localNdbStore string, config RaftConfig) (*DNDB, error) {
 	if config.ReplicaId == "" {
-		config.ReplicaId = config.BindAddr
+		return nil, errors.New("replica id cannot be empty")
 	}
 
 	raftConfig := raft.DefaultConfig()
@@ -57,15 +58,17 @@ func New(ndbPath string, localNdbStore string, config RaftConfig) (*DNdb, error)
 		return nil, fmt.Errorf("unable to resolve bind addr: %w", err)
 	}
 
-	transport, err := raft.NewTCPTransport(config.BindAddr, addr, 3, 10*time.Second, os.Stderr)
+	const maxConnPoolSize = 1
+	transport, err := raft.NewTCPTransport(config.BindAddr, addr, maxConnPoolSize, 10*time.Second, os.Stderr)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create transport: %w", err)
 	}
 
-	dndb := &DNdb{
+	dndb := &DNDB{
 		replicaId:     config.ReplicaId,
 		bindAddr:      config.BindAddr,
 		localNdbStore: localNdbStore,
+		transport:     transport,
 	}
 
 	ra, err := raft.NewRaft(raftConfig, (*distributedNdbFSM)(dndb), config.LogStore, config.StableStore, config.SnapshotStore, transport)
@@ -86,7 +89,7 @@ func New(ndbPath string, localNdbStore string, config RaftConfig) (*DNdb, error)
 		}
 		err := ra.BootstrapCluster(configuration).Error()
 		if err != nil {
-			return nil, fmt.Errorf("error boostrapping raft cluster: %w", err)
+			return nil, fmt.Errorf("error bootstrapping raft cluster: %w", err)
 		}
 	}
 
@@ -103,23 +106,35 @@ func New(ndbPath string, localNdbStore string, config RaftConfig) (*DNdb, error)
 	return dndb, nil
 }
 
-func (dndb *DNdb) ReplicaID() string {
+func (dndb *DNDB) Shutdown() error {
+	defer dndb.ndb.Free()
+
+	if err := dndb.raft.Shutdown().Error(); err != nil {
+		slog.Error("error calling raft shutdown", "error", err)
+		return fmt.Errorf("error calling raft shutdown: %w", err)
+	}
+
+	return nil
+}
+
+func (dndb *DNDB) ReplicaID() string {
 	return dndb.replicaId
 }
 
-func (dndb *DNdb) Addr() string {
+func (dndb *DNDB) Addr() string {
 	return dndb.bindAddr
 }
 
-func (dndb *DNdb) IsLeader() bool {
+func (dndb *DNDB) IsLeader() bool {
 	return dndb.raft.State() == raft.Leader
 }
 
-func (dndb *DNdb) AddReplica(replicaId, addr string) error {
+func (dndb *DNDB) AddReplica(replicaId, addr string) error {
 	if !dndb.IsLeader() {
 		return ErrNotLeader
 	}
 
+	// The final args are not needed, 0 means that they are ignored.
 	future := dndb.raft.AddVoter(raft.ServerID(replicaId), raft.ServerAddress(addr), 0, 0)
 	if err := future.Error(); err != nil {
 		return fmt.Errorf("error adding new replica: %w", err)
@@ -128,7 +143,7 @@ func (dndb *DNdb) AddReplica(replicaId, addr string) error {
 	return nil
 }
 
-func (dndb *DNdb) RemoveReplica(replicaId string) error {
+func (dndb *DNDB) RemoveReplica(replicaId string) error {
 	if !dndb.IsLeader() {
 		return ErrNotLeader
 	}
@@ -141,7 +156,7 @@ func (dndb *DNdb) RemoveReplica(replicaId string) error {
 	return nil
 }
 
-func (dndb *DNdb) ForceSnapshot() error {
+func (dndb *DNDB) ForceSnapshot() error {
 	if !dndb.IsLeader() {
 		return ErrNotLeader
 	}
@@ -158,7 +173,7 @@ type UpdateResult struct {
 	Index uint64
 }
 
-func (dndb *DNdb) Insert(document, docId string, chunks []string, metadata []map[string]interface{}) (UpdateResult, error) {
+func (dndb *DNDB) Insert(document, docId string, chunks []string, metadata []map[string]interface{}) (UpdateResult, error) {
 	// This is a little bit of a leaky abstraction but performing this check here is
 	// so that we don't have to wait for raft to apply the insert to find out if the
 	// args are valid.
@@ -175,7 +190,7 @@ func (dndb *DNdb) Insert(document, docId string, chunks []string, metadata []map
 	return dndb.applyUpdate(op)
 }
 
-func (dndb *DNdb) Upvote(query string, label uint64) (UpdateResult, error) {
+func (dndb *DNDB) Upvote(query string, label uint64) (UpdateResult, error) {
 	op := UpdateOp{
 		Upvote: &UpvoteOp{
 			Query: query, Label: label,
@@ -185,17 +200,20 @@ func (dndb *DNdb) Upvote(query string, label uint64) (UpdateResult, error) {
 	return dndb.applyUpdate(op)
 }
 
-func (dndb *DNdb) Associate(source, target string) (UpdateResult, error) {
+func (dndb *DNDB) Associate(source, target string, strength uint32) (UpdateResult, error) {
+	if strength == 0 {
+		strength = ndb.DefaultAssociateStrength
+	}
 	op := UpdateOp{
 		Associate: &AssociateOp{
-			Source: source, Target: target,
+			Source: source, Target: target, Strength: strength,
 		},
 	}
 
 	return dndb.applyUpdate(op)
 }
 
-func (dndb *DNdb) Delete(docId string, keepLatestVersion bool) (UpdateResult, error) {
+func (dndb *DNDB) Delete(docId string, keepLatestVersion bool) (UpdateResult, error) {
 	op := UpdateOp{
 		Delete: &DeleteOp{
 			DocId: docId,
@@ -205,7 +223,7 @@ func (dndb *DNdb) Delete(docId string, keepLatestVersion bool) (UpdateResult, er
 	return dndb.applyUpdate(op)
 }
 
-func (dndb *DNdb) applyUpdate(op UpdateOp) (UpdateResult, error) {
+func (dndb *DNDB) applyUpdate(op UpdateOp) (UpdateResult, error) {
 	if !dndb.IsLeader() {
 		return UpdateResult{}, ErrNotLeader
 	}
@@ -229,18 +247,18 @@ func (dndb *DNdb) applyUpdate(op UpdateOp) (UpdateResult, error) {
 	return UpdateResult{Index: future.Index()}, nil
 }
 
-func (dndb *DNdb) LastUpdateIndex() uint64 {
+func (dndb *DNDB) LastUpdateIndex() uint64 {
 	return dndb.lastUpdateIndex.Load()
 }
 
-func (dndb *DNdb) Query(query string, topk int, constraints ndb.Constraints) ([]ndb.Chunk, error) {
+func (dndb *DNDB) Query(query string, topk int, constraints ndb.Constraints) ([]ndb.Chunk, error) {
 	dndb.RLock() // Prevent snapshots while reading from ndb
 	defer dndb.RUnlock()
 
 	return dndb.ndb.Query(query, topk, constraints)
 }
 
-func (dndb *DNdb) Sources() ([]ndb.Source, error) {
+func (dndb *DNDB) Sources() ([]ndb.Source, error) {
 	dndb.RLock() // Prevent snapshots while reading from ndb
 	defer dndb.RUnlock()
 
@@ -249,7 +267,7 @@ func (dndb *DNdb) Sources() ([]ndb.Source, error) {
 
 // The FSM methods need to be public to be called by raft, but defining them on
 // a non exported type ensures that they cannot be called outside of this package.
-type distributedNdbFSM DNdb
+type distributedNdbFSM DNDB
 
 func (dndb *distributedNdbFSM) Apply(raftLog *raft.Log) interface{} {
 	op, err := DeserializeOp(raftLog.Data)
@@ -286,7 +304,7 @@ func (dndb *distributedNdbFSM) Apply(raftLog *raft.Log) interface{} {
 	}
 
 	if op.Associate != nil {
-		err := dndb.ndb.Associate([]string{op.Associate.Source}, []string{op.Associate.Target})
+		err := dndb.ndb.Associate([]string{op.Associate.Source}, []string{op.Associate.Target}, op.Associate.Strength)
 		if err != nil {
 			slog.Error("ndb associate failed", "error", err)
 			return fmt.Errorf("ndb associate failed: %w", err)
@@ -345,7 +363,7 @@ func (dndb *distributedNdbFSM) Restore(snapshotReader io.ReadCloser) error {
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(path, 0777); err != nil {
+			if err := os.MkdirAll(path, 0666); err != nil {
 				return fmt.Errorf("error creating subdirectory '%s' from snapshot: %w", path, err)
 			}
 		case tar.TypeReg:

@@ -24,8 +24,9 @@ type UpvoteOp struct {
 }
 
 type AssociateOp struct {
-	Source string
-	Target string
+	Source   string
+	Target   string
+	Strength uint32
 }
 
 type UpdateOp struct {

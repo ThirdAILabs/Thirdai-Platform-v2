@@ -7,6 +7,7 @@ from urllib.parse import urljoin
 import fastapi
 import requests
 from fastapi import Request, status
+from dateutil import parser
 
 CREDENTIALS_EXCEPTION = fastapi.HTTPException(
     status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
@@ -122,7 +123,13 @@ class Permissions:
                 "override": False,
             }
         permissions = response.json()
-        permissions["exp"] = datetime.datetime.fromisoformat(permissions["exp"])
+        try:
+            # Robust parsing using dateutil.parser
+            permissions["exp"] = parser.isoparse(permissions["exp"])
+        except ValueError as e:
+            logging.error(f"Error parsing datetime: {permissions['exp']} - {e}")
+            # Handle the error as needed, possibly setting a default expiration
+            permissions["exp"] = datetime.datetime.now()
         return permissions
 
     @classmethod

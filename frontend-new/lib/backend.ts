@@ -76,12 +76,32 @@ interface BaseDeployStatusResponse {
   };
 }
 
-interface DeployStatusResponse extends BaseDeployStatusResponse {
-  data: {
-    model_id: string;
-    messages: string[];
-    deploy_status: string;
-  };
+interface DeployStatusResponse {
+  status: string;
+  errors: string[];
+  warnings: string[];
+}
+
+export function getDeployStatus(model_id: string): Promise<DeployStatusResponse> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get<DeployStatusResponse>(
+        `${thirdaiPlatformBaseUrl}/api/v2/deploy/${model_id}/status`
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (err.response && err.response.data) {
+          reject(new Error(err.response.data.detail || 'Failed to get deployment status'));
+        } else {
+          reject(new Error('Failed to get deployment status'));
+        }
+      });
+  });
 }
 
 interface TrainStatusResponse extends BaseStatusResponse {
@@ -93,25 +113,6 @@ interface TrainStatusResponse extends BaseStatusResponse {
     errors: string[];
   };
 }
-
-export function getDeployStatus(modelIdentifier: string): Promise<DeployStatusResponse> {
-  const accessToken = getAccessToken();
-  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
-  return new Promise((resolve, reject) => {
-    axios
-      .get(
-        `${thirdaiPlatformBaseUrl}/api/deploy/status?model_identifier=${encodeURIComponent(modelIdentifier)}`
-      )
-      .then((res) => {
-        resolve(res.data);
-      })
-      .catch((err) => {
-        reject(err);
-      });
-  });
-}
-
 export function getTrainingStatus(modelIdentifier: string): Promise<TrainStatusResponse> {
   const accessToken = getAccessToken();
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
@@ -1208,23 +1209,31 @@ interface StartWorkflowResponse {
   };
 }
 
+interface StartWorkflowRequest {
+  deployment_name?: string;
+  autoscaling_enabled: boolean;
+  autoscaling_min?: number;
+  autoscaling_max?: number;
+  memory?: number;
+}
+
 export function start_workflow(
-  username: string,
-  model_name: string,
+  model_id: string,
   autoscalingEnabled: boolean
 ): Promise<StartWorkflowResponse> {
   const accessToken = getAccessToken();
-
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
-  const params = new URLSearchParams({
-    model_identifier: createModelIdentifier(username, model_name),
-    autoscaling_enabled: autoscalingEnabled.toString(), // Convert boolean to string for URL param
-  });
+  const requestBody: StartWorkflowRequest = {
+    autoscaling_enabled: autoscalingEnabled
+  };
 
   return new Promise((resolve, reject) => {
     axios
-      .post<StartWorkflowResponse>(`${thirdaiPlatformBaseUrl}/api/deploy/run?${params.toString()}`)
+      .post<StartWorkflowResponse>(
+        `${thirdaiPlatformBaseUrl}/api/v2/deploy/${model_id.toString()}`,
+        requestBody
+      )
       .then((res) => {
         resolve(res.data);
       })
@@ -1238,21 +1247,21 @@ export function start_workflow(
   });
 }
 
+
 interface StopWorkflowResponse {
   status_code: number;
   message: string;
 }
 
-export function stop_workflow(username: string, model_name: string): Promise<StopWorkflowResponse> {
+export function stop_workflow(model_id: string): Promise<StopWorkflowResponse> {
   const accessToken = getAccessToken();
-
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/deploy/stop`, null, {
-        params: { model_identifier: createModelIdentifier(username, model_name) },
-      })
+      .delete<StopWorkflowResponse>(
+        `${thirdaiPlatformBaseUrl}/api/v2/deploy/${model_id}`
+      )
       .then((res) => {
         resolve(res.data);
       })
@@ -1292,32 +1301,44 @@ export async function delete_workflow(
   });
 }
 
-interface WorkflowDetailsResponse {
-  status_code: number;
-  message: string;
-  data: Workflow;
+interface ModelDependency {
+  model_id: string;
+  model_name: string;
+  type: string;
+  username: string;
 }
 
-export async function getWorkflowDetails(workflow_id: string): Promise<WorkflowDetailsResponse> {
+interface ModelDetails {
+  model_id: string;
+  model_name: string;
+  type: string;
+  access: string;
+  train_status: string;
+  deploy_status: string;
+  publish_date: string;
+  user_email: string;
+  username: string;
+  team_id: string | null;
+  attributes: Record<string, string>;
+  dependencies: ModelDependency[];
+}
+
+export async function getWorkflowDetails(model_id: string): Promise<ModelDetails> {
   const accessToken = getAccessToken();
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
-  const params = new URLSearchParams({ model_id: workflow_id });
-
-  return new Promise((resolve, reject) => {
-    axios
-      .get<WorkflowDetailsResponse>(
-        `${thirdaiPlatformBaseUrl}/api/model/details?${params.toString()}`
-      )
-      .then((res) => {
-        resolve(res.data);
-      })
-      .catch((err) => {
-        console.error('Error fetching model details:', err);
-        alert('Error fetching model details:' + err);
-        reject(new Error('Failed to fetch model details'));
-      });
-  });
+  try {
+    const response = await axios.get<ModelDetails>(
+      `${thirdaiPlatformBaseUrl}/api/v2/model/${model_id}`
+    );
+    return response.data;
+  } catch (err) {
+    const error = err as any;
+    if (error.response?.data) {
+      throw new Error(error.response.data.detail || 'Failed to fetch model details');
+    }
+    throw new Error('Failed to fetch model details');
+  }
 }
 
 export async function userEmailLogin(

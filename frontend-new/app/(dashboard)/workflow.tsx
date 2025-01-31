@@ -182,7 +182,7 @@ export function WorkFlow({
       setDeployStatus(DeployStatus.Starting);
       try {
         const autoscalingEnabled = mode === DeployMode.Production;
-        await start_workflow(workflow.username, workflow.model_name, autoscalingEnabled);
+        await start_workflow(workflow.model_id, autoscalingEnabled);
       } catch (e) {
         console.error('Failed to start workflow.', e);
       }
@@ -295,12 +295,12 @@ export function WorkFlow({
 
           // Check deployment
           if (
-            deployStatus.data.deploy_status === 'failed' &&
-            deployStatus.data.messages?.length > 0
+            deployStatus.status === 'failed' &&
+            deployStatus.errors?.length > 0
           ) {
             setError({
               type: 'deployment',
-              messages: deployStatus.data.messages,
+              messages: deployStatus.errors,
             });
           }
         }
@@ -450,8 +450,7 @@ export function WorkFlow({
                     onClick={async () => {
                       try {
                         const response = await stop_workflow(
-                          workflow.username,
-                          workflow.model_name
+                          workflow.model_id
                         );
                         console.log('Workflow undeployed successfully:', response);
                         // Optionally, update the UI state to reflect the undeployment

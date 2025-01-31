@@ -51,7 +51,7 @@ export default function UpdateButton({ modelName }: UpdateButtonProps) {
 
     try {
       // Stop the existing workflow
-      await stop_workflow(username, modelName);
+      await stop_workflow(workflowId);
 
       // Initiate retraining with new model name
       const retrainParams = {

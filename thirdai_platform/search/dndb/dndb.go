@@ -29,7 +29,6 @@ type DNDB struct {
 
 	raft            *raft.Raft
 	lastUpdateIndex atomic.Uint64
-	transport       raft.Transport
 
 	replicaId     string
 	bindAddr      string
@@ -39,10 +38,26 @@ type DNDB struct {
 type RaftConfig struct {
 	ReplicaId     string
 	BindAddr      string
+	Transport     raft.Transport
 	SnapshotStore raft.SnapshotStore
 	LogStore      raft.LogStore
 	StableStore   raft.StableStore
 	Bootstrap     bool
+}
+
+func CreateTcpTransport(bindAddr string) (raft.Transport, error) {
+	addr, err := net.ResolveTCPAddr("tcp", bindAddr)
+	if err != nil {
+		return nil, fmt.Errorf("unable to resolve bind addr: %w", err)
+	}
+
+	const maxConnPoolSize = 10
+	transport, err := raft.NewTCPTransport(bindAddr, addr, maxConnPoolSize, 10*time.Second, os.Stderr)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create transport: %w", err)
+	}
+
+	return transport, nil
 }
 
 func New(ndbPath string, localNdbStore string, config RaftConfig) (*DNDB, error) {
@@ -53,25 +68,13 @@ func New(ndbPath string, localNdbStore string, config RaftConfig) (*DNDB, error)
 	raftConfig := raft.DefaultConfig()
 	raftConfig.LocalID = raft.ServerID(config.ReplicaId)
 
-	addr, err := net.ResolveTCPAddr("tcp", config.BindAddr)
-	if err != nil {
-		return nil, fmt.Errorf("unable to resolve bind addr: %w", err)
-	}
-
-	const maxConnPoolSize = 1
-	transport, err := raft.NewTCPTransport(config.BindAddr, addr, maxConnPoolSize, 10*time.Second, os.Stderr)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create transport: %w", err)
-	}
-
 	dndb := &DNDB{
 		replicaId:     config.ReplicaId,
 		bindAddr:      config.BindAddr,
 		localNdbStore: localNdbStore,
-		transport:     transport,
 	}
 
-	ra, err := raft.NewRaft(raftConfig, (*distributedNdbFSM)(dndb), config.LogStore, config.StableStore, config.SnapshotStore, transport)
+	ra, err := raft.NewRaft(raftConfig, (*distributedNdbFSM)(dndb), config.LogStore, config.StableStore, config.SnapshotStore, config.Transport)
 	if err != nil {
 		return nil, fmt.Errorf("error constructing raft instance: %w", err)
 	}
@@ -83,7 +86,7 @@ func New(ndbPath string, localNdbStore string, config RaftConfig) (*DNDB, error)
 			Servers: []raft.Server{
 				{
 					ID:      raftConfig.LocalID,
-					Address: transport.LocalAddr(),
+					Address: config.Transport.LocalAddr(),
 				},
 			},
 		}

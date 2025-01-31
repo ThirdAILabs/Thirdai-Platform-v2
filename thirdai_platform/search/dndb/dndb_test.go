@@ -22,10 +22,11 @@ func init() {
 	}
 }
 
-func createConfig(id, addr string, bootstrap bool) dndb.RaftConfig {
+func createConfig(id string, transport raft.Transport, bootstrap bool) dndb.RaftConfig {
 	return dndb.RaftConfig{
 		ReplicaId:     id,
-		BindAddr:      addr,
+		BindAddr:      id,
+		Transport:     transport,
 		SnapshotStore: raft.NewInmemSnapshotStore(),
 		LogStore:      raft.NewInmemStore(),
 		StableStore:   raft.NewInmemStore(),
@@ -69,8 +70,24 @@ func waitForUpdate(t *testing.T, timeout time.Duration, node *dndb.DNDB, index u
 	}
 }
 
-func createCluster(t *testing.T, nNodes int, ndbPath string) []*dndb.DNDB {
-	leader, err := dndb.New(ndbPath, t.TempDir(), createConfig("node0", "localhost:3000", true))
+func createTransports(nNodes int) []*raft.InmemTransport {
+	transports := make([]*raft.InmemTransport, 0, nNodes)
+	for i := 0; i < nNodes; i++ {
+		_, t := raft.NewInmemTransport(raft.ServerAddress(fmt.Sprintf("node%d", i)))
+		transports = append(transports, t)
+	}
+
+	for _, t0 := range transports {
+		for _, t1 := range transports {
+			t0.Connect(t1.LocalAddr(), t1)
+		}
+	}
+
+	return transports
+}
+
+func createCluster(t *testing.T, transports []*raft.InmemTransport, ndbPath string) []*dndb.DNDB {
+	leader, err := dndb.New(ndbPath, t.TempDir(), createConfig("node0", transports[0], true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,10 +96,9 @@ func createCluster(t *testing.T, nNodes int, ndbPath string) []*dndb.DNDB {
 
 	waitForLeader(t, 10*time.Second, cluster)
 
-	for i := 1; i < nNodes; i++ {
+	for i := 1; i < len(transports); i++ {
 		id := fmt.Sprintf("node%d", i)
-		addr := fmt.Sprintf("localhost:%d", 3000+i)
-		follower, err := dndb.New(ndbPath, t.TempDir(), createConfig(id, addr, false))
+		follower, err := dndb.New(ndbPath, t.TempDir(), createConfig(id, transports[i], false))
 		if err != nil {
 			t.Fatalf("error creating follower: %v", err)
 		}
@@ -126,7 +142,8 @@ func createSimpleNdb(t *testing.T, empty bool) string {
 func TestBasicReplication(t *testing.T) {
 	ndbPath := createSimpleNdb(t, false)
 
-	cluster := createCluster(t, 3, ndbPath)
+	transports := createTransports(3)
+	cluster := createCluster(t, transports, ndbPath)
 
 	leader := waitForLeader(t, 10*time.Second, cluster)
 
@@ -152,7 +169,8 @@ func TestBasicReplication(t *testing.T) {
 func createClusterAndAddReplica(t *testing.T, snapshot bool) {
 	ndbPath := createSimpleNdb(t, false)
 
-	cluster := createCluster(t, 3, ndbPath)
+	transports := createTransports(4)
+	cluster := createCluster(t, transports[:3], ndbPath)
 
 	leader := waitForLeader(t, 10*time.Second, cluster)
 
@@ -185,10 +203,10 @@ func createClusterAndAddReplica(t *testing.T, snapshot bool) {
 			t.Fatal(err)
 		}
 
-		stop <- true
+		close(stop)
 	}
 
-	newReplica, err := dndb.New(ndbPath, t.TempDir(), createConfig("node3", "localhost:3003", false))
+	newReplica, err := dndb.New(ndbPath, t.TempDir(), createConfig("node3", transports[3], false))
 	if err != nil {
 		t.Fatalf("error creating new replica: %v", err)
 	}
@@ -220,14 +238,15 @@ func TestAddNewReplica(t *testing.T) {
 	createClusterAndAddReplica(t, false)
 }
 
-// func TestAddNewReplicaWithSnapshot(t *testing.T) {
-// 	createClusterAndAddReplica(t, true)
-// }
+func TestAddNewReplicaWithSnapshot(t *testing.T) {
+	createClusterAndAddReplica(t, true)
+}
 
 func TestRemoveLeader(t *testing.T) {
 	ndbPath := createSimpleNdb(t, false)
 
-	cluster := createCluster(t, 3, ndbPath)
+	transports := createTransports(3)
+	cluster := createCluster(t, transports, ndbPath)
 
 	leader1 := waitForLeader(t, 10*time.Second, cluster)
 
@@ -391,7 +410,8 @@ func loadSamples(t *testing.T) []sample {
 func TestComplicatedUpdates(t *testing.T) {
 	ndbPath := createSimpleNdb(t, true)
 
-	cluster := createCluster(t, 5, ndbPath)
+	transports := createTransports(5)
+	cluster := createCluster(t, transports, ndbPath)
 
 	leader := waitForLeader(t, 10*time.Second, cluster)
 

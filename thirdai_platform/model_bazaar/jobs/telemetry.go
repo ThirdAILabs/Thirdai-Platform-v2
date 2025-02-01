@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
 	"thirdai_platform/model_bazaar/storage"
 
 	"gopkg.in/yaml.v3"
@@ -49,7 +49,7 @@ func copyGrafanaDashboards(storage storage.Storage) error {
 type TelemetryJobArgs struct {
 	IsLocal             bool
 	ModelBazaarEndpoint string
-	Docker              nomad.DockerEnv
+	Docker              orchestrator.DockerEnv
 	GrafanaDbUrl        string
 
 	AdminUsername string
@@ -57,7 +57,7 @@ type TelemetryJobArgs struct {
 	AdminPassword string
 }
 
-func StartTelemetryJob(client nomad.NomadClient, storage storage.Storage, args TelemetryJobArgs) error {
+func StartTelemetryJob(orchestratorClient orchestrator.Client, storage storage.Storage, args TelemetryJobArgs) error {
 	slog.Info("starting telemetry job")
 
 	err := createPromFile(storage, args.ModelBazaarEndpoint, args.IsLocal)
@@ -81,7 +81,7 @@ func StartTelemetryJob(client nomad.NomadClient, storage storage.Storage, args T
 		return fmt.Errorf("error initializing grafana dashboards: %w", err)
 	}
 
-	job := nomad.TelemetryJob{
+	job := orchestrator.TelemetryJob{
 		IsLocal:                args.IsLocal,
 		TargetCount:            targetCount,
 		NomadMonitoringDir:     "/model_bazaar/nomad-monitoring",
@@ -100,14 +100,14 @@ func StartTelemetryJob(client nomad.NomadClient, storage storage.Storage, args T
 		// file and thus restart the job when StartJob is invoked later. If multiple
 		// model bazaar jobs call StartJob with the same version, nomad will ignore
 		// subsequent calls.
-		err := nomad.StopJobIfExists(client, job.GetJobName())
+		err := orchestrator.StopJobIfExists(orchestratorClient, job.GetJobName())
 		if err != nil {
 			slog.Error("error stopping existing telemetry job", "error", err)
 			return fmt.Errorf("error stopping existing telemetry job: %w", err)
 		}
 	}
 
-	err = client.StartJob(job)
+	err = orchestratorClient.StartJob(job)
 	if err != nil {
 		slog.Error("error starting telemetry job", "error", err)
 		return fmt.Errorf("error starting telemetry job: %w", err)

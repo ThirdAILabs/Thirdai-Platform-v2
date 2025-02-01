@@ -5,15 +5,15 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
 	"thirdai_platform/model_bazaar/utils"
 
 	"github.com/go-chi/chi/v5"
 )
 
 type TelemetryService struct {
-	nomad     nomad.NomadClient
-	variables Variables
+	orchestratorClient orchestrator.Client
+	variables          Variables
 }
 
 func (s *TelemetryService) Routes() chi.Router {
@@ -30,7 +30,7 @@ type scrapeTarget struct {
 }
 
 func (s *TelemetryService) DeploymentServices(w http.ResponseWriter, r *http.Request) {
-	services, err := s.nomad.ListServices()
+	services, err := s.orchestratorClient.ListServices()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error listing services: %v", err), http.StatusInternalServerError)
 		return

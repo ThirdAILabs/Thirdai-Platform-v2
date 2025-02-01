@@ -15,7 +15,8 @@ import (
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/jobs"
 	"thirdai_platform/model_bazaar/licensing"
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
+	"thirdai_platform/model_bazaar/orchestrator/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/storage"
@@ -33,6 +34,7 @@ type modelBazaarEnv struct {
 	LicensePath                string
 	NomadEndpoint              string
 	NomadToken                 string
+	KubernetesEndpoint         string
 	ShareDir                   string
 	JwtSecret                  string
 
@@ -65,7 +67,7 @@ type modelBazaarEnv struct {
 	DatabaseUri  string
 	GrafanaDbUri string
 
-	CloudCredentials nomad.CloudCredentials
+	CloudCredentials orchestrator.CloudCredentials
 }
 
 func boolEnvVar(key string) bool {
@@ -118,13 +120,13 @@ func loadEnv() modelBazaarEnv {
 	}
 
 	env := modelBazaarEnv{
-		PublicModelBazaarEndpoint:  requiredEnv("PUBLIC_MODEL_BAZAAR_ENDPOINT"),
-		PrivateModelBazaarEndpoint: requiredEnv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
-		LicensePath:                requiredEnv("LICENSE_PATH"),
-		NomadEndpoint:              requiredEnv("NOMAD_ENDPOINT"),
-		NomadToken:                 requiredEnv("TASK_RUNNER_TOKEN"),
-		ShareDir:                   requiredEnv("SHARE_DIR"),
-		JwtSecret:                  requiredEnv("JWT_SECRET"),
+		NomadEndpoint: optionalEnv("NOMAD_ENDPOINT"),
+		NomadToken:    optionalEnv("TASK_RUNNER_TOKEN"),
+
+		KubernetesEndpoint: optionalEnv("KUBERNETES_ENDPOINT"),
+
+		ShareDir:  requiredEnv("SHARE_DIR"),
+		JwtSecret: requiredEnv("JWT_SECRET"),
 
 		AdminUsername: requiredEnv("ADMIN_USERNAME"),
 		AdminEmail:    requiredEnv("ADMIN_MAIL"),
@@ -153,7 +155,7 @@ func loadEnv() modelBazaarEnv {
 		DatabaseUri:  requiredEnv("DATABASE_URI"),
 		GrafanaDbUri: requiredEnv("GRAFANA_DB_URL"),
 
-		CloudCredentials: nomad.CloudCredentials{
+		CloudCredentials: orchestrator.CloudCredentials{
 			AwsAccessKey:       optionalEnv("AWS_ACCESS_KEY"),
 			AwsAccessSecret:    optionalEnv("AWS_ACCESS_SECRET"),
 			AwsRegionName:      optionalEnv("AWS_REGION_NAME"),
@@ -173,6 +175,10 @@ func loadEnv() modelBazaarEnv {
 		log.Fatal("If JOBS_IMAGE_NAME or FRONTEND_IMAGE_NAME env vars are specified then TAG must be specified as well.")
 	}
 
+	if (env.NomadEndpoint != "" && env.KubernetesEndpoint != "") || (env.NomadEndpoint == "" && env.KubernetesEndpoint == "") {
+		log.Fatal("Must specify exactly one of NOMAD_ENDPOINT or KUBERNETES_ENDPOINT")
+	}
+
 	return env
 }
 
@@ -186,18 +192,18 @@ func (env *modelBazaarEnv) postgresDsn() string {
 	return fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=%v", parts.Hostname(), parts.User.Username(), pwd, dbname, parts.Port())
 }
 
-func (env *modelBazaarEnv) BackendDriver() nomad.Driver {
+func (env *modelBazaarEnv) BackendDriver() orchestrator.Driver {
 	if env.BackendImage == "" {
-		return nomad.LocalDriver{
+		return orchestrator.LocalDriver{
 			PythonPath:  env.PythonPath,
 			PlatformDir: env.PlatformDir,
 		}
 	}
 
-	return nomad.DockerDriver{
+	return orchestrator.DockerDriver{
 		ImageName: env.BackendImage,
 		Tag:       env.Tag,
-		DockerEnv: nomad.DockerEnv{
+		DockerEnv: orchestrator.DockerEnv{
 			Registry:       env.DockerRegistry,
 			DockerUsername: env.DockerUsername,
 			DockerPassword: env.DockerPassword,
@@ -206,11 +212,11 @@ func (env *modelBazaarEnv) BackendDriver() nomad.Driver {
 	}
 }
 
-func (env *modelBazaarEnv) FrontendDriver() nomad.DockerDriver {
-	return nomad.DockerDriver{
+func (env *modelBazaarEnv) FrontendDriver() orchestrator.DockerDriver {
+	return orchestrator.DockerDriver{
 		ImageName: env.FrontendImage,
 		Tag:       env.Tag,
-		DockerEnv: nomad.DockerEnv{
+		DockerEnv: orchestrator.DockerEnv{
 			Registry:       env.DockerRegistry,
 			DockerUsername: env.DockerUsername,
 			DockerPassword: env.DockerPassword,
@@ -298,7 +304,13 @@ func main() {
 
 	db := initDb(env.postgresDsn())
 
-	nomadClient := nomad.NewHttpClient(env.NomadEndpoint, env.NomadToken)
+	var orchestratorClient orchestrator.Client
+
+	if env.NomadEndpoint != "" {
+		orchestratorClient = nomad.NewNomadClient(env.NomadEndpoint, env.NomadToken)
+	} else if env.KubernetesEndpoint != "" {
+		orchestratorClient = nomad.NewNomadClient(env.NomadEndpoint, env.NomadToken)
+	}
 
 	licenseVerifier := licensing.NewVerifier(env.LicensePath)
 
@@ -355,7 +367,7 @@ func main() {
 
 	model_bazaar := services.NewModelBazaar(
 		db,
-		nomadClient,
+		orchestratorClient,
 		sharedStorage,
 		licenseVerifier,
 		identityProvider,
@@ -364,14 +376,14 @@ func main() {
 	)
 
 	if !*skipAll && !*skipCache {
-		err = jobs.StartLlmCacheJob(nomadClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
+		err = jobs.StartLlmCacheJob(orchestratorClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
 		if err != nil {
 			log.Fatalf("failed to start llm cache job: %v", err)
 		}
 	}
 
 	if !*skipAll && !*skipDispatch {
-		err = jobs.StartLlmDispatchJob(nomadClient, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
+		err = jobs.StartLlmDispatchJob(orchestratorClient, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
 		if err != nil {
 			log.Fatalf("failed to start llm dispatch job: %v", err)
 		}
@@ -387,7 +399,7 @@ func main() {
 			AdminEmail:          env.AdminEmail,
 			AdminPassword:       env.AdminPassword,
 		}
-		err = jobs.StartTelemetryJob(nomadClient, sharedStorage, telemetryArgs)
+		err = jobs.StartTelemetryJob(orchestratorClient, sharedStorage, telemetryArgs)
 		if err != nil {
 			log.Fatalf("failed to start telemetry job: %v", err)
 		}
@@ -407,7 +419,7 @@ func main() {
 			UseSslInLogin:                env.UseSslInLogin,
 			OpenaiKey:                    variables.LlmProviders["openai"],
 		}
-		err = jobs.StartFrontendJob(nomadClient, env.FrontendDriver(), frontendArgs)
+		err = jobs.StartFrontendJob(orchestratorClient, env.FrontendDriver(), frontendArgs)
 		if err != nil {
 			log.Fatalf("failed to start frontend job: %v", err)
 		}

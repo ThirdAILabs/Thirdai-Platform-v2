@@ -9,7 +9,7 @@ import (
 	"strings"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/config"
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/model_bazaar/utils"
@@ -360,7 +360,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("starting datagen training", "model_type", params.modelType(), "model_id", modelId, "model_name", params.ModelName)
 
-	license, err := verifyLicenseForNewJob(s.nomad, s.license, params.JobOptions.CpuUsageMhz())
+	license, err := verifyLicenseForNewJob(s.orchestratorClient, s.license, params.JobOptions.CpuUsageMhz())
 	if err != nil {
 		http.Error(w, err.Error(), GetResponseCode(err))
 		return
@@ -474,7 +474,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("starting datagen retraining", "model_type", schema.NlpTokenModel, "model_id", modelId, "model_name", params.ModelName)
 
-	license, err := verifyLicenseForNewJob(s.nomad, s.license, params.JobOptions.CpuUsageMhz())
+	license, err := verifyLicenseForNewJob(s.orchestratorClient, s.license, params.JobOptions.CpuUsageMhz())
 	if err != nil {
 		http.Error(w, err.Error(), GetResponseCode(err))
 		return
@@ -557,12 +557,12 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 
 	model := newModel(trainConfig.ModelId, modelName, trainConfig.ModelType, trainConfig.BaseModelId, user.Id)
 
-	job := nomad.DatagenTrainJob{
-		TrainJob: nomad.TrainJob{
+	job := orchestrator.DatagenTrainJob{
+		TrainJob: orchestrator.TrainJob{
 			JobName:    model.TrainJobName(),
 			ConfigPath: trainConfigPath,
 			Driver:     s.variables.BackendDriver,
-			Resources: nomad.Resources{
+			Resources: orchestrator.Resources{
 				AllocationMhz:       trainConfig.JobOptions.CpuUsageMhz(),
 				AllocationMemory:    trainConfig.JobOptions.AllocationMemory,
 				AllocationMemoryMax: 60000,

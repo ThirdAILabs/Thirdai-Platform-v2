@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"thirdai_platform/model_bazaar/auth"
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/model_bazaar/utils"
@@ -27,8 +27,8 @@ import (
 type ModelService struct {
 	db *gorm.DB
 
-	nomad   nomad.NomadClient
-	storage storage.Storage
+	orchestratorClient orchestrator.Client
+	storage            storage.Storage
 
 	userAuth          auth.IdentityProvider
 	uploadSessionAuth *auth.JwtManager
@@ -627,7 +627,7 @@ func (s *ModelService) Delete(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if model.TrainStatus == schema.Starting || model.TrainStatus == schema.InProgress {
-			err = s.nomad.StopJob(model.TrainJobName())
+			err = s.orchestratorClient.StopJob(model.TrainJobName())
 			if err != nil {
 				slog.Error("error stopping train job when deleting model", "model_id", modelId, "error", err)
 				return CodedError(errors.New("error stopping model train job"), http.StatusInternalServerError)
@@ -635,7 +635,7 @@ func (s *ModelService) Delete(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if model.DeployStatus == schema.Starting || model.DeployStatus == schema.InProgress || model.DeployStatus == schema.Complete {
-			err = s.nomad.StopJob(model.DeployJobName())
+			err = s.orchestratorClient.StopJob(model.DeployJobName())
 			if err != nil {
 				slog.Error("error stopping deploy job when deleting model", "model_id", modelId, "error", err)
 				return CodedError(errors.New("error stopping model deploy job"), http.StatusInternalServerError)

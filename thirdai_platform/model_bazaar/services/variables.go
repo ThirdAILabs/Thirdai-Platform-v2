@@ -2,7 +2,7 @@ package services
 
 import (
 	"fmt"
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
 )
 
 type DockerRegistry struct {
@@ -12,20 +12,20 @@ type DockerRegistry struct {
 }
 
 type Variables struct {
-	BackendDriver nomad.Driver
+	BackendDriver orchestrator.Driver
 
 	DockerRegistry DockerRegistry
 
 	ShareDir            string
 	ModelBazaarEndpoint string
 
-	CloudCredentials nomad.CloudCredentials
+	CloudCredentials orchestrator.CloudCredentials
 
 	LlmProviders map[string]string
 }
 
-func (vars *Variables) DockerEnv() nomad.DockerEnv {
-	return nomad.DockerEnv{
+func (vars *Variables) DockerEnv() orchestrator.DockerEnv {
+	return orchestrator.DockerEnv{
 		Registry:       vars.DockerRegistry.Registry,
 		DockerUsername: vars.DockerRegistry.DockerUsername,
 		DockerPassword: vars.DockerRegistry.DockerPassword,

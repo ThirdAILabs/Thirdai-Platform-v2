@@ -1,4 +1,4 @@
-package nomad
+package orchestrator
 
 type Driver interface {
 	DriverType() string
@@ -53,14 +53,10 @@ type Job interface {
 }
 
 type TrainJob struct {
-	JobName string
-
-	ConfigPath string
-
-	Driver Driver
-
-	Resources Resources
-
+	JobName          string
+	ConfigPath       string
+	Driver           Driver
+	Resources        Resources
 	CloudCredentials CloudCredentials
 }
 

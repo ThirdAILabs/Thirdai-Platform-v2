@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"thirdai_platform/model_bazaar/auth"
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/model_bazaar/utils"
 
@@ -20,10 +20,10 @@ import (
 )
 
 type RecoveryService struct {
-	db       *gorm.DB
-	storage  storage.Storage
-	nomad    nomad.NomadClient
-	userAuth auth.IdentityProvider
+	db                 *gorm.DB
+	storage            storage.Storage
+	orchestratorClient orchestrator.Client
+	userAuth           auth.IdentityProvider
 
 	variables Variables
 }
@@ -131,7 +131,7 @@ func (s *RecoveryService) Backup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job := nomad.SnapshotJob{
+	job := orchestrator.SnapshotJob{
 		// TODO(Any): this is needed because the snapshot job does not use the storage interface
 		// in the future once this is standardized it will not be needed
 		ConfigPath: filepath.Join(s.storage.Location(), configPath),
@@ -140,14 +140,14 @@ func (s *RecoveryService) Backup(w http.ResponseWriter, r *http.Request) {
 		Driver:     s.variables.BackendDriver,
 	}
 
-	err = nomad.StopJobIfExists(s.nomad, job.GetJobName())
+	err = orchestrator.StopJobIfExists(s.orchestratorClient, job.GetJobName())
 	if err != nil {
 		slog.Error("error stopping existing snapshot job", "error", err)
 		http.Error(w, "error stopping existing snapshot job", http.StatusInternalServerError)
 		return
 	}
 
-	err = s.nomad.StartJob(job)
+	err = s.orchestratorClient.StartJob(job)
 	if err != nil {
 		slog.Error("error starting snapshot job", "error", err)
 		http.Error(w, "error starting snapshot job", http.StatusInternalServerError)

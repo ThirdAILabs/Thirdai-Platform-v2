@@ -8,7 +8,7 @@ import (
 	"testing"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/licensing"
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/storage"
@@ -87,7 +87,7 @@ func setupTestEnv(t *testing.T) *testEnv {
 		licensing.NewVerifier(licensePath),
 		userAuth,
 		services.Variables{
-			BackendDriver: &nomad.LocalDriver{},
+			BackendDriver: &orchestrator.LocalDriver{},
 		},
 		secret,
 	)

@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-var ErrJobNotFound = errors.New("job not found")
+var ErrJobNotFound = errors.New("nomad job not found")
 
 func JobExists(client Client, jobName string) (bool, error) {
 	_, err := client.JobInfo(jobName)

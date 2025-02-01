@@ -16,7 +16,6 @@ import (
 	"thirdai_platform/model_bazaar/jobs"
 	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/orchestrator"
-	"thirdai_platform/model_bazaar/orchestrator/kubernetes"
 	"thirdai_platform/model_bazaar/orchestrator/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/services"
@@ -36,7 +35,7 @@ type modelBazaarEnv struct {
 	LicensePath                string
 	NomadEndpoint              string
 	NomadToken                 string
-	Kubernetes                 string
+	KubernetesEndpoint         string
 	ShareDir                   string
 	JwtSecret                  string
 
@@ -122,15 +121,10 @@ func loadEnv() modelBazaarEnv {
 	}
 
 	env := modelBazaarEnv{
-		IngressHostname:            requiredEnv("INGRESS_HOSTNAME"),
-		PrivateModelBazaarEndpoint: requiredEnv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
-
 		NomadEndpoint: optionalEnv("NOMAD_ENDPOINT"),
 		NomadToken:    optionalEnv("TASK_RUNNER_TOKEN"),
 
-		LicensePath: optionalEnv("LICENSE_PATH"),
-
-		Kubernetes: optionalEnv("KUBERNETES"),
+		KubernetesEndpoint: optionalEnv("KUBERNETES_ENDPOINT"),
 
 		ShareDir:  requiredEnv("SHARE_DIR"),
 		JwtSecret: requiredEnv("JWT_SECRET"),
@@ -182,11 +176,8 @@ func loadEnv() modelBazaarEnv {
 		log.Fatal("If JOBS_IMAGE_NAME or FRONTEND_IMAGE_NAME env vars are specified then TAG must be specified as well.")
 	}
 
-	if (env.NomadEndpoint != "" && env.Kubernetes != "") || (env.NomadEndpoint == "" && env.Kubernetes == "") {
-		log.Fatal("Must specify exactly one of NOMAD_ENDPOINT or KUBERNETES")
-	}
-	if env.NomadEndpoint != "" && env.NomadToken == "" {
-		log.Fatal("Must specify TASK_RUNNER_TOKEN when using NOMAD_ENDPOINT")
+	if (env.NomadEndpoint != "" && env.KubernetesEndpoint != "") || (env.NomadEndpoint == "" && env.KubernetesEndpoint == "") {
+		log.Fatal("Must specify exactly one of NOMAD_ENDPOINT or KUBERNETES_ENDPOINT")
 	}
 
 	return env
@@ -317,9 +308,9 @@ func main() {
 	var orchestratorClient orchestrator.Client
 
 	if env.NomadEndpoint != "" {
-		orchestratorClient = nomad.NewNomadClient(env.NomadEndpoint, env.NomadToken, env.IngressHostname)
-	} else if env.Kubernetes != "" {
-		orchestratorClient = kubernetes.NewKubernetesClient(env.IngressHostname)
+		orchestratorClient = nomad.NewNomadClient(env.NomadEndpoint, env.NomadToken)
+	} else if env.KubernetesEndpoint != "" {
+		orchestratorClient = nomad.NewNomadClient(env.NomadEndpoint, env.NomadToken)
 	}
 
 	licenseVerifier := licensing.NewVerifier(env.LicensePath)

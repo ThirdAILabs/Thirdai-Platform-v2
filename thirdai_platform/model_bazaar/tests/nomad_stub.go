@@ -2,7 +2,6 @@ package tests
 
 import (
 	"thirdai_platform/model_bazaar/orchestrator"
-	"thirdai_platform/model_bazaar/orchestrator/nomad"
 )
 
 type NomadStub struct {
@@ -14,7 +13,7 @@ func newNomadStub() *NomadStub {
 }
 
 func (c *NomadStub) StartJob(job orchestrator.Job) error {
-	c.activeJobs[job.GetJobName()] = nomad.NomadTemplatePath(job.JobTemplatePath())
+	c.activeJobs[job.GetJobName()] = job.TemplateName()
 	return nil
 }
 

@@ -140,25 +140,11 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 
 		attrs := model.GetAttributes()
 
-		isKE := (model.Type == schema.KnowledgeExtraction)
-
-		var resources orchestrator.Resources
-		if !isKE {
-			memory := getDeploymentMemory(modelId, memory, attrs)
-
-			resources = orchestrator.Resources{
-				AllocationCores:     2,
-				AllocationMhz:       2400,
-				AllocationMemory:    memory,
-				AllocationMemoryMax: 4 * memory,
-			}
-		} else {
-			resources = orchestrator.Resources{
-				AllocationCores:     4,
-				AllocationMhz:       9600,
-				AllocationMemory:    4000,
-				AllocationMemoryMax: 8000,
-			}
+		memory := getDeploymentMemory(modelId, memory, attrs)
+		resources := orchestrator.Resources{
+			AllocationMhz:       2400,
+			AllocationMemory:    memory,
+			AllocationMemoryMax: 4 * memory,
 		}
 
 		license, err := verifyLicenseForNewJob(s.orchestratorClient, s.license, resources.AllocationMhz)

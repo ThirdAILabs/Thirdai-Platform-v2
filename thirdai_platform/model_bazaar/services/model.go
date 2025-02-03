@@ -199,7 +199,13 @@ func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 	var models []schema.Model
 	var result *gorm.DB
 	if user.IsAdmin {
-		result = s.db.Preload("Dependencies").Preload("Dependencies.Dependency").Preload("Attributes").Preload("User").Find(&models)
+		result = s.db.
+			Preload("Dependencies").
+			Preload("Dependencies.Dependency").
+			Preload("Dependencies.Dependency.User").
+			Preload("Attributes").
+			Preload("User").
+			Find(&models)
 	} else {
 		userTeams, err := schema.GetUserTeamIds(user.Id, s.db)
 		if err != nil {

@@ -64,7 +64,13 @@ class Reporter:
             self.logger.error(f"Error during {method.upper()} request to {url}: {e}")
             raise
 
-    def save_model(self, access_token: str, base_model_id: str, model_name: str) -> str:
+    def save_model(
+        self,
+        base_model_id: str,
+        model_name: str,
+        access_token: str,
+        auth_scheme: str = "bearer",
+    ) -> str:
         """
         Saves the deployed model information.
 
@@ -75,19 +81,27 @@ class Reporter:
             model_name (str): The name of the model.
             metadata (dict): Metadata associated with the model.
         """
+        if auth_scheme == "api_key":
+            headers = {"X-API-Key": access_token}
+        else:  # Default to bearer token
+            headers = {"Authorization": f"Bearer {access_token}"}
         return self._request(
             "post",
             f"api/v2/deploy/{base_model_id}/save",
             json={"model_name": model_name},
-            headers=self.auth_header(access_token=access_token),
+            headers=headers,
         )
 
-    def save_complete(self, token: str):
+    def save_complete(self, token: str, auth_scheme: str = "bearer"):
+        if auth_scheme == "api_key":
+            headers = {"X-API-Key": token}
+        else:  # Default to bearer token
+            headers = {"Authorization": f"Bearer {token}"}
         self._request(
             "post",
             f"api/v2/train/update-status",
             json={"status": "complete"},
-            headers=self.auth_header(token),
+            headers=headers,
         )
 
     def auth_header(self, access_token: str) -> dict:

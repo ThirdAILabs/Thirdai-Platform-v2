@@ -141,7 +141,7 @@ class NDBRouter:
     def search(
         self,
         params: NDBSearchParams,
-        token: str = Depends(Permissions.verify_permission("read")),
+        _=Depends(Permissions.verify_permission("read")),
     ):
         """
         Query the NDB model with specified parameters.
@@ -182,7 +182,14 @@ class NDBRouter:
         }
         ```
         """
-        results = self.model.predict(**params.model_dump())
+        try:
+            results = self.model.predict(**params.model_dump())
+        except Exception as e:
+            self.logger.error(f"Exception during prediction: {e}")
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message="Prediction error: " + str(e),
+            )
 
         return response(
             status_code=status.HTTP_200_OK,
@@ -196,7 +203,7 @@ class NDBRouter:
         documents: str = Form(...),
         files: List[UploadFile] = [],
         sync: bool = True,
-        token: str = Depends(Permissions.verify_permission("write")),
+        _=Depends(Permissions.verify_permission("write")),
     ):
         """
         Insert documents into the model.
@@ -319,7 +326,7 @@ class NDBRouter:
         self,
         input: DeleteInput,
         sync: bool = True,
-        token: str = Depends(Permissions.verify_permission("write")),
+        _=Depends(Permissions.verify_permission("write")),
     ):
         """
         Delete sources from the model.
@@ -395,7 +402,7 @@ class NDBRouter:
     def upvote(
         self,
         input: UpvoteInput,
-        token: str = Depends(Permissions.verify_permission("read")),
+        token_scheme=Depends(Permissions.verify_permission("read")),
     ):
         """
         Upvote specific text-id pairs.
@@ -417,8 +424,9 @@ class NDBRouter:
         }
         ```
         """
+        token, scheme = token_scheme
         write_permission = Permissions.check_permission(
-            token=token, permission_type="write"
+            token=token, auth_scheme=scheme, permission_type="write"
         )
         prod_mode = not write_permission or self.config.autoscaling_enabled
 
@@ -466,7 +474,7 @@ class NDBRouter:
     def associate(
         self,
         input: AssociateInput,
-        token: str = Depends(Permissions.verify_permission("read")),
+        token_scheme=Depends(Permissions.verify_permission("read")),
     ):
         """
         Associate text pairs in the model.
@@ -488,8 +496,9 @@ class NDBRouter:
         }
         ```
         """
+        token, scheme = token_scheme
         write_permission = Permissions.check_permission(
-            token=token, permission_type="write"
+            token=token, auth_scheme=scheme, permission_type="write"
         )
         prod_mode = not write_permission or self.config.autoscaling_enabled
 
@@ -538,7 +547,7 @@ class NDBRouter:
     def implicit_feedback(
         self,
         feedback: ImplicitFeedbackInput,
-        token: str = Depends(Permissions.verify_permission("read")),
+        _=Depends(Permissions.verify_permission("read")),
     ):
         self.feedback_logger.log(
             FeedbackLog(
@@ -564,7 +573,7 @@ class NDBRouter:
     def update_chat_settings(
         self,
         settings: ChatSettings,
-        token=Depends(Permissions.verify_permission("write")),
+        _=Depends(Permissions.verify_permission("write")),
     ):
         self.model.set_chat(**(settings.model_dump()))
 
@@ -576,8 +585,14 @@ class NDBRouter:
     def get_chat_history(
         self,
         input: ChatHistoryInput,
-        token=Depends(Permissions.verify_permission("read")),
+        token_scheme=Depends(Permissions.verify_permission("read")),
     ):
+
+        token, scheme = token_scheme
+
+        if scheme == "api_key":
+            raise Exception(f"Chat is not supported when using API Key.")
+
         chat = self.model.get_chat(provider=input.provider)
         if not chat:
             raise Exception(
@@ -608,8 +623,13 @@ class NDBRouter:
     def chat(
         self,
         input: ChatInput,
-        token=Depends(Permissions.verify_permission("read")),
+        token_scheme=Depends(Permissions.verify_permission("read")),
     ):
+        token, scheme = token_scheme
+
+        if scheme == "api_key":
+            raise Exception(f"Chat is not supported when using API Key.")
+
         chat = self.model.get_chat(provider=input.provider)
         if not chat:
             raise Exception(
@@ -635,7 +655,7 @@ class NDBRouter:
 
         return StreamingResponse(generate_response(), media_type="text/plain")
 
-    def get_sources(self, token=Depends(Permissions.verify_permission("read"))):
+    def get_sources(self, _=Depends(Permissions.verify_permission("read"))):
         """
         Get the sources used in the model.
 
@@ -665,7 +685,7 @@ class NDBRouter:
         self,
         input: SaveModel,
         background_tasks: BackgroundTasks,
-        token: str = Depends(Permissions.verify_permission("read")),
+        token_scheme=Depends(Permissions.verify_permission("read")),
     ):
         """
         Save the current state of the NDB model.
@@ -685,6 +705,7 @@ class NDBRouter:
         }
         ```
         """
+        token, scheme = token_scheme
         model_id = self.config.model_id
         update_token = None
         if not input.override:
@@ -694,15 +715,16 @@ class NDBRouter:
                     message="Model name is required for new model.",
                 )
             res = self.reporter.save_model(
-                access_token=token,
                 base_model_id=self.config.model_id,
                 model_name=input.model_name,
+                access_token=token,
+                auth_scheme=scheme,
             )
             model_id = res["model_id"]
             update_token = res["update_token"]
         else:
             override_permission = Permissions.check_permission(
-                token=token, permission_type="owner"
+                token=token, auth_scheme=scheme, permission_type="owner"
             )
             if not override_permission:
                 return response(
@@ -710,9 +732,14 @@ class NDBRouter:
                     message="You don't have permissions to override this model.",
                 )
 
-        background_tasks.add_task(
-            self._perform_save, model_id, update_token, input.override
-        )
+        if scheme == "api_key":
+            background_tasks.add_task(
+                self._perform_save, model_id, token, input.override, scheme
+            )
+        else:
+            background_tasks.add_task(
+                self._perform_save, model_id, update_token, input.override, scheme
+            )
 
         message = "Save operation initiated in the background."
         self.logger.info(message, code=LogCode.MODEL_SAVE)
@@ -722,11 +749,13 @@ class NDBRouter:
             data={"new_model_id": model_id if not input.override else None},
         )
 
-    def _perform_save(self, model_id: str, token: str, override: bool):
+    def _perform_save(
+        self, model_id: str, token: str, override: bool, auth_scheme: str = "bearer"
+    ):
         try:
             self.model.save(model_id=model_id)
             if not override:
-                self.reporter.save_complete(token)
+                self.reporter.save_complete(token, auth_scheme)
             self.logger.info("Successfully saved the model in the background.")
         except Exception as err:
             self.logger.error(
@@ -735,7 +764,7 @@ class NDBRouter:
             )
 
     def highlighted_pdf(
-        self, reference_id: int, token=Depends(Permissions.verify_permission("read"))
+        self, reference_id: int, _=Depends(Permissions.verify_permission("read"))
     ):
         """
         Get a highlighted PDF based on the reference ID.
@@ -758,9 +787,7 @@ class NDBRouter:
             buffer.getvalue(), headers=headers, media_type="application/pdf"
         )
 
-    def pdf_blob(
-        self, source: str, token=Depends(Permissions.verify_permission("read"))
-    ):
+    def pdf_blob(self, source: str, _=Depends(Permissions.verify_permission("read"))):
         """
         Get the PDF blob from the source.
 
@@ -785,7 +812,7 @@ class NDBRouter:
         self,
         source: str,
         provider: str,
-        token=Depends(Permissions.verify_permission("read")),
+        _=Depends(Permissions.verify_permission("read")),
     ):
         cloud_client = get_cloud_client(provider=provider)
 
@@ -798,7 +825,7 @@ class NDBRouter:
         )
 
     def pdf_chunks(
-        self, reference_id: int, token=Depends(Permissions.verify_permission("read"))
+        self, reference_id: int, _=Depends(Permissions.verify_permission("read"))
     ):
         """
         Get the chunks of a PDF document based on the reference ID.
@@ -830,7 +857,7 @@ class NDBRouter:
         self,
         source_id: str,
         version: str,
-        token: str = Depends(Permissions.verify_permission("read")),
+        _=Depends(Permissions.verify_permission("read")),
     ):
 
         metadata = self.model.get_metadata(doc_id=source_id, doc_version=int(version))
@@ -844,7 +871,7 @@ class NDBRouter:
     def get_tasks(
         self,
         task_id: Optional[str] = None,
-        token: str = Depends(Permissions.verify_permission("write")),
+        _=Depends(Permissions.verify_permission("write")),
     ):
         """
         Returns list of queued insert or delete tasks

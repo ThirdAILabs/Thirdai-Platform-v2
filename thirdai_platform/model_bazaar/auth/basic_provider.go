@@ -58,7 +58,7 @@ func (auth *BasicIdentityProvider) addUserToContext() func(http.Handler) http.Ha
 
 			userUUID, err := uuid.Parse(userId)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("invalid user uuid '%v': %v'", userId, err), http.StatusBadRequest)
+				http.Error(w, fmt.Sprintf("invalid user uuid '%v': %v", userId, err), http.StatusUnauthorized)
 				return
 			}
 
@@ -73,7 +73,7 @@ func (auth *BasicIdentityProvider) addUserToContext() func(http.Handler) http.Ha
 			}
 
 			reqCtx := r.Context()
-			reqCtx = context.WithValue(reqCtx, userRequestContextKey, user)
+			reqCtx = context.WithValue(reqCtx, UserRequestContextKey, user)
 			next.ServeHTTP(w, r.WithContext(reqCtx))
 		}
 

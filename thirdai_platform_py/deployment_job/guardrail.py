@@ -77,13 +77,16 @@ class Guardrail:
         self.endpoint = urljoin(model_bazaar_endpoint, f"{guardrail_model_id}/predict")
         self.logger = logger
 
-    def query_pii_model(self, text: str, access_token: str):
+    def query_pii_model(self, text: str, access_token: str, auth_scheme: str):
+        if auth_scheme == "api_key":
+            headers = {"X-API-Key": access_token}
+        else:
+            headers = {"Authorization": f"Bearer {access_token}"}
+
+        headers["User-Agent"] = "NDB Deployment job"
         res = self.session.post(
             self.endpoint,
-            headers={
-                "User-Agent": "NDB Deployment job",
-                "Authorization": f"Bearer {access_token}",
-            },
+            headers=headers,
             json={"text": text, "data_type": "unstructured"},
         )
 
@@ -102,9 +105,17 @@ class Guardrail:
 
         return results
 
-    def redact_pii(self, text: str, access_token: str, label_map: LabelMap):
+    def redact_pii(
+        self,
+        text: str,
+        label_map: LabelMap,
+        access_token: str,
+        auth_scheme: str,
+    ):
         try:
-            data = self.query_pii_model(text=text, access_token=access_token)
+            data = self.query_pii_model(
+                text=text, access_token=access_token, auth_scheme=auth_scheme
+            )
 
             entities, tags = merge_tags(
                 tokens=data["tokens"], tags=data["predicted_tags"]

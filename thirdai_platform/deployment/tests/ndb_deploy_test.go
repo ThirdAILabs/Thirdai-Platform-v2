@@ -12,6 +12,7 @@ import (
 
 	"thirdai_platform/deployment"
 	"thirdai_platform/model_bazaar/config"
+	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/search/ndb"
@@ -186,6 +187,11 @@ func doDelete(t *testing.T, testServer *httptest.Server, source_ids []string) {
 }
 
 func TestBasicEndpoints(t *testing.T) {
+	v := licensing.NewVerifier("platform_test_license.json")
+	license, err := v.LoadLicense()
+	assert.NoError(t, err)
+	licensing.ActivateThirdAILicense(license.License.BoltLicenseKey)
+
 	modelbazaardir := t.TempDir()
 	testServer := makeNdbServer(t, modelbazaardir)
 	defer testServer.Close()

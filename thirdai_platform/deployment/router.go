@@ -22,6 +22,7 @@ type NdbRouter struct {
 	Reporter    Reporter
 	Permissions PermissionsInterface
 	GenAIClient GenAIClient
+	LLMCache    *LLMCache
 }
 
 func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, error) {
@@ -32,12 +33,18 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 	}
 
 	var genAIClient GenAIClient
+	var llmCache *LLMCache
 
 	if provider, exists := config.Options["llm_provider"]; exists {
 		// TODO api key should be passed as environment variable based on provider
 		// rather than passing it in the /generate endpoint from the frontend
 		// Same goes for model and provider
 		genAIClient, err = GenAIClientFactory(provider)
+		if err != nil {
+			return nil, err
+		}
+
+		llmCache, err = NewLLMCache(config.ModelBazaarDir, config.ModelId.String())
 		if err != nil {
 			return nil, err
 		}
@@ -49,11 +56,15 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 		Reporter:    reporter,
 		Permissions: &Permissions{config.ModelBazaarEndpoint, config.ModelId},
 		GenAIClient: genAIClient,
+		LLMCache:    llmCache,
 	}, nil
 }
 
 func (r *NdbRouter) Close() {
 	r.Ndb.Free()
+	if r.LLMCache != nil{
+		r.LLMCache.Close()
+	}
 }
 
 func (m *NdbRouter) Routes() chi.Router {

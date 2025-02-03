@@ -419,17 +419,31 @@ func TestModelWithDeps(t *testing.T) {
 
 	checkSearchDeps(info)
 
-	models, err := user.listModels()
+	admin, err := env.adminClient()
 	if err != nil {
 		t.Fatal(err)
 	}
-	sortModelList(models)
 
-	if len(models) != 3 || models[0].ModelId.String() != ndb || models[1].ModelId.String() != nlp || models[2].ModelId.String() != es {
-		t.Fatalf("invalid models: %v", models)
+	checkModels := func(models []services.ModelInfo) {
+		sortModelList(models)
+		if len(models) != 3 || models[0].ModelId.String() != ndb || models[1].ModelId.String() != nlp || models[2].ModelId.String() != es {
+			t.Fatalf("invalid models: %v", models)
+		}
 	}
 
-	checkSearchDeps(models[2])
+	adminModels, err := admin.listModels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkModels(adminModels)
+	checkSearchDeps(adminModels[2])
+
+	userModels, err := user.listModels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkModels(userModels)
+	checkSearchDeps(userModels[2])
 
 	ndbToken := getJobAuthToken(env, t, ndb)
 	nlpToken := getJobAuthToken(env, t, nlp)

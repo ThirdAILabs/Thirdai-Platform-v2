@@ -15,10 +15,32 @@ import (
 	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/search/ndb"
+	"thirdai_platform/utils/llm_generation"
+
+	"bufio"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
+
+type MockLLM struct{}
+
+func (m *MockLLM) Stream(req *llm_generation.GenerateRequest) (<-chan string, <-chan error) {
+	textChan := make(chan string)
+	errChan := make(chan error)
+
+	go func() {
+		defer close(textChan)
+		defer close(errChan)
+		
+		textChan <- "This "
+		textChan <- "is "
+		textChan <- "a test."
+	}()
+
+	return textChan, errChan
+}
 
 type MockPermissions struct {
 	GetModelPermissionsFunc   func(string) (services.ModelPermissions, error)
@@ -64,6 +86,7 @@ func makeNdbServer(t *testing.T, modelbazaardir string) *httptest.Server {
 
 	r := router.Routes()
 	testServer := httptest.NewServer(r)
+	router.LLMProvider = &MockLLM{}
 
 	return testServer
 }
@@ -185,6 +208,38 @@ func doDelete(t *testing.T, testServer *httptest.Server, source_ids []string) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
+func doGenerate(t *testing.T, testServer *httptest.Server, query string, references []map[string]interface{}, model string) {
+	body := map[string]interface{}{
+		"query":       query,
+		"task_prompt": "say your name",
+		"references":  references,
+		"model":      model,
+	}
+
+	bodyBytes, _ := json.Marshal(body)
+	resp, err := http.Post(testServer.URL+"/generate-with-references", "application/json", bytes.NewReader(bodyBytes))
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "text/event-stream", resp.Header.Get("Content-Type"))
+
+	// Read the SSE stream
+	scanner := bufio.NewScanner(resp.Body)
+	var fullResponse strings.Builder
+	
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "data: ") {
+			data := strings.TrimPrefix(line, "data: ")
+			fullResponse.WriteString(data)
+		}
+	}
+	
+	assert.NoError(t, scanner.Err())
+	assert.Equal(t, "This is a test.", fullResponse.String())
+}
+
 func TestBasicEndpoints(t *testing.T) {
 	modelbazaardir := t.TempDir()
 	testServer := makeNdbServer(t, modelbazaardir)
@@ -204,6 +259,10 @@ func TestBasicEndpoints(t *testing.T) {
 	checkSources(t, testServer, []string{"doc_id_1", "doc_id_2"})
 	doDelete(t, testServer, []string{"doc_id_1"})
 	checkSources(t, testServer, []string{"doc_id_2"})
+
+	doGenerate(t, testServer, "is this a test?", []map[string]interface{}{
+		{"text": "my name is chatgpt", "source": "doc_id_1"},
+	}, "gpt-4o-mini")
 }
 
 func TestSaveLoadDeployConfig(t *testing.T) {

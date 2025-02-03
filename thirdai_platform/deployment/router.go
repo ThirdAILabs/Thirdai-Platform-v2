@@ -11,6 +11,7 @@ import (
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/search/ndb"
 	"thirdai_platform/utils"
+	"thirdai_platform/utils/llm_generation"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -21,7 +22,7 @@ type NdbRouter struct {
 	Config      *config.DeployConfig
 	Reporter    Reporter
 	Permissions PermissionsInterface
-	GenAIClient GenAIClient
+	LLMProvider llm_generation.LLMProvider
 }
 
 func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, error) {
@@ -31,13 +32,13 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 		return nil, fmt.Errorf("failed to open ndb: %v", err)
 	}
 
-	var genAIClient GenAIClient
+	var llmProvider llm_generation.LLMProvider
 
 	if provider, exists := config.Options["llm_provider"]; exists {
 		// TODO api key should be passed as environment variable based on provider
 		// rather than passing it in the /generate endpoint from the frontend
 		// Same goes for model and provider
-		genAIClient, err = GenAIClientFactory(provider)
+		llmProvider, err = llm_generation.NewLLMProvider(provider, config.Options["genai_key"])
 		if err != nil {
 			return nil, err
 		}
@@ -48,7 +49,7 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 		Config:      config,
 		Reporter:    reporter,
 		Permissions: &Permissions{config.ModelBazaarEndpoint, config.ModelId},
-		GenAIClient: genAIClient,
+		LLMProvider: llmProvider,
 	}, nil
 }
 
@@ -82,7 +83,6 @@ func (m *NdbRouter) Routes() chi.Router {
 		r.Post("/implicit-feedback", m.ImplicitFeedback)
 		r.Get("/highlighted-pdf", m.HighlightedPdf)
 
-		r.Post("/generate", m.SearchAndGenerate)
 		r.Post("/generate-with-references", m.GenerateFromReferences)
 	})
 
@@ -327,26 +327,14 @@ func (s *NdbRouter) ImplicitFeedback(w http.ResponseWriter, r *http.Request) {
 func (s *NdbRouter) HighlightedPdf(w http.ResponseWriter, r *http.Request) {
 }
 
-type SearchAndGenerateRequest struct {
-	Query      string `json:"query"`
-	TaskPrompt string `json:"task_prompt,omitempty"`
-}
-
-func (s *NdbRouter) SearchAndGenerate(w http.ResponseWriter, r *http.Request) {
-
-}
-
-type Reference struct {
-	Text   string `json:"text"`
-	Source string `json:"source,omitempty"`
-}
-
-type GenerateFromReferencesRequest struct {
-	Query      string      `json:"query"`
-	TaskPrompt string      `json:"task_prompt,omitempty"`
-	References []Reference `json:"references,omitempty"`
-}
-
 func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Request) {
+	if s.LLMProvider == nil {
+		http.Error(w, "LLM provider not found", http.StatusInternalServerError)
+		return
+	}
 
+	if err := llm_generation.StreamResponse(s.LLMProvider, w, r); err != nil {
+		// Error has already been sent to client via SSE, just return
+		return
+	}
 }

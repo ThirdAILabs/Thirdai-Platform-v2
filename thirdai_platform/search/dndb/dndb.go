@@ -219,7 +219,8 @@ func (dndb *DNDB) Associate(source, target string, strength uint32) (UpdateResul
 func (dndb *DNDB) Delete(docId string, keepLatestVersion bool) (UpdateResult, error) {
 	op := UpdateOp{
 		Delete: &DeleteOp{
-			DocId: docId,
+			DocId:      docId,
+			KeepLatest: keepLatestVersion,
 		},
 	}
 

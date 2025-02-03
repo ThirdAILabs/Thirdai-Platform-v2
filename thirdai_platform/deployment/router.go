@@ -21,6 +21,7 @@ type NdbRouter struct {
 	Config      *config.DeployConfig
 	Reporter    Reporter
 	Permissions PermissionsInterface
+	GenAIClient GenAIClient
 }
 
 func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, error) {
@@ -29,7 +30,26 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to open ndb: %v", err)
 	}
-	return &NdbRouter{ndb, config, reporter, &Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
+
+	var genAIClient GenAIClient
+
+	if provider, exists := config.Options["llm_provider"]; exists {
+		// TODO api key should be passed as environment variable based on provider
+		// rather than passing it in the /generate endpoint from the frontend
+		// Same goes for model and provider
+		genAIClient, err = GenAIClientFactory(provider)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &NdbRouter{
+		Ndb:         ndb,
+		Config:      config,
+		Reporter:    reporter,
+		Permissions: &Permissions{config.ModelBazaarEndpoint, config.ModelId},
+		GenAIClient: genAIClient,
+	}, nil
 }
 
 func (r *NdbRouter) Close() {
@@ -61,6 +81,9 @@ func (m *NdbRouter) Routes() chi.Router {
 		r.Post("/save", m.Save) // TODO Check low disk usage
 		r.Post("/implicit-feedback", m.ImplicitFeedback)
 		r.Get("/highlighted-pdf", m.HighlightedPdf)
+
+		r.Post("/generate", m.SearchAndGenerate)
+		r.Post("/generate-with-references", m.GenerateFromReferences)
 	})
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -145,8 +168,7 @@ type InsertRequest struct {
 	Version  *uint                    `json:"version,omitempty"`
 }
 
-
-//TODO how to do insert from files that already have been uploaded? 
+// TODO how to do insert from files that already have been uploaded?
 // do we need go bindings for documents or to parse them with a service beforehand?
 func (s *NdbRouter) Insert(w http.ResponseWriter, r *http.Request) {
 	var req InsertRequest
@@ -303,4 +325,28 @@ func (s *NdbRouter) ImplicitFeedback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *NdbRouter) HighlightedPdf(w http.ResponseWriter, r *http.Request) {
+}
+
+type SearchAndGenerateRequest struct {
+	Query      string `json:"query"`
+	TaskPrompt string `json:"task_prompt,omitempty"`
+}
+
+func (s *NdbRouter) SearchAndGenerate(w http.ResponseWriter, r *http.Request) {
+
+}
+
+type Reference struct {
+	Text   string `json:"text"`
+	Source string `json:"source,omitempty"`
+}
+
+type GenerateFromReferencesRequest struct {
+	Query      string      `json:"query"`
+	TaskPrompt string      `json:"task_prompt,omitempty"`
+	References []Reference `json:"references,omitempty"`
+}
+
+func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Request) {
+
 }

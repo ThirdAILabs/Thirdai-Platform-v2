@@ -400,13 +400,11 @@ func (snapshot *ndbSnapshot) Persist(sink raft.SnapshotSink) error {
 	archive := tar.NewWriter(sink)
 
 	if err := archive.AddFS(os.DirFS(snapshot.path)); err != nil {
-		sink.Cancel()
-		return err
+		return errors.Join(err, sink.Cancel())
 	}
 
 	if err := archive.Close(); err != nil {
-		sink.Cancel()
-		return err
+		return errors.Join(err, sink.Cancel())
 	}
 
 	return sink.Close()

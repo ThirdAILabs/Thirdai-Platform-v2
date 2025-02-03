@@ -185,14 +185,16 @@ func createClusterAndAddReplica(t *testing.T, snapshot bool) {
 
 	if snapshot {
 		stop := make(chan bool)
-
-		go func() { // Runs queryies in background while snapshot is called.
+		failed := 0
+		go func() { // Runs queries in background while snapshot is called.
 			for {
 				select {
 				case <-stop:
 					return
 				default:
-					leader.Query("some random query", 5, nil)
+					if _, err := leader.Query("some random query", 5, nil); err != nil {
+						failed++
+					}
 				}
 			}
 		}()
@@ -204,6 +206,10 @@ func createClusterAndAddReplica(t *testing.T, snapshot bool) {
 		}
 
 		close(stop)
+
+		if failed > 0 {
+			t.Fatal("background queries failed")
+		}
 	}
 
 	newReplica, err := dndb.New(ndbPath, t.TempDir(), createConfig("node3", transports[3], false))

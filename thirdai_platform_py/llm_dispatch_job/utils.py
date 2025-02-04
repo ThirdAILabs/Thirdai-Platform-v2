@@ -45,19 +45,12 @@ def make_prompt(
     query: str,
     task_prompt: Optional[str],
     references: List[Reference],
-    reverse_ref_order: bool = False,
     token_limit: int = 2000,
 ):
-    if reverse_ref_order:
-        references = references[::-1]
-
     processed_references = map(reference_content, references)
     context = "\n\n".join(processed_references)
 
-    if reverse_ref_order:
-        context = " ".join(context.split(" ")[-token_limit:])
-    else:
-        context = " ".join(context.split(" ")[:token_limit])
+    context = " ".join(context.split(" ")[:token_limit])
 
     system_prompt = DEFAULT_SYSTEM_PROMPT
     user_prompt = f"{context}\n\n {task_prompt or DEFAULT_PROMPT} {query}"

@@ -1,286 +1,266 @@
 package kubernetes
 
 import (
-	"context"
+	"bytes"
 	"embed"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"log/slog"
-	"os"
+	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
-
-	// For Job manifests.
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
+	"text/template"
 
 	"thirdai_platform/model_bazaar/orchestrator"
 )
 
-//go:embed jobs/*/*
+//go:embed jobs/*
 var jobTemplates embed.FS
 
-func getNamespace() (string, error) {
-	slog.Info("reading namespace from file", "path", "/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-	data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-	if err != nil {
-		slog.Info("failed to read namespace file", "error", err)
-		return "", err
-	}
-	namespace := strings.TrimSpace(string(data))
-	slog.Info("namespace retrieved", "namespace", namespace)
-	return namespace, nil
-}
-
 type KubernetesClient struct {
-	namespace       string
-	clientset       *kubernetes.Clientset
-	ingressHostname string
+	endpoint  string
+	token     string
+	namespace string
+	templates *template.Template
 }
 
-func NewKubernetesClient(ingressHostname string) orchestrator.Client {
-	slog.Info("initializing NewKubernetesClient", "ingressHostname", ingressHostname)
-
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		slog.Error("error getting in-cluster config", "error", err)
-		panic(fmt.Sprintf("error getting in-cluster config: %v", err))
+func NewKubernetesClient(endpoint string, token string, namespace string) orchestrator.Client {
+	// Here you might define any helper functions for your templates.
+	funcs := template.FuncMap{
+		"replaceHyphen": func(s string) string {
+			return strings.Replace(s, "-", "_", -1)
+		},
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	tmpl, err := template.New("job_templates").Funcs(funcs).ParseFS(jobTemplates, "jobs/*")
 	if err != nil {
-		slog.Error("error creating kubernetes clientset", "error", err)
-		panic(fmt.Sprintf("error creating kubernetes clientset: %v", err))
+		log.Panicf("error parsing job templates: %v", err)
 	}
 
-	namespace, err := getNamespace()
-	if err != nil {
-		slog.Error("error retrieving kubernetes namespace", "error", err)
-		panic(fmt.Sprintf("error retrieving kubernetes namespace: %v", err))
-	}
-
-	slog.Info("creating kubernetes client", "namespace", namespace, "ingressHostname", ingressHostname)
+	slog.Info("creating kubernetes client", "endpoint", endpoint, "namespace", namespace)
 	return &KubernetesClient{
-		namespace:       namespace,
-		clientset:       clientset,
-		ingressHostname: ingressHostname,
+		endpoint:  endpoint,
+		token:     token,
+		namespace: namespace,
+		templates: tmpl,
 	}
+}
+
+// request is a helper that constructs a full URL from the Kubernetes API endpoint,
+// sets common headers (including the Bearer token if one is provided),
+// performs the request, and (if result is non-nil) decodes the JSON response.
+func (c *KubernetesClient) request(method, apiPath string, body io.Reader, result interface{}) error {
+	fullURL, err := url.JoinPath(c.endpoint, apiPath)
+	if err != nil {
+		return fmt.Errorf("error formatting URL for kubernetes API path %v: %w", apiPath, err)
+	}
+
+	req, err := http.NewRequest(method, fullURL, body)
+	if err != nil {
+		return fmt.Errorf("error creating %v request for kubernetes API path %v: %w", method, apiPath, err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+	if c.token != "" {
+		req.Header.Add("Authorization", "Bearer "+c.token)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("error sending %v request to kubernetes API path %v: %w", method, apiPath, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		data, _ := io.ReadAll(resp.Body)
+		slog.Error("kubernetes API returned error", "method", method, "apiPath", apiPath, "code", resp.StatusCode, "response", string(data))
+		return fmt.Errorf("%v request to kubernetes API path %v returned status %d", method, apiPath, resp.StatusCode)
+	}
+
+	if result != nil {
+		if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
+			return fmt.Errorf("error decoding %v response from kubernetes API path %v: %w", method, apiPath, err)
+		}
+	}
+	return nil
 }
 
 func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
-	slog.Info("starting kubernetes job", "job_name", job.GetJobName(), "template", job.JobTemplatePath(), "namespace", c.namespace)
-	subDir := fmt.Sprintf("jobs/%s", job.JobTemplatePath())
+	slog.Info("starting kubernetes job", "job_name", job.GetJobName(), "template", job.TemplateName())
 
-	ctx := context.Background()
-
-	for _, res := range resources {
-		slog.Info("processing resource type", "fileSuffix", res.FileSuffix, "job_name", job.GetJobName())
-		if err := c.processTemplate(res.FileSuffix, subDir, job, ctx); err != nil {
-			slog.Error("error processing template", "fileSuffix", res.FileSuffix, "job_name", job.GetJobName(), "error", err)
-			return err
-		}
+	// Render the job manifest (assumed to be in JSON or YAML)
+	var buf strings.Builder
+	if err := c.templates.ExecuteTemplate(&buf, job.TemplateName(), job); err != nil {
+		slog.Error("error rendering job template", "job_name", job.GetJobName(), "error", err)
+		return fmt.Errorf("error rendering job template: %w", err)
 	}
 
-	slog.Info("all resources for job started successfully", "job_name", job.GetJobName(), "namespace", c.namespace)
+	// Post the rendered manifest to the Batch API.
+	apiPath := fmt.Sprintf("apis/batch/v1/namespaces/%s/jobs", c.namespace)
+	body := bytes.NewBufferString(buf.String())
+	if err := c.request("POST", apiPath, body, nil); err != nil {
+		slog.Error("error submitting kubernetes job", "job_name", job.GetJobName(), "error", err)
+		return fmt.Errorf("error starting kubernetes job: %w", err)
+	}
+
+	slog.Info("kubernetes job started successfully", "job_name", job.GetJobName())
 	return nil
 }
 
+// StopJob deletes the Kubernetes Job resource.
 func (c *KubernetesClient) StopJob(jobName string) error {
-	slog.Info("stopping kubernetes job resources", "job_name", jobName, "namespace", c.namespace)
-	var errs []error
-	ctx := context.Background()
-
-	// Delete deployment (assumed to use the jobName)
-	slog.Info("attempting to delete deployment", "deployment_name", jobName, "namespace", c.namespace)
-	if err := c.clientset.AppsV1().Deployments(c.namespace).Delete(ctx, jobName, metav1.DeleteOptions{}); err != nil {
-		if apierrors.IsNotFound(err) {
-			slog.Info("deployment not found, skipping deletion", "deployment_name", jobName)
-		} else {
-			slog.Error("error stopping deployment", "deployment_name", jobName, "error", err)
-			errs = append(errs, fmt.Errorf("deployment: %w", err))
-		}
-	} else {
-		slog.Info("deployment deleted successfully", "deployment_name", jobName)
+	slog.Info("stopping kubernetes job", "job_name", jobName)
+	apiPath := fmt.Sprintf("apis/batch/v1/namespaces/%s/jobs/%s", c.namespace, jobName)
+	if err := c.request("DELETE", apiPath, nil, nil); err != nil {
+		slog.Error("error stopping kubernetes job", "job_name", jobName, "error", err)
+		return fmt.Errorf("error stopping kubernetes job %s: %w", jobName, err)
 	}
-
-	// Delete service (assumed to use the jobName)
-	slog.Info("attempting to delete service", "service_name", jobName, "namespace", c.namespace)
-	if err := c.clientset.CoreV1().Services(c.namespace).Delete(ctx, jobName, metav1.DeleteOptions{}); err != nil {
-		if apierrors.IsNotFound(err) {
-			slog.Info("service not found, skipping deletion", "service_name", jobName)
-		} else {
-			slog.Error("error stopping service", "service_name", jobName, "error", err)
-			errs = append(errs, fmt.Errorf("service: %w", err))
-		}
-	} else {
-		slog.Info("service deleted successfully", "service_name", jobName)
-	}
-
-	// Delete external ingress (assumed to use the jobName)
-	slog.Info("attempting to delete ingress", "ingress_name", jobName, "namespace", c.namespace)
-	if err := c.clientset.NetworkingV1().Ingresses(c.namespace).Delete(ctx, jobName, metav1.DeleteOptions{}); err != nil {
-		if apierrors.IsNotFound(err) {
-			slog.Info("ingress not found, skipping deletion", "ingress_name", jobName)
-		} else {
-			slog.Error("error stopping ingress", "ingress_name", jobName, "error", err)
-			errs = append(errs, fmt.Errorf("ingress: %w", err))
-		}
-	} else {
-		slog.Info("ingress deleted successfully", "ingress_name", jobName)
-	}
-
-	// Delete internal ingress with suffix "-internal"
-	internalIngressName := jobName + "-internal"
-	slog.Info("attempting to delete internal ingress", "ingress_name", internalIngressName, "namespace", c.namespace)
-	if err := c.clientset.NetworkingV1().Ingresses(c.namespace).Delete(ctx, internalIngressName, metav1.DeleteOptions{}); err != nil {
-		if apierrors.IsNotFound(err) {
-			slog.Info("internal ingress not found, skipping deletion", "ingress_name", internalIngressName)
-		} else {
-			slog.Error("error stopping internal ingress", "ingress_name", internalIngressName, "error", err)
-			errs = append(errs, fmt.Errorf("internal ingress: %w", err))
-		}
-	} else {
-		slog.Info("internal ingress deleted successfully", "ingress_name", internalIngressName)
-	}
-
-	if len(errs) > 0 {
-		slog.Info("one or more errors occurred while stopping job resources", "job_name", jobName, "errors", errs)
-		return fmt.Errorf("error stopping job resources for %s: %w", jobName, errors.Join(errs...))
-	}
-	slog.Info("kubernetes job resources stopped successfully", "job_name", jobName, "namespace", c.namespace)
+	slog.Info("kubernetes job stopped successfully", "job_name", jobName)
 	return nil
 }
 
+// JobInfo fetches the Kubernetes Job resource and returns a simple status summary.
 func (c *KubernetesClient) JobInfo(jobName string) (orchestrator.JobInfo, error) {
-	slog.Info("retrieving job info", "job_name", jobName, "namespace", c.namespace)
-	ctx := context.Background()
-
-	deployment, err := c.clientset.AppsV1().Deployments(c.namespace).Get(ctx, jobName, metav1.GetOptions{})
-	if err == nil {
-		slog.Info("deployment found for job", "job_name", jobName)
-		var status orchestrator.JobStatus
-		if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas > 0 {
-			if deployment.Status.AvailableReplicas > 0 {
-				status = orchestrator.StatusRunning
-			} else {
-				status = orchestrator.StatusPending
-			}
-		} else {
-			status = orchestrator.StatusDead
-		}
-		info := orchestrator.JobInfo{
-			Name:   deployment.Name,
-			Status: status,
-		}
-		slog.Info("job info retrieved from deployment", "job_name", jobName, "status", status)
-		return info, nil
+	slog.Info("retrieving kubernetes job info", "job_name", jobName)
+	apiPath := fmt.Sprintf("apis/batch/v1/namespaces/%s/jobs/%s", c.namespace, jobName)
+	var jobResp struct {
+		Metadata struct {
+			Name string `json:"name"`
+		} `json:"metadata"`
+		Status struct {
+			Active    int `json:"active"`
+			Succeeded int `json:"succeeded"`
+			Failed    int `json:"failed"`
+		} `json:"status"`
+	}
+	if err := c.request("GET", apiPath, nil, &jobResp); err != nil {
+		slog.Error("error getting kubernetes job info", "job_name", jobName, "error", err)
+		return orchestrator.JobInfo{}, fmt.Errorf("error getting info for kubernetes job %s: %w", jobName, err)
 	}
 
-	if !apierrors.IsNotFound(err) {
-		slog.Error("error getting deployment", "job_name", jobName, "error", err)
-		return orchestrator.JobInfo{}, fmt.Errorf("error getting deployment %s: %w", jobName, err)
+	status := "Unknown"
+	if jobResp.Status.Active > 0 {
+		status = "Active"
+	} else if jobResp.Status.Succeeded > 0 {
+		status = "Succeeded"
+	} else if jobResp.Status.Failed > 0 {
+		status = "Failed"
 	}
 
-	slog.Info("deployment not found, trying batch job for", "job_name", jobName)
-	job, err := c.clientset.BatchV1().Jobs(c.namespace).Get(ctx, jobName, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			slog.Info("kubernetes job not found")
-			return orchestrator.JobInfo{}, orchestrator.ErrJobNotFound
-		}
-		slog.Error("error getting job", "job_name", jobName, "error", err)
-		return orchestrator.JobInfo{}, fmt.Errorf("error getting job %s: %w", jobName, err)
-	}
-
-	var status orchestrator.JobStatus
-	if job.Status.Active > 0 {
-		status = orchestrator.StatusRunning
-	} else if job.Status.Succeeded > 0 || job.Status.Failed > 0 {
-		status = orchestrator.StatusDead
-	} else {
-		status = orchestrator.StatusPending
-	}
 	info := orchestrator.JobInfo{
-		Name:   job.Name,
+		Name:   jobResp.Metadata.Name,
 		Status: status,
 	}
+
 	slog.Info("kubernetes job info retrieved", "job_name", jobName, "status", status)
 	return info, nil
 }
 
-func (c *KubernetesClient) JobLogs(jobName string) ([]orchestrator.JobLog, error) {
-	slog.Info("retrieving job logs", "job_name", jobName, "namespace", c.namespace)
-	ctx := context.Background()
-	podList, err := c.clientset.CoreV1().Pods(c.namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("app=%s", jobName),
-	})
+// getPodLogs retrieves the logs for a given Pod.
+func (c *KubernetesClient) getPodLogs(podName string) (string, error) {
+	logPath := fmt.Sprintf("api/v1/namespaces/%s/pods/%s/log", c.namespace, podName)
+	fullURL, err := url.JoinPath(c.endpoint, logPath)
 	if err != nil {
+		return "", fmt.Errorf("error constructing log URL for pod %s: %w", podName, err)
+	}
+	req, err := http.NewRequest("GET", fullURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("error creating request for pod %s logs: %w", podName, err)
+	}
+	if c.token != "" {
+		req.Header.Add("Authorization", "Bearer "+c.token)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("error retrieving logs for pod %s: %w", podName, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		data, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("error retrieving logs for pod %s: status %d, response: %s", podName, resp.StatusCode, string(data))
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading logs for pod %s: %w", podName, err)
+	}
+	return string(data), nil
+}
+
+// JobLogs finds the Pods created by the Job (by selecting on label "job-name")
+// and returns their logs.
+func (c *KubernetesClient) JobLogs(jobName string) ([]orchestrator.JobLog, error) {
+	slog.Info("retrieving kubernetes job logs", "job_name", jobName)
+	apiPath := fmt.Sprintf("api/v1/namespaces/%s/pods?labelSelector=job-name=%s", c.namespace, jobName)
+	var podList struct {
+		Items []struct {
+			Metadata struct {
+				Name string `json:"name"`
+			} `json:"metadata"`
+		} `json:"items"`
+	}
+	if err := c.request("GET", apiPath, nil, &podList); err != nil {
 		slog.Error("error listing pods for job", "job_name", jobName, "error", err)
 		return nil, fmt.Errorf("error listing pods for job %s: %w", jobName, err)
 	}
-	slog.Info("pods listed for job", "job_name", jobName, "podCount", len(podList.Items))
 
 	var logs []orchestrator.JobLog
 	for _, pod := range podList.Items {
-		slog.Info("retrieving logs for pod", "pod", pod.Name)
-		podLog, err := c.getPodLogs(pod.Name)
+		podLog, err := c.getPodLogs(pod.Metadata.Name)
 		if err != nil {
-			slog.Error("error getting logs for pod", "pod", pod.Name, "error", err)
+			slog.Error("error getting logs for pod", "pod", pod.Metadata.Name, "error", err)
 			return nil, err
 		}
 		logs = append(logs, orchestrator.JobLog{
 			Stdout: podLog,
-			Stderr: "",
+			Stderr: "", // Kubernetes does not separate stdout/stderr
 		})
-		slog.Info("logs retrieved for pod", "pod", pod.Name)
 	}
-	slog.Info("job logs retrieved", "job_name", jobName)
+	slog.Info("kubernetes job logs retrieved", "job_name", jobName)
 	return logs, nil
 }
 
-func (c *KubernetesClient) getPodLogs(podName string) (string, error) {
-	slog.Info("opening log stream for pod", "podName", podName, "namespace", c.namespace)
-	ctx := context.Background()
-	podLogOpts := corev1.PodLogOptions{}
-	req := c.clientset.CoreV1().Pods(c.namespace).GetLogs(podName, &podLogOpts)
-	stream, err := req.Stream(ctx)
-	if err != nil {
-		slog.Error("error opening log stream", "podName", podName, "error", err)
-		return "", fmt.Errorf("error opening log stream for pod %s: %w", podName, err)
-	}
-	defer stream.Close()
-	slog.Info("log stream opened", "podName", podName)
-
-	var builder strings.Builder
-	_, err = io.Copy(&builder, stream)
-	if err != nil {
-		slog.Error("error reading log stream", "podName", podName, "error", err)
-		return "", fmt.Errorf("error reading log stream for pod %s: %w", podName, err)
-	}
-	slog.Info("log stream read completed", "podName", podName)
-	return builder.String(), nil
-}
-
+// ListServices returns information about services in the namespace.
+// For each Service it fetches its Endpoints and creates a list of allocations.
 func (c *KubernetesClient) ListServices() ([]orchestrator.ServiceInfo, error) {
-	slog.Info("listing services", "namespace", c.namespace)
-	ctx := context.Background()
-	svcList, err := c.clientset.CoreV1().Services(c.namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		slog.Error("error listing services", "namespace", c.namespace, "error", err)
+	slog.Info("listing kubernetes services", "namespace", c.namespace)
+	apiPath := fmt.Sprintf("api/v1/namespaces/%s/services", c.namespace)
+	var svcList struct {
+		Items []struct {
+			Metadata struct {
+				Name string `json:"name"`
+			} `json:"metadata"`
+		} `json:"items"`
+	}
+	if err := c.request("GET", apiPath, nil, &svcList); err != nil {
+		slog.Error("error listing services", "error", err)
 		return nil, fmt.Errorf("error listing services: %w", err)
 	}
 
 	var services []orchestrator.ServiceInfo
 	for _, svc := range svcList.Items {
-		slog.Info("processing service", "service_name", svc.Name, "namespace", c.namespace)
-		endpoints, err := c.clientset.CoreV1().Endpoints(c.namespace).Get(ctx, svc.Name, metav1.GetOptions{})
-		if err != nil {
-			slog.Error("error getting endpoints for service", "service", svc.Name, "error", err)
+		// Get endpoints for the service.
+		endpointsPath := fmt.Sprintf("api/v1/namespaces/%s/endpoints/%s", c.namespace, svc.Metadata.Name)
+		var endpoints struct {
+			Subsets []struct {
+				Addresses []struct {
+					IP        string `json:"ip"`
+					TargetRef *struct {
+						Name string `json:"name"`
+					} `json:"targetRef,omitempty"`
+				} `json:"addresses"`
+				Ports []struct {
+					Port int `json:"port"`
+				} `json:"ports"`
+			} `json:"subsets"`
+		}
+		if err := c.request("GET", endpointsPath, nil, &endpoints); err != nil {
+			// If endpoints are not available, skip this service.
+			slog.Error("error getting endpoints for service", "service", svc.Metadata.Name, "error", err)
 			continue
 		}
 
@@ -292,81 +272,81 @@ func (c *KubernetesClient) ListServices() ([]orchestrator.ServiceInfo, error) {
 						Address: addr.IP,
 						AllocID: "",
 						NodeID:  "",
-						Port:    int(port.Port),
+						Port:    port.Port,
 					}
 					if addr.TargetRef != nil {
 						allocation.AllocID = addr.TargetRef.Name
 					}
 					allocations = append(allocations, allocation)
-					slog.Info("service allocation added", "service", svc.Name, "address", addr.IP, "port", port.Port)
 				}
 			}
 		}
-
 		services = append(services, orchestrator.ServiceInfo{
-			Name:        svc.Name,
+			Name:        svc.Metadata.Name,
 			Allocations: allocations,
 		})
 	}
-	slog.Info("services listed", "count", len(services), "namespace", c.namespace)
+	slog.Info("kubernetes services listed", "count", len(services))
 	return services, nil
 }
 
 func (c *KubernetesClient) TotalCpuUsage() (int, error) {
-	slog.Info("calculating total CPU usage", "namespace", c.namespace)
-	ctx := context.Background()
-	podList, err := c.clientset.CoreV1().Pods(c.namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		slog.Error("error listing pods", "namespace", c.namespace, "error", err)
+	slog.Info("calculating total CPU usage from running pods")
+	apiPath := fmt.Sprintf("api/v1/namespaces/%s/pods", c.namespace)
+	var podList struct {
+		Items []struct {
+			Status struct {
+				Phase string `json:"phase"`
+			} `json:"status"`
+			Spec struct {
+				Containers []struct {
+					Resources struct {
+						Requests map[string]string `json:"requests"`
+					} `json:"resources"`
+				} `json:"containers"`
+			} `json:"spec"`
+		} `json:"items"`
+	}
+	if err := c.request("GET", apiPath, nil, &podList); err != nil {
+		slog.Error("error listing pods", "error", err)
 		return 0, fmt.Errorf("error listing pods: %w", err)
 	}
 
 	totalMillicores := 0
 	for _, pod := range podList.Items {
-		slog.Info("processing pod for CPU usage", "pod", pod.Name, "phase", pod.Status.Phase)
-		if pod.Status.Phase != corev1.PodRunning {
-			slog.Info("skipping pod not in Running phase", "pod", pod.Name, "phase", pod.Status.Phase)
+		if pod.Status.Phase != "Running" {
 			continue
 		}
 		for _, container := range pod.Spec.Containers {
 			if cpu, ok := container.Resources.Requests["cpu"]; ok {
-				slog.Info("found CPU request", "pod", pod.Name, "container", container.Name, "cpuRequest", cpu.String())
-				m, err := parseCPUQuantity(cpu.String())
+				m, err := parseCPUQuantity(cpu)
 				if err != nil {
-					slog.Error("error parsing cpu quantity", "pod", pod.Name, "quantity", cpu.String(), "error", err)
+					slog.Error("error parsing cpu quantity", "quantity", cpu, "error", err)
 					continue
 				}
 				totalMillicores += m
 			}
 		}
 	}
-	slog.Info("total CPU usage calculated", "totalMillicores", totalMillicores, "namespace", c.namespace)
+	slog.Info("total CPU usage calculated", "totalMillicores", totalMillicores)
 	return totalMillicores, nil
 }
 
+// parseCPUQuantity converts a Kubernetes CPU quantity (for example, "250m" or "1")
+// into an integer value in millicores.
 func parseCPUQuantity(q string) (int, error) {
-	slog.Info("parsing CPU quantity", "quantity", q)
 	if strings.HasSuffix(q, "m") {
 		trimmed := strings.TrimSuffix(q, "m")
 		m, err := strconv.Atoi(trimmed)
 		if err != nil {
-			slog.Error("error converting milli value", "quantity", q, "error", err)
 			return 0, err
 		}
-		slog.Info("parsed milli CPU quantity", "quantity", q, "millicores", m)
 		return m, nil
 	}
+	// Assume it is specified in CPU cores.
 	f, err := strconv.ParseFloat(q, 64)
 	if err != nil {
-		slog.Error("error converting CPU quantity to float", "quantity", q, "error", err)
 		return 0, err
 	}
-	millicores := int(f * 1000)
-	slog.Info("parsed CPU quantity", "quantity", q, "millicores", millicores)
-	return millicores, nil
-}
-
-func (c *KubernetesClient) IngressHostname() string {
-	slog.Info("returning ingress hostname", "ingressHostname", c.ingressHostname)
-	return c.ingressHostname
+	return int(f * 1000), nil
 }

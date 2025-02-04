@@ -16,6 +16,7 @@ import (
 	"thirdai_platform/model_bazaar/jobs"
 	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/orchestrator"
+	"thirdai_platform/model_bazaar/orchestrator/kubernetes"
 	"thirdai_platform/model_bazaar/orchestrator/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/services"
@@ -36,6 +37,7 @@ type modelBazaarEnv struct {
 	NomadEndpoint              string
 	NomadToken                 string
 	KubernetesEndpoint         string
+	KubernetesToken            string
 	ShareDir                   string
 	JwtSecret                  string
 
@@ -125,6 +127,7 @@ func loadEnv() modelBazaarEnv {
 		NomadToken:    optionalEnv("TASK_RUNNER_TOKEN"),
 
 		KubernetesEndpoint: optionalEnv("KUBERNETES_ENDPOINT"),
+		KubernetesToken:    optionalEnv("KUBERNETES_TOKEN"),
 
 		ShareDir:  requiredEnv("SHARE_DIR"),
 		JwtSecret: requiredEnv("JWT_SECRET"),
@@ -178,6 +181,9 @@ func loadEnv() modelBazaarEnv {
 
 	if (env.NomadEndpoint != "" && env.KubernetesEndpoint != "") || (env.NomadEndpoint == "" && env.KubernetesEndpoint == "") {
 		log.Fatal("Must specify exactly one of NOMAD_ENDPOINT or KUBERNETES_ENDPOINT")
+	}
+	if env.NomadEndpoint != "" && env.NomadToken == "" {
+		log.Fatal("Must specify TASK_RUNNER_TOKEN when using NOMAD_ENDPOINT")
 	}
 
 	return env
@@ -310,7 +316,7 @@ func main() {
 	if env.NomadEndpoint != "" {
 		orchestratorClient = nomad.NewNomadClient(env.NomadEndpoint, env.NomadToken)
 	} else if env.KubernetesEndpoint != "" {
-		orchestratorClient = nomad.NewNomadClient(env.NomadEndpoint, env.NomadToken)
+		orchestratorClient = kubernetes.NewKubernetesClient(env.KubernetesEndpoint, env.KubernetesToken, "thirdai-platform")
 	}
 
 	licenseVerifier := licensing.NewVerifier(env.LicensePath)

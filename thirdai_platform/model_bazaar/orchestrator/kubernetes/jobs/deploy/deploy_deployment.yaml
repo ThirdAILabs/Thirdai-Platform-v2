@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: "{{ .JobName }}"
+  name: "{{ .JobName }}-deployment"
   labels:
     app: "{{ .JobName }}"
 spec:
@@ -15,7 +15,6 @@ spec:
         app: "{{ .JobName }}"
     spec:
       containers:
-          {{- if not .IsKE }}
         - name: backend
           image: "{{ .Driver.Registry }}/{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
           imagePullPolicy: IfNotPresent
@@ -35,7 +34,7 @@ spec:
               value: "{{ .ConfigPath }}"
             - name: JOB_TOKEN
               value: "{{ .JobToken }}"
-              {{- with .CloudCredentials }}
+            {{- with .CloudCredentials }}
             - name: AWS_ACCESS_KEY
               value: "{{ .AwsAccessKey }}"
             - name: AWS_ACCESS_SECRET
@@ -48,21 +47,22 @@ spec:
               value: "{{ .AzureAccountKey }}"
             - name: GCP_CREDENTIALS_FILE
               value: "{{ .GcpCredentialsFile }}"
-              {{- end }}
+            {{- end }}
           ports:
             - containerPort: 80
           resources:
             requests:
-              cpu: "{{ .Resources.AllocationCores }}"
-              memory: "{{ .Resources.AllocationMemory }}Mi"
+              cpu: "{{ .Resources.AllocationMhz }}"
+              memory: "{{ .Resources.AllocationMemory }}"
             limits:
-              memory: "{{ .Resources.AllocationMemoryMax }}Mi"
+              memory: "{{ .Resources.AllocationMemoryMax }}"
+          {{- if .Driver.ShareDir }}
           volumeMounts:
-            - name: shared-modelbazaar
+            - name: model-bazaar-volume
               mountPath: "/model_bazaar"
           {{- end }}
 
-          {{- if .IsKE }}
+        {{- if .IsKE }}
         - name: knowledge-extraction-worker
           image: "{{ .Driver.Registry }}/{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
           imagePullPolicy: IfNotPresent
@@ -75,7 +75,7 @@ spec:
               value: "{{ .ConfigPath }}"
             - name: JOB_TOKEN
               value: "{{ .JobToken }}"
-              {{- with .CloudCredentials }}
+            {{- with .CloudCredentials }}
             - name: AWS_ACCESS_KEY
               value: "{{ .AwsAccessKey }}"
             - name: AWS_ACCESS_SECRET
@@ -88,19 +88,21 @@ spec:
               value: "{{ .AzureAccountKey }}"
             - name: GCP_CREDENTIALS_FILE
               value: "{{ .GcpCredentialsFile }}"
-              {{- end }}
+            {{- end }}
             - name: WORKER_CORES
               value: "4"
           resources:
             requests:
-              cpu: "{{ .Resources.AllocationCores }}"
-              memory: "{{ .Resources.AllocationMemory }}Mi"
+              cpu: "4"
+              memory: "4000"
             limits:
-              memory: "{{ .Resources.AllocationMemoryMax }}Mi"
-          {{- end }}
-      imagePullSecrets:
-        - name: docker-credentials-secret
+              memory: "8000"
+        {{- end }}
+
+      {{- if .Driver.ShareDir }}
       volumes:
-        - name: shared-modelbazaar
-          persistentVolumeClaim:
-            claimName: modelbazaar-efs-pvc
+        - name: model-bazaar-volume
+          hostPath:
+            path: "{{ .Driver.ShareDir }}"
+            type: Directory
+      {{- end }}

@@ -35,15 +35,13 @@ spec:
             value: "/model_bazaar/pretrained-models"
         resources:
           requests:
-            cpu: "{{ .Resources.AllocationCores }}"
-            memory: "{{ .Resources.AllocationMemory }}Mi"
+            cpu: "{{ .Resources.AllocationMhz }}"
+            memory: "{{ .Resources.AllocationMemory }}"
           limits:
-            memory: "{{ .Resources.AllocationMemoryMax }}Mi"
+            memory: "{{ .Resources.AllocationMemoryMax }}"
         volumeMounts:
           - name: shared-modelbazaar
             mountPath: "/model_bazaar"
-      imagePullSecrets:
-        - name: docker-credentials-secret
       volumes:
         - name: shared-modelbazaar
           persistentVolumeClaim:

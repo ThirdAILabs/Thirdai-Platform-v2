@@ -553,3 +553,12 @@ func checkModelExists(txn *gorm.DB, modelId uuid.UUID) error {
 	}
 	return nil
 }
+
+func IndexOf[T comparable](items []T, key T) int {
+	for i, item := range items {
+		if item == key {
+			return i
+		}
+	}
+	return -1
+}

@@ -63,6 +63,14 @@ jobs:
 
       - name: run ndb deployment tests
         run: |
+          cd thirdai_platform && go test ./model_bazaar/tests -v
+
+      - name: run ndb unit tests
+        run: |
+          cd thirdai_platform && go test ./search/ndb -v
+
+      - name: run ndb deployment tests
+        run: |
           cd thirdai_platform && go test ./deployment/tests -v
 
   python-unit-tests:

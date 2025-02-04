@@ -34,7 +34,7 @@ func (m *MockLLM) Stream(req *llm_generation.GenerateRequest) (<-chan string, <-
 	go func() {
 		defer close(textChan)
 		defer close(errChan)
-		
+
 		textChan <- "This "
 		textChan <- "is "
 		textChan <- "a test."
@@ -254,21 +254,26 @@ func doGenerate(t *testing.T, testServer *httptest.Server, query string, referen
 		"query":       query,
 		"task_prompt": "say your name",
 		"references":  references,
-		"model":      model,
+		"model":       model,
 	}
 
 	bodyBytes, _ := json.Marshal(body)
 	resp, err := http.Post(testServer.URL+"/generate-with-references", "application/json", bytes.NewReader(bodyBytes))
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	defer resp.Body.Close()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "text/event-stream", resp.Header.Get("Content-Type"))
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+	if resp.Header.Get("Content-Type") != "text/event-stream" {
+		t.Fatalf("Expected Content-Type 'text/event-stream', got %s", resp.Header.Get("Content-Type"))
+	}
 
-	// Read the SSE stream
 	scanner := bufio.NewScanner(resp.Body)
 	var fullResponse strings.Builder
-	
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "data: ") {
@@ -276,9 +281,13 @@ func doGenerate(t *testing.T, testServer *httptest.Server, query string, referen
 			fullResponse.WriteString(data)
 		}
 	}
-	
-	assert.NoError(t, scanner.Err())
-	assert.Equal(t, "This is a test.", fullResponse.String())
+
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("Scanner encountered an error: %v", err)
+	}
+	if fullResponse.String() != "This is a test." {
+		t.Fatalf("Expected response 'This is a test.', got %s", fullResponse.String())
+	}
 }
 
 func TestBasicEndpoints(t *testing.T) {

@@ -16,6 +16,7 @@ import (
 	"thirdai_platform/client"
 	"thirdai_platform/deployment"
 	"thirdai_platform/model_bazaar/config"
+	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/utils"
 	"time"
@@ -88,6 +89,8 @@ func runApp() error {
 	if err != nil {
 		return fmt.Errorf("could not read deployment config: %w", err)
 	}
+
+	licensing.ActivateThirdAILicense(config.LicenseKey)
 
 	reporter := deployment.Reporter{BaseClient: client.NewBaseClient(config.ModelBazaarEndpoint, env.JobToken), ModelId: config.ModelId.String()}
 

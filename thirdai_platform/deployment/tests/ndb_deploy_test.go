@@ -7,17 +7,18 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"testing"
 
 	"thirdai_platform/deployment"
 	"thirdai_platform/model_bazaar/config"
+	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/search/ndb"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 )
 
 type MockPermissions struct {
@@ -41,7 +42,9 @@ func makeNdbServer(t *testing.T, modelbazaardir string) *httptest.Server {
 	modelDir := filepath.Join(modelbazaardir, "models", modelID.String(), "model", "model.ndb")
 
 	db, err := ndb.New(modelDir)
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to create NDB: %v", err)
+	}
 
 	err = db.Insert(
 		"doc_name_1", "doc_id_1",
@@ -49,7 +52,9 @@ func makeNdbServer(t *testing.T, modelbazaardir string) *httptest.Server {
 		[]map[string]interface{}{{"thing1": true}, {"thing2": true}, {"thing1": true}},
 		nil,
 	)
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to insert into NDB: %v", err)
+	}
 
 	slog.Info("NDB initialized successfully")
 
@@ -70,27 +75,40 @@ func makeNdbServer(t *testing.T, modelbazaardir string) *httptest.Server {
 
 func checkHealth(t *testing.T, testServer *httptest.Server) {
 	resp, err := http.Get(testServer.URL + "/health")
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to get /health: %v", err)
+	}
 	defer resp.Body.Close()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
 }
 
 func checkSources(t *testing.T, testServer *httptest.Server, sources []string) {
 	resp, err := http.Get(testServer.URL + "/sources")
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to get /sources: %v", err)
+	}
 	defer resp.Body.Close()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
 
 	var data deployment.Sources
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		t.Fatalf("failed to decode /query response: %v", err)
+		t.Fatalf("failed to decode /sources response: %v", err)
 	}
 
-	assert.True(t, len(data.Sources) != 0)
+	if len(data.Sources) == 0 {
+		t.Fatalf("expected sources, but got none")
+	}
+
 	for i, expected := range sources {
-		assert.Equal(t, expected, data.Sources[i].SourceID, "source mismatch at index %d", i)
+		if data.Sources[i].SourceID != expected {
+			t.Fatalf("source mismatch at index %d: expected %s, got %s", i, expected, data.Sources[i].SourceID)
+		}
 	}
 }
 
@@ -101,17 +119,23 @@ func checkQuery(t *testing.T, testServer *httptest.Server, query string, referen
 	}
 	bodyBytes, _ := json.Marshal(body)
 	resp, err := http.Post(testServer.URL+"/query", "application/json", bytes.NewReader(bodyBytes))
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to post /query: %v", err)
+	}
 	defer resp.Body.Close()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
 
 	var data deployment.SearchResults
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		t.Fatalf("failed to decode /query response: %v", err)
 	}
 
-	assert.True(t, len(data.References) != 0)
+	if len(data.References) == 0 {
+		t.Fatalf("expected references, but got none")
+	}
 
 	returned_reference_ids := make([]int, len(data.References))
 	for i, ref := range data.References {
@@ -119,10 +143,11 @@ func checkQuery(t *testing.T, testServer *httptest.Server, query string, referen
 	}
 
 	for _, id := range reference_ids {
-		assert.True(t, slices.Contains(returned_reference_ids, id))
+		if !slices.Contains(returned_reference_ids, id) {
+			t.Fatalf("expected reference ID %d not found", id)
+		}
 	}
 }
-
 func doUpvote(t *testing.T, testServer *httptest.Server, query string, reference_id int) {
 	body := map[string]interface{}{
 		"text_id_pairs": []map[string]interface{}{
@@ -135,10 +160,14 @@ func doUpvote(t *testing.T, testServer *httptest.Server, query string, reference
 	}
 	bodyBytes, _ := json.Marshal(body)
 	resp, err := http.Post(testServer.URL+"/upvote", "application/json", bytes.NewReader(bodyBytes))
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	defer resp.Body.Close()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
 }
 
 func doAssociate(t *testing.T, testServer *httptest.Server, source string, target string) {
@@ -149,10 +178,14 @@ func doAssociate(t *testing.T, testServer *httptest.Server, source string, targe
 	}
 	bodyBytes, _ := json.Marshal(body)
 	resp, err := http.Post(testServer.URL+"/associate", "application/json", bytes.NewReader(bodyBytes))
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	defer resp.Body.Close()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
 }
 
 func doInsert(t *testing.T, testServer *httptest.Server) {
@@ -167,10 +200,14 @@ func doInsert(t *testing.T, testServer *httptest.Server) {
 	}
 	bodyBytes, _ := json.Marshal(body)
 	resp, err := http.Post(testServer.URL+"/insert", "application/json", bytes.NewReader(bodyBytes))
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	defer resp.Body.Close()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
 }
 
 func doDelete(t *testing.T, testServer *httptest.Server, source_ids []string) {
@@ -179,13 +216,24 @@ func doDelete(t *testing.T, testServer *httptest.Server, source_ids []string) {
 	}
 	bodyBytes, _ := json.Marshal(body)
 	resp, err := http.Post(testServer.URL+"/delete", "application/json", bytes.NewReader(bodyBytes))
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	defer resp.Body.Close()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
 }
 
 func TestBasicEndpoints(t *testing.T) {
+	v := licensing.NewVerifier("platform_test_license.json")
+	license, err := v.LoadLicense()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	licensing.ActivateThirdAILicense(license.License.BoltLicenseKey)
+
 	modelbazaardir := t.TempDir()
 	testServer := makeNdbServer(t, modelbazaardir)
 	defer testServer.Close()
@@ -227,14 +275,23 @@ func TestSaveLoadDeployConfig(t *testing.T) {
 	store := storage.NewSharedDisk(tmp_dir)
 
 	configData, err := json.MarshalIndent(expectedConfig, "", "    ")
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	err = store.Write("deploy_config.json", bytes.NewReader(configData))
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	loadedConfig, err := config.LoadDeployConfig(filepath.Join(tmp_dir, "deploy_config.json"))
-	assert.NoError(t, err)
-	assert.Equal(t, expectedConfig, loadedConfig, "Loaded config should match the expected config")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if !reflect.DeepEqual(expectedConfig, loadedConfig) {
+		t.Fatalf("Loaded config should match the expected config")
+	}
 }
 
 // TODO unit tests for constraints, full source paths, insertion of large files

@@ -54,8 +54,8 @@ jobs:
           cp ./Universe/build/deps/cryptopp-cmake/cryptopp/libcryptopp.a thirdai_platform/search/ndb/lib/linux_x64
 
       - name: run backend unit tests
-         run: |
-           cd thirdai_platform && go test ./model_bazaar/tests -v
+        run: |
+          cd thirdai_platform && go test ./model_bazaar/tests -v
 
       - name: run ndb unit tests
         run: |

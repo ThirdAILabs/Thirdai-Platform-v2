@@ -28,7 +28,7 @@ func TestLLMCache(t *testing.T) {
 	_, err = cache.Query("test query")
 	assert.Error(t, err)
 
-	err = cache.Insert("test query", "test response")
+	err = cache.Insert("test query", "test response", []uint64{0, 1, 2})
 	assert.NoError(t, err)
 
 	suggestions, err = cache.Suggestions("test query")

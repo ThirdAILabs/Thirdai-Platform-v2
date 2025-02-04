@@ -350,7 +350,7 @@ func TestBasicEndpoints(t *testing.T) {
 	checkSources(t, testServer, []string{"doc_id_2"})
 
 	doGenerate(t, testServer, "is this a test?", []map[string]interface{}{
-		{"text": "my name is chatgpt", "source": "doc_id_1"},
+		{"reference_id": 4, "text": "my name is chatgpt", "source": "doc_id_1"},
 	}, "gpt-4o-mini")
 	checkLLMCache(t, testServer, "is this a test?", "This is a test.")
 }

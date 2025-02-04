@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"thirdai_platform/search/ndb"
 
@@ -118,13 +119,19 @@ func (c *LLMCache) Query(query string) (string, error) {
 	return llmRes, nil
 }
 
-func (c *LLMCache) Insert(query, llmRes string) error {
+func (c *LLMCache) Insert(query, llmRes string, referenceIds []uint64) error {
 	slog.Info("inserting to cache", "query", query, "llm_res", llmRes)
+
+	referenceIdStrings := make([]string, len(referenceIds))
+	for i, num := range referenceIds {
+		referenceIdStrings[i] = strconv.FormatUint(num, 10)
+	}
+	strings.Join(referenceIdStrings, " ")
 
 	err := c.Ndb.Insert(
 		"cache_query", uuid.New().String(),
 		[]string{query},
-		[]map[string]interface{}{{"llm_res": llmRes}},
+		[]map[string]interface{}{{"llm_res": llmRes, "reference_ids": referenceIdStrings}},
 		nil)
 
 	if err != nil {

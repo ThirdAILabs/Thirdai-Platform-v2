@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
+	"strconv"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/search/ndb"
 	"thirdai_platform/utils"
@@ -63,14 +65,7 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 	}
 
 	if router.LLMCache != nil {
-		go func() {
-			for {
-				time.Sleep(5 * time.Minute)
-				if checkCondition() {
-					router.evictStaleCacheResponses()
-				}
-			}
-		}()
+		go router.backgroundCacheEvictionLoop()
 	}
 
 	return router, nil
@@ -382,7 +377,12 @@ func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Reques
 
 	slog.Info("completed generation", "query", req.Query, "llmRes", llmRes)
 
-	err = s.LLMCache.Insert(req.Query, llmRes)
+	referenceIds := make([]uint64, len(req.References))
+	for i, ref := range req.References {
+		referenceIds[i] = ref.Id
+	}
+
+	err = s.LLMCache.Insert(req.Query, llmRes, referenceIds)
 	if err != nil {
 		slog.Error("failed cache insertion", "error", err)
 	}
@@ -434,18 +434,55 @@ func (s *NdbRouter) GenerationCache(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"result": result})
 }
 
-func (s *NdbRouter) evictStaleCacheResponses() {
-	var chunk_ids_to_delete []uint64
-	for _, chunk := range s.LLMCache.Chunks() {
-		query := chunk.Text
-		reference_ids := chunk.Metadata["references"]
-		expected_chunk := s.Ndb.Search(query, len(reference_ids))
-		expected_reference_ids := process(expected_chunk)
-		if sorted(reference_ids)  != sorted(expected_reference_ids) {
-			chunk_ids_to_delete = append(chunk_ids_to_delete, chunk.Id)
+func (s *NdbRouter) backgroundCacheEvictionLoop() {
+	for {
+		time.Sleep(5 * time.Minute)
+		modifiedChunks := s.Ndb.NumChunks() + s.Ndb.NumUpvotes()
+
+		filePath := filepath.Join(s.Config.ModelBazaarDir, "models", s.Config.ModelId.String(), "llm_cache", "chunks_last_cache_update.txt")
+
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			//TODO propagate errors
+		}
+
+		prevModifiedChunks, err := strconv.Atoi(string(data))
+		if err != nil {
+			// TODO propagate errors
+		}
+
+		percentageUntilCacheUpdate := 1.1
+		shouldUpdateCache := float64(prevModifiedChunks)*percentageUntilCacheUpdate < modifiedChunks
+
+		if shouldUpdateCache {
+			var chunkIdsToDelete []uint64
+			for _, cacheChunk := range s.LLMCache.Chunks() {
+				query := cacheChunk.Text
+				expectedReferenceIds := cacheChunk.Metadata["reference_ids"]
+				returnedChunks, err := s.Ndb.Query(query, len(expectedReferenceIds), nil)
+				if err != nil {
+					// TODO propagate errors
+				}
+
+				actualReferenceIds := make([]uint64, len(expectedReferenceIds))
+				for i, returnedChunk := range returnedChunks {
+					actualReferenceIds[i] = returnedChunk.Id
+				}
+
+				slices.Sort(expectedReferenceIds)
+				slices.Sort(actualReferenceIds)
+				if slices.Equal(expectedReferenceIds, actualReferenceIds) {
+					chunkIdsToDelete = append(chunkIdsToDelete, cacheChunk.Id)
+				}
+			}
+
+			// TODO keep the evicted queries and their responses, log to a json file?
+			s.LLMCache.DeleteChunks(chunkIdsToDelete)
+
+			err := os.WriteFile(filePath, []byte(strconv.Itoa(modifiedChunks)), 0644)
+			if err != nil {
+				// TODO propagate errors
+			}
 		}
 	}
-
-	// keep the evicted queries and their responses
-	s.LLMCache.DeleteChunks(chunk_ids_to_delete)
 }

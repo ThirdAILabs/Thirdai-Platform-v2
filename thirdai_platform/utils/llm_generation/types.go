@@ -6,6 +6,7 @@ import (
 )
 
 type Reference struct {
+	Id     uint64 `json:"reference_id"`
 	Text   string `json:"text"`
 	Source string `json:"source,omitempty"`
 }

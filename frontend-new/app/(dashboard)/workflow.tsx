@@ -123,23 +123,12 @@ export function WorkFlow({
         window.open(newUrl, '_blank');
         break;
       }
-      case 'udt': {
-        let prefix;
-        switch (workflow.access) {
-          case 'token':
-            prefix = '/token-classification';
-            break;
-          case 'document':
-            prefix = '/doc-classification';
-            break;
-          case 'text':
-            prefix = '/text-classification';
-            break;
-          default:
-            prefix = '/text-classification';
-            break;
-        }
-        window.open(`${prefix}/${workflow.model_id}`, '_blank');
+      case 'nlp-token': {
+        window.open(`${'/token-classification'}/${workflow.model_id}`, '_blank');
+        break;
+      }
+      case 'nlp-text': {
+        window.open(`${'/text-classification'}/${workflow.model_id}`, '_blank');
         break;
       }
       default:
@@ -221,14 +210,14 @@ export function WorkFlow({
       } else {
         setDeployType('Enterprise Search');
       }
-    } else if (workflow.type === 'udt') {
-      if (workflow.access === 'document') {
-        setDeployType('Document Classification');
-      } else if (workflow.access === 'token') {
-        setDeployType('Text Extraction');
-      } else if (workflow.access === 'text') {
-        setDeployType('Text Classification');
-      }
+    }
+    // else if (workflow.access === 'document') {
+    //   setDeployType('Document Classification');// TODO: Ask Nick regarding this.
+    // } 
+    else if (workflow.type === 'nlp-token') {
+      setDeployType('Text Extraction');
+    } else if (workflow.type === 'nlp-text') {
+      setDeployType('Text Classification');
     } else if (workflow.type === 'enterprise-search') {
       setDeployType('Enterprise Search & Summarizer');
     } else if (workflow.type === 'knowledge-extraction') {
@@ -498,7 +487,7 @@ export function WorkFlow({
                     </Link>
                   )}
 
-                {workflow.type === 'udt' && (
+                {(workflow.type === 'nlp-token' || workflow.type === 'nlp-text') && (
                   <Link
                     href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
                   >

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Button, Typography, Alert, CircularProgress, Paper } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import { trainTextClassifierWithCSV, validateSentenceClassifierCSV } from '@/lib/backend';
+import { trainTextClassifierWithCSV, uploadDocument, validateSentenceClassifierCSV } from '@/lib/backend';
 import LabelConfirmationDialog from './LabelConfirmationDialog';
 
 interface CSVUploadProps {
@@ -20,14 +20,14 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
 
   const validateAndProcessFile = async (file: File) => {
     try {
-      const validationResult = await validateSentenceClassifierCSV(file);
+      const { upload_id } = await uploadDocument(file);
 
-      if (!validationResult.valid) {
-        setError(validationResult.message);
+      if (!upload_id) {
+        setError('Error uploading file');
         return false;
       }
 
-      setDetectedLabels(validationResult.labels || []);
+      // setDetectedLabels(validationResult.labels || []);
       setShowConfirmation(true);
       return true;
     } catch (error) {

@@ -2,7 +2,7 @@
 
 import axios, { AxiosError } from 'axios';
 import { access } from 'fs';
-import _ from 'lodash';
+import _, { get, set } from 'lodash';
 import { useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 
@@ -436,50 +436,138 @@ export function retrain_ndb({
   });
 }
 
-export async function validateDocumentClassificationFolder(files: FileList) {
+// interface UploadResponse {
+//   upload_id: string;
+// }
+
+// export async function uploadDocument(files: FileList): Promise<UploadResponse> {
+//   if (!files || files.length === 0) {
+//     throw new Error('No files provided');
+//   }
+
+//   const accessToken = getAccessToken();
+//   const formData = new FormData();
+
+//   // Group files by their categories
+//   const categoryMap = new Map<string, File[]>();
+
+//   Array.from(files).forEach((file) => {
+//     const pathParts = file.webkitRelativePath.split('/');
+
+//     if (pathParts.length < 3) {
+//       throw new Error('Invalid folder structure. Files must be within category folders.');
+//     }
+
+//     const category = pathParts[1];
+//     if (!categoryMap.has(category)) {
+//       categoryMap.set(category, []);
+//     }
+//     categoryMap.get(category)?.push(file);
+//   });
+
+//   if (categoryMap.size === 0) {
+//     throw new Error('No valid categories found');
+//   }
+
+//   // Add files to FormData maintaining category structure
+//   categoryMap.forEach((files, category) => {
+//     files.forEach((file) => {
+//       formData.append('files', file, file.webkitRelativePath);
+//     });
+//   });
+
+//   try {
+//     const response = await axios.post<UploadResponse>(
+//       `${thirdaiPlatformBaseUrl}/api/v2/train/upload-data`,
+//       formData,
+//       {
+//         headers: {
+//           Authorization: `Bearer ${accessToken}`,
+//           'Content-Type': 'multipart/form-data',
+//         },
+//       }
+//     );
+//     console.log("Response data in validateDocumentClassificationFolder:", response);
+//     return response.data;
+//   } catch (error) {
+//     if (axios.isAxiosError(error) && error.response?.data) {
+//       throw new Error(error.response.data.message || 'Upload failed');
+//     }
+//     throw new Error('Failed to upload files');
+//   }
+// }
+
+interface UploadResponse {
+  upload_id: string;
+}
+
+export async function uploadDocument(files: FileList | File): Promise<UploadResponse> {
+  if (!files) {
+    throw new Error('No files provided');
+  }
+
   const accessToken = getAccessToken();
   const formData = new FormData();
 
-  // Group files by their categories first
+  // Handle single file upload
+  if (files instanceof File) {
+    formData.append('files', files, files.name);
+    try {
+      const response = await axios.post<UploadResponse>(
+        `${thirdaiPlatformBaseUrl}/api/v2/train/upload-data`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.data) {
+        throw new Error(error.response.data.message || 'Upload failed');
+      }
+      throw new Error('Failed to upload file');
+    }
+  }
+
+  // Handle FileList upload
+  if (files.length === 0) {
+    throw new Error('No files provided');
+  }
+
+  // Group files by their categories
   const categoryMap = new Map<string, File[]>();
 
   Array.from(files).forEach((file) => {
     const pathParts = file.webkitRelativePath.split('/');
-    // Change this to use the category folder name (pathParts[1])
-    if (pathParts.length >= 3) {
-      const category = pathParts[1]; // Changed from pathParts[0] to pathParts[1]
-      if (!categoryMap.has(category)) {
-        categoryMap.set(category, []);
-      }
-      categoryMap.get(category)?.push(file);
+
+    if (pathParts.length < 3) {
+      throw new Error('Invalid folder structure. Files must be within category folders.');
     }
+
+    const category = pathParts[1];
+    if (!categoryMap.has(category)) {
+      categoryMap.set(category, []);
+    }
+    categoryMap.get(category)?.push(file);
   });
 
-  // Debug logging
-  console.log('Categories being sent to backend:', Array.from(categoryMap.keys()));
+  if (categoryMap.size === 0) {
+    throw new Error('No valid categories found');
+  }
 
   // Add files to FormData maintaining category structure
-  categoryMap.forEach((files, category) => {
-    files.forEach((file) => {
-      // Include the full relative path in the file name
+  categoryMap.forEach((categoryFiles, category) => {
+    categoryFiles.forEach((file) => {
       formData.append('files', file, file.webkitRelativePath);
     });
   });
 
-  // Debug: Log what's being sent
-  console.log(
-    'Files being sent:',
-    Array.from(formData.getAll('files')).map((f) => {
-      if (f instanceof File) {
-        return f.name;
-      }
-      return f;
-    })
-  );
-
   try {
-    const response = await axios.post(
-      `${thirdaiPlatformBaseUrl}/api/train/validate-document-classification-folder`,
+    const response = await axios.post<UploadResponse>(
+      `${thirdaiPlatformBaseUrl}/api/v2/train/upload-data`,
       formData,
       {
         headers: {
@@ -488,17 +576,15 @@ export async function validateDocumentClassificationFolder(files: FileList) {
         },
       }
     );
-
-    console.log('Backend validation response:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Validation error details:', error);
     if (axios.isAxiosError(error) && error.response?.data) {
-      throw new Error(error.response.data.message || 'Failed to validate folder structure');
+      throw new Error(error.response.data.message || 'Upload failed');
     }
-    throw new Error('Failed to validate folder structure');
+    throw new Error('Failed to upload files');
   }
 }
+
 
 interface TrainDocumentClassifierParams {
   modelName: string;
@@ -1865,25 +1951,9 @@ export function useTokenClassificationEndpoints() {
 
   useEffect(() => {
     const init = async () => {
-      const accessToken = getAccessToken();
-      axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
-      const params = new URLSearchParams({ model_id: workflowId });
-
-      axios
-        .get<WorkflowDetailsResponse>(
-          `${thirdaiPlatformBaseUrl}/api/model/details?${params.toString()}`
-        )
-        .then((res) => {
-          setWorkflowName(res.data.data.model_name);
-          if (res.data.data.model_id) {
-            setDeploymentUrl(`${deploymentBaseUrl}/${res.data.data.model_id}`);
-          }
-        })
-        .catch((err) => {
-          console.error('Error fetching workflow details:', err);
-          alert('Error fetching workflow details:' + err);
-        });
+      const modelInfo = await getWorkflowDetails(workflowId);
+      setWorkflowName(modelInfo.model_name);
+      setDeploymentUrl(`${thirdaiPlatformBaseUrl}/${modelInfo.model_id}`);
     };
     init();
   }, []);
@@ -1891,6 +1961,8 @@ export function useTokenClassificationEndpoints() {
   const predict = async (query: string): Promise<PredictionResponse> => {
     // Set the default authorization header for axios
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    const model_id = workflowId;
+    console.log("Deployment URL:", deploymentUrl);
     try {
       const response = await axios.post(`${deploymentUrl}/predict`, {
         text: query,
@@ -2076,23 +2148,9 @@ export function useTextClassificationEndpoints() {
 
   useEffect(() => {
     const init = async () => {
-      const accessToken = getAccessToken();
-      axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
-      const params = new URLSearchParams({ model_id: workflowId });
-
-      axios
-        .get<WorkflowDetailsResponse>(
-          `${thirdaiPlatformBaseUrl}/api/model/details?${params.toString()}`
-        )
-        .then((res) => {
-          setWorkflowName(res.data.data.model_name);
-          setDeploymentUrl(`${deploymentBaseUrl}/${res.data.data.model_id}`);
-        })
-        .catch((err) => {
-          console.error('Error fetching workflow details:', err);
-          alert('Error fetching workflow details:' + err);
-        });
+      const modelInfo = await getWorkflowDetails(workflowId);
+      setWorkflowName(modelInfo.model_name);
+      setDeploymentUrl(`${thirdaiPlatformBaseUrl}/${modelInfo.model_id}`);
     };
     init();
   }, []);
@@ -2188,7 +2246,9 @@ export async function piiDetect(
   query: string,
   workflowId: string
 ): Promise<TokenClassificationResult> {
+  console.log('workflowId in piiDetect:', workflowId);
   try {
+
     // Corrected the key from 'query' to 'text'
     const response = await axios.post(`${deploymentBaseUrl}/${workflowId}/predict`, {
       text: query,
@@ -2724,6 +2784,202 @@ export async function fetchFeedback(username: string, modelName: string) {
     return response?.data?.data;
   } catch (error) {
     console.error('Error getting Feedback Response:', error);
+    throw error;
+  }
+}
+
+
+interface ModelOptions {
+  text_column: string;
+  label_column: string;
+  n_target_classes: number;
+  delimiter?: string;
+}
+
+interface DataFile {
+  path: string;
+  location: string;
+}
+
+interface TrainOptions {
+  epochs?: number;
+  learning_rate?: number;
+  batch_size?: number;
+  max_in_memory_batches?: number;
+  test_split?: number;
+}
+
+interface NLPTextTrainRequest {
+  model_name: string;
+  doc_classification?: boolean;
+  base_model_id?: string | null;
+  model_options: ModelOptions;
+  data: {
+    supervised_files: DataFile[];
+    test_files?: DataFile[];
+  };
+  train_options?: TrainOptions;
+  job_options?: JobOptions;
+}
+
+interface NLPTextTrainResponse {
+  model_id: string;
+}
+
+export async function trainNLPTextModel(params: {
+  modelName: string;
+  uploadId: string;
+  textColumn: string;
+  labelColumn: string;
+  nTargetClasses: number;
+  baseModelId?: string;
+  trainOptions?: TrainOptions;
+  doc_classification?: boolean;
+}): Promise<NLPTextTrainResponse> {
+  const accessToken = getAccessToken();
+
+  const payload: NLPTextTrainRequest = {
+    model_name: params.modelName,
+    doc_classification: params.doc_classification || false,
+    base_model_id: params.baseModelId || null,
+    model_options: {
+      text_column: params.textColumn,
+      label_column: params.labelColumn,
+      n_target_classes: params.nTargetClasses,
+      delimiter: ","
+    },
+    data: {
+      supervised_files: [{
+        path: params.uploadId,
+        location: "upload"
+      }]
+    },
+    train_options: params.trainOptions || {
+      epochs: 5,
+      learning_rate: 0.0001,
+      batch_size: 1000,
+      test_split: 0.2
+    },
+    job_options: {
+      allocation_cores: 4,
+      allocation_memory: 2000
+    }
+  };
+
+  try {
+    const response = await axios.post<NLPTextTrainResponse>(
+      `${thirdaiPlatformBaseUrl}/api/v2/train/nlp-text`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.data) {
+      throw new Error(error.response.data.message || 'Failed to train NLP model');
+    }
+    throw new Error('Failed to train NLP model');
+  }
+}
+
+
+
+interface NLPTokenTrainOptions {
+  modelName: string;
+  baseModelId?: string;
+  targetLabels: string[];
+  sourceColumn: string;
+  targetColumn: string;
+  defaultTag?: string;
+  supervisedFiles: Array<{
+    path: string;
+    location: string;
+  }>;
+  testFiles?: Array<{
+    path: string;
+    location: string;
+  }>;
+  trainOptions?: {
+    epochs?: number;
+    learningRate?: number;
+    batchSize?: number;
+    maxInMemoryBatches?: number;
+    testSplit?: number;
+  };
+  jobOptions?: {
+    allocationCores?: number;
+    allocationMemory?: number;
+  };
+}
+
+async function trainNLPTokenModel({
+  modelName,
+  baseModelId,
+  targetLabels,
+  sourceColumn,
+  targetColumn,
+  defaultTag = 'O',
+  supervisedFiles,
+  testFiles,
+  trainOptions = {},
+  jobOptions = {}
+}: NLPTokenTrainOptions): Promise<string> {
+  const formData = new FormData();
+
+  // Model configuration
+  const modelOptions = {
+    target_labels: targetLabels,
+    source_column: sourceColumn,
+    target_column: targetColumn,
+    default_tag: defaultTag
+  };
+
+  // Build request payload
+  const payload = {
+    model_name: modelName,
+    base_model_id: baseModelId || null,
+    model_options: modelOptions,
+    data: {
+      supervised_files: supervisedFiles,
+      test_files: testFiles || []
+    },
+    train_options: {
+      epochs: trainOptions.epochs || 5,
+      learning_rate: trainOptions.learningRate || 0.0001,
+      batch_size: trainOptions.batchSize || 1000,
+      max_in_memory_batches: trainOptions.maxInMemoryBatches || 20,
+      test_split: trainOptions.testSplit || 0.2
+    },
+    job_options: {
+      allocation_cores: jobOptions.allocationCores || 4,
+      allocation_memory: jobOptions.allocationMemory || 2000
+    }
+  };
+
+  // Append all data to FormData
+  Object.entries(payload).forEach(([key, value]) => {
+    formData.append(key, JSON.stringify(value));
+  });
+
+  try {
+    const response = await fetch('/api/v2/train/nlp-token', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to train NLP token model: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.model_id;
+  } catch (error) {
+    console.error('Error training NLP token model:', error);
     throw error;
   }
 }

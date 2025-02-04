@@ -34,17 +34,17 @@ function AnalyticsContent() {
           const workflowDetails = await getWorkflowDetails(workflowid);
 
           console.log('workflowDetails', workflowDetails);
-          setWorkflowType(workflowDetails.data.type);
+          setWorkflowType(workflowDetails.type);
 
           // Set deploy status
-          setDeployStatus(workflowDetails.data.deploy_status);
+          setDeployStatus(workflowDetails.deploy_status);
 
           if (
-            workflowDetails.data.type === 'enterprise-search' &&
-            workflowDetails.data.dependencies?.length > 0
+            workflowDetails.type === 'enterprise-search' &&
+            workflowDetails.dependencies?.length > 0
           ) {
             // For enterprise-search, use the first dependency's details
-            const firstDependency = workflowDetails.data.dependencies[0];
+            const firstDependency = workflowDetails.dependencies[0];
             console.log('firstDependency', firstDependency);
             console.log(`here is: ${deploymentBaseUrl}/${firstDependency.model_id}`);
             setDeploymentUrl(`${deploymentBaseUrl}/${firstDependency.model_id}`);
@@ -52,10 +52,10 @@ function AnalyticsContent() {
             setUsername(firstDependency.username);
           } else {
             // For other types, use the original logic
-            console.log(`here is: ${deploymentBaseUrl}/${workflowDetails.data.model_id}`);
-            setDeploymentUrl(`${deploymentBaseUrl}/${workflowDetails.data.model_id}`);
-            setModelName(workflowDetails.data.model_name);
-            setUsername(workflowDetails.data.username);
+            console.log(`here is: ${deploymentBaseUrl}/${workflowDetails.model_id}`);
+            setDeploymentUrl(`${deploymentBaseUrl}/${workflowDetails.model_id}`);
+            setModelName(workflowDetails.model_name);
+            setUsername(workflowDetails.username);
           }
         } catch (err) {
           console.error('Error fetching workflow details:', err);
@@ -92,7 +92,7 @@ function AnalyticsContent() {
     return null; // Return null on the first render to avoid hydration mismatch
   }
 
-  if (workflowtype == 'udt')
+  if (workflowtype == 'nlp-token' || workflowtype == 'nlp-text')
     return (
       <div className="container mx-auto px-4 py-8">
         {modelName && deploymentUrl && (

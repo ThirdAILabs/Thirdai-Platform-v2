@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import { trainTokenClassifierWithCSV, validateTokenClassifierCSV } from '@/lib/backend';
+import { trainTokenClassifierWithCSV, validateTokenClassifierCSV, uploadDocument } from '@/lib/backend';
 
 interface CSVUploadProps {
   modelName: string;
@@ -111,10 +111,10 @@ const CSVUpload = ({ modelName, onSuccess, onError, workflowNames = [] }: CSVUpl
     setIsValidating(true);
 
     try {
-      const validationResult = await validateTokenClassifierCSV(file);
+      const { upload_id } = await uploadDocument(file);
 
-      if (!validationResult.valid) {
-        setError(validationResult.message);
+      if (!upload_id) {
+        setError('Error uploading file');
         setSelectedFile(null);
         return;
       }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -93,7 +94,15 @@ func (m *NdbRouter) Routes() chi.Router {
 		r.Post("/save", m.Save) // TODO Check low disk usage
 		r.Post("/implicit-feedback", m.ImplicitFeedback)
 		r.Get("/highlighted-pdf", m.HighlightedPdf)
-		r.Post("/generate", m.GenerateFromReferences)
+
+		if m.LLMProvider != nil {
+			r.Post("/generate", m.GenerateFromReferences)
+		}
+
+		if m.LLMCache != nil {
+			r.Post("/cache-suggestions", m.CacheSuggestions)
+			r.Post("/generation-cache", m.GenerationCache)
+		}
 	})
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -343,8 +352,70 @@ func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := llm_generation.StreamResponse(s.LLMProvider, w, r); err != nil {
-		// Any error has already been sent to client, just return
+	var req llm_generation.GenerateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
 		return
 	}
+
+	slog.Info("started generation", "query", req.Query)
+
+	llmRes, err := llm_generation.StreamResponse(s.LLMProvider, &req, w, r)
+	if err != nil {
+		// Any error has already been sent to the client, just return
+		return
+	}
+
+	slog.Info("completed generation", "query", req.Query, "llmRes", llmRes)
+
+	err = s.LLMCache.Insert(req.Query, llmRes)
+	if err != nil {
+		slog.Error("failed cache insertion", "error", err)
+	}
+}
+
+type CacheQuery struct {
+	Query string `json:"query"`
+}
+
+func (m *NdbRouter) CacheSuggestions(w http.ResponseWriter, r *http.Request) {
+	var req CacheQuery
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if m.LLMCache == nil {
+		http.Error(w, "LLM cache is not initialized", http.StatusInternalServerError)
+		return
+	}
+
+	suggestions, err := m.LLMCache.Suggestions(req.Query)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("cache suggestions error: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{"suggestions": suggestions})
+}
+
+func (m *NdbRouter) GenerationCache(w http.ResponseWriter, r *http.Request) {
+	var req CacheQuery
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if m.LLMCache == nil {
+		http.Error(w, "LLM cache is not initialized", http.StatusInternalServerError)
+		return
+	}
+
+	result, err := m.LLMCache.Query(req.Query)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("cache query error: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{"result": result})
 }

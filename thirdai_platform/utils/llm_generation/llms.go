@@ -260,37 +260,38 @@ var NewLLMProvider NewLLMProviderFunc = func(provider, apiKey string) (LLMProvid
 	}
 }
 
-func StreamResponse(llm LLMProvider, w http.ResponseWriter, r *http.Request) error {
-	var req GenerateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return fmt.Errorf("request parsing error: %v", err)
-	}
-
-	textChan, errChan := llm.Stream(&req)
+func StreamResponse(llm LLMProvider, req *GenerateRequest, w http.ResponseWriter, r *http.Request) (string, error) {
+	textChan, errChan := llm.Stream(req)
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		return fmt.Errorf("streaming unsupported")
+		return "", fmt.Errorf("streaming unsupported")
 	}
+
+	var accumulatedResponse bytes.Buffer
 
 	for {
 		select {
 		case text, ok := <-textChan:
 			if !ok {
-				return nil
+				return accumulatedResponse.String(), nil
 			}
 			fmt.Fprintf(w, "data: %s\n\n", text)
 			flusher.Flush()
+
+			accumulatedResponse.WriteString(text)
+
 		case err, ok := <-errChan:
 			if !ok {
-				return nil
+				return accumulatedResponse.String(), nil
 			}
 			fmt.Fprintf(w, "event: error\ndata: %s\n\n", err.Error())
 			flusher.Flush()
-			return err
+			return accumulatedResponse.String(), err
+
 		case <-r.Context().Done():
-			return nil
+			return accumulatedResponse.String(), nil
 		}
 	}
 }

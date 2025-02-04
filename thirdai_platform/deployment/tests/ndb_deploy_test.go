@@ -87,7 +87,12 @@ func makeNdbServer(t *testing.T, modelbazaardir string) *httptest.Server {
 
 	mockPermissions := MockPermissions{}
 
-	router := deployment.NdbRouter{Ndb: db, Config: &deployConfig, Permissions: &mockPermissions}
+	cache, err := deployment.NewLLMCache(modelbazaardir, modelID.String())
+	if err != nil {
+		t.Fatalf("failed to create llm cache: %v", err)
+	}
+
+	router := deployment.NdbRouter{Ndb: db, Config: &deployConfig, Permissions: &mockPermissions, LLMCache: cache}
 
 	r := router.Routes()
 	testServer := httptest.NewServer(r)
@@ -290,6 +295,36 @@ func doGenerate(t *testing.T, testServer *httptest.Server, query string, referen
 	}
 }
 
+func checkLLMCache(t *testing.T, testServer *httptest.Server, query, llmRes string) {
+	body := map[string]interface{}{
+		"query": query,
+	}
+	bodyBytes, _ := json.Marshal(body)
+	resp, err := http.Post(testServer.URL+"/generation-cache", "application/json", bytes.NewReader(bodyBytes))
+	if err != nil {
+		t.Fatalf("failed to post /generation-cache: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	var data map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		t.Fatalf("failed to decode /generation-cache response: %v", err)
+	}
+
+	returnedLLMRes, exists := data["result"]
+	if !exists {
+		t.Fatalf("expected 'result' key in response but not found")
+	}
+
+	if returnedLLMRes != llmRes {
+		t.Fatalf("expected response '%s', got '%s'", llmRes, returnedLLMRes)
+	}
+}
+
 func TestBasicEndpoints(t *testing.T) {
 	v := licensing.NewVerifier("platform_test_license.json")
 	license, err := v.LoadLicense()
@@ -320,6 +355,7 @@ func TestBasicEndpoints(t *testing.T) {
 	doGenerate(t, testServer, "is this a test?", []map[string]interface{}{
 		{"text": "my name is chatgpt", "source": "doc_id_1"},
 	}, "gpt-4o-mini")
+	checkLLMCache(t, testServer, "is this a test?", "This is a test.")
 }
 
 func TestSaveLoadDeployConfig(t *testing.T) {

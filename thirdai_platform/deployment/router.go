@@ -13,6 +13,7 @@ import (
 	"thirdai_platform/search/ndb"
 	"thirdai_platform/utils"
 	"thirdai_platform/utils/llm_generation"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -52,24 +53,37 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 		}
 	}
 
-	return &NdbRouter{
+	router := &NdbRouter{
 		Ndb:         ndb,
 		Config:      config,
 		Reporter:    reporter,
 		Permissions: &Permissions{config.ModelBazaarEndpoint, config.ModelId},
 		LLMCache:    llmCache,
 		LLMProvider: llmProvider,
-	}, nil
+	}
+
+	if router.LLMCache != nil {
+		go func() {
+			for {
+				time.Sleep(5 * time.Minute)
+				if checkCondition() {
+					router.evictStaleCacheResponses()
+				}
+			}
+		}()
+	}
+
+	return router, nil
 }
 
-func (r *NdbRouter) Close() {
-	r.Ndb.Free()
-	if r.LLMCache != nil {
-		r.LLMCache.Close()
+func (s *NdbRouter) Close() {
+	s.Ndb.Free()
+	if s.LLMCache != nil {
+		s.LLMCache.Close()
 	}
 }
 
-func (m *NdbRouter) Routes() chi.Router {
+func (s *NdbRouter) Routes() chi.Router {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Recoverer)
@@ -78,30 +92,30 @@ func (m *NdbRouter) Routes() chi.Router {
 	}))
 
 	r.Group(func(r chi.Router) {
-		r.Use(m.Permissions.ModelPermissionsCheck("write"))
+		r.Use(s.Permissions.ModelPermissionsCheck("write"))
 
-		r.Post("/insert", m.Insert)
-		r.Post("/delete", m.Delete)
-		r.Post("/upvote", m.Upvote)
-		r.Post("/associate", m.Associate)
+		r.Post("/insert", s.Insert)
+		r.Post("/delete", s.Delete)
+		r.Post("/upvote", s.Upvote)
+		r.Post("/associate", s.Associate)
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(m.Permissions.ModelPermissionsCheck("read"))
+		r.Use(s.Permissions.ModelPermissionsCheck("read"))
 
-		r.Post("/query", m.Search)
-		r.Get("/sources", m.Sources)
-		r.Post("/save", m.Save) // TODO Check low disk usage
-		r.Post("/implicit-feedback", m.ImplicitFeedback)
-		r.Get("/highlighted-pdf", m.HighlightedPdf)
+		r.Post("/query", s.Search)
+		r.Get("/sources", s.Sources)
+		r.Post("/save", s.Save) // TODO Check low disk usage
+		r.Post("/implicit-feedback", s.ImplicitFeedback)
+		r.Get("/highlighted-pdf", s.HighlightedPdf)
 
-		if m.LLMProvider != nil {
-			r.Post("/generate", m.GenerateFromReferences)
+		if s.LLMProvider != nil {
+			r.Post("/generate", s.GenerateFromReferences)
 		}
 
-		if m.LLMCache != nil {
-			r.Post("/cache-suggestions", m.CacheSuggestions)
-			r.Post("/generation-cache", m.GenerationCache)
+		if s.LLMCache != nil {
+			r.Post("/cache-suggestions", s.CacheSuggestions)
+			r.Post("/generation-cache", s.GenerationCache)
 		}
 	})
 
@@ -378,19 +392,19 @@ type CacheQuery struct {
 	Query string `json:"query"`
 }
 
-func (m *NdbRouter) CacheSuggestions(w http.ResponseWriter, r *http.Request) {
+func (s *NdbRouter) CacheSuggestions(w http.ResponseWriter, r *http.Request) {
 	var req CacheQuery
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	if m.LLMCache == nil {
+	if s.LLMCache == nil {
 		http.Error(w, "LLM cache is not initialized", http.StatusInternalServerError)
 		return
 	}
 
-	suggestions, err := m.LLMCache.Suggestions(req.Query)
+	suggestions, err := s.LLMCache.Suggestions(req.Query)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("cache suggestions error: %v", err), http.StatusInternalServerError)
 		return
@@ -399,23 +413,39 @@ func (m *NdbRouter) CacheSuggestions(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"suggestions": suggestions})
 }
 
-func (m *NdbRouter) GenerationCache(w http.ResponseWriter, r *http.Request) {
+func (s *NdbRouter) GenerationCache(w http.ResponseWriter, r *http.Request) {
 	var req CacheQuery
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	if m.LLMCache == nil {
+	if s.LLMCache == nil {
 		http.Error(w, "LLM cache is not initialized", http.StatusInternalServerError)
 		return
 	}
 
-	result, err := m.LLMCache.Query(req.Query)
+	result, err := s.LLMCache.Query(req.Query)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("cache query error: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{"result": result})
+}
+
+func (s *NdbRouter) evictStaleCacheResponses() {
+	var chunk_ids_to_delete []uint64
+	for _, chunk := range s.LLMCache.Chunks() {
+		query := chunk.Text
+		reference_ids := chunk.Metadata["references"]
+		expected_chunk := s.Ndb.Search(query, len(reference_ids))
+		expected_reference_ids := process(expected_chunk)
+		if sorted(reference_ids)  != sorted(expected_reference_ids) {
+			chunk_ids_to_delete = append(chunk_ids_to_delete, chunk.Id)
+		}
+	}
+
+	// keep the evicted queries and their responses
+	s.LLMCache.DeleteChunks(chunk_ids_to_delete)
 }

@@ -53,7 +53,7 @@ jobs:
           cp ./Universe/build/deps/utf8proc/libutf8proc.a thirdai_platform/search/ndb/lib/linux_x64
           cp ./Universe/build/deps/cryptopp-cmake/cryptopp/libcryptopp.a thirdai_platform/search/ndb/lib/linux_x64
 
-      - name: run ndb deployment tests
+      - name: run ndb backend unit tests
         run: |
           cd thirdai_platform && go test ./model_bazaar/tests -v
 

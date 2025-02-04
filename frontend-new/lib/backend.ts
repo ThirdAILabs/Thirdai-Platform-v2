@@ -396,35 +396,29 @@ export interface JobOptions {
 
 export interface RetrainNdbParams {
   model_name: string;
-  base_model_identifier: string;
+  base_model_id: string;
   job_options: JobOptions;
 }
 
 export function retrain_ndb({
   model_name,
-  base_model_identifier,
+  base_model_id,
   job_options,
 }: RetrainNdbParams): Promise<any> {
   // Retrieve the access token from local storage or any other storage mechanism
   const accessToken = getAccessToken();
+  const requestBody = JSON.stringify({
+    model_name,
+    base_model_id,
+    job_options,
+  });
 
   // Set the default authorization header for axios
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
-  // Initialize URLSearchParams with model_name and base_model_identifier
-  const params = new URLSearchParams({
-    model_name: model_name,
-    base_model_identifier: base_model_identifier,
-  });
-
-  // Append job_options fields to the URLSearchParams
-  Object.entries(job_options).forEach(([key, value]) => {
-    params.append(key, value.toString());
-  });
-
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/train/ndb-retrain?${params.toString()}`)
+      .post(`${thirdaiPlatformBaseUrl}/api/v2/train/ndb-retrain`, requestBody)
       .then((res) => {
         resolve(res.data);
       })

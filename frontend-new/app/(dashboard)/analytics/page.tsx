@@ -42,6 +42,7 @@ function AnalyticsContent() {
 
           if (workflowDetails.type === 'ndb') {
             setNdbModelId(workflowDetails.model_id);
+            setModelName(workflowDetails.model_name);
           } else {
             setDeploymentUrl(`${deploymentBaseUrl}/${workflowDetails.model_id}`);
             setModelName(workflowDetails.model_name);

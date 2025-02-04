@@ -258,7 +258,7 @@ func doGenerate(t *testing.T, testServer *httptest.Server, query string, referen
 	}
 
 	bodyBytes, _ := json.Marshal(body)
-	resp, err := http.Post(testServer.URL+"/generate-with-references", "application/json", bytes.NewReader(bodyBytes))
+	resp, err := http.Post(testServer.URL+"/generate", "application/json", bytes.NewReader(bodyBytes))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}

@@ -82,8 +82,7 @@ func (m *NdbRouter) Routes() chi.Router {
 		r.Post("/save", m.Save) // TODO Check low disk usage
 		r.Post("/implicit-feedback", m.ImplicitFeedback)
 		r.Get("/highlighted-pdf", m.HighlightedPdf)
-
-		r.Post("/generate-with-references", m.GenerateFromReferences)
+		r.Post("/generate", m.GenerateFromReferences)
 	})
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -334,7 +333,7 @@ func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Reques
 	}
 
 	if err := llm_generation.StreamResponse(s.LLMProvider, w, r); err != nil {
-		// Error has already been sent to client via SSE, just return
+		// Any error has already been sent to client, just return
 		return
 	}
 }

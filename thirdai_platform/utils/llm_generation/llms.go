@@ -11,12 +11,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/sashabaranov/go-openai"
 )
 
-// OpenAILLM implements LLMProvider for OpenAI
 type OpenAILLM struct {
 	client *openai.Client
 }
@@ -26,7 +26,6 @@ func NewOpenAILLM(apiKey string) *OpenAILLM {
 	return &OpenAILLM{client: client}
 }
 
-// OnPremLLM implements LLMProvider for on-premises deployment
 type OnPremLLM struct {
 	endpoint string
 	client   *http.Client
@@ -74,22 +73,36 @@ func (l *OnPremLLM) makeRequest(method string, body []byte, headers map[string]s
 	return resp, nil
 }
 
-func makePrompt(query, taskPrompt string, refs []Reference) (string, string) {
-	var systemPrompt string
-	if len(refs) > 0 {
-		var refTexts []string
-		for _, ref := range refs {
-			refTexts = append(refTexts, ref.Text)
+func makePrompt(query, inputTaskPrompt string, refs []Reference) (string, string) {
+	var refTexts []string
+	for _, ref := range refs {
+		if ext := strings.ToLower(filepath.Ext(ref.Source)); ext == ".pdf" || ext == ".docx" || ext == ".csv" {
+			refTexts = append(refTexts, fmt.Sprintf(`(From file "%s") %s`, ref.Source, ref.Text))
+		} else {
+			refTexts = append(refTexts, fmt.Sprintf(`(From a webpage) %s`, ref.Text))
 		}
-		systemPrompt = fmt.Sprintf("Use the following references to answer the question:\n%s", strings.Join(refTexts, "\n\n"))
-	} else {
-		systemPrompt = "You are a helpful AI assistant."
 	}
 
-	userPrompt := query
-	if taskPrompt != "" {
-		userPrompt = fmt.Sprintf("%s\n\n%s", taskPrompt, query)
+	context := strings.Join(refTexts, "\n\n")
+
+	tokenLimit := 2000
+	words := strings.Fields(context)
+	if len(words) > tokenLimit {
+		context = strings.Join(words[:tokenLimit], " ")
 	}
+
+	const defaultSystemPrompt = "Write a short answer for the user's query based on the provided context. " +
+		"If the context provides insufficient information, mention it but answer to " +
+		"the best of your abilities."
+
+	const defaultTaskPrompt = "Given this context, "
+
+	systemPrompt := defaultSystemPrompt
+	taskPrompt := defaultTaskPrompt
+	if inputTaskPrompt != "" {
+		taskPrompt = inputTaskPrompt
+	}
+	userPrompt := fmt.Sprintf("%s\n\n %s %s", context, taskPrompt, query)
 
 	return systemPrompt, userPrompt
 }
@@ -233,7 +246,6 @@ type LLMProvider interface {
 // NewLLMProviderFunc is the type for the provider factory function
 type NewLLMProviderFunc func(provider, apiKey string) (LLMProvider, error)
 
-// NewLLMProvider creates a new LLM provider based on the specified type
 var NewLLMProvider NewLLMProviderFunc = func(provider, apiKey string) (LLMProvider, error) {
 	switch strings.ToLower(provider) {
 	case "openai":
@@ -248,7 +260,6 @@ var NewLLMProvider NewLLMProviderFunc = func(provider, apiKey string) (LLMProvid
 	}
 }
 
-// StreamResponse handles streaming the LLM response over Server-Sent Events (SSE)
 func StreamResponse(llm LLMProvider, w http.ResponseWriter, r *http.Request) error {
 	var req GenerateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -263,7 +274,6 @@ func StreamResponse(llm LLMProvider, w http.ResponseWriter, r *http.Request) err
 		return fmt.Errorf("streaming unsupported")
 	}
 
-	// stream the response
 	for {
 		select {
 		case text, ok := <-textChan:

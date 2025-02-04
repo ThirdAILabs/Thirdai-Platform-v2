@@ -39,7 +39,7 @@ function AccessContent() {
     userRole = 'Global Admin';
     roleDescription =
       'This role has read and write access to all members, models, and applications.';
-  } else if (user?.teams.some((team) => team.role === 'team_admin')) {
+  } else if (user?.teams.some((team) => team.team_admin)) {
     userRole = 'Team Admin';
     roleDescription =
       'This role has read and write access to all team members, models, and applications in the team.';

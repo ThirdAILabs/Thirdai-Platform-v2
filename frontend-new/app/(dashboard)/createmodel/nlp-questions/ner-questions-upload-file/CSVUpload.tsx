@@ -119,13 +119,13 @@ const CSVUpload = ({ modelName, onSuccess, onError, workflowNames = [] }: CSVUpl
         return;
       }
 
-      if (validationResult.labels && validationResult.labels.length > 0) {
-        setDetectedLabels(validationResult.labels);
-        setShowConfirmation(true);
-      } else {
-        setError('No valid token types found in the file');
-        setSelectedFile(null);
-      }
+      // if (validationResult.labels && validationResult.labels.length > 0) {
+      //   setDetectedLabels(validationResult.labels);
+      //   setShowConfirmation(true);
+      // } else {
+      //   setError('No valid token types found in the file');
+      //   setSelectedFile(null);
+      // }
     } catch (error) {
       setError('Error validating file format');
       setSelectedFile(null);

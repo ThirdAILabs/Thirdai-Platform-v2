@@ -292,7 +292,7 @@ export default function Teams() {
     if (user?.teams.length !== undefined) {
       for (let index = 0; index < user?.teams.length; index++) {
         const team = user?.teams[index];
-        if (team.team_name === teamName && team.role === 'team_admin') setCanAddMember(true);
+        if (team.team_name === teamName && team.team_admin) setCanAddMember(true);
       }
     }
   };
@@ -302,7 +302,7 @@ export default function Teams() {
     if (user?.teams.length !== undefined) {
       for (let index = 0; index < user?.teams.length; index++) {
         const team = user?.teams[index];
-        if (team.team_name === teamName && team.role === 'team_admin') setCanRemoveMember(true);
+        if (team.team_name === teamName && team.team_admin) setCanRemoveMember(true);
       }
     }
   };
@@ -314,7 +314,7 @@ export default function Teams() {
   };
   //Check if the user is Team Admin
   useEffect(() => {
-    if (user?.teams.some((team) => team.role === 'team_admin')) setIsTeamAdmin(true);
+    if (user?.teams.some((team) => team.team_admin)) setIsTeamAdmin(true);
   });
   return (
     <div className="mb-12">
@@ -411,13 +411,13 @@ export default function Teams() {
               options={
                 selectedTeamForAdd
                   ? users
-                      .map((user) => user.name)
-                      .filter(
-                        (userName) =>
-                          !teams
-                            .find((team) => team.name === selectedTeamForAdd)
-                            ?.members.includes(userName)
-                      )
+                    .map((user) => user.name)
+                    .filter(
+                      (userName) =>
+                        !teams
+                          .find((team) => team.name === selectedTeamForAdd)
+                          ?.members.includes(userName)
+                    )
                   : []
               }
               placeholder="New Member"

@@ -8,6 +8,11 @@ import (
 )
 
 func TestLLMCache(t *testing.T) {
+	err := verifyTestLicense()
+	if err != nil {
+		t.Fatalf("license error: %v", err)
+	}
+
 	modelbazaardir := t.TempDir()
 	modelID := "test_model"
 

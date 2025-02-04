@@ -13,7 +13,6 @@ import (
 
 	"thirdai_platform/deployment"
 	"thirdai_platform/model_bazaar/config"
-	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/search/ndb"
@@ -92,7 +91,7 @@ func makeNdbServer(t *testing.T, modelbazaardir string) *httptest.Server {
 		t.Fatalf("failed to create llm cache: %v", err)
 	}
 
-	router := deployment.NdbRouter{Ndb: db, Config: &deployConfig, Permissions: &mockPermissions, LLMCache: cache}
+	router := deployment.NdbRouter{Ndb: db, Config: &deployConfig, Permissions: &mockPermissions, LLMCache: cache, LLMProvider: &MockLLM{}}
 
 	r := router.Routes()
 	testServer := httptest.NewServer(r)
@@ -326,12 +325,10 @@ func checkLLMCache(t *testing.T, testServer *httptest.Server, query, llmRes stri
 }
 
 func TestBasicEndpoints(t *testing.T) {
-	v := licensing.NewVerifier("platform_test_license.json")
-	license, err := v.LoadLicense()
+	err := verifyTestLicense()
 	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
+		t.Fatalf("license error: %v", err)
 	}
-	licensing.ActivateThirdAILicense(license.License.BoltLicenseKey)
 
 	modelbazaardir := t.TempDir()
 	testServer := makeNdbServer(t, modelbazaardir)

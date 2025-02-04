@@ -13,7 +13,7 @@ import (
 
 type LLMCache struct {
 	Ndb       ndb.NeuralDB
-	threshold float64
+	Threshold float64
 }
 
 func NewLLMCache(modelBazaarDir, modelId string) (*LLMCache, error) {
@@ -25,7 +25,7 @@ func NewLLMCache(modelBazaarDir, modelId string) (*LLMCache, error) {
 
 	threshold := 0.95
 
-	return &LLMCache{Ndb: ndb, threshold: threshold}, nil
+	return &LLMCache{Ndb: ndb, Threshold: threshold}, nil
 }
 
 func (c *LLMCache) Close() {
@@ -96,13 +96,12 @@ func (c *LLMCache) Query(query string) (string, error) {
 	sort.Slice(chunks, func(i, j int) bool {
 		return tokenSimilarity(queryTokens, chunks[i].Text) > tokenSimilarity(queryTokens, chunks[j].Text)
 	})
-	
 
 	topChunk := chunks[0]
 	topSimilarity := tokenSimilarity(queryTokens, topChunk.Text)
 
-	if topSimilarity < c.threshold {
-		slog.Info("top chunk similarity below threshold", "similarity", topSimilarity, "threshold", c.threshold)
+	if topSimilarity < c.Threshold {
+		slog.Info("top chunk similarity below threshold", "similarity", topSimilarity, "threshold", c.Threshold)
 		return "", nil
 	}
 

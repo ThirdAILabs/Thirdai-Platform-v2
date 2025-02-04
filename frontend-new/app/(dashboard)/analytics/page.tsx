@@ -18,20 +18,21 @@ import { Workflow, fetchWorkflows } from '@/lib/backend';
 function AnalyticsContent() {
   const [isClient, setIsClient] = useState(false);
   const searchParams = useSearchParams();
-  const workflowid = searchParams.get('id');
+  const workflowId = searchParams.get('id');
   const [deploymentUrl, setDeploymentUrl] = useState<string | undefined>();
   const [modelName, setModelName] = useState<string>('');
   const [username, setUsername] = useState<string>('');
   const [workflowtype, setWorkflowType] = useState<string>('');
   const [deployStatus, setDeployStatus] = useState<string>('not_started');
+  const [ndbModelId, setNdbModelId] = useState<string | undefined>();
   const [tags, setTags] = useState<string[]>([]);
   useEffect(() => {
     setIsClient(true);
 
     const init = async () => {
-      if (workflowid) {
+      if (workflowId) {
         try {
-          const workflowDetails = await getWorkflowDetails(workflowid);
+          const workflowDetails = await getWorkflowDetails(workflowId);
 
           console.log('workflowDetails', workflowDetails);
           setWorkflowType(workflowDetails.type);
@@ -39,20 +40,9 @@ function AnalyticsContent() {
           // Set deploy status
           setDeployStatus(workflowDetails.deploy_status);
 
-          if (
-            workflowDetails.type === 'enterprise-search' &&
-            workflowDetails.dependencies?.length > 0
-          ) {
-            // For enterprise-search, use the first dependency's details
-            const firstDependency = workflowDetails.dependencies[0];
-            console.log('firstDependency', firstDependency);
-            console.log(`here is: ${deploymentBaseUrl}/${firstDependency.model_id}`);
-            setDeploymentUrl(`${deploymentBaseUrl}/${firstDependency.model_id}`);
-            setModelName(firstDependency.model_name);
-            setUsername(firstDependency.username);
+          if (workflowDetails.type === 'ndb') {
+            setNdbModelId(workflowDetails.model_id);
           } else {
-            // For other types, use the original logic
-            console.log(`here is: ${deploymentBaseUrl}/${workflowDetails.model_id}`);
             setDeploymentUrl(`${deploymentBaseUrl}/${workflowDetails.model_id}`);
             setModelName(workflowDetails.model_name);
             setUsername(workflowDetails.username);
@@ -64,7 +54,7 @@ function AnalyticsContent() {
     };
 
     init();
-  }, [workflowid]);
+  }, [workflowId]);
 
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
 
@@ -72,7 +62,6 @@ function AnalyticsContent() {
     async function getWorkflows() {
       try {
         const fetchedWorkflows = await fetchWorkflows();
-        console.log('workflows', fetchedWorkflows);
         setWorkflows(fetchedWorkflows);
       } catch (err) {
         if (err instanceof Error) {
@@ -112,11 +101,11 @@ function AnalyticsContent() {
       </div>
     );
   else if (workflowtype == 'ndb' || workflowtype == 'enterprise-search') {
-    console.log('update button, ', modelName);
+    console.log('update button, ', ndbModelId);
     return (
       <>
         <UsageStats />
-        <RecentFeedbacks username={username} modelName={modelName} />
+        <RecentFeedbacks modelId={ndbModelId} />
         {modelName && <UpdateButtonNDB modelName={modelName} />}
       </>
     );

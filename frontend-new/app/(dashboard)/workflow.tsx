@@ -252,31 +252,30 @@ export function WorkFlow({
   useEffect(() => {
     const fetchStatuses = async () => {
       try {
-        if (workflow.username && workflow.model_name) {
-          const modelIdentifier = `${workflow.username}/${workflow.model_name}`;
+        if (workflow.model_id) {
           const [trainStatus, deployStatus] = await Promise.all([
-            getTrainingStatus(modelIdentifier),
-            getDeployStatus(modelIdentifier),
+            getTrainingStatus(workflow.model_id),
+            getDeployStatus(workflow.model_id),
           ]);
 
           // Check training status
           if (
-            trainStatus.data.train_status === 'failed' &&
-            (trainStatus.data.errors?.length > 0 || trainStatus.data.messages?.length > 0)
+            trainStatus.status === 'failed' &&
+            (trainStatus.errors?.length > 0)
           ) {
             setError({
               type: 'training',
-              messages: [...(trainStatus.data.errors || []), ...(trainStatus.data.messages || [])],
+              messages: trainStatus.errors,
             });
           } else {
             setError(null);
           }
 
           // Check warnings separately
-          if (trainStatus.data.warnings?.length > 0) {
+          if (trainStatus.warnings?.length > 0) {
             setWarning({
               type: 'training',
-              messages: trainStatus.data.warnings,
+              messages: trainStatus.warnings,
             });
           } else {
             setWarning(null);

@@ -41,6 +41,7 @@ export interface ApiResponse {
   data: Deployment[];
 }
 
+//TODO: ask @Peter to confirm the use-case of this function
 export async function listDeployments(deployment_id: string): Promise<Deployment[]> {
   const accessToken = getAccessToken(); // Ensure this function is implemented to get the access token
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
@@ -104,31 +105,32 @@ export function getDeployStatus(model_id: string): Promise<DeployStatusResponse>
   });
 }
 
-interface TrainStatusResponse extends BaseStatusResponse {
-  data: {
-    model_identifier: string;
-    messages: string[];
-    train_status: string;
-    warnings: string[];
-    errors: string[];
-  };
+interface TrainStatusResponse {
+  status: 'pending' | 'running' | 'complete' | 'failed';
+  errors: string[];
+  warnings: string[];
 }
-export function getTrainingStatus(modelIdentifier: string): Promise<TrainStatusResponse> {
+
+export async function getTrainingStatus(modelId: string): Promise<TrainStatusResponse> {
   const accessToken = getAccessToken();
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
-  return new Promise((resolve, reject) => {
-    axios
-      .get(
-        `${thirdaiPlatformBaseUrl}/api/train/status?model_identifier=${encodeURIComponent(modelIdentifier)}`
-      )
-      .then((res) => {
-        resolve(res.data);
-      })
-      .catch((err) => {
-        reject(err);
-      });
-  });
+  try {
+    const response = await axios.get<TrainStatusResponse>(
+      `${thirdaiPlatformBaseUrl}/api/v2/train/${encodeURIComponent(modelId)}/status`
+    );
+
+    if (!response.data) {
+      throw new Error('Invalid response format');
+    }
+
+    return response.data;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      throw new Error(err.response?.data?.detail || 'Failed to get training status');
+    }
+    throw err;
+  }
 }
 
 interface LogEntry {
@@ -2765,16 +2767,15 @@ export async function temporaryCacheToken(modelId: string) {
   }
 }
 
-export async function fetchFeedback(username: string, modelName: string) {
-  const modelIdentifier = `${username}/${modelName}`;
+export async function fetchFeedback(modelId: string) {
   const accessToken = getAccessToken();
-
+  console.log('fetchFeedback', modelId);
   try {
     const response = await axios({
       method: 'get',
       url: `${deploymentBaseUrl}/api/deploy/feedbacks`,
       params: {
-        model_identifier: modelIdentifier,
+        model_identifier: modelId,
       },
       headers: {
         Authorization: `Bearer ${accessToken}`,

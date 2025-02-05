@@ -126,8 +126,7 @@ func loadEnv() modelBazaarEnv {
 		NomadEndpoint: optionalEnv("NOMAD_ENDPOINT"),
 		NomadToken:    optionalEnv("TASK_RUNNER_TOKEN"),
 
-		KubernetesEndpoint: optionalEnv("KUBERNETES_ENDPOINT"),
-		KubernetesToken:    optionalEnv("KUBERNETES_TOKEN"),
+		Kubernetes: optionalEnv("KUBERNETES"),
 
 		ShareDir:  requiredEnv("SHARE_DIR"),
 		JwtSecret: requiredEnv("JWT_SECRET"),
@@ -316,7 +315,7 @@ func main() {
 	if env.NomadEndpoint != "" {
 		orchestratorClient = nomad.NewNomadClient(env.NomadEndpoint, env.NomadToken)
 	} else if env.KubernetesEndpoint != "" {
-		orchestratorClient = kubernetes.NewKubernetesClient(env.KubernetesEndpoint, env.KubernetesToken, "thirdai-platform")
+		orchestratorClient = kubernetes.NewKubernetesClient()
 	}
 
 	licenseVerifier := licensing.NewVerifier(env.LicensePath)

@@ -56,11 +56,9 @@ spec:
               memory: "{{ .Resources.AllocationMemory }}"
             limits:
               memory: "{{ .Resources.AllocationMemoryMax }}"
-          {{- if .Driver.ShareDir }}
           volumeMounts:
-            - name: model-bazaar-volume
+            - name: shared-modelbazaar
               mountPath: "/model_bazaar"
-          {{- end }}
 
         {{- if .IsKE }}
         - name: knowledge-extraction-worker
@@ -99,10 +97,7 @@ spec:
               memory: "8000"
         {{- end }}
 
-      {{- if .Driver.ShareDir }}
       volumes:
-        - name: model-bazaar-volume
-          hostPath:
-            path: "{{ .Driver.ShareDir }}"
-            type: Directory
-      {{- end }}
+        - name: shared-modelbazaar
+          persistentVolumeClaim:
+            claimName: modelbazaar-efs-pvc

@@ -16,9 +16,7 @@ spec:
     spec:
       containers:
         - name: backend
-          {{ with .Driver }}
           image: "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
-          {{ end }}
           command: ["python3"]
           args:
             - "-m"
@@ -49,8 +47,6 @@ spec:
             limits:
               cpu: "2400m"
               memory: "5000Mi"
-      imagePullSecrets:
-        - name: docker-credentials-secret
       volumes:
         - name: shared-modelbazaar
           persistentVolumeClaim:

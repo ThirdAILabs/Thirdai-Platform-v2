@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"thirdai_platform/model_bazaar/auth"
@@ -54,6 +56,7 @@ func (s *TrainService) Routes() chi.Router {
 		r.Post("/nlp-token-retrain", s.NlpTokenRetrain)
 		r.Post("/upload-data", s.UploadData)
 		r.Post("/verify-doc-dir", s.VerifyDocDir)
+		r.Post("/validate-trainable-csv", s.ValidateTokenTextClassificationCSV)
 	})
 
 	r.Group(func(r chi.Router) {
@@ -407,4 +410,149 @@ func (s *TrainService) TrainReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJsonResponse(w, report)
+}
+
+func ValidateCSVHeader(fileHeaders []string, expectedHeaders []string) error {
+	if len(fileHeaders) != len(expectedHeaders) {
+		return fmt.Errorf("invalid column: expected %v, got %v", expectedHeaders, fileHeaders)
+	}
+
+	for _, key := range expectedHeaders {
+		if !slices.Contains(fileHeaders, key) {
+			return fmt.Errorf("invalid column: expected %v, got %v", expectedHeaders, fileHeaders)
+		}
+	}
+	return nil
+}
+
+func (s *TrainService) validateTrainableCSV(filepath string, expectedHeaders []string, targetColumn string, isTokenCSV bool) ([]string, error) {
+	file, err := s.storage.Read(filepath)
+	if err != nil {
+		return nil, CodedError(fmt.Errorf("unable to open file. error: %w", err), http.StatusUnprocessableEntity)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	fileHeaders, err := reader.Read()
+	if err != nil {
+		return nil, CodedError(fmt.Errorf("unable to read file. error: %w", err), http.StatusUnprocessableEntity)
+	}
+
+	// Validate the CSV header
+	if err := ValidateCSVHeader(fileHeaders, expectedHeaders); err != nil {
+		return nil, CodedError(err, http.StatusUnprocessableEntity)
+	}
+
+	targetColIndex := slices.Index(fileHeaders, targetColumn)
+	sourceColIndex := 1 - targetColIndex
+
+	labels := make(map[string]bool)
+
+	for {
+		line, err := reader.Read()
+		if err != nil {
+			if err == io.EOF {
+				break
+			} else {
+				return nil, CodedError(err, http.StatusUnprocessableEntity)
+			}
+		}
+
+		if isTokenCSV {
+			sourceTokens := strings.Split(line[sourceColIndex], " ")
+			targetTokens := strings.Split(line[targetColIndex], " ")
+			if len(sourceTokens) != len(targetTokens) {
+				return nil, CodedError(fmt.Errorf("number of source tokens: %d ≠ number of target tokens: %d. Invalid line: '%v'", len(sourceTokens), len(targetTokens), strings.Join(line, ",")), http.StatusUnprocessableEntity)
+			}
+			for _, token := range targetTokens {
+				if token != "O" {
+					labels[token] = true
+				}
+			}
+		} else {
+			labels[line[targetColIndex]] = true
+		}
+	}
+
+	uniqueLabels := make([]string, 0)
+	for key := range labels {
+		uniqueLabels = append(uniqueLabels, key)
+	}
+
+	return uniqueLabels, nil
+}
+
+type TrainableCSVRequest struct {
+	UploadId uuid.UUID `json:"upload_id"`
+	FileType string    `json:"type"`
+}
+
+func (s *TrainService) ValidateTokenTextClassificationCSV(w http.ResponseWriter, r *http.Request) {
+	user, err := auth.UserFromContext(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var options TrainableCSVRequest
+	if !utils.ParseRequestBody(w, r, &options) {
+		return
+	}
+	switch options.FileType {
+	case "text", "token":
+	// ok - nothing to do
+	default:
+		http.Error(w, fmt.Sprintf("%v type is not supported. Supported types: ['text', 'token']", options.FileType), http.StatusUnprocessableEntity)
+		return
+	}
+
+	// Currently only supporting uploaded file for training text/token classification model. Creating a dummy TrainFile object to validate the upload
+	trainConfig := []config.TrainFile{
+		{
+			Path:     options.UploadId.String(),
+			Location: config.FileLocUpload,
+			SourceId: nil,
+			Options:  nil,
+			Metadata: nil,
+		},
+	}
+	if err := s.validateUploads(user.Id, trainConfig); err != nil {
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), GetResponseCode(err))
+		return
+	}
+
+	fileNames, err := s.storage.List(storage.UploadPath(options.UploadId))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
+		return
+	}
+	if len(fileNames) != 1 {
+		http.Error(w, fmt.Sprintf("Only one file should be used. found %v files", len(fileNames)), http.StatusUnsupportedMediaType)
+		return
+	}
+	trainableCSVFilePath := filepath.Join(storage.UploadPath(options.UploadId), fileNames[0])
+
+	if strings.ToLower(filepath.Ext(trainableCSVFilePath)) != ".csv" {
+		http.Error(w, "only CSV file is supported", http.StatusUnsupportedMediaType)
+		return
+	}
+
+	var labels []string
+	var validation_err error
+
+	if options.FileType == "text" {
+		labels, validation_err = s.validateTrainableCSV(trainableCSVFilePath, []string{"text", "labels"}, "labels", false)
+		if validation_err != nil {
+			http.Error(w, fmt.Sprintf("Validation failed: %v", validation_err.Error()), GetResponseCode(validation_err))
+			return
+		}
+	} else {
+		labels, validation_err = s.validateTrainableCSV(trainableCSVFilePath, []string{"source", "target"}, "target", true)
+		if validation_err != nil {
+			http.Error(w, fmt.Sprintf("Validation failed: %v", validation_err.Error()), GetResponseCode(validation_err))
+			return
+		}
+	}
+
+	utils.WriteJsonResponse(w, map[string][]string{"labels": labels})
 }

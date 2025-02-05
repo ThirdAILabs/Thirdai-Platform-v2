@@ -35,8 +35,9 @@ func TestTrainableCSVValidation(t *testing.T) {
 		}
 
 		uploadID := uploadFunc(non_csv_file)
-		var labels []string
-		err := client.Post("/train/validate-trainable-csv").Json(services.TrainableCSVRequest{UploadId: uploadID, FileType: "text"}).Do(&labels)
+		var response map[string][]string
+
+		err := client.Post("/train/validate-trainable-csv").Json(services.TrainableCSVRequest{UploadId: uploadID, FileType: "text"}).Do(&response)
 		if err == nil || !strings.Contains(err.Error(), "only CSV file is supported") {
 			t.Fatal(err)
 		}
@@ -49,9 +50,10 @@ func TestTrainableCSVValidation(t *testing.T) {
 		}{
 			{"textFile1.csv", "text,target\nNormal text,label1\nDifferent text,label2"},
 		}
-		var labels []string
+		var response map[string][]string
+
 		uploadID := uploadFunc(textFile1)
-		err := client.Post("/train/validate-trainable-csv").Json(services.TrainableCSVRequest{UploadId: uploadID, FileType: "text"}).Do(&labels)
+		err := client.Post("/train/validate-trainable-csv").Json(services.TrainableCSVRequest{UploadId: uploadID, FileType: "text"}).Do(&response)
 		if err == nil || !strings.Contains(err.Error(), "invalid column") {
 			t.Fatal(err)
 		}
@@ -64,9 +66,10 @@ func TestTrainableCSVValidation(t *testing.T) {
 		}{
 			{"textFile2.csv", "text,labels\nNormal text,label1\nDifferent text,label2,extra-entry"},
 		}
-		var labels []string
+		var response map[string][]string
+
 		uploadID := uploadFunc(textFile2)
-		err := client.Post("/train/validate-trainable-csv").Json(services.TrainableCSVRequest{UploadId: uploadID, FileType: "text"}).Do(&labels)
+		err := client.Post("/train/validate-trainable-csv").Json(services.TrainableCSVRequest{UploadId: uploadID, FileType: "text"}).Do(&response)
 		if err == nil || !strings.Contains(err.Error(), "wrong number of fields") {
 			t.Fatal(err)
 		}
@@ -79,9 +82,10 @@ func TestTrainableCSVValidation(t *testing.T) {
 		}{
 			{"tokenFile2.csv", "source,target\nTexas is the address,LOCATION O O O\nHe saw Dr Liam yesterday,O O O NAME O O"},
 		}
-		var labels []string
+		var response map[string][]string
+
 		uploadID := uploadFunc(tokenFile2)
-		err := client.Post("/train/validate-trainable-csv").Json(services.TrainableCSVRequest{UploadId: uploadID, FileType: "token"}).Do(&labels)
+		err := client.Post("/train/validate-trainable-csv").Json(services.TrainableCSVRequest{UploadId: uploadID, FileType: "token"}).Do(&response)
 		if err == nil || !strings.Contains(err.Error(), "number of source tokens: 5 ≠ number of target tokens: 6") {
 			t.Fatal(err)
 		}
@@ -94,12 +98,15 @@ func TestTrainableCSVValidation(t *testing.T) {
 		}{
 			{"correctTextFile.csv", "text,labels\nNormal text,label1\nDifferent text,label2"},
 		}
-		var labels []string
+		var response map[string][]string
+
 		uploadID := uploadFunc(correctTextFile)
-		err := client.Post("/train/validate-trainable-csv").Json(services.TrainableCSVRequest{UploadId: uploadID, FileType: "text"}).Do(&labels)
+		err := client.Post("/train/validate-trainable-csv").Json(services.TrainableCSVRequest{UploadId: uploadID, FileType: "text"}).Do(&response)
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		labels := response["labels"]
 		if !slices.Contains(labels, "label1") || !slices.Contains(labels, "label2") {
 			t.Fatalf("Invalid labels: %v parsed", labels)
 		}
@@ -112,12 +119,15 @@ func TestTrainableCSVValidation(t *testing.T) {
 		}{
 			{"correctTokenFile.csv", "source,target\nTexas is the address,LOCATION O O O\nHe saw Dr Liam yesterday,O O O NAME O"},
 		}
-		var labels []string
+		var response map[string][]string
+
 		uploadID := uploadFunc(correctTokenFile)
-		err := client.Post("/train/validate-trainable-csv").Json(services.TrainableCSVRequest{UploadId: uploadID, FileType: "text"}).Do(&labels)
+		err := client.Post("/train/validate-trainable-csv").Json(services.TrainableCSVRequest{UploadId: uploadID, FileType: "token"}).Do(&response)
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		labels := response["labels"]
 		if !slices.Contains(labels, "NAME") || !slices.Contains(labels, "LOCATION") {
 			t.Fatalf("Invalid labels: %v parsed", labels)
 		}

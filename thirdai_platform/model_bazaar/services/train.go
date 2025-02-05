@@ -488,10 +488,6 @@ type TrainableCSVRequest struct {
 	FileType string    `json:"type"`
 }
 
-type TrainableCSVResponse struct {
-	Labels []string `json:"labels"`
-}
-
 func (s *TrainService) ValidateTokenTextClassificationCSV(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r)
 	if err != nil {
@@ -560,5 +556,5 @@ func (s *TrainService) ValidateTokenTextClassificationCSV(w http.ResponseWriter,
 		}
 	}
 
-	utils.WriteJsonResponse(w, TrainableCSVResponse{labels})
+	utils.WriteJsonResponse(w, map[string][]string{"labels": labels})
 }

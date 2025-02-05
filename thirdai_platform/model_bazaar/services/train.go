@@ -528,7 +528,7 @@ func (s *TrainService) ValidateTokenTextClassificationCSV(w http.ResponseWriter,
 		return
 	}
 	if len(filePaths) != 1 {
-		http.Error(w, fmt.Sprintf("should have only one file. found %v files", len(filePaths)), http.StatusUnsupportedMediaType)
+		http.Error(w, fmt.Sprintf("Only one file should be used. found %v files", len(filePaths)), http.StatusUnsupportedMediaType)
 		return
 	}
 

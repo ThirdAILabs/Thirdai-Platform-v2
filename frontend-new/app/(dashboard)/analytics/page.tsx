@@ -85,7 +85,7 @@ function AnalyticsContent() {
   if (workflowtype == 'nlp-token' || workflowtype == 'nlp-text')
     return (
       <div className="container mx-auto px-4 py-8">
-        {modelName && deploymentUrl && (
+        {modelName && deploymentUrl && workflowId && (
           <>
             <UsageStatsUDT />
             <div className="mt-6">
@@ -95,6 +95,7 @@ function AnalyticsContent() {
                 deploymentUrl={deploymentUrl}
                 workflowNames={workflowNames}
                 deployStatus={deployStatus}
+                modelId={workflowId}
               />
             </div>
           </>

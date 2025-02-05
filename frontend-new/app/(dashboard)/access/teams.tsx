@@ -81,12 +81,15 @@ export default function Teams() {
   const createNewTeam = async () => {
     try {
       const createdTeam = await createTeam(newTeamName);
-      const team_id = createdTeam.data.team_id;
+      if (!createdTeam)
+        return;
+
+      const team_id = createdTeam.team_id;
 
       for (const memberName of newTeamMembers) {
         const member = users.find((user) => user.name === memberName);
         if (member) {
-          await addUserToTeam(member.email, team_id);
+          await addUserToTeam(member.id, team_id);
         } else {
           console.error(`User with name ${memberName} not found`);
           alert(`User with name ${memberName} not found`);
@@ -95,7 +98,7 @@ export default function Teams() {
 
       const admin = users.find((user) => user.name === newTeamAdmin);
       if (admin) {
-        await assignTeamAdmin(admin.email, team_id);
+        await assignTeamAdmin(admin.id, team_id);
       } else {
         console.error(`User with name ${newTeamAdmin} not found`);
         alert(`User with name ${newTeamAdmin} not found`);

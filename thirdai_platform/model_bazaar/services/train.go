@@ -445,6 +445,7 @@ func validateTrainableCSV(filepath string, expectedHeaders []string, targetColum
 	}
 
 	targetColIndex := slices.Index(fileHeaders, targetColumn)
+	sourceColIndex := 1 - targetColIndex
 
 	labels := make(map[string]bool)
 
@@ -454,18 +455,23 @@ func validateTrainableCSV(filepath string, expectedHeaders []string, targetColum
 			if err == io.EOF {
 				break
 			} else {
-				return nil, CodedError(fmt.Errorf("unable to read file. error: %w", err), http.StatusUnprocessableEntity)
+				return nil, CodedError(err, http.StatusUnprocessableEntity)
 			}
 		}
 
 		if isTokenCSV {
-			for _, token := range strings.Split(line[targetColIndex], " ") {
+			sourceTokens := strings.Split(strings.TrimSpace(line[sourceColIndex]), " ")
+			targetTokens := strings.Split(strings.TrimSpace(line[targetColIndex]), " ")
+			if len(sourceTokens) != len(targetTokens) {
+				return nil, CodedError(fmt.Errorf("number of source tokens: %d ≠ number of target tokens: %d. Line: %v", len(sourceTokens), len(targetTokens), line), http.StatusUnprocessableEntity)
+			}
+			for _, token := range targetTokens {
 				if token != "O" {
 					labels[token] = true
 				}
 			}
 		} else {
-			labels[line[targetColIndex]] = true
+			labels[strings.TrimSpace(line[targetColIndex])] = true
 		}
 	}
 

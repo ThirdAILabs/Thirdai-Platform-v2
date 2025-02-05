@@ -963,6 +963,10 @@ func (s *ModelService) UpdateAccess(w http.ResponseWriter, r *http.Request) {
 
 		model.Access = params.Access
 		if params.Access == schema.Protected {
+			if err := checkTeamExists(txn, *params.TeamId); err != nil {
+				return err
+			}
+
 			if !user.IsAdmin {
 				if err := checkTeamMember(txn, user.Id, *params.TeamId); err != nil {
 					return err

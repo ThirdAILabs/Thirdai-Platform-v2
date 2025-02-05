@@ -90,13 +90,19 @@ func runApp() error {
 		return fmt.Errorf("could not read deployment config: %w", err)
 	}
 
-	licensing.ActivateThirdAILicense(config.LicenseKey)
-
 	reporter := deployment.Reporter{BaseClient: client.NewBaseClient(config.ModelBazaarEndpoint, env.JobToken), ModelId: config.ModelId.String()}
+
+	err = licensing.ActivateThirdAILicense(config.LicenseKey)
+	if err != nil {
+		return fmt.Errorf("could not activate thirdai license: %w", err)
+	}
 
 	logFile, err := os.OpenFile(filepath.Join(config.ModelBazaarDir, "logs/", config.ModelId.String(), "deployment.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
-		reporter.UpdateDeployStatusInternal("failed")
+		reportErr := reporter.UpdateDeployStatusInternal("failed")
+		if reportErr != nil {
+			slog.Error("error reporting deploy status", "error", reportErr)
+		}
 		return fmt.Errorf("error opening log file: %w", err)
 	}
 	defer logFile.Close()
@@ -105,7 +111,10 @@ func runApp() error {
 
 	ndbrouter, err := deployment.NewNdbRouter(config, reporter)
 	if err != nil {
-		reporter.UpdateDeployStatusInternal("failed")
+		reportErr := reporter.UpdateDeployStatusInternal("failed")
+		if reportErr != nil {
+			slog.Error("error reporting deploy status", "error", reportErr)
+		}
 		return fmt.Errorf("failed to setup deployment router: %w", err)
 	}
 	defer ndbrouter.Close()
@@ -118,8 +127,12 @@ func runApp() error {
 	The caveat is any code that comes after this should not take more than 10s. */
 	go func() {
 		time.Sleep(10 * time.Second)
-		reporter.UpdateDeployStatusInternal("complete")
-		slog.Info("updated deploy status to complete")
+		reportErr := reporter.UpdateDeployStatusInternal("complete")
+		if reportErr != nil {
+			slog.Error("error reporting deploy status", "error", reportErr)
+		} else {
+			slog.Info("updated deploy status to complete")
+		}
 	}()
 
 	srv := &http.Server{
@@ -148,15 +161,22 @@ func runApp() error {
 	slog.Info("starting server", "port", *port)
 	err = srv.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
-		reporter.UpdateDeployStatusInternal("failed")
+		reportErr := reporter.UpdateDeployStatusInternal("failed")
+		if reportErr != nil {
+			slog.Error("error reporting deploy status", "error", reportErr)
+		}
 		return fmt.Errorf("listen and serve returned error: %w", err)
 	} else if err == http.ErrServerClosed {
 		slog.Info("exited server with err=http.ErrServerClosed")
 	}
 
 	<-idleConnsClosed
-	reporter.UpdateDeployStatusInternal("stopped")
-	slog.Info("updated deploy status to stopped")
+	reportErr := reporter.UpdateDeployStatusInternal("stopped")
+	if reportErr != nil {
+		slog.Error("error reporting deploy status", "error", reportErr)
+	} else {
+		slog.Info("updated deploy status to stopped")
+	}
 	return nil
 }
 

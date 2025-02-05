@@ -230,9 +230,12 @@ func TestBasicEndpoints(t *testing.T) {
 	v := licensing.NewVerifier("platform_test_license.json")
 	license, err := v.LoadLicense()
 	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
+		t.Fatalf("license load error: %v", err)
 	}
-	licensing.ActivateThirdAILicense(license.License.BoltLicenseKey)
+	err = licensing.ActivateThirdAILicense(license.License.BoltLicenseKey)
+	if err != nil {
+		t.Fatalf("license check error: %v", err)
+	}
 
 	modelbazaardir := t.TempDir()
 	testServer := makeNdbServer(t, modelbazaardir)

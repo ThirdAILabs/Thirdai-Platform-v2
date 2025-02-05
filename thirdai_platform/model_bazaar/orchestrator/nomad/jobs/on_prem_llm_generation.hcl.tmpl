@@ -65,7 +65,7 @@ job "on-prem-llm-generation" {
         image_pull_timeout = "15m"
         ports = ["on-prem-generation-http"]
         {{ end }}
-        volumes = ["{{ .ModelDir }}:/gen-ai-models"]
+        volumes = ["{{ .ModelDir }}:/pretrained-models"]
         {{ with .Docker }}
         auth {
           username = "{{ .DockerUsername }}"
@@ -74,7 +74,7 @@ job "on-prem-llm-generation" {
         }
         {{ end }}
         args = [
-          "-m", "/gen-ai-models/{{ .ModelName }}",
+          "-m", "/pretrained-models/{{ .ModelName }}",
           "-c", 8192,
           "--host", "0.0.0.0",
           "--port", "${NOMAD_PORT_on_prem_generation_http}",

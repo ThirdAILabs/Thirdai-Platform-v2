@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: on-prem-generation
+  labels:
+    app: on-prem-generation
+spec:
+  replicas: {{ .InitialAllocations }}
+  selector:
+    matchLabels:
+      app: on-prem-generation
+  template:
+    metadata:
+      labels:
+        app: on-prem-generation
+    spec:
+      containers:
+        - name: backend
+          image: "{{ .Registry }}/llama.cpp:server"
+          command: ["python3"]
+          args:
+            - "-m"
+            - "/model_bazaar/pretrained-models/{{ .ModelName }}"
+            - "-c"
+            - "8192"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "80"
+            - "--threads"
+            - "{{ .AllocationCores }}"
+            - "--threads-http"
+            - "{{ .AllocationCores }}"
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: shared-modelbazaar
+              mountPath: "/model_bazaar"
+          resources:
+            requests:
+              cpu: "{{ .AllocationCores }}"
+              memory: "{{ .AllocationMemory }}Mi"
+            limits:
+              cpu: "{{ .AllocationCores }}"
+              memory: "{{ .AllocationMemoryMax }}Mi"
+      volumes:
+        - name: shared-modelbazaar
+          persistentVolumeClaim:
+            claimName: modelbazaar-efs-pvc

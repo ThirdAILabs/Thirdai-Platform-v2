@@ -430,7 +430,7 @@ func ValidateCSVHeader(filepath string, expectedHeaders []string) error {
 	}
 
 	for _, key := range expectedHeaders {
-		if IndexOf(fileHeaders, key) == -1 {
+		if !slices.Contains(fileHeaders, key) {
 			return fmt.Errorf("invalid column: expected %v, got %v", expectedHeaders, fileHeaders)
 		}
 	}

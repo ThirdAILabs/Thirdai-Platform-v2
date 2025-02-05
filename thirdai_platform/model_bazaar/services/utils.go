@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/licensing"
@@ -554,11 +555,27 @@ func checkModelExists(txn *gorm.DB, modelId uuid.UUID) error {
 	return nil
 }
 
-func IndexOf[T comparable](items []T, key T) int {
-	for i, item := range items {
-		if item == key {
-			return i
-		}
+func walkDirectory(path string) ([]string, error) {
+	var filePaths []string
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
 	}
-	return -1
+
+	if !info.IsDir() {
+		return []string{path}, nil
+	}
+
+	err = filepath.Walk(path, func(filePath string, fileInfo os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !fileInfo.IsDir() {
+			filePaths = append(filePaths, filePath)
+		}
+		return nil
+	})
+
+	return filePaths, err
 }

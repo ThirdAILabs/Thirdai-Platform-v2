@@ -413,19 +413,7 @@ func (s *TrainService) TrainReport(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJsonResponse(w, report)
 }
 
-func ValidateCSVHeader(filepath string, expectedHeaders []string) error {
-	file, err := os.Open(filepath)
-	if err != nil {
-		return fmt.Errorf("unable to open file")
-	}
-	defer file.Close()
-
-	reader := csv.NewReader(file)
-	fileHeaders, err := reader.Read() // First line should be header
-	if err != nil {
-		return fmt.Errorf("unable to read file")
-	}
-
+func ValidateCSVHeader(fileHeaders []string, expectedHeaders []string) error {
 	if len(fileHeaders) != len(expectedHeaders) {
 		return fmt.Errorf("invalid column: expected %v, got %v", expectedHeaders, fileHeaders)
 	}
@@ -439,11 +427,6 @@ func ValidateCSVHeader(filepath string, expectedHeaders []string) error {
 }
 
 func validateTrainableCSV(filepath string, expectedHeaders []string, targetColumn string, isTokenCSV bool) ([]string, error) {
-	// Validate the CSV header
-	if err := ValidateCSVHeader(filepath, expectedHeaders); err != nil {
-		return []string{}, CodedError(err, http.StatusUnprocessableEntity)
-	}
-
 	file, err := os.Open(filepath)
 	if err != nil {
 		return nil, CodedError(fmt.Errorf("unable to open file. error: %w", err), http.StatusUnprocessableEntity)
@@ -453,7 +436,12 @@ func validateTrainableCSV(filepath string, expectedHeaders []string, targetColum
 	reader := csv.NewReader(file)
 	fileHeaders, err := reader.Read()
 	if err != nil {
-		return []string{}, CodedError(fmt.Errorf("unable to read file. error: %w", err), http.StatusUnprocessableEntity)
+		return nil, CodedError(fmt.Errorf("unable to read file. error: %w", err), http.StatusUnprocessableEntity)
+	}
+
+	// Validate the CSV header
+	if err := ValidateCSVHeader(fileHeaders, expectedHeaders); err != nil {
+		return nil, CodedError(err, http.StatusUnprocessableEntity)
 	}
 
 	targetColIndex := slices.Index(fileHeaders, targetColumn)
@@ -466,7 +454,7 @@ func validateTrainableCSV(filepath string, expectedHeaders []string, targetColum
 			if err == io.EOF {
 				break
 			} else {
-				return []string{}, CodedError(fmt.Errorf("unable to read file. error: %w", err), http.StatusUnprocessableEntity)
+				return nil, CodedError(fmt.Errorf("unable to read file. error: %w", err), http.StatusUnprocessableEntity)
 			}
 		}
 
@@ -490,91 +478,81 @@ func validateTrainableCSV(filepath string, expectedHeaders []string, targetColum
 }
 
 type TrainableCSVRequest struct {
-	FileType string `json:"type"`
+	UploadId uuid.UUID `json:"upload_id"`
+	FileType string    `json:"type"`
 }
 
 type TrainableCSVResponse struct {
-	upload_id uuid.UUID
-	labels    []string
+	labels []string
 }
 
 func (s *TrainService) ValidateTokenTextClassificationCSV(w http.ResponseWriter, r *http.Request) {
-	var options TrainableCSVRequest
-	if !utils.ParseRequestBody(w, r, &options) {
-		return
-	}
-	switch options.FileType {
-	case "text", "token": 
-	 // ok - nothing to do
-	 default:
-	  http.Error(....)
-	  return
-		http.Error(w, fmt.Sprintf("%v is not suppported. Supported types: ['text', 'token']", options.FileType), http.StatusUnprocessableEntity)
-		return
-	}
-
-	boundary, err := getMultipartBoundary(r)
-	if err != nil {
-		http.Error(w, err.Error(), GetResponseCode(err))
-		return
-	}
-
-	reader := multipart.NewReader(r.Body, boundary)
-	part, err := reader.NextPart()
-	if err == io.EOF || err != nil {
-		http.Error(w, fmt.Sprintf("error parsing multipart request: %v", err.Error()), http.StatusBadRequest)
-	}
-
-	defer part.Close()
-
-	if strings.ToLower(filepath.Ext(part.FileName())) != ".csv" {
-		http.Error(w, "only CSV file is supported", http.StatusUnsupportedMediaType)
-		return
-	}
-
-	uploadId := uuid.New()
-	newFilepath := filepath.Join(storage.UploadPath(uploadId), part.FileName())
-
-	if err := s.storage.Write(newFilepath, part); err != nil {
-		slog.Error("error saving uploaded file", "error", err)
-		http.Error(w, fmt.Sprintf("error saving uploaded file. Error: %v", err.Error()), http.StatusInternalServerError)
-		return
-	}
-	var labels []string
-	var validation_err error
-
-	if options.FileType == "text" {
-		labels, validation_err = validateTrainableCSV(filepath.Join(s.storage.Location(), newFilepath), []string{"text", "label"}, "label", false)
-		if validation_err != nil {
-			http.Error(w, fmt.Sprintf("Validation failed: %v", validation_err.Error()), GetResponseCode(validation_err))
-			return
-		}
-	} else {
-		labels, validation_err = validateTrainableCSV(filepath.Join(s.storage.Location(), newFilepath), []string{"source", "target"}, "label", true)
-		if validation_err != nil {
-			http.Error(w, fmt.Sprintf("Validation failed: %v", validation_err.Error()), GetResponseCode(validation_err))
-			return
-		}
-	}
-
 	user, err := auth.UserFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// add entry in the upload table
-	upload := schema.Upload{
-		Id:         uploadId,
-		UserId:     user.Id,
-		UploadDate: time.Now().UTC(),
-		Files:      part.FileName(),
-	}
-	if err := s.db.Create(&upload).Error; err != nil {
-		// Not removing file in case of failure as it will help to debug
-		slog.Error("sql error creating upload", "error", err)
-		http.Error(w, fmt.Sprintf("unable to create upload: %v", schema.ErrDbAccessFailed), http.StatusInternalServerError)
+	var options TrainableCSVRequest
+	if !utils.ParseRequestBody(w, r, &options) {
 		return
 	}
-	utils.WriteJsonResponse(w, TrainableCSVResponse{uploadId, labels})
+	switch options.FileType {
+	case "text", "token":
+	// ok - nothing to do
+	default:
+		http.Error(w, fmt.Sprintf("%v type is not supported. Supported types: ['text', 'token']", options.FileType), http.StatusUnprocessableEntity)
+		return
+	}
+
+	// Currently only supporting uploaded file for training text/token classification model. Creating a dummy TrainFile object to validate the upload
+	trainConfig := []config.TrainFile{
+		{
+			Path:     options.UploadId.String(),
+			Location: config.FileLocUpload,
+			SourceId: nil,
+			Options:  nil,
+			Metadata: nil,
+		},
+	}
+	if err := s.validateUploads(user.Id, trainConfig); err != nil {
+		http.Error(w, fmt.Sprintf("invalid uploads specified: %v", err), GetResponseCode(err))
+		return
+	}
+
+	filePaths, err := walkDirectory(trainConfig[0].Path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
+		return
+	}
+	if len(filePaths) != 1 {
+		http.Error(w, fmt.Sprintf("should have only one file. found %v files", len(filePaths)), http.StatusUnsupportedMediaType)
+		return
+	}
+
+	trainableCSVFilePath := filePaths[0]
+
+	if strings.ToLower(filepath.Ext(trainableCSVFilePath)) != ".csv" {
+		http.Error(w, "only CSV file is supported", http.StatusUnsupportedMediaType)
+		return
+	}
+
+	var labels []string
+	var validation_err error
+
+	if options.FileType == "text" {
+		labels, validation_err = validateTrainableCSV(trainableCSVFilePath, []string{"text", "labels"}, "labels", false)
+		if validation_err != nil {
+			http.Error(w, fmt.Sprintf("Validation failed: %v", validation_err.Error()), GetResponseCode(validation_err))
+			return
+		}
+	} else {
+		labels, validation_err = validateTrainableCSV(trainableCSVFilePath, []string{"source", "target"}, "target", true)
+		if validation_err != nil {
+			http.Error(w, fmt.Sprintf("Validation failed: %v", validation_err.Error()), GetResponseCode(validation_err))
+			return
+		}
+	}
+
+	utils.WriteJsonResponse(w, TrainableCSVResponse{labels})
 }

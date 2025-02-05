@@ -1,17 +1,15 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: "{{ .JobName }}-ingress"
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+  name: llm-dispatch
 spec:
   rules:
     - http:
         paths:
-          - path: /{{ .ModelId }}(/|$)(.*)
+          - path: /llm-dispatch/
             pathType: Prefix
             backend:
               service:
-                name: "{{ .JobName }}"
+                name: llm-dispatch
                 port:
                   number: 80

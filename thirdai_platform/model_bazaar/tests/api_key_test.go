@@ -251,7 +251,7 @@ func TestAPIKeyDependencies(t *testing.T) {
 		t.Fatalf("failed to train NLP model: %v", err)
 	}
 
-	err = user.updateAccess(nlpID, schema.Public)
+	err = user.updateAccess(nlpID, schema.Public, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

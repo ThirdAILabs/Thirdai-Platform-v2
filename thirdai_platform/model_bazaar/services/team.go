@@ -1,7 +1,6 @@
 package services
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -42,14 +41,6 @@ func (s *TeamService) Routes() chi.Router {
 
 			r.Get("/users", s.TeamUsers)
 			r.Get("/models", s.TeamModels)
-		})
-
-		r.Route("/models/{model_id}", func(r chi.Router) {
-			r.Use(auth.TeamMemberOnly(s.db))
-			r.Use(auth.ModelPermissionOnly(s.db, auth.OwnerPermission))
-
-			r.Post("/", s.AddModelToTeam)
-			r.Delete("/", s.RemoveModelFromTeam)
 		})
 	})
 
@@ -203,7 +194,7 @@ func (s *TeamService) RemoveUserFromTeam(w http.ResponseWriter, r *http.Request)
 			return err
 		}
 
-		if err := checkUserTeamExists(txn, userId, teamId); err != nil {
+		if err := checkTeamMember(txn, userId, teamId); err != nil {
 			return err
 		}
 
@@ -224,92 +215,6 @@ func (s *TeamService) RemoveUserFromTeam(w http.ResponseWriter, r *http.Request)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error removing user from team: %v", err), GetResponseCode(err))
-		return
-	}
-
-	utils.WriteSuccess(w)
-}
-
-func (s *TeamService) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
-	teamId, err := utils.URLParamUUID(r, "team_id")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	modelId, err := utils.URLParamUUID(r, "model_id")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	err = s.db.Transaction(func(txn *gorm.DB) error {
-		if err := checkTeamExists(txn, teamId); err != nil {
-			return err
-		}
-
-		model, err := schema.GetModel(modelId, txn, false, false, false)
-		if err != nil {
-			if errors.Is(err, schema.ErrModelNotFound) {
-				return CodedError(err, http.StatusNotFound)
-			}
-			return CodedError(err, http.StatusInternalServerError)
-		}
-
-		if model.TeamId != nil {
-			return CodedError(fmt.Errorf("model %v is already assigned to team", modelId), http.StatusConflict)
-		}
-
-		model.TeamId = &teamId
-
-		result := txn.Save(&model)
-		if result.Error != nil {
-			slog.Error("sql error updating model team", "model_id", modelId, "error", result.Error)
-			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error adding model to team: %v", err), GetResponseCode(err))
-		return
-	}
-
-	utils.WriteSuccess(w)
-}
-
-func (s *TeamService) RemoveModelFromTeam(w http.ResponseWriter, r *http.Request) {
-	teamId, err := utils.URLParamUUID(r, "team_id")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	modelId, err := utils.URLParamUUID(r, "model_id")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	err = s.db.Transaction(func(txn *gorm.DB) error {
-		if err := checkTeamExists(txn, teamId); err != nil {
-			return err
-		}
-
-		if err := checkModelExists(txn, modelId); err != nil {
-			return err
-		}
-
-		result := txn.Model(&schema.Model{}).Where("id = ? and team_id = ?", modelId, teamId).Update("team_id", nil)
-		if result.Error != nil {
-			slog.Error("sql error updating model team after removing from team", "model_id", modelId, "error", result.Error)
-			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error removing model from team: %v", err), GetResponseCode(err))
 		return
 	}
 
@@ -375,7 +280,7 @@ func (s *TeamService) RemoveTeamAdmin(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		if err := checkUserTeamExists(txn, userId, teamId); err != nil {
+		if err := checkTeamMember(txn, userId, teamId); err != nil {
 			return err
 		}
 

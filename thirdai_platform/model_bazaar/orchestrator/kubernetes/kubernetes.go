@@ -29,29 +29,23 @@ import (
 //go:embed jobs/*/*
 var jobTemplates embed.FS
 
-// KubernetesClient implements orchestrator.Client using client-go.
 type KubernetesClient struct {
 	namespace string
 	templates *template.Template
 	clientset *kubernetes.Clientset
 }
 
-// NewKubernetesClient creates a new KubernetesClient.
-// If kubeconfigPath is non-empty, that configuration is used; otherwise, the in-cluster config is used.
 func NewKubernetesClient() orchestrator.Client {
-	// Prepare template helper functions.
 	funcs := template.FuncMap{
 		"replaceHyphen": func(s string) string {
 			return strings.Replace(s, "-", "_", -1)
 		},
 	}
-	// Parse all files in jobs/*/*.
 	tmpl, err := template.New("job_templates").Funcs(funcs).ParseFS(jobTemplates, "jobs/*/*")
 	if err != nil {
 		log.Panicf("error parsing job templates: %v", err)
 	}
 
-	// Build client-go config.
 	var config *rest.Config
 
 	config, err = rest.InClusterConfig()
@@ -73,12 +67,9 @@ func NewKubernetesClient() orchestrator.Client {
 	}
 }
 
-// StartJob renders and creates all manifests (deployment, service, ingress, job) in the subdirectory
-// specified by job.TemplateName().
 func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 	slog.Info("starting kubernetes job", "job_name", job.GetJobName(), "template", job.TemplateName())
 
-	// Compute the subdirectory for the job's manifests.
 	subDir := fmt.Sprintf("jobs/%s", job.TemplateName())
 	entries, err := fs.ReadDir(jobTemplates, subDir)
 	if err != nil {
@@ -92,7 +83,6 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 			continue
 		}
 		fileName := entry.Name()
-		// Only process recognized manifest files.
 		if !(strings.HasSuffix(fileName, "deployment.yaml") ||
 			strings.HasSuffix(fileName, "service.yaml") ||
 			strings.HasSuffix(fileName, "ingress.yaml") ||
@@ -147,25 +137,21 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 	return nil
 }
 
-// StopJob deletes the Deployment, Service, and Ingress resources for a given jobName.
 func (c *KubernetesClient) StopJob(jobName string) error {
 	slog.Info("stopping kubernetes job resources", "job_name", jobName)
 	var errs []string
 	ctx := context.TODO()
 
-	// Delete Deployment.
 	if err := c.clientset.AppsV1().Deployments(c.namespace).Delete(ctx, jobName, metav1.DeleteOptions{}); err != nil {
 		slog.Error("error stopping deployment", "job_name", jobName, "error", err)
 		errs = append(errs, fmt.Sprintf("deployment: %v", err))
 	}
 
-	// Delete Service.
 	if err := c.clientset.CoreV1().Services(c.namespace).Delete(ctx, jobName, metav1.DeleteOptions{}); err != nil {
 		slog.Error("error stopping service", "job_name", jobName, "error", err)
 		errs = append(errs, fmt.Sprintf("service: %v", err))
 	}
 
-	// Delete Ingress.
 	if err := c.clientset.NetworkingV1().Ingresses(c.namespace).Delete(ctx, jobName, metav1.DeleteOptions{}); err != nil {
 		slog.Error("error stopping ingress", "job_name", jobName, "error", err)
 		errs = append(errs, fmt.Sprintf("ingress: %v", err))
@@ -178,7 +164,6 @@ func (c *KubernetesClient) StopJob(jobName string) error {
 	return nil
 }
 
-// JobInfo retrieves a simple status summary of the Deployment with the given jobName.
 func (c *KubernetesClient) JobInfo(jobName string) (orchestrator.JobInfo, error) {
 	ctx := context.TODO()
 	deployment, err := c.clientset.AppsV1().Deployments(c.namespace).Get(ctx, jobName, metav1.GetOptions{})
@@ -202,8 +187,6 @@ func (c *KubernetesClient) JobInfo(jobName string) (orchestrator.JobInfo, error)
 	return info, nil
 }
 
-// JobLogs retrieves logs from Pods that belong to the given job.
-// This example assumes that Pods are labeled with "app" equal to the jobName.
 func (c *KubernetesClient) JobLogs(jobName string) ([]orchestrator.JobLog, error) {
 	ctx := context.TODO()
 	podList, err := c.clientset.CoreV1().Pods(c.namespace).List(ctx, metav1.ListOptions{
@@ -230,7 +213,6 @@ func (c *KubernetesClient) JobLogs(jobName string) ([]orchestrator.JobLog, error
 	return logs, nil
 }
 
-// getPodLogs retrieves the logs for a given pod using the client-go PodLogs API.
 func (c *KubernetesClient) getPodLogs(podName string) (string, error) {
 	ctx := context.TODO()
 	podLogOpts := corev1.PodLogOptions{}
@@ -249,7 +231,6 @@ func (c *KubernetesClient) getPodLogs(podName string) (string, error) {
 	return builder.String(), nil
 }
 
-// ListServices returns information about services and their endpoints in the namespace.
 func (c *KubernetesClient) ListServices() ([]orchestrator.ServiceInfo, error) {
 	ctx := context.TODO()
 	svcList, err := c.clientset.CoreV1().Services(c.namespace).List(ctx, metav1.ListOptions{})
@@ -293,7 +274,6 @@ func (c *KubernetesClient) ListServices() ([]orchestrator.ServiceInfo, error) {
 	return services, nil
 }
 
-// TotalCpuUsage calculates the total CPU usage (in millicores) of running pods in the namespace.
 func (c *KubernetesClient) TotalCpuUsage() (int, error) {
 	ctx := context.TODO()
 	podList, err := c.clientset.CoreV1().Pods(c.namespace).List(ctx, metav1.ListOptions{})
@@ -322,7 +302,6 @@ func (c *KubernetesClient) TotalCpuUsage() (int, error) {
 	return totalMillicores, nil
 }
 
-// parseCPUQuantity converts a Kubernetes CPU quantity string (e.g., "250m" or "1") into an int value in millicores.
 func parseCPUQuantity(q string) (int, error) {
 	if strings.HasSuffix(q, "m") {
 		trimmed := strings.TrimSuffix(q, "m")

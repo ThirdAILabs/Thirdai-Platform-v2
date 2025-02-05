@@ -460,8 +460,8 @@ func validateTrainableCSV(filepath string, expectedHeaders []string, targetColum
 		}
 
 		if isTokenCSV {
-			sourceTokens := strings.Split(strings.TrimSpace(line[sourceColIndex]), " ")
-			targetTokens := strings.Split(strings.TrimSpace(line[targetColIndex]), " ")
+			sourceTokens := strings.Split(line[sourceColIndex], " ")
+			targetTokens := strings.Split(line[targetColIndex], " ")
 			if len(sourceTokens) != len(targetTokens) {
 				return nil, CodedError(fmt.Errorf("number of source tokens: %d ≠ number of target tokens: %d. Line: %v", len(sourceTokens), len(targetTokens), line), http.StatusUnprocessableEntity)
 			}
@@ -471,7 +471,7 @@ func validateTrainableCSV(filepath string, expectedHeaders []string, targetColum
 				}
 			}
 		} else {
-			labels[strings.TrimSpace(line[targetColIndex])] = true
+			labels[line[targetColIndex]] = true
 		}
 	}
 

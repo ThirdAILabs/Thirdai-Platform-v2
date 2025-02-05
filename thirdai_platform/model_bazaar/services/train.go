@@ -463,7 +463,7 @@ func validateTrainableCSV(filepath string, expectedHeaders []string, targetColum
 			sourceTokens := strings.Split(line[sourceColIndex], " ")
 			targetTokens := strings.Split(line[targetColIndex], " ")
 			if len(sourceTokens) != len(targetTokens) {
-				return nil, CodedError(fmt.Errorf("number of source tokens: %d ≠ number of target tokens: %d. Line: %v", len(sourceTokens), len(targetTokens), line), http.StatusUnprocessableEntity)
+				return nil, CodedError(fmt.Errorf("number of source tokens: %d ≠ number of target tokens: %d. Invalid line: '%v'", len(sourceTokens), len(targetTokens), strings.Join(line, ",")), http.StatusUnprocessableEntity)
 			}
 			for _, token := range targetTokens {
 				if token != "O" {

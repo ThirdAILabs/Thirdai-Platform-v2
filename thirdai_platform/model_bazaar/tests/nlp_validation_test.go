@@ -38,7 +38,10 @@ func TestTrainableCSVValidation(t *testing.T) {
 		var response map[string][]string
 
 		err := client.Post("/train/validate-trainable-csv").Json(services.TrainableCSVRequest{UploadId: uploadID, FileType: "text"}).Do(&response)
-		if err == nil || !strings.Contains(err.Error(), "only CSV file is supported") {
+		if err == nil {
+			t.Fatal("Only CSV file should've been supported")
+		}
+		if !strings.Contains(err.Error(), "only CSV file is supported") {
 			t.Fatal(err)
 		}
 	}
@@ -54,7 +57,10 @@ func TestTrainableCSVValidation(t *testing.T) {
 
 		uploadID := uploadFunc(textFile1)
 		err := client.Post("/train/validate-trainable-csv").Json(services.TrainableCSVRequest{UploadId: uploadID, FileType: "text"}).Do(&response)
-		if err == nil || !strings.Contains(err.Error(), "invalid column") {
+		if err == nil {
+			t.Fatal("text-csv file with invalid headers shouldn't get validated")
+		}
+		if !strings.Contains(err.Error(), "invalid column") {
 			t.Fatal(err)
 		}
 	}
@@ -70,7 +76,10 @@ func TestTrainableCSVValidation(t *testing.T) {
 
 		uploadID := uploadFunc(textFile2)
 		err := client.Post("/train/validate-trainable-csv").Json(services.TrainableCSVRequest{UploadId: uploadID, FileType: "text"}).Do(&response)
-		if err == nil || !strings.Contains(err.Error(), "wrong number of fields") {
+		if err == nil {
+			t.Fatal("text-csv file with wrong number of fields shouldn't get validated")
+		}
+		if !strings.Contains(err.Error(), "wrong number of fields") {
 			t.Fatal(err)
 		}
 	}
@@ -86,7 +95,10 @@ func TestTrainableCSVValidation(t *testing.T) {
 
 		uploadID := uploadFunc(tokenFile2)
 		err := client.Post("/train/validate-trainable-csv").Json(services.TrainableCSVRequest{UploadId: uploadID, FileType: "token"}).Do(&response)
-		if err == nil || !strings.Contains(err.Error(), "number of source tokens: 5 ≠ number of target tokens: 6") {
+		if err == nil {
+			t.Fatal("token-csv file with with incorrect source and target length shouldn't get validated")
+		}
+		if !strings.Contains(err.Error(), "number of source tokens: 5 ≠ number of target tokens: 6") {
 			t.Fatal(err)
 		}
 	}

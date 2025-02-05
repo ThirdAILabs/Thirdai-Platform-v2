@@ -502,7 +502,12 @@ func (s *TrainService) ValidateTokenTextClassificationCSV(w http.ResponseWriter,
 	if !utils.ParseRequestBody(w, r, &options) {
 		return
 	}
-	if idx := IndexOf([]string{"text", "token"}, options.FileType); idx == -1 {
+	switch options.FileType {
+	case "text", "token": 
+	 // ok - nothing to do
+	 default:
+	  http.Error(....)
+	  return
 		http.Error(w, fmt.Sprintf("%v is not suppported. Supported types: ['text', 'token']", options.FileType), http.StatusUnprocessableEntity)
 		return
 	}

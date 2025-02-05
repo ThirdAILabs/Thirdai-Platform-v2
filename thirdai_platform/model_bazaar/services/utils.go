@@ -553,3 +553,13 @@ func checkModelExists(txn *gorm.DB, modelId uuid.UUID) error {
 	}
 	return nil
 }
+
+func checkUserTeamExists(txn *gorm.DB, userId, teamId uuid.UUID) error {
+	if _, err := schema.GetUserTeam(teamId, userId, txn); err != nil {
+		if errors.Is(err, schema.ErrUserTeamNotFound) {
+			return CodedError(err, http.StatusNotFound)
+		}
+		return CodedError(err, http.StatusInternalServerError)
+	}
+	return nil
+}

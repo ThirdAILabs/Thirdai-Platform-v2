@@ -203,6 +203,10 @@ func (s *TeamService) RemoveUserFromTeam(w http.ResponseWriter, r *http.Request)
 			return err
 		}
 
+		if err := checkUserTeamExists(txn, userId, teamId); err != nil {
+			return err
+		}
+
 		result := txn.Delete(&schema.UserTeam{UserId: userId, TeamId: teamId})
 		if result.Error != nil {
 			slog.Error("sql error deleting user_team entry", "team_id", teamId, "user_id", userId, "error", result.Error)
@@ -371,7 +375,11 @@ func (s *TeamService) RemoveTeamAdmin(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		result := txn.Save(&schema.UserTeam{TeamId: teamId, UserId: userId, IsTeamAdmin: false})
+		if err := checkUserTeamExists(txn, userId, teamId); err != nil {
+			return err
+		}
+
+		result := txn.Model(&schema.UserTeam{TeamId: teamId, UserId: userId}).Update("is_team_admin", false)
 		if result.Error != nil {
 			slog.Error("sql error removing user team admin permission", "user_id", userId, "team_id", teamId, "error", result.Error)
 			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)

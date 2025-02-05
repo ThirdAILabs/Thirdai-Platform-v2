@@ -5,6 +5,28 @@ import (
 	"thirdai_platform/deployment"
 )
 
+func checkCacheQuery(t *testing.T, cache *deployment.LLMCache, query string, referenceIds []uint64, expectedAnswer string) {
+	response, err := cache.Query(query, referenceIds)
+	if err != nil {
+		t.Fatalf("failed to query cache: %v", err)
+	}
+	if response != expectedAnswer {
+		t.Fatalf("expected response %s, got '%s'", expectedAnswer, response)
+	}
+}
+
+func checkCacheSuggestions(t *testing.T, cache *deployment.LLMCache, query string, expectedSuggestions []string) {
+	suggestions, err := cache.Suggestions(query)
+	if err != nil {
+		t.Fatalf("failed to get cache suggestions: %v", err)
+	}
+	for i, expected := range expectedSuggestions {
+		if suggestions[i] != expected {
+			t.Fatalf("suggestion mismatch at index %d: expected %s, got %s", i, expected, suggestions[i])
+		}
+	}
+}
+
 func TestLLMCache(t *testing.T) {
 	err := verifyTestLicense()
 	if err != nil {
@@ -15,59 +37,39 @@ func TestLLMCache(t *testing.T) {
 	modelID := "test_model"
 
 	cache, err := deployment.NewLLMCache(modelbazaardir, modelID)
-	if err != nil {
+	if err != nil || cache == nil {
 		t.Fatalf("failed to create LLMCache: %v", err)
-	}
-	if cache == nil {
-		t.Fatalf("cache should not be nil")
 	}
 	defer cache.Close()
 
-	suggestions, err := cache.Suggestions("test query")
-	if err != nil {
-		t.Fatalf("failed to get suggestions: %v", err)
-	}
-	if len(suggestions) != 0 {
-		t.Fatalf("suggestions should be empty, got: %v", suggestions)
-	}
+	checkCacheSuggestions(t, cache, "test query", []string{})
 
-	answer, err := cache.Query("test query", []uint64{0})
-	if err != nil {
-		t.Fatalf("error from cache.Query: %v", err)
-	}
-	if answer != "" {
-		t.Fatalf("expected no results from query on empty cache, got answer %s", answer)
-	}
+	checkCacheQuery(t, cache, "test query", []uint64{0}, "")
 
 	err = cache.Insert("test query", "test response", []uint64{0, 1, 2})
 	if err != nil {
 		t.Fatalf("failed to insert into cache: %v", err)
 	}
 
-	suggestions, err = cache.Suggestions("test query")
+	checkCacheSuggestions(t, cache, "test query", []string{"test query"})
+	checkCacheQuery(t, cache, "test query", []uint64{0, 1, 2}, "test response")
+	checkCacheQuery(t, cache, "test query and other diluting tokens", []uint64{0, 1, 2}, "")
+
+	// test eviction after incorrect ref ids are queried
+	checkCacheQuery(t, cache, "test query", []uint64{100, 200, 300}, "")
+	checkCacheQuery(t, cache, "test query", []uint64{0, 1, 2}, "")
+
+	// multiple insertion shouldn't fail
+	err = cache.Insert("test query", "test response", []uint64{0, 1, 2})
 	if err != nil {
-		t.Fatalf("failed to get suggestions: %v", err)
+		t.Fatalf("failed to insert into cache: %v", err)
 	}
-	if len(suggestions) == 0 {
-		t.Fatalf("suggestions should not be empty")
-	}
-	if suggestions[0] != "test query" {
-		t.Fatalf("incorrect suggestion %s", suggestions[0])
+	err = cache.Insert("test query", "another response", []uint64{0, 1, 2})
+	if err != nil {
+		t.Fatalf("failed to insert into cache: %v", err)
 	}
 
-	response, err := cache.Query("test query", []uint64{0, 1, 2})
-	if err != nil {
-		t.Fatalf("failed to query cache: %v", err)
-	}
-	if response != "test response" {
-		t.Fatalf("expected response 'test response', got '%s'", response)
-	}
-
-	response, err = cache.Query("test query and other diluting tokens", []uint64{0, 1, 2})
-	if err != nil {
-		t.Fatalf("failed to query cache: %v", err)
-	}
-	if response != "" {
-		t.Fatalf("expected empty response, got '%s'", response)
-	}
+	// test eviction kicks out all instances of a query
+	checkCacheQuery(t, cache, "test query", []uint64{}, "")
+	checkCacheQuery(t, cache, "test query", []uint64{0, 1, 2}, "")
 }

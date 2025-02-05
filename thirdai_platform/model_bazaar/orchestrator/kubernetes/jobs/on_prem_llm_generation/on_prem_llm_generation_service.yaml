@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: on-prem-generation
+  labels:
+    app: on-prem-generation
+spec:
+  selector:
+    app: on-prem-generation
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

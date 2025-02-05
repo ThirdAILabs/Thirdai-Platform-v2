@@ -315,12 +315,17 @@ func (s *NdbRouter) HighlightedPdf(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Request) {
+	var req llm_generation.GenerateRequest
+	if !utils.ParseRequestBody(w, r, &req) {
+		return
+	}
+
 	if s.LLMProvider == nil {
 		http.Error(w, "LLM provider not found", http.StatusInternalServerError)
 		return
 	}
 
-	if err := llm_generation.StreamResponse(s.LLMProvider, w, r); err != nil {
+	if err := llm_generation.StreamResponse(s.LLMProvider, req, w, r); err != nil {
 		// Any error has already been sent to client, just return
 		return
 	}

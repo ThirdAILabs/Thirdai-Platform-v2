@@ -260,12 +260,7 @@ var NewLLMProvider NewLLMProviderFunc = func(provider, apiKey string) (LLMProvid
 	}
 }
 
-func StreamResponse(llm LLMProvider, w http.ResponseWriter, r *http.Request) error {
-	var req GenerateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return fmt.Errorf("request parsing error: %v", err)
-	}
-
+func StreamResponse(llm LLMProvider, req GenerateRequest, w http.ResponseWriter, r *http.Request) error {
 	textChan, errChan := llm.Stream(&req)
 
 	w.Header().Set("Content-Type", "text/event-stream")

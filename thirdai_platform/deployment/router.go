@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -95,8 +94,7 @@ type SearchResults struct {
 
 func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 	var req SearchRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
+	if !utils.ParseRequestBody(w, r, &req) {
 		return
 	}
 
@@ -131,10 +129,7 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := json.NewEncoder(w).Encode(&results); err != nil {
-		http.Error(w, fmt.Sprintf("response encoding error: %v", err), http.StatusInternalServerError)
-		return
-	}
+	utils.WriteJsonResponse(w, &results)
 }
 
 type InsertRequest struct {
@@ -145,13 +140,11 @@ type InsertRequest struct {
 	Version  *uint                    `json:"version,omitempty"`
 }
 
-
-//TODO how to do insert from files that already have been uploaded? 
+// TODO how to do insert from files that already have been uploaded?
 // do we need go bindings for documents or to parse them with a service beforehand?
 func (s *NdbRouter) Insert(w http.ResponseWriter, r *http.Request) {
 	var req InsertRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
+	if !utils.ParseRequestBody(w, r, &req) {
 		return
 	}
 
@@ -170,8 +163,7 @@ type DeleteRequest struct {
 
 func (s *NdbRouter) Delete(w http.ResponseWriter, r *http.Request) {
 	var req DeleteRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
+	if !utils.ParseRequestBody(w, r, &req) {
 		return
 	}
 
@@ -202,8 +194,7 @@ type UpvoteInput struct {
 
 func (s *NdbRouter) Upvote(w http.ResponseWriter, r *http.Request) {
 	var req UpvoteInput
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
+	if !utils.ParseRequestBody(w, r, &req) {
 		return
 	}
 
@@ -234,8 +225,7 @@ type AssociateInput struct {
 
 func (s *NdbRouter) Associate(w http.ResponseWriter, r *http.Request) {
 	var req AssociateInput
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
+	if !utils.ParseRequestBody(w, r, &req) {
 		return
 	}
 
@@ -290,10 +280,7 @@ func (s *NdbRouter) Sources(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := json.NewEncoder(w).Encode(results); err != nil {
-		http.Error(w, fmt.Sprintf("response encoding error: %v", err), http.StatusInternalServerError)
-		return
-	}
+	utils.WriteJsonResponse(w, results)
 }
 
 func (s *NdbRouter) Save(w http.ResponseWriter, r *http.Request) {

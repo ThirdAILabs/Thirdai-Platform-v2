@@ -22,7 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 
 	"thirdai_platform/model_bazaar/orchestrator"
 )
@@ -39,7 +38,7 @@ type KubernetesClient struct {
 
 // NewKubernetesClient creates a new KubernetesClient.
 // If kubeconfigPath is non-empty, that configuration is used; otherwise, the in-cluster config is used.
-func NewKubernetesClient(endpoint string, token string, namespace string, kubeconfigPath string) orchestrator.Client {
+func NewKubernetesClient() orchestrator.Client {
 	// Prepare template helper functions.
 	funcs := template.FuncMap{
 		"replaceHyphen": func(s string) string {
@@ -54,16 +53,10 @@ func NewKubernetesClient(endpoint string, token string, namespace string, kubeco
 
 	// Build client-go config.
 	var config *rest.Config
-	if kubeconfigPath != "" {
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-		if err != nil {
-			log.Panicf("error building kubeconfig: %v", err)
-		}
-	} else {
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			log.Panicf("error getting in-cluster config: %v", err)
-		}
+
+	config, err = rest.InClusterConfig()
+	if err != nil {
+		log.Panicf("error getting in-cluster config: %v", err)
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
@@ -71,6 +64,7 @@ func NewKubernetesClient(endpoint string, token string, namespace string, kubeco
 		log.Panicf("error creating kubernetes clientset: %v", err)
 	}
 
+	namespace := "thirdai-platform"
 	slog.Info("creating kubernetes client", "namespace", namespace)
 	return &KubernetesClient{
 		namespace: namespace,

@@ -36,8 +36,7 @@ type modelBazaarEnv struct {
 	LicensePath                string
 	NomadEndpoint              string
 	NomadToken                 string
-	KubernetesEndpoint         string
-	KubernetesToken            string
+	Kubernetes                 string
 	ShareDir                   string
 	JwtSecret                  string
 
@@ -178,7 +177,7 @@ func loadEnv() modelBazaarEnv {
 		log.Fatal("If JOBS_IMAGE_NAME or FRONTEND_IMAGE_NAME env vars are specified then TAG must be specified as well.")
 	}
 
-	if (env.NomadEndpoint != "" && env.KubernetesEndpoint != "") || (env.NomadEndpoint == "" && env.KubernetesEndpoint == "") {
+	if (env.NomadEndpoint != "" && env.Kubernetes != "") || (env.NomadEndpoint == "" && env.Kubernetes == "") {
 		log.Fatal("Must specify exactly one of NOMAD_ENDPOINT or KUBERNETES_ENDPOINT")
 	}
 	if env.NomadEndpoint != "" && env.NomadToken == "" {
@@ -314,7 +313,7 @@ func main() {
 
 	if env.NomadEndpoint != "" {
 		orchestratorClient = nomad.NewNomadClient(env.NomadEndpoint, env.NomadToken)
-	} else if env.KubernetesEndpoint != "" {
+	} else if env.Kubernetes != "" {
 		orchestratorClient = kubernetes.NewKubernetesClient()
 	}
 

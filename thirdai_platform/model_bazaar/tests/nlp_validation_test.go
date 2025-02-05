@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestTrainableCSVValidation(t *testing.T) {
+func TestTrainableCsvValidation(t *testing.T) {
 	env := setupTestEnv(t)
 
 	client, err := env.newUser("abc")

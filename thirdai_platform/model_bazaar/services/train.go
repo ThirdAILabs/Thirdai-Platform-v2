@@ -10,7 +10,6 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
-	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -426,8 +425,8 @@ func ValidateCSVHeader(fileHeaders []string, expectedHeaders []string) error {
 	return nil
 }
 
-func validateTrainableCSV(filepath string, expectedHeaders []string, targetColumn string, isTokenCSV bool) ([]string, error) {
-	file, err := os.Open(filepath)
+func (s *TrainService) validateTrainableCSV(filepath string, expectedHeaders []string, targetColumn string, isTokenCSV bool) ([]string, error) {
+	file, err := s.storage.Read(filepath)
 	if err != nil {
 		return nil, CodedError(fmt.Errorf("unable to open file. error: %w", err), http.StatusUnprocessableEntity)
 	}
@@ -522,17 +521,16 @@ func (s *TrainService) ValidateTokenTextClassificationCSV(w http.ResponseWriter,
 		return
 	}
 
-	filePaths, err := walkDirectory(trainConfig[0].Path)
+	fileNames, err := s.storage.List(storage.UploadPath(options.UploadId))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
 		return
 	}
-	if len(filePaths) != 1 {
-		http.Error(w, fmt.Sprintf("Only one file should be used. found %v files", len(filePaths)), http.StatusUnsupportedMediaType)
+	if len(fileNames) != 1 {
+		http.Error(w, fmt.Sprintf("Only one file should be used. found %v files", len(fileNames)), http.StatusUnsupportedMediaType)
 		return
 	}
-
-	trainableCSVFilePath := filePaths[0]
+	trainableCSVFilePath := filepath.Join(storage.UploadPath(options.UploadId), fileNames[0])
 
 	if strings.ToLower(filepath.Ext(trainableCSVFilePath)) != ".csv" {
 		http.Error(w, "only CSV file is supported", http.StatusUnsupportedMediaType)
@@ -543,13 +541,13 @@ func (s *TrainService) ValidateTokenTextClassificationCSV(w http.ResponseWriter,
 	var validation_err error
 
 	if options.FileType == "text" {
-		labels, validation_err = validateTrainableCSV(trainableCSVFilePath, []string{"text", "labels"}, "labels", false)
+		labels, validation_err = s.validateTrainableCSV(trainableCSVFilePath, []string{"text", "labels"}, "labels", false)
 		if validation_err != nil {
 			http.Error(w, fmt.Sprintf("Validation failed: %v", validation_err.Error()), GetResponseCode(validation_err))
 			return
 		}
 	} else {
-		labels, validation_err = validateTrainableCSV(trainableCSVFilePath, []string{"source", "target"}, "target", true)
+		labels, validation_err = s.validateTrainableCSV(trainableCSVFilePath, []string{"source", "target"}, "target", true)
 		if validation_err != nil {
 			http.Error(w, fmt.Sprintf("Validation failed: %v", validation_err.Error()), GetResponseCode(validation_err))
 			return

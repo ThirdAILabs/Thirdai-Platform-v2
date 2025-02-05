@@ -176,9 +176,9 @@ func (c *LLMCache) Query(query string, expectedReferenceIds []uint64) (string, e
 
 	// if the references have changed for the same query, delete it from the cache
 	// since the underlying neuraldb has changed and the response might not be valid
-	if query == topChunk.Text {
-		c.Ndb.DeleteChunks([]uint64{topChunk.Id})
-	}
+	// if query == topChunk.Text {
+	// 	c.Ndb.DeleteChunks([]uint64{topChunk.Id})
+	// }
 
 	// since the underlying references have changed, we don't return any response here
 	return "", nil

@@ -8,6 +8,9 @@ func verifyTestLicense() error {
 	if err != nil {
 		return err
 	}
-	licensing.ActivateThirdAILicense(license.License.BoltLicenseKey)
+	err = licensing.ActivateThirdAILicense(license.License.BoltLicenseKey)
+	if err != nil {
+		return err
+	}
 	return nil
 }

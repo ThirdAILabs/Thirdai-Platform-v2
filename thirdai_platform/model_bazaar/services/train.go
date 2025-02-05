@@ -483,7 +483,7 @@ type TrainableCSVRequest struct {
 }
 
 type TrainableCSVResponse struct {
-	labels []string
+	Labels []string `json:"labels"`
 }
 
 func (s *TrainService) ValidateTokenTextClassificationCSV(w http.ResponseWriter, r *http.Request) {

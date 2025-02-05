@@ -131,7 +131,7 @@ export default function Teams() {
         return;
       }
 
-      await addUserToTeam(user.email, team.id);
+      await addUserToTeam(user.id, team.id);
       await getTeamsData();
       await getUsersData();
       setSelectedTeamForAdd('Select Team');
@@ -174,7 +174,7 @@ export default function Teams() {
         return;
       }
 
-      await deleteUserFromTeam(user.email, team.id);
+      await deleteUserFromTeam(user.id, team.id);
       await getTeamsData();
       await getUsersData();
       setSelectedTeamForRemove('Select Team');
@@ -219,7 +219,7 @@ export default function Teams() {
       }
 
       try {
-        await assignTeamAdmin(user.email, selectedTeam.id);
+        await assignTeamAdmin(user.id, selectedTeam.id);
         await getTeamsData();
         await getUsersData();
         setSelectedTeamForAddAdmin('Select Team');
@@ -258,7 +258,7 @@ export default function Teams() {
         return;
       }
       try {
-        await removeTeamAdmin(user.email, selectedTeam.id);
+        await removeTeamAdmin(user.id, selectedTeam.id);
         await getTeamsData();
         await getUsersData();
         setSelectedTeamForRemoveAdmin('Select Team');

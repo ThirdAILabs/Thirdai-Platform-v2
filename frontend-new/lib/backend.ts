@@ -2104,12 +2104,12 @@ interface ModelResponse {
 interface UserTeamInfo {
   team_id: string;
   team_name: string;
-  role: 'Member' | 'team_admin' | 'Global Admin';
+  team_admin: boolean;
 }
 
 interface UserResponse {
   email: string;
-  global_admin: boolean;
+  admin: boolean;
   id: string;
   teams: UserTeamInfo[];
   username: string;
@@ -2182,16 +2182,29 @@ export async function fetchAllUsers(): Promise<{ data: UserResponse[] }> {
   });
 }
 
-export async function verifyUser(email: string): Promise<void> {
+export async function verifyUser(user_id: string): Promise<void> {
   const accessToken = getAccessToken();
-
-  return axios.post(
-    `${thirdaiPlatformBaseUrl}/api/user/verify-user`,
-    { email },
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
+  try {
+    const response = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/user/${user_id}/verify`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        contentType: 'application/json',
+      }
+    }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => { });
+      alert('Error verifying user:' + errorData.detail);
+      throw new Error(errorData.detail || 'Failed to verify user');
+    }
+  }
+  catch (error) {
+    console.error('Error verifying user:', error);
+    alert('Error verifying user:' + error);
+    throw error;
+  }
 }
-
 // MODEL //
 
 export async function updateModelAccessLevel(
@@ -2297,7 +2310,7 @@ export async function addUserToTeam(user_id: string, team_id: string): Promise<v
   }
 }
 
-export async function assignTeamAdmin(user_id: string, team_id: string) {
+export async function assignTeamAdmin(user_id: string, team_id: string): Promise<void> {
   const accessToken = getAccessToken();
   try {
     const response = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/team/${team_id}/admins/${user_id}`, {
@@ -2319,16 +2332,13 @@ export async function assignTeamAdmin(user_id: string, team_id: string) {
   }
 }
 
-export async function removeTeamAdmin(email: string, team_id: string) {
+export async function removeTeamAdmin(user_id: string, team_id: string) {
   const accessToken = getAccessToken();
 
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
-  const params = new URLSearchParams({ email, team_id });
-
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/team/remove-team-admin?${params.toString()}`)
+      .delete(`${thirdaiPlatformBaseUrl}/api/v2/team/${team_id}/admins/${user_id}`)
       .then((res) => {
         resolve(res.data);
       })
@@ -2338,16 +2348,13 @@ export async function removeTeamAdmin(email: string, team_id: string) {
   });
 }
 
-export async function deleteUserFromTeam(email: string, team_id: string): Promise<void> {
+export async function deleteUserFromTeam(user_id: string, team_id: string): Promise<void> {
   const accessToken = getAccessToken();
-
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
-  const params = new URLSearchParams({ email, team_id });
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/team/remove-user-from-team?${params.toString()}`)
+      .delete(`${thirdaiPlatformBaseUrl}/api/v2/team/${team_id}/users/${user_id}`)
       .then(() => {
         resolve();
       })
@@ -2376,25 +2383,27 @@ export async function deleteTeamById(team_id: string): Promise<void> {
 
 // USER //
 
-export async function deleteUserAccount(email: string): Promise<void> {
+export async function deleteUserAccount(user_id: string): Promise<void> {
   const accessToken = getAccessToken(); // Ensure this function is implemented elsewhere in your codebase
-
+  try {
+    const response = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/user/${user_id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        contentType: 'application/json',
+      }
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => { });
+      alert('Error deleting user account:' + errorData.detail);
+      throw new Error(errorData.detail || 'Failed to delete user account');
+    }
+  }
+  catch (error) {
+    console.error('Error deleting user account:', error);
+    alert('Error deleting user account:' + error);
+  }
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
-  return new Promise((resolve, reject) => {
-    axios
-      .delete(`${thirdaiPlatformBaseUrl}/api/user/delete-user`, {
-        data: { email },
-      })
-      .then(() => {
-        resolve();
-      })
-      .catch((err) => {
-        console.error('Error deleting user:', err);
-        alert('Error deleting user:' + err);
-        reject(err);
-      });
-  });
 }
 
 export interface AddUserPayload {
@@ -2422,7 +2431,6 @@ export async function addUser(userData: AddUserPayload): Promise<AddUserResponse
       console.error('Error adding user');
     }
     const data = await response.json();
-    console.log('data in create user:', data);
     return data;
   } catch (error) {
     console.error('Error adding user:', error);
@@ -2430,22 +2438,26 @@ export async function addUser(userData: AddUserPayload): Promise<AddUserResponse
   }
 }
 
-export async function promoteUserToGlobalAdmin(email: string): Promise<void> {
+export async function promoteUserToGlobalAdmin(user_id: string): Promise<void> {
   const accessToken = getAccessToken();
-
-  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-  return new Promise((resolve, reject) => {
-    axios
-      .post(`${thirdaiPlatformBaseUrl}/api/user/add-global-admin`, { email: email })
-      .then(() => {
-        resolve();
-      })
-      .catch((err) => {
-        console.error('Error promoting user:', err);
-        alert('Error promoting user:' + err);
-        reject(err);
-      });
-  });
+  try {
+    const response = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/user/${user_id}/admin`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        contentType: 'application/json',
+      }
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => { });
+      alert('Error promoting user:' + errorData.detail);
+      throw new Error(errorData.detail || 'Failed to promote user');
+    }
+  }
+  catch (error) {
+    console.error('Error promoting user:', error);
+    alert('Error promoting user:' + error);
+  }
 }
 
 export async function updateModel(modelIdentifier: string): Promise<void> {

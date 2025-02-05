@@ -455,7 +455,7 @@ func validateTrainableCSV(filepath string, expectedHeaders []string, targetColum
 		return []string{}, CodedError(fmt.Errorf("unable to read file. error: %w", err), http.StatusUnprocessableEntity)
 	}
 
-	targetColIndex := IndexOf(fileHeaders, targetColumn)
+	targetColIndex := slices.Index(fileHeaders, targetColumn)
 
 	labels := make(map[string]bool)
 

@@ -8,14 +8,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
-	"strconv"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/search/ndb"
 	"thirdai_platform/utils"
 	"thirdai_platform/utils/llm_generation"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -55,20 +52,14 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 		}
 	}
 
-	router := &NdbRouter{
+	return &NdbRouter{
 		Ndb:         ndb,
 		Config:      config,
 		Reporter:    reporter,
 		Permissions: &Permissions{config.ModelBazaarEndpoint, config.ModelId},
 		LLMCache:    llmCache,
 		LLMProvider: llmProvider,
-	}
-
-	if router.LLMCache != nil {
-		go router.backgroundCacheEvictionLoop()
-	}
-
-	return router, nil
+	}, nil
 }
 
 func (s *NdbRouter) Close() {
@@ -388,12 +379,12 @@ func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-type CacheQuery struct {
+type CacheSuggestionsQuery struct {
 	Query string `json:"query"`
 }
 
 func (s *NdbRouter) CacheSuggestions(w http.ResponseWriter, r *http.Request) {
-	var req CacheQuery
+	var req CacheSuggestionsQuery
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
 		return
@@ -413,6 +404,11 @@ func (s *NdbRouter) CacheSuggestions(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"suggestions": suggestions})
 }
 
+type CacheQuery struct {
+	Query        string   `json:"query"`
+	ReferenceIds []uint64 `json:"reference_ids"`
+}
+
 func (s *NdbRouter) GenerationCache(w http.ResponseWriter, r *http.Request) {
 	var req CacheQuery
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -425,64 +421,20 @@ func (s *NdbRouter) GenerationCache(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.LLMCache.Query(req.Query)
+	result, err := s.LLMCache.Query(req.Query, req.ReferenceIds)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("cache query error: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{"result": result})
-}
-
-func (s *NdbRouter) backgroundCacheEvictionLoop() {
-	for {
-		time.Sleep(5 * time.Minute)
-		modifiedChunks := s.Ndb.NumChunks() + s.Ndb.NumUpvotes()
-
-		filePath := filepath.Join(s.Config.ModelBazaarDir, "models", s.Config.ModelId.String(), "llm_cache", "chunks_last_cache_update.txt")
-
-		data, err := os.ReadFile(filePath)
-		if err != nil {
-			//TODO propagate errors
-		}
-
-		prevModifiedChunks, err := strconv.Atoi(string(data))
-		if err != nil {
-			// TODO propagate errors
-		}
-
-		percentageUntilCacheUpdate := 1.1
-		shouldUpdateCache := float64(prevModifiedChunks)*percentageUntilCacheUpdate < modifiedChunks
-
-		if shouldUpdateCache {
-			var chunkIdsToDelete []uint64
-			for _, cacheChunk := range s.LLMCache.Chunks() {
-				query := cacheChunk.Text
-				expectedReferenceIds := cacheChunk.Metadata["reference_ids"]
-				returnedChunks, err := s.Ndb.Query(query, len(expectedReferenceIds), nil)
-				if err != nil {
-					// TODO propagate errors
-				}
-
-				actualReferenceIds := make([]uint64, len(expectedReferenceIds))
-				for i, returnedChunk := range returnedChunks {
-					actualReferenceIds[i] = returnedChunk.Id
-				}
-
-				slices.Sort(expectedReferenceIds)
-				slices.Sort(actualReferenceIds)
-				if slices.Equal(expectedReferenceIds, actualReferenceIds) {
-					chunkIdsToDelete = append(chunkIdsToDelete, cacheChunk.Id)
-				}
-			}
-
-			// TODO keep the evicted queries and their responses, log to a json file?
-			s.LLMCache.DeleteChunks(chunkIdsToDelete)
-
-			err := os.WriteFile(filePath, []byte(strconv.Itoa(modifiedChunks)), 0644)
-			if err != nil {
-				// TODO propagate errors
-			}
-		}
+	if result == "" {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"message": "No cached result found",
+			"result":  result,
+		})
+		return
 	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{"result": result})
 }

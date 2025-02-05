@@ -445,7 +445,7 @@ func validateTrainableCSV(filepath string, expectedHeaders []string, targetColum
 
 	file, err := os.Open(filepath)
 	if err != nil {
-		return []string{}, CodedError(fmt.Errorf("unable to open file. error: %w", err), http.StatusUnprocessableEntity)
+		return nil, CodedError(fmt.Errorf("unable to open file. error: %w", err), http.StatusUnprocessableEntity)
 	}
 	defer file.Close()
 

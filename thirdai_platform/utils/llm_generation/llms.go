@@ -260,8 +260,8 @@ var NewLLMProvider NewLLMProviderFunc = func(provider, apiKey string) (LLMProvid
 	}
 }
 
-func StreamResponse(llm LLMProvider, req *GenerateRequest, w http.ResponseWriter, r *http.Request) (string, error) {
-	textChan, errChan := llm.Stream(req)
+func StreamResponse(llm LLMProvider, req GenerateRequest, w http.ResponseWriter, r *http.Request) (string, error) {
+	textChan, errChan := llm.Stream(&req)
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	flusher, ok := w.(http.Flusher)

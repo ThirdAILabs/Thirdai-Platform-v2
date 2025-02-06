@@ -8,11 +8,11 @@ To run model bazaar locally follow the local setup instructions under `local_set
 
 ### Unit Tests
 
-To run the `model_bazaar` unit tests you can navigate to the `model_bazaar/` directory and run `go test ./model_bazaar/tests`. To run a specific test pass the flag `--run <name of test>`, and to display output from tests (logs + print statements) pass the `-v` flag. 
+To run the `model_bazaar` unit tests you can navigate to the `thirdai_platform/` directory and run `go test ./model_bazaar/tests`. To run a specific test pass the flag `--run <name of test>`, and to display output from tests (logs + print statements) pass the `-v` flag. 
 
 ### Integration Tests
 
-To run the integration tests you can navigate to the `model_bazaar/` directory and run `go test ./integration_tests`. To run a specific test pass the flag `--run <name of test>`, and to display output from tests (logs + print statements) pass the `-v` flag. 
+To run the integration tests you can navigate to the `thirdai_platform/` directory and run `go test ./integration_tests`. To run a specific test pass the flag `--run <name of test>`, and to display output from tests (logs + print statements) pass the `-v` flag. 
 
 ## DB Migrations
 

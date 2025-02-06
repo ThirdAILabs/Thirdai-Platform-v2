@@ -19,7 +19,7 @@ import (
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
-	"thirdai_platform/model_bazaar/utils"
+	"thirdai_platform/utils"
 	"time"
 
 	"github.com/go-chi/chi/v5"

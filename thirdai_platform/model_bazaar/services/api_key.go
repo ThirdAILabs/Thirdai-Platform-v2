@@ -12,7 +12,7 @@ import (
 	"strings"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/schema"
-	"thirdai_platform/model_bazaar/utils"
+	"thirdai_platform/utils"
 	"time"
 
 	"github.com/go-chi/chi/v5"

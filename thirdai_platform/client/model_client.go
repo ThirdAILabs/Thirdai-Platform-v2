@@ -11,9 +11,13 @@ import (
 )
 
 type ModelClient struct {
-	baseClient
+	BaseClient
 	modelId        uuid.UUID
 	deploymentName *string
+}
+
+func NewModelClient(baseUrl string, authToken string, modelId uuid.UUID) ModelClient {
+	return ModelClient{BaseClient: BaseClient{baseUrl: baseUrl, authToken: authToken}, modelId: modelId}
 }
 
 func (c *ModelClient) GetModelID() uuid.UUID {
@@ -136,6 +140,12 @@ func (c *ModelClient) Download(dstPath string) error {
 			return err
 		},
 	)
+}
+
+func (c *ModelClient) GetPermissions() (services.ModelPermissions, error) {
+	var res services.ModelPermissions
+	err := c.Get(fmt.Sprintf("/api/v2/model/%v/permissions", c.modelId)).Do(&res)
+	return res, err
 }
 
 type newModelResponse struct {

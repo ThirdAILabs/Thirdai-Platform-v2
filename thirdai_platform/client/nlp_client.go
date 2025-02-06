@@ -71,7 +71,7 @@ func (c *NlpTokenClient) Retrain(name string) (*NlpTokenClient, error) {
 
 	return &NlpTokenClient{
 		ModelClient{
-			BaseClient: c.BaseClient,
+			baseClient: c.baseClient,
 			modelId:    res.ModelId,
 		},
 	}, nil

@@ -12,7 +12,7 @@ import (
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/storage"
-	"thirdai_platform/utils"
+	"thirdai_platform/model_bazaar/utils"
 
 	"github.com/go-chi/chi/v5"
 	"gorm.io/driver/postgres"

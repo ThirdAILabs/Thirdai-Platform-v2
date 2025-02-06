@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"thirdai_platform/model_bazaar/nomad"
-	"thirdai_platform/utils"
+	"thirdai_platform/model_bazaar/utils"
 
 	"github.com/go-chi/chi/v5"
 )

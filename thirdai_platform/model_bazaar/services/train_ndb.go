@@ -13,7 +13,7 @@ import (
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
-	"thirdai_platform/utils"
+	"thirdai_platform/model_bazaar/utils"
 
 	"github.com/google/uuid"
 )

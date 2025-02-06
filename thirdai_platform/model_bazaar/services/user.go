@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/schema"
-	"thirdai_platform/utils"
+	"thirdai_platform/model_bazaar/utils"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"

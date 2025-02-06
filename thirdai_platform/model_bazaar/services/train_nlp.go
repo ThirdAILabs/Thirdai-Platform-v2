@@ -12,7 +12,7 @@ import (
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
-	"thirdai_platform/utils"
+	"thirdai_platform/model_bazaar/utils"
 	"time"
 
 	"github.com/google/uuid"

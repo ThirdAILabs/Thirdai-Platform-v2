@@ -156,17 +156,13 @@ func (r *httpRequest) Do(result interface{}) error {
 	})
 }
 
-type BaseClient struct {
+type baseClient struct {
 	baseUrl   string
 	authToken string
 	apiKey    string
 }
 
-func NewBaseClient(baseUrl string, authToken string) BaseClient {
-	return BaseClient{baseUrl: baseUrl, authToken: authToken}
-}
-
-func (c *BaseClient) addAuthHeaders(r *httpRequest) *httpRequest {
+func (c *baseClient) addAuthHeaders(r *httpRequest) *httpRequest {
 	if c.authToken != "" {
 		return r.Auth(c.authToken)
 	}
@@ -176,22 +172,22 @@ func (c *BaseClient) addAuthHeaders(r *httpRequest) *httpRequest {
 	return r
 }
 
-func (c *BaseClient) Get(endpoint string) *httpRequest {
+func (c *baseClient) Get(endpoint string) *httpRequest {
 	r := newHttpRequest("GET", c.baseUrl, endpoint)
 	return c.addAuthHeaders(r)
 }
 
-func (c *BaseClient) Post(endpoint string) *httpRequest {
+func (c *baseClient) Post(endpoint string) *httpRequest {
 	r := newHttpRequest("POST", c.baseUrl, endpoint)
 	return c.addAuthHeaders(r)
 }
 
-func (c *BaseClient) Delete(endpoint string) *httpRequest {
+func (c *baseClient) Delete(endpoint string) *httpRequest {
 	r := newHttpRequest("DELETE", c.baseUrl, endpoint)
 	return c.addAuthHeaders(r)
 }
 
-func (c *BaseClient) UseApiKey(api_key string) error {
+func (c *baseClient) UseApiKey(api_key string) error {
 
 	c.apiKey = api_key
 	c.authToken = ""

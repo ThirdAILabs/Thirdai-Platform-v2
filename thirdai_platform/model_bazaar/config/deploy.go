@@ -1,11 +1,6 @@
 package config
 
-import (
-    "os"
-    "fmt"
-    "encoding/json"
-    "github.com/google/uuid"
-)
+import "github.com/google/uuid"
 
 type DeployConfig struct {
 	ModelId             uuid.UUID         `json:"model_id"`
@@ -18,19 +13,4 @@ type DeployConfig struct {
 	JobAuthToken        string            `json:"job_auth_token"`
 	Autoscaling         bool              `json:"autoscaling_enabled"`
 	Options             map[string]string `json:"options"`
-}
-
-func LoadDeployConfig(configPath string) (*DeployConfig, error) {
-    configData, err := os.ReadFile(configPath)
-    if err != nil {
-        return nil, fmt.Errorf("error reading config file: %w", err)
-    }
-
-    var config DeployConfig
-    err = json.Unmarshal(configData, &config)
-    if err != nil {
-        return nil, fmt.Errorf("error decoding config file: %w", err)
-    }
-
-    return &config, nil
 }

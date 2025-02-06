@@ -16,12 +16,12 @@ import (
 )
 
 type PlatformClient struct {
-	BaseClient
+	baseClient
 	userId string
 }
 
 func New(baseUrl string) *PlatformClient {
-	return &PlatformClient{BaseClient: BaseClient{baseUrl: baseUrl}}
+	return &PlatformClient{baseClient: baseClient{baseUrl: baseUrl}}
 }
 
 func (c *PlatformClient) Signup(username, email, password string) error {
@@ -193,7 +193,7 @@ func (c *PlatformClient) TrainNdbWithBaseModel(name string, baseModel *NdbClient
 
 	return &NdbClient{
 		ModelClient{
-			BaseClient: c.BaseClient,
+			baseClient: c.baseClient,
 			modelId:    res.ModelId,
 		},
 	}, nil
@@ -245,7 +245,7 @@ func (c *PlatformClient) trainNlpTokenHelper(name string, baseModel *NlpTokenCli
 
 	return &NlpTokenClient{
 		ModelClient{
-			BaseClient: c.BaseClient,
+			baseClient: c.baseClient,
 			modelId:    res.ModelId,
 		},
 	}, nil
@@ -297,7 +297,7 @@ func (c *PlatformClient) trainNlpTextHelper(name string, baseModel *NlpTextClien
 
 	return &NlpTextClient{
 		ModelClient{
-			BaseClient: c.BaseClient,
+			baseClient: c.baseClient,
 			modelId:    res.ModelId,
 		},
 	}, nil
@@ -360,7 +360,7 @@ func (c *PlatformClient) TrainNlpDoc(name string, directory string, trainOptions
 
 	return &NlpTextClient{
 		ModelClient{
-			BaseClient: c.BaseClient,
+			baseClient: c.baseClient,
 			modelId:    res.ModelId,
 		},
 	}, nil
@@ -382,7 +382,7 @@ func (c *PlatformClient) TrainNlpTokenDatagen(name string, taskPrompt string, op
 
 	return &NlpTokenClient{
 		ModelClient{
-			BaseClient: c.BaseClient,
+			baseClient: c.baseClient,
 			modelId:    res.ModelId,
 		},
 	}, nil
@@ -404,7 +404,7 @@ func (c *PlatformClient) TrainNlpTextDatagen(name string, taskPrompt string, opt
 
 	return &NlpTextClient{
 		ModelClient{
-			BaseClient: c.BaseClient,
+			baseClient: c.baseClient,
 			modelId:    res.ModelId,
 		},
 	}, nil
@@ -430,7 +430,7 @@ func (c *PlatformClient) CreateEnterpriseSearchWorkflow(modelName string, retrie
 
 	return &EnterpriseSearchClient{
 		ModelClient{
-			BaseClient: c.BaseClient,
+			baseClient: c.baseClient,
 			modelId:    res.ModelId,
 		},
 	}, nil
@@ -457,7 +457,7 @@ func (c *PlatformClient) CreateKnowledgeExtractionWorkflow(modelName string, que
 
 	return &KnowledgeExtractionClient{
 		ModelClient{
-			BaseClient: c.BaseClient,
+			baseClient: c.baseClient,
 			modelId:    res.ModelId,
 		},
 	}, nil
@@ -508,7 +508,7 @@ func (c *PlatformClient) UploadModel(modelName, path string) (interface{}, error
 		return nil, fmt.Errorf("error committing model upload: %w", err)
 	}
 
-	modelClient := ModelClient{BaseClient: c.BaseClient, modelId: res.ModelId}
+	modelClient := ModelClient{baseClient: c.baseClient, modelId: res.ModelId}
 
 	switch res.ModelType {
 	case "ndb":

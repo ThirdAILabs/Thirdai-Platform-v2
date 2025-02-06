@@ -14,8 +14,6 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
-	"strings"
-	"thirdai_platform/search/ndb"
 	"time"
 )
 
@@ -79,7 +77,7 @@ func NewVerifier(licensePath string) *LicenseVerifier {
 	return v
 }
 
-func (v *LicenseVerifier) LoadLicense() (PlatformLicense, error) {
+func (v *LicenseVerifier) loadLicense() (PlatformLicense, error) {
 	var license PlatformLicense
 
 	file, err := os.Open(v.licensePath)
@@ -100,7 +98,7 @@ func (v *LicenseVerifier) LoadLicense() (PlatformLicense, error) {
 
 func (v *LicenseVerifier) Verify(currCpuUsage int) (LicensePayload, error) {
 	// License is loaded each time so it can be swapped without restarting the service
-	license, err := v.LoadLicense()
+	license, err := v.loadLicense()
 	if err != nil {
 		return LicensePayload{}, err
 	}
@@ -148,25 +146,4 @@ func (v *LicenseVerifier) Verify(currCpuUsage int) (LicensePayload, error) {
 	}
 
 	return license.License, nil
-}
-
-func ActivateThirdAILicense(thirdaiLicense string) error {
-	if strings.HasPrefix(thirdaiLicense, "file ") {
-		slog.Info("activating file-based license")
-		licenseData := thirdaiLicense[len("file "):] // Extract the base64 encoded data
-		decodedData, err := base64.StdEncoding.DecodeString(licenseData)
-		if err != nil {
-			return err
-		}
-
-		licensePath := "./thirdai.license"
-		if err := os.WriteFile(licensePath, decodedData, 0644); err != nil {
-			return err
-		}
-
-		return ndb.SetLicensePath(licensePath)
-	} else {
-		slog.Info("activating key-based license")
-		return ndb.SetLicenseKey(thirdaiLicense)
-	}
 }

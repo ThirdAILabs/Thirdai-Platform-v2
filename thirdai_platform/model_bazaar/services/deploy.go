@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/config"
@@ -501,6 +502,10 @@ func (s *DeployService) RecentFeedbacks(w http.ResponseWriter, r *http.Request) 
 		// https://www.ardanlabs.com/blog/2013/11/label-breaks-in-go.html
 	FileProcessingComplete:
 		for {
+			if UpvotesFound == params.PerEventCount && AssociateFound == params.PerEventCount {
+				stop <- true
+				break
+			}
 			select {
 			case err := <-error_ch:
 				if !errors.Is(err, io.EOF) {
@@ -532,4 +537,24 @@ func (s *DeployService) RecentFeedbacks(w http.ResponseWriter, r *http.Request) 
 			}
 		}
 	}
+	// Sort EventQueue["associate"] and EventQueue["upvotes"]
+	for eventType, _ := range EventQueue {
+		layout := "2 January 2006 15:04:05" //TimeFormat in which timestamp is saved
+		sort.Slice(EventQueue[eventType], func(i, j int) bool {
+			timeI, errI := time.Parse(layout, EventQueue[eventType][i].Timestamp)
+			timeJ, errJ := time.Parse(layout, EventQueue[eventType][j].Timestamp)
+
+			// maintain original order incase of error
+			if errI != nil || errJ != nil {
+				return i < j
+			}
+
+			return timeI.Before(timeJ)
+		})
+
+		EventQueue[eventType] = EventQueue[eventType][:min(len(EventQueue[eventType]), params.PerEventCount)]
+	}
+
+	// Pending: Write Response
+
 }

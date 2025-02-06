@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"thirdai_platform/model_bazaar/jobs"
 	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/nomad"
+	common "thirdai_platform/model_bazaar/platform_common"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/model_bazaar/utils"
@@ -57,7 +59,11 @@ func (s *DeployService) Routes() chi.Router {
 
 			r.Post("/save", s.SaveDeployed)
 		})
+		r.Group(func(r chi.Router) {
+			r.Use(auth.ModelPermissionOnly(s.db, auth.OwnerPermission))
 
+			r.Post("/feedbacks", s.RecentFeedbacks)
+		})
 	})
 
 	r.Group(func(r chi.Router) {
@@ -437,4 +443,93 @@ func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJsonResponse(w, saveDeployedResponse{ModelId: newModelId, UpdateToken: updateToken})
+}
+
+type RecentFeedbacksRequest struct {
+	PerEventCount int `json:"per_event_count"`
+}
+
+func (opts *RecentFeedbacksRequest) validate() error {
+	if opts.PerEventCount <= 0 {
+		return fmt.Errorf("Per event count should be a positive integer")
+	}
+	return nil
+}
+
+func (s *DeployService) RecentFeedbacks(w http.ResponseWriter, r *http.Request) {
+	modelId, err := utils.URLParamUUID(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var params RecentFeedbacksRequest
+	if !utils.ParseRequestBody(w, r, &params) {
+		return
+	}
+
+	if err := params.validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+
+	fileNames, err := s.storage.List(filepath.Join(storage.ModelPath(modelId), "deployments", "data", "feedback"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	fileNames = utils.Filter(fileNames, func(file string) bool {
+		return filepath.Ext(file) == ".jsonl"
+	})
+
+	if len(fileNames) == 0 {
+		// no feedback found.
+		utils.WriteJsonResponse(w, nil)
+	}
+
+	EventQueue := map[string][]common.EventData{
+		"upvote":    {},
+		"associate": {},
+	}
+
+	for _, name := range fileNames {
+		UpvotesFound, AssociateFound := 0, 0
+		out, stop, error_ch := make(chan string), make(chan bool), make(chan error)
+		go utils.ReadFileBackward(filepath.Join(s.storage.Location(), storage.ModelPath(modelId), "deployments", "data", "feedback", name), out, stop, error_ch)
+
+		// https://www.ardanlabs.com/blog/2013/11/label-breaks-in-go.html
+	FileProcessingComplete:
+		for {
+			select {
+			case err := <-error_ch:
+				if !errors.Is(err, io.EOF) {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				} else {
+					break FileProcessingComplete
+				}
+			case line := <-out:
+				event, err := common.UnmarshalFeedbackEvent(line)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					stop <- true
+					return
+				}
+
+				switch event.Event.(type) {
+				case common.UpvoteEvent:
+					if UpvotesFound < params.PerEventCount {
+						EventQueue["upvote"] = append(EventQueue["upvote"], event)
+						UpvotesFound++
+					}
+				case common.AssociateEvent:
+					if AssociateFound < params.PerEventCount {
+						EventQueue["associate"] = append(EventQueue["upvote"], event)
+						AssociateFound++
+					}
+				}
+			}
+		}
+	}
 }

@@ -809,7 +809,7 @@ interface ValidationParams {
   type: string;
 }
 
-export async function validateTokenClassifierCSV({ upload_id, type }: ValidationParams): Promise<ValidationResult> {
+export async function validateCSV({ upload_id, type }: ValidationParams): Promise<ValidationResult> {
   const accessToken = getAccessToken();
   try {
     const response = await fetch((`${thirdaiPlatformBaseUrl}/api/v2/train/validate-trainable-csv`), {
@@ -2564,7 +2564,7 @@ interface NLPTextTrainResponse {
 }
 
 export async function trainNLPTextModel(params: {
-  modelName: string;
+  model_name: string;
   uploadId: string;
   textColumn: string;
   labelColumn: string;
@@ -2576,7 +2576,7 @@ export async function trainNLPTextModel(params: {
   const accessToken = getAccessToken();
 
   const payload: NLPTextTrainRequest = {
-    model_name: params.modelName,
+    model_name: params.model_name,
     doc_classification: params.doc_classification || false,
     base_model_id: params.baseModelId || null,
     model_options: {

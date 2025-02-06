@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import { trainTokenClassifierWithCSV, validateTokenClassifierCSV, uploadDocument } from '@/lib/backend';
+import { trainTokenClassifierWithCSV, validateCSV, uploadDocument } from '@/lib/backend';
 import { set } from 'lodash';
 
 interface CSVUploadProps {
@@ -123,7 +123,7 @@ const CSVUpload = ({ modelName, onSuccess, onError, workflowNames = [] }: CSVUpl
       setUploadId(upload_id); //set the upload id to the state
 
       const type = "token";
-      const { labels } = await validateTokenClassifierCSV({ upload_id, type });
+      const { labels } = await validateCSV({ upload_id, type });
       if (labels && labels?.length > 0) {
         setDetectedLabels(labels);
         setShowConfirmation(true);

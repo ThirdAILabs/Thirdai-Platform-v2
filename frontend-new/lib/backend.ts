@@ -712,94 +712,6 @@ export async function retrainTokenClassifier({
   }
 }
 
-interface trainTokenClassifierWithCSVParams {
-  model_name: string;
-  file: File;
-  labels: string[];
-  test_split?: number;
-}
-
-export function trainTokenClassifierWithCSV({
-  model_name,
-  file,
-  labels,
-  test_split = 0.1,
-}: trainTokenClassifierWithCSVParams): Promise<any> {
-  const accessToken = getAccessToken();
-  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
-  // Create FormData instance to handle file upload
-  const formData = new FormData();
-  formData.append('files', file);
-
-  // Add file info with correct location type
-  const fileInfo = {
-    supervised_files: [
-      {
-        filename: file.name,
-        content_type: file.type,
-        path: file.name,
-        location: 'local',
-      },
-    ],
-    test_files: [],
-  };
-  formData.append('file_info', JSON.stringify(fileInfo));
-
-  // Model options for token classification with detected labels
-  const modelOptions = {
-    model_type: 'udt',
-    udt_options: {
-      udt_sub_type: 'token',
-      source_column: 'source',
-      target_column: 'target',
-      target_labels: labels,
-    },
-    train_options: {
-      test_split: test_split,
-    },
-  };
-  formData.append('model_options', JSON.stringify(modelOptions));
-
-  // Job options (using defaults)
-  const jobOptions = {
-    allocation_cores: 1,
-    allocation_memory: 8000,
-  };
-  formData.append('job_options', JSON.stringify(jobOptions));
-
-  // Create URL with query parameters
-  const params = new URLSearchParams({
-    model_name,
-    base_model_identifier: '', // Empty string for new model
-  });
-
-  return new Promise((resolve, reject) => {
-    axios
-      .post(`${thirdaiPlatformBaseUrl}/api/train/udt?${params.toString()}`, formData)
-      .then((res) => {
-        resolve(res.data);
-      })
-      .catch((err) => {
-        if (axios.isAxiosError(err)) {
-          const axiosError = err as AxiosError;
-          if (axiosError.response && axiosError.response.data) {
-            reject(
-              new Error(
-                (axiosError.response.data as any).detail ||
-                'Failed to train token classification model'
-              )
-            );
-          } else {
-            reject(new Error('Failed to train token classification model'));
-          }
-        } else {
-          reject(new Error('Failed to train token classification model'));
-        }
-      });
-  });
-}
-
 interface TrainUDTWithCSVParams {
   model_name: string;
   file: File;
@@ -889,95 +801,105 @@ interface APIResponse {
 }
 
 interface ValidationResult {
-  valid: boolean;
-  message: string;
   labels?: string[];
 }
 
-export async function validateTokenClassifierCSV(file: File): Promise<ValidationResult> {
+interface ValidationParams {
+  upload_id: string;
+  type: string;
+}
+
+export async function validateTokenClassifierCSV({ upload_id, type }: ValidationParams): Promise<ValidationResult> {
   const accessToken = getAccessToken();
-  const formData = new FormData();
-  formData.append('file', file);
-
   try {
-    const response = await axios.post<APIResponse>(
-      `${thirdaiPlatformBaseUrl}/api/train/validate-token-classifier-csv`,
-      formData,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
-
-    return {
-      valid: true,
-      message: response.data.message,
-      labels: response.data.data?.labels,
-    };
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.data) {
-      // Type assertion to ensure TypeScript knows the shape of error.response.data
-      const errorData = error.response.data as APIResponse;
-      return {
-        valid: false,
-        message: errorData.message || 'Failed to validate CSV file',
-      };
+    const response = await fetch((`${thirdaiPlatformBaseUrl}/api/v2/train/validate-trainable-csv`), {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ upload_id, type })
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Failed to validate CSV file');
     }
+    const returnData = await response.json();
+    return returnData;
+  } catch (error) {
     return {
-      valid: false,
-      message: 'Failed to validate CSV file',
+      labels: [],
     };
   }
 }
 
+interface TokenOptions {
+  target_labels: string[];
+  source_column: string;
+  target_column: string;
+  default_tag: string;
+}
+
 interface TrainTokenClassifierParams {
-  modelName: string;
-  file: File;
-  testSplit?: number;
+  model_name: string;
+  base_model_id?: string | null;
+  model_options: TokenOptions;
+  data: {
+    supervised_files: Array<{
+      path: string;
+      location: string;
+    }>;
+    test_files?: Array<{
+      path: string;
+      location: string;
+    }>;
+  };
+  train_options?: {
+    epochs?: number;
+    learning_rate?: number;
+    batch_size?: number;
+    max_in_memory_batches?: number;
+    test_split?: number;
+  };
+  job_options?: {
+    allocation_cores?: number;
+    allocation_memory?: number;
+  };
 }
 
-export function trainTokenClassifierFromCSV({
-  modelName,
-  file,
-  testSplit = 0.1,
-}: TrainTokenClassifierParams): Promise<any> {
+export async function trainTokenClassifierWithCSV(params: TrainTokenClassifierParams): Promise<TrainTokenClassifierResponse> {
   const accessToken = getAccessToken();
-  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('test_split', testSplit.toString());
-
-  return new Promise((resolve, reject) => {
-    axios
-      .post(
-        `${thirdaiPlatformBaseUrl}/api/train/train-token-classifier?model_name=${modelName}`,
-        formData
-      )
-      .then((res) => {
-        resolve(res.data);
+  try {
+    const response = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/train/nlp-token`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model_name: params.model_name,
+        base_model_id: params.base_model_id,
+        model_options: params.model_options,
+        data: params.data,
+        train_options: params.train_options || {},
+        job_options: params.job_options || {}
       })
-      .catch((err) => {
-        if (axios.isAxiosError(err)) {
-          const axiosError = err as AxiosError;
-          if (axiosError.response && axiosError.response.data) {
-            reject(
-              new Error(
-                (axiosError.response.data as any).detail ||
-                'Failed to train token classification model'
-              )
-            );
-          } else {
-            reject(new Error('Failed to train token classification model'));
-          }
-        } else {
-          reject(new Error('Failed to train token classification model'));
-        }
-      });
-  });
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Failed to train token classifier');
+    }
+
+    const data = await response.json();
+    return { model_id: data.model_id };
+  } catch (error) {
+    console.error('Error training token classifier:', error);
+    throw error;
+  }
 }
+
 
 // types.ts
 export interface MetricValues {
@@ -1413,8 +1335,6 @@ function tokenClassifierDatagenForm(modelGoal: string, categories: Category[]) {
 }
 
 interface TrainTokenClassifierResponse {
-  status_code: number;
-  message: string;
   model_id: string;
 }
 
@@ -1434,7 +1354,7 @@ interface Tag {
   status?: 'uninserted';
 }
 
-interface TokenOptions {
+interface TokenOptionsDatagen {
   tags: Tag[];
   num_sentences_to_generate?: number;
   num_samples_per_tag?: number;
@@ -1447,7 +1367,7 @@ interface DatagenRequest {
   task_prompt: string;
   llm_provider?: string;
   test_size?: number;
-  token_options: TokenOptions;
+  token_options: TokenOptionsDatagen;
   train_options?: {
     epochs?: number;
     learning_rate?: number;
@@ -1474,7 +1394,6 @@ export function trainTokenClassifier(
   const requestData: DatagenRequest = {
     model_name: modelName,
     task_prompt: modelGoal,
-    llm_provider: 'openai',
     token_options: {
       tags: categories.map(category => ({
         name: category?.name,
@@ -1485,11 +1404,6 @@ export function trainTokenClassifier(
       num_samples_per_tag: 10,
       templates_per_sample: 4
     },
-    train_options: {
-      epochs: 5,
-      batch_size: 1000,
-      test_split: 0.2
-    }
   };
 
   console.log("Request data:", requestData);
@@ -2707,102 +2621,5 @@ export async function trainNLPTextModel(params: {
       throw new Error(error.response.data.message || 'Failed to train NLP model');
     }
     throw new Error('Failed to train NLP model');
-  }
-}
-
-
-
-interface NLPTokenTrainOptions {
-  modelName: string;
-  baseModelId?: string;
-  targetLabels: string[];
-  sourceColumn: string;
-  targetColumn: string;
-  defaultTag?: string;
-  supervisedFiles: Array<{
-    path: string;
-    location: string;
-  }>;
-  testFiles?: Array<{
-    path: string;
-    location: string;
-  }>;
-  trainOptions?: {
-    epochs?: number;
-    learningRate?: number;
-    batchSize?: number;
-    maxInMemoryBatches?: number;
-    testSplit?: number;
-  };
-  jobOptions?: {
-    allocationCores?: number;
-    allocationMemory?: number;
-  };
-}
-
-async function trainNLPTokenModel({
-  modelName,
-  baseModelId,
-  targetLabels,
-  sourceColumn,
-  targetColumn,
-  defaultTag = 'O',
-  supervisedFiles,
-  testFiles,
-  trainOptions = {},
-  jobOptions = {}
-}: NLPTokenTrainOptions): Promise<string> {
-  const formData = new FormData();
-
-  // Model configuration
-  const modelOptions = {
-    target_labels: targetLabels,
-    source_column: sourceColumn,
-    target_column: targetColumn,
-    default_tag: defaultTag
-  };
-
-  // Build request payload
-  const payload = {
-    model_name: modelName,
-    base_model_id: baseModelId || null,
-    model_options: modelOptions,
-    data: {
-      supervised_files: supervisedFiles,
-      test_files: testFiles || []
-    },
-    train_options: {
-      epochs: trainOptions.epochs || 5,
-      learning_rate: trainOptions.learningRate || 0.0001,
-      batch_size: trainOptions.batchSize || 1000,
-      max_in_memory_batches: trainOptions.maxInMemoryBatches || 20,
-      test_split: trainOptions.testSplit || 0.2
-    },
-    job_options: {
-      allocation_cores: jobOptions.allocationCores || 4,
-      allocation_memory: jobOptions.allocationMemory || 2000
-    }
-  };
-
-  // Append all data to FormData
-  Object.entries(payload).forEach(([key, value]) => {
-    formData.append(key, JSON.stringify(value));
-  });
-
-  try {
-    const response = await fetch('/api/v2/train/nlp-token', {
-      method: 'POST',
-      body: formData,
-      credentials: 'include'
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to train NLP token model: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data.model_id;
-  } catch (error) {
-    console.error('Error training NLP token model:', error);
-    throw error;
   }
 }

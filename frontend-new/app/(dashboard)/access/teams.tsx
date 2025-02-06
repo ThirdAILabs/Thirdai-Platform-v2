@@ -319,6 +319,8 @@ export default function Teams() {
   useEffect(() => {
     if (user?.teams.some((team) => team.team_admin)) setIsTeamAdmin(true);
   });
+
+  console.log("Teams data coming from backend", teams);
   return (
     <div className="mb-12">
       <h3 className="text-xl font-semibold text-gray-800 mb-4">Teams</h3>

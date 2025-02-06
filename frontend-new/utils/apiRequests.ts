@@ -110,7 +110,7 @@ const getTeams = async () => {
           const userTeam = user.teams.find((ut) => ut.id === team.id);
           if (userTeam) {
             members.push(user.name);
-            if (userTeam) {
+            if (userTeam.team_admin) {
               admins.push(user.name);
             }
           }

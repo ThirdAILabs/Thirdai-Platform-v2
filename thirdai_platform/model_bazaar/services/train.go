@@ -483,8 +483,8 @@ func (s *TrainService) validateTrainableCSV(filepath string, expectedHeaders []s
 }
 
 type TrainableCSVRequest struct {
-	UploadId uuid.UUID `json:"upload_id"`
-	FileType string    `json:"type"`
+	UploadId string `json:"upload_id"`
+	FileType string `json:"type"`
 }
 
 func (s *TrainService) ValidateTokenTextClassificationCSV(w http.ResponseWriter, r *http.Request) {
@@ -509,7 +509,7 @@ func (s *TrainService) ValidateTokenTextClassificationCSV(w http.ResponseWriter,
 	// Currently only supporting uploaded file for training text/token classification model. Creating a dummy TrainFile object to validate the upload
 	trainConfig := []config.TrainFile{
 		{
-			Path:     options.UploadId.String(),
+			Path:     options.UploadId,
 			Location: config.FileLocUpload,
 			SourceId: nil,
 			Options:  nil,
@@ -521,7 +521,13 @@ func (s *TrainService) ValidateTokenTextClassificationCSV(w http.ResponseWriter,
 		return
 	}
 
-	fileNames, err := s.storage.List(storage.UploadPath(options.UploadId))
+	UploadID, err := uuid.Parse(options.UploadId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("invalid upload id: %v", UploadID), GetResponseCode(err))
+		return
+	}
+
+	fileNames, err := s.storage.List(storage.UploadPath(UploadID))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
 		return
@@ -530,7 +536,7 @@ func (s *TrainService) ValidateTokenTextClassificationCSV(w http.ResponseWriter,
 		http.Error(w, fmt.Sprintf("Only one file should be used. found %v files", len(fileNames)), http.StatusUnsupportedMediaType)
 		return
 	}
-	trainableCSVFilePath := filepath.Join(storage.UploadPath(options.UploadId), fileNames[0])
+	trainableCSVFilePath := filepath.Join(storage.UploadPath(UploadID), fileNames[0])
 
 	if strings.ToLower(filepath.Ext(trainableCSVFilePath)) != ".csv" {
 		http.Error(w, "only CSV file is supported", http.StatusUnsupportedMediaType)

@@ -17,14 +17,14 @@ func TestTrainableCsvValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	uploadFunc := func(fileContent []struct{ name, data string }) uuid.UUID {
+	uploadFunc := func(fileContent []struct{ name, data string }) string {
 		body, contentType := createUploadBody(t, fileContent)
 		var res map[string]uuid.UUID
 		err := client.Post("/train/upload-data").Header("Content-Type", contentType).Body(body).Do(&res)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return res["upload_id"]
+		return res["upload_id"].String()
 	}
 
 	{ // Non-csv file

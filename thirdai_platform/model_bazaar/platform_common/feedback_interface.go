@@ -57,7 +57,7 @@ func UnmarshalFeedbackEvent(jsonStr string) (EventData, error) {
 		PerformRLHFLater: base.PerformRLHFLater,
 	}
 
-	// Choose correct struct type based on action
+	// event data based on action
 	switch base.Event.Action {
 	case "upvote":
 		var wrapper struct {

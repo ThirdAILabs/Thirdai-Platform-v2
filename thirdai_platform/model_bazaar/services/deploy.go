@@ -452,7 +452,7 @@ type RecentFeedbacksRequest struct {
 
 func (opts *RecentFeedbacksRequest) validate() error {
 	if opts.PerEventCount <= 0 {
-		return fmt.Errorf("Per event count should be a positive integer")
+		return fmt.Errorf("per event count should be a positive integer")
 	}
 	return nil
 }

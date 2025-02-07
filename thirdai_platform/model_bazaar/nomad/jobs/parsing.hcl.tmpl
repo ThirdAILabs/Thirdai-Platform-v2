@@ -35,7 +35,6 @@ job "parsing" {
 
       env {
         MODEL_BAZAAR_ENDPOINT = "{{ .ModelBazaarEndpoint }}"
-        LICENSE_KEY = "{{ .LicenseKey }}"
         {{ if isDocker .Driver }}
         MODEL_BAZAAR_DIR = "/model_bazaar"
         {{ else if isLocal .Driver }}
@@ -59,11 +58,11 @@ job "parsing" {
             "{{ .ShareDir }}:/model_bazaar"
           ]
           command = "python3"
-          args    = ["-m", "uvicorn", "main:app", "--app-dir", "parsing_service", "--host", "0.0.0.0", "--port", "80"]
+          args    = ["-m", "uvicorn", "main:app", "--app-dir", "parsing_job", "--host", "0.0.0.0", "--port", "80"]
         {{ else if isLocal .Driver }}
           command = "/bin/sh"
           {{ with .Driver }}
-          args    = ["-c", "cd {{ .PlatformDir }} && cd ../thirdai_platform && {{ .PythonPath }} -m uvicorn main:app --app-dir parsing_service --host 0.0.0.0 --port ${NOMAD_PORT_parsing_http}"]
+          args    = ["-c", "cd {{ .PlatformDir }} && {{ .PythonPath }} -m uvicorn main:app --app-dir parsing_job --host 0.0.0.0 --port ${NOMAD_PORT_parsing_http}"]
           {{ end }}
         {{ end }}
       }

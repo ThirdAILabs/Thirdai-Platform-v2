@@ -84,7 +84,7 @@ class ParseRequest(BaseModel):
 # TODO add permissions. What's the best way to do service-to-service communication?
 # We could ping the permissions endpoint but we'd be calling this function once 
 # per doc. Better would be if this endpoint is not accessible via external calls 
-# and only accessible via internal calls, without JWT authentication
+# and only accessible via internal calls
 @app.post("/parse")
 def parse_doc(req: ParseRequest):
     file_path = os.path.join(model_bazaar_dir, "uploads", req.upload_id, req.filename)

@@ -70,16 +70,10 @@ func Filter[T any](ss []T, test func(T) bool) (ret []T) {
 	return
 }
 
-func ReadFileBackward(filePath string, out chan string, stop chan bool, error_ch chan error) {
+func ReadFileLinesBackward(fileHandle *os.File, out chan string, stop chan bool, error_ch chan error) {
 	defer close(out)
 	defer close(stop)
 	defer close(error_ch)
-
-	fileHandle, err := os.Open(filePath)
-	if err != nil {
-		error_ch <- err
-		return
-	}
 	defer fileHandle.Close()
 
 	LastPosition, err := fileHandle.Seek(0, io.SeekEnd)

@@ -3,79 +3,56 @@ package common
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
-type FeedbackEventInterface interface {
-	GetAction() string
-}
-
-// Upvote event struct
-type UpvoteEvent struct {
-	Action         string   `json:"action"`
-	ChunkIDs       []int    `json:"chunk_ids,omitempty"`
-	Queries        []string `json:"queries,omitempty"`
-	ReferenceTexts []string `json:"reference_texts,omitempty"`
-}
-
-func (e UpvoteEvent) GetAction() string {
-	return e.Action
-}
-
-// Associate event struct
-type AssociateEvent struct {
-	Action  string   `json:"action"`
-	Sources []string `json:"sources,omitempty"`
-	Targets []string `json:"targets,omitempty"`
-}
-
-func (e AssociateEvent) GetAction() string {
-	return e.Action
-}
-
 type EventData struct {
-	Event            FeedbackEventInterface `json:"-"`
-	Timestamp        string                 `json:"timestamp"`
+	Event            map[string]interface{} `json:"event"`
+	Timestamp        time.Time              `json:"timestamp"`
 	PerformRLHFLater bool                   `json:"perform_rlhf_later"`
 }
 
-func UnmarshalFeedbackEvent(jsonStr string) (EventData, error) {
-	var base struct {
-		Event struct {
-			Action string `json:"action"`
-		} `json:"event"`
-		Timestamp        string `json:"timestamp"`
-		PerformRLHFLater bool   `json:"perform_rlhf_later"`
+// Because timestamp entry in the JSON is in a custom format, need to implement a custom UnmarshalJSON method
+func (e *EventData) UnmarshalJSON(data []byte) error {
+	type Alias EventData // alias to prevent infinite recursion
+	aux := &struct {
+		Timestamp string `json:"timestamp"` // shadowing the Timestamp field with a string
+		*Alias
+	}{
+		Alias: (*Alias)(e),
 	}
 
-	err := json.Unmarshal([]byte(jsonStr), &base)
+	/*
+		'Alias' is basically struct similar to EventData, but without the UnmarshalJSON method
+		type Alias struct {
+			Event            map[string]interface{} `json:"event"`
+			Timestamp        string             	`json:"timestamp"`
+			PerformRLHFLater bool                   `json:"perform_rlhf_later"`
+		}
+	*/
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	// Parsing the timestamp with the custom layout
+	layout := "02 January 2006 15:04:05"
+	parsedTime, err := time.Parse(layout, aux.Timestamp)
 	if err != nil {
-		return EventData{}, fmt.Errorf("error parsing base JSON: %w", err)
+		return fmt.Errorf("error parsing time: %w", err)
 	}
 
-	eventData := EventData{
-		Timestamp:        base.Timestamp,
-		PerformRLHFLater: base.PerformRLHFLater,
-	}
+	e.Timestamp = parsedTime
+	return nil
+}
 
-	// event data based on action
-	switch base.Event.Action {
-	case "upvote":
-		var wrapper struct {
-			Event UpvoteEvent `json:"event"`
-		}
-		if err := json.Unmarshal([]byte(jsonStr), &wrapper); err != nil {
-			return EventData{}, fmt.Errorf("error parsing upvote event: %w", err)
-		}
-		eventData.Event = wrapper.Event
+func UnmarshalFeedbackEvent(jsonStr string) (EventData, error) {
+	var eventData EventData
 
-	case "associate":
-		var wrapper struct {
-			Event AssociateEvent `json:"event"`
-		}
-		if err := json.Unmarshal([]byte(jsonStr), &wrapper); err != nil {
-			return EventData{}, fmt.Errorf("error parsing associate event: %w", err)
-		}
-		eventData.Event = wrapper.Event
+	// Unmarshal the JSON string into the EventData struct
+	err := json.Unmarshal([]byte(jsonStr), &eventData)
+	if err != nil {
+		return EventData{}, fmt.Errorf("error parsing JSON: %w", err)
 	}
 
 	return eventData, nil

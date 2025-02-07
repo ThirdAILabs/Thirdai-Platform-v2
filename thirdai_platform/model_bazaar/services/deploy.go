@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -483,21 +484,26 @@ func (s *DeployService) RecentFeedbacks(w http.ResponseWriter, r *http.Request) 
 	fileNames = utils.Filter(fileNames, func(file string) bool {
 		return filepath.Ext(file) == ".jsonl"
 	})
-
-	if len(fileNames) == 0 {
-		// no feedback found.
-		utils.WriteJsonResponse(w, nil)
-	}
-
 	EventQueue := map[string][]common.EventData{
 		"upvote":    {},
 		"associate": {},
 	}
 
+	if len(fileNames) == 0 {
+		// no feedback found.
+		utils.WriteJsonResponse(w, EventQueue)
+		return
+	}
+
 	for _, name := range fileNames {
 		UpvotesFound, AssociateFound := 0, 0
 		out, stop, error_ch := make(chan string), make(chan bool), make(chan error)
-		go utils.ReadFileBackward(filepath.Join(s.storage.Location(), storage.ModelPath(modelId), "deployments", "data", "feedback", name), out, stop, error_ch)
+		fileHandle, err := s.storage.Read(filepath.Join(storage.ModelPath(modelId), "deployments", "data", "feedback", name))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		go utils.ReadFileLinesBackward(fileHandle.(*os.File), out, stop, error_ch)
 
 		// https://www.ardanlabs.com/blog/2013/11/label-breaks-in-go.html
 	FileProcessingComplete:
@@ -522,39 +528,26 @@ func (s *DeployService) RecentFeedbacks(w http.ResponseWriter, r *http.Request) 
 					return
 				}
 
-				switch event.Event.(type) {
-				case common.UpvoteEvent:
-					if UpvotesFound < params.PerEventCount {
-						EventQueue["upvote"] = append(EventQueue["upvote"], event)
-						UpvotesFound++
-					}
-				case common.AssociateEvent:
-					if AssociateFound < params.PerEventCount {
-						EventQueue["associate"] = append(EventQueue["upvote"], event)
-						AssociateFound++
-					}
+				if event.Event["action"] == "upvote" && UpvotesFound < params.PerEventCount {
+					EventQueue["upvote"] = append(EventQueue["upvote"], event)
+					UpvotesFound++
+				} else if event.Event["action"] == "associate" && AssociateFound < params.PerEventCount {
+					EventQueue["associate"] = append(EventQueue["associate"], event)
+					AssociateFound++
 				}
 			}
 		}
 	}
 	// Sort EventQueue["associate"] and EventQueue["upvotes"]
-	for eventType, _ := range EventQueue {
-		layout := "2 January 2006 15:04:05" //TimeFormat in which timestamp is saved
+	for eventType := range EventQueue {
 		sort.Slice(EventQueue[eventType], func(i, j int) bool {
-			timeI, errI := time.Parse(layout, EventQueue[eventType][i].Timestamp)
-			timeJ, errJ := time.Parse(layout, EventQueue[eventType][j].Timestamp)
-
-			// maintain original order incase of error
-			if errI != nil || errJ != nil {
-				return i < j
-			}
-
-			return timeI.Before(timeJ)
+			return EventQueue[eventType][i].Timestamp.After(EventQueue[eventType][j].Timestamp)
 		})
 
 		EventQueue[eventType] = EventQueue[eventType][:min(len(EventQueue[eventType]), params.PerEventCount)]
 	}
 
 	// Pending: Write Response
+	utils.WriteJsonResponse(w, EventQueue)
 
 }

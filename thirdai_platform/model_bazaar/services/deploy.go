@@ -497,12 +497,12 @@ func (s *DeployService) RecentFeedbacks(w http.ResponseWriter, r *http.Request) 
 
 	for _, name := range fileNames {
 		UpvotesFound, AssociateFound := 0, 0
-		out, stop, error_ch := make(chan string), make(chan bool), make(chan error)
 		fileHandle, err := s.storage.Read(filepath.Join(storage.ModelPath(modelId), "deployments", "data", "feedback", name))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		out, stop, error_ch := make(chan string), make(chan bool), make(chan error)
 		go utils.ReadFileLinesBackward(fileHandle.(*os.File), out, stop, error_ch)
 
 		// https://www.ardanlabs.com/blog/2013/11/label-breaks-in-go.html

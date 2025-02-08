@@ -10,7 +10,7 @@ from platform_common.utils import response
 
 load_dotenv()
 import os
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -77,13 +77,12 @@ def write_doc_to_json(doc: ndbv2.Document, json_out_file: str):
 class ParseRequest(BaseModel):
     upload_id: str
     filename: str
-    metadata: Optional[Dict[str, Union[int, str, float, bool]]] = None
     options: Dict[str, Any] = {}
 
 
 # TODO add permissions. What's the best way to do service-to-service communication?
-# We could ping the permissions endpoint but we'd be calling this function once 
-# per doc. Better would be if this endpoint is not accessible via external calls 
+# We could ping the permissions endpoint but we'd be calling this function once
+# per doc. Better would be if this endpoint is not accessible via external calls
 # and only accessible via internal calls
 @app.post("/parse")
 def parse_doc(req: ParseRequest):
@@ -99,7 +98,7 @@ def parse_doc(req: ParseRequest):
             resource_path=file_path,
             display_path=file_path,
             doc_id=None,  # doc id is specified at insertion time
-            metadata=req.metadata,
+            metadata=None,  # metadata is specified at insertion time
             options=req.options,
         )
     except Exception as e:

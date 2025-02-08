@@ -32,20 +32,19 @@ def upload(model_bazaar_dir, source_file):
     )
 
 
-def try_parse(client, upload_id, filename, metadata=None, options={}):
+def try_parse(client, upload_id, filename, options={}):
     return client.post(
         "/parse",
         json={
             "upload_id": upload_id,
             "filename": filename,
-            "metadata": metadata,
             "options": options,
         },
     )
 
 
-def parse(client, upload_id, filename, metadata=None, options={}):
-    response = try_parse(client, upload_id, filename, metadata, options)
+def parse(client, upload_id, filename, options={}):
+    response = try_parse(client, upload_id, filename, options)
     print(response.text)
     assert response.status_code == 200
 
@@ -64,7 +63,7 @@ def test_valid_parse(temp_model_bazaar_dir, document):
         os.path.join(temp_model_bazaar_dir, "uploads", UPLOAD_ID, Path(document).name)
     )
 
-    parse(client, UPLOAD_ID, Path(document).name, metadata={"something": 42})
+    parse(client, UPLOAD_ID, Path(document).name)
 
     json_file = os.path.join(
         temp_model_bazaar_dir,
@@ -80,7 +79,6 @@ def test_valid_parse(temp_model_bazaar_dir, document):
         assert "text" in data.keys()
         assert "metadata" in data.keys()
         assert len(data["text"]) == len(data["metadata"]) != 0
-        assert data["metadata"][0]["something"] == 42
 
 
 def test_missing_file(temp_model_bazaar_dir):

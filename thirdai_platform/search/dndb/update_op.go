@@ -36,7 +36,23 @@ type UpdateOp struct {
 	Associate *AssociateOp
 }
 
+func (op *UpdateOp) Op() string {
+	switch {
+	case op.Insert != nil:
+		return "insert"
+	case op.Delete != nil:
+		return "delete"
+	case op.Upvote != nil:
+		return "upvote"
+	case op.Associate != nil:
+		return "associate"
+	default:
+		return "unknown"
+	}
+}
+
 func (op *UpdateOp) Serialize() ([]byte, error) {
+	// TODO(Anyone): We should probably switch this to protobufs or something else more efficient
 	buf := new(bytes.Buffer)
 	if err := gob.NewEncoder(buf).Encode(op); err != nil {
 		return nil, fmt.Errorf("error serializing op: %w", err)

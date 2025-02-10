@@ -33,6 +33,8 @@ type DNDB struct {
 	replicaId     string
 	bindAddr      string
 	localNdbStore string
+
+	logger *slog.Logger
 }
 
 type RaftConfig struct {
@@ -61,6 +63,9 @@ func CreateTcpTransport(bindAddr string) (raft.Transport, error) {
 }
 
 func New(ndbPath string, localNdbStore string, config RaftConfig) (*DNDB, error) {
+	logger := slog.With("replica_id", config.ReplicaId, "addr", config.BindAddr)
+
+	logger.Info("[DNDB]: initializing", "ndb_path", ndbPath, "local_ndb_store", localNdbStore, "boostrap", config.Bootstrap)
 	if config.ReplicaId == "" {
 		return nil, errors.New("replica id cannot be empty")
 	}
@@ -72,10 +77,12 @@ func New(ndbPath string, localNdbStore string, config RaftConfig) (*DNDB, error)
 		replicaId:     config.ReplicaId,
 		bindAddr:      config.BindAddr,
 		localNdbStore: localNdbStore,
+		logger:        logger,
 	}
 
 	ra, err := raft.NewRaft(raftConfig, (*distributedNdbFSM)(dndb), config.LogStore, config.StableStore, config.SnapshotStore, config.Transport)
 	if err != nil {
+		logger.Error("[DNDB]: error constructing raft server", "error", err)
 		return nil, fmt.Errorf("error constructing raft instance: %w", err)
 	}
 
@@ -92,19 +99,24 @@ func New(ndbPath string, localNdbStore string, config RaftConfig) (*DNDB, error)
 		}
 		err := ra.BootstrapCluster(configuration).Error()
 		if err != nil {
+			logger.Error("[DNDB]: boostrapping raft cluster failed", "error", err)
 			return nil, fmt.Errorf("error bootstrapping raft cluster: %w", err)
 		}
 	}
 
 	ndbCopyPath := filepath.Join(localNdbStore, uuid.NewString())
 	if err := os.CopyFS(ndbCopyPath, os.DirFS(ndbPath)); err != nil {
+		logger.Error("[DNDB]: error creating copy of ndb on disk", "error", err)
 		return nil, fmt.Errorf("error making replica of ndb: %w", err)
 	}
 
 	dndb.ndb, err = ndb.New(ndbCopyPath)
 	if err != nil {
+		logger.Error("[DNDB]: error opening ndb", "error", err)
 		return nil, fmt.Errorf("error opening ndb: %w", err)
 	}
+
+	logger.Info("[DNDB]: completed initialization")
 
 	return dndb, nil
 }
@@ -112,10 +124,14 @@ func New(ndbPath string, localNdbStore string, config RaftConfig) (*DNDB, error)
 func (dndb *DNDB) Shutdown() error {
 	defer dndb.ndb.Free()
 
+	dndb.logger.Info("[DNDB]: shutting down")
+
 	if err := dndb.raft.Shutdown().Error(); err != nil {
-		slog.Error("error calling raft shutdown", "error", err)
+		dndb.logger.Error("error calling raft shutdown", "error", err)
 		return fmt.Errorf("error calling raft shutdown: %w", err)
 	}
+
+	dndb.logger.Info("[DNDB]: shutdown complete")
 
 	return nil
 }
@@ -133,41 +149,56 @@ func (dndb *DNDB) IsLeader() bool {
 }
 
 func (dndb *DNDB) AddReplica(replicaId, addr string) error {
+	dndb.logger.Info("[DNDB]: adding replica", "new_replica_Id", replicaId, "new_addr", addr)
 	if !dndb.IsLeader() {
+		dndb.logger.Error("[DNDB]: cannot add replica, node is not leader", "new_replica_Id", replicaId, "new_addr", addr)
 		return ErrNotLeader
 	}
 
 	// The final args are not needed, 0 means that they are ignored.
 	future := dndb.raft.AddVoter(raft.ServerID(replicaId), raft.ServerAddress(addr), 0, 0)
 	if err := future.Error(); err != nil {
+		dndb.logger.Error("[DNDB]: error adding replica", "new_replica_Id", replicaId, "new_addr", addr, "error", err)
 		return fmt.Errorf("error adding new replica: %w", err)
 	}
+
+	dndb.logger.Info("[DNDB]: replica added", "new_replica_Id", replicaId, "new_addr", addr)
 
 	return nil
 }
 
 func (dndb *DNDB) RemoveReplica(replicaId string) error {
+	dndb.logger.Info("dndb: removing replica", "removed_replica_id", replicaId)
 	if !dndb.IsLeader() {
+		dndb.logger.Error("[DNDB]: cannot remove replica, node is not leader", "removed_replica_id", replicaId)
 		return ErrNotLeader
 	}
 
 	future := dndb.raft.RemoveServer(raft.ServerID(replicaId), 0, 0)
 	if err := future.Error(); err != nil {
+		dndb.logger.Error("[DNDB]: error removing replica", "removed_replica_id", replicaId, "error", err)
 		return fmt.Errorf("error removing replica: %w", err)
 	}
+
+	dndb.logger.Info("[DNDB]: replica removed", "removed_replica_id", replicaId)
 
 	return nil
 }
 
 func (dndb *DNDB) ForceSnapshot() error {
+	dndb.logger.Info("[DNDB]: creating snapshot")
 	if !dndb.IsLeader() {
+		dndb.logger.Error("[DNDB]: cannot create snapshot, node is not leader")
 		return ErrNotLeader
 	}
 
 	future := dndb.raft.Snapshot()
 	if err := future.Error(); err != nil {
+		dndb.logger.Error("[DNDB]: error creating snapshot")
 		return fmt.Errorf("error creating snapshot: %w", err)
 	}
+
+	dndb.logger.Info("[DNDB]: snapshot created")
 
 	return nil
 }
@@ -228,25 +259,34 @@ func (dndb *DNDB) Delete(docId string, keepLatestVersion bool) (UpdateResult, er
 }
 
 func (dndb *DNDB) applyUpdate(op UpdateOp) (UpdateResult, error) {
+	opType := op.Op()
+	dndb.logger.Info("[DNDB]: applying update", "op", opType)
+
 	if !dndb.IsLeader() {
+		dndb.logger.Error("[DNDB]: cannot apply update, node is not leader", "op", opType)
 		return UpdateResult{}, ErrNotLeader
 	}
 
 	serializedLog, err := op.Serialize()
 	if err != nil {
+		dndb.logger.Error("[DNDB]: error serializing update op", "op", opType, "error", err)
 		return UpdateResult{}, err
 	}
 
 	future := dndb.raft.Apply(serializedLog, 0)
 
 	if err := future.Error(); err != nil {
+		dndb.logger.Error("[DNDB]: raft apply failed", "op", opType, "error", err)
 		return UpdateResult{}, fmt.Errorf("error applying update: %w", err)
 	}
 
 	res := future.Response()
 	if err, ok := res.(error); ok {
+		dndb.logger.Error("[DNDB]: update returned error", "op", opType, "error", err)
 		return UpdateResult{}, err
 	}
+
+	dndb.logger.Info("[DNDB]: update committed", "op", opType, "index", future.Index())
 
 	return UpdateResult{Index: future.Index()}, nil
 }
@@ -274,9 +314,11 @@ func (dndb *DNDB) Sources() ([]ndb.Source, error) {
 type distributedNdbFSM DNDB
 
 func (dndb *distributedNdbFSM) Apply(raftLog *raft.Log) interface{} {
+	dndb.logger.Info("[DNDB]: applying update to fsm", "index", raftLog.Index)
+
 	op, err := DeserializeOp(raftLog.Data)
 	if err != nil {
-		slog.Error("error deserializing raft log", "error", err)
+		dndb.logger.Error("[DNDB]: error deserializing raft log", "index", raftLog.Index, "error", err)
 		return err
 	}
 
@@ -286,7 +328,7 @@ func (dndb *distributedNdbFSM) Apply(raftLog *raft.Log) interface{} {
 	if op.Insert != nil {
 		err := dndb.ndb.Insert(op.Insert.Document, op.Insert.DocId, op.Insert.Chunks, op.Insert.Metadata, nil)
 		if err != nil {
-			slog.Error("ndb insert failed", "error", err)
+			dndb.logger.Error("[DNDB]: ndb insert failed", "index", raftLog.Index, "error", err)
 			return fmt.Errorf("ndb insert failed: %w", err)
 		}
 	}
@@ -294,7 +336,7 @@ func (dndb *distributedNdbFSM) Apply(raftLog *raft.Log) interface{} {
 	if op.Delete != nil {
 		err := dndb.ndb.Delete(op.Delete.DocId, op.Delete.KeepLatest)
 		if err != nil {
-			slog.Error("ndb delete failed", "error", err)
+			dndb.logger.Error("[DNDB]: ndb delete failed", "index", raftLog.Index, "error", err)
 			return fmt.Errorf("ndb delete failed: %w", err)
 		}
 	}
@@ -302,7 +344,7 @@ func (dndb *distributedNdbFSM) Apply(raftLog *raft.Log) interface{} {
 	if op.Upvote != nil {
 		err := dndb.ndb.Finetune([]string{op.Upvote.Query}, []uint64{op.Upvote.Label})
 		if err != nil {
-			slog.Error("ndb upvote failed", "error", err)
+			dndb.logger.Error("[DNDB]: ndb upvote failed", "index", raftLog.Index, "error", err)
 			return fmt.Errorf("ndb upvote failed: %w", err)
 		}
 	}
@@ -310,12 +352,14 @@ func (dndb *distributedNdbFSM) Apply(raftLog *raft.Log) interface{} {
 	if op.Associate != nil {
 		err := dndb.ndb.Associate([]string{op.Associate.Source}, []string{op.Associate.Target}, op.Associate.Strength)
 		if err != nil {
-			slog.Error("ndb associate failed", "error", err)
+			dndb.logger.Error("[DNDB]: ndb associate failed", "index", raftLog.Index, "error", err)
 			return fmt.Errorf("ndb associate failed: %w", err)
 		}
 	}
 
 	dndb.lastUpdateIndex.Store(raftLog.Index)
+
+	dndb.logger.Info("[DNDB]: update applied to fsm", "index", raftLog.Index)
 
 	return nil
 }
@@ -324,11 +368,16 @@ func (dndb *distributedNdbFSM) Snapshot() (raft.FSMSnapshot, error) {
 	dndb.Lock()
 	defer dndb.Unlock()
 
+	dndb.logger.Info("[DNDB]: fsm creating snapshot")
+
 	snapshotPath := filepath.Join(dndb.localNdbStore, uuid.NewString())
 
 	if err := dndb.ndb.Save(snapshotPath); err != nil {
+		dndb.logger.Error("[DNDB]: fsm create snapshot failed", "error", err)
 		return nil, fmt.Errorf("ndb save failed: %w", err)
 	}
+
+	dndb.logger.Info("[DNDB]: fsm snapshot created")
 
 	return &ndbSnapshot{path: snapshotPath}, nil
 }
@@ -350,6 +399,8 @@ func saveFile(dstPath string, src io.Reader) error {
 func (dndb *distributedNdbFSM) Restore(snapshotReader io.ReadCloser) error {
 	defer snapshotReader.Close()
 
+	dndb.logger.Info("[DNDB]: restoring from snapshot")
+
 	snapshotPath := filepath.Join(dndb.localNdbStore, uuid.NewString())
 
 	reader := tar.NewReader(snapshotReader)
@@ -360,6 +411,7 @@ func (dndb *distributedNdbFSM) Restore(snapshotReader io.ReadCloser) error {
 			break
 		}
 		if err != nil {
+			dndb.logger.Info("[DNDB]: error reading snapshot", "error", err)
 			return fmt.Errorf("error reading snapshot: %w", err)
 		}
 
@@ -368,10 +420,12 @@ func (dndb *distributedNdbFSM) Restore(snapshotReader io.ReadCloser) error {
 		switch header.Typeflag {
 		case tar.TypeDir:
 			if err := os.MkdirAll(path, 0666); err != nil {
+				dndb.logger.Info("[DNDB]: error creating subdirectory for snapshot", "error", err)
 				return fmt.Errorf("error creating subdirectory '%s' from snapshot: %w", path, err)
 			}
 		case tar.TypeReg:
 			if err := saveFile(path, reader); err != nil {
+				dndb.logger.Info("[DNDB]: error saving file in snapshot", "error", err)
 				return err
 			}
 		}
@@ -379,7 +433,7 @@ func (dndb *distributedNdbFSM) Restore(snapshotReader io.ReadCloser) error {
 
 	snapshotNdb, err := ndb.New(snapshotPath)
 	if err != nil {
-		slog.Error("error loading ndb from snapshot", "path", snapshotPath, "error", err)
+		dndb.logger.Error("[DNDB]: error loading ndb from snapshot", "path", snapshotPath, "error", err)
 		return fmt.Errorf("error loading ndb from snapshot: %w", err)
 	}
 
@@ -388,6 +442,8 @@ func (dndb *distributedNdbFSM) Restore(snapshotReader io.ReadCloser) error {
 
 	dndb.ndb.Free()
 	dndb.ndb = snapshotNdb
+
+	dndb.logger.Info("[DNDB]: restore from snapshot completed")
 
 	return nil
 }
@@ -399,19 +455,30 @@ type ndbSnapshot struct {
 func (snapshot *ndbSnapshot) Persist(sink raft.SnapshotSink) error {
 	archive := tar.NewWriter(sink)
 
+	slog.Info("[DNDB SNAPSHOT]: persisting snapshot", "path", snapshot.path)
+
 	if err := archive.AddFS(os.DirFS(snapshot.path)); err != nil {
+		slog.Error("[DNDB SNAPSHOT]: error adding snapshot to archive", "path", snapshot.path, "error", err)
 		return errors.Join(err, sink.Cancel())
 	}
 
 	if err := archive.Close(); err != nil {
+		slog.Error("[DNDB SNAPSHOT]: error closing snapshot", "path", snapshot.path, "error", err)
 		return errors.Join(err, sink.Cancel())
 	}
+
+	slog.Info("[DNDB SNAPSHOT]: snapshot persisted", "path", snapshot.path)
 
 	return sink.Close()
 }
 
 func (snapshot *ndbSnapshot) Release() {
+	slog.Info("[DNDB SNAPSHOT]: releasing snapshot", "path", snapshot.path)
+
 	if err := os.RemoveAll(snapshot.path); err != nil {
-		slog.Error("error deleting snapshot", "path", snapshot.path, "error", err)
+		slog.Error("[DNDB SNAPSHOT]: error deleting snapshot", "path", snapshot.path, "error", err)
 	}
+
+	slog.Info("[DNDB SNAPSHOT]: snapshot released", "path", snapshot.path)
+
 }

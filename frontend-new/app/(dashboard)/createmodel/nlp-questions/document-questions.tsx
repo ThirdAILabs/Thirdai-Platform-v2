@@ -197,7 +197,7 @@ const DocumentQuestions = ({
       // If validation passes, proceed with training and pass nTargetClasses
       const trainingResult = await trainNLPTextModel({
         uploadId: upload_id,
-        modelName: modelName,
+        model_name: modelName,
         labelColumn: 'label',
         textColumn: 'text',
         doc_classification: true,

@@ -407,10 +407,8 @@ export async function uploadDocument(files: FileList | File): Promise<UploadResp
 
   // Group files by their categories
   const categoryMap = new Map<string, File[]>();
-
   Array.from(files).forEach((file) => {
     const pathParts = file.webkitRelativePath.split('/');
-
     if (pathParts.length < 3) {
       throw new Error('Invalid folder structure. Files must be within category folders.');
     }

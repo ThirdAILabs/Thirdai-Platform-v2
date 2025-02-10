@@ -28,6 +28,10 @@ type NomadClient struct {
 	templates *template.Template
 }
 
+func NomadTemplatePath(jobPath string) string {
+	return jobPath + ".hcl.tmpl"
+}
+
 func NewNomadClient(addr string, token string) orchestrator.Client {
 	funcs := template.FuncMap{
 		"isLocal": func(d orchestrator.Driver) bool {
@@ -110,7 +114,7 @@ func (c *NomadClient) delete(endpoint string) error {
 
 func (c *NomadClient) parseJob(job orchestrator.Job) (interface{}, error) {
 	content := strings.Builder{}
-	err := c.templates.ExecuteTemplate(&content, job.TemplateName(), job)
+	err := c.templates.ExecuteTemplate(&content, NomadTemplatePath(job.JobTemplatePath()), job)
 	if err != nil {
 		return nil, fmt.Errorf("error rendering template: %v", err)
 	}
@@ -148,21 +152,23 @@ func (c *NomadClient) submitJob(jobDef interface{}) error {
 }
 
 func (c *NomadClient) StartJob(job orchestrator.Job) error {
-	slog.Info("starting nomad job", "job_name", job.GetJobName(), "template", job.TemplateName())
+
+	nomadTemplatePath := NomadTemplatePath(job.JobTemplatePath())
+	slog.Info("starting nomad job", "job_name", job.GetJobName(), "template", nomadTemplatePath)
 
 	jobDef, err := c.parseJob(job)
 	if err != nil {
-		slog.Error("error parsing nomad job", "job_name", job.GetJobName(), "template", job.TemplateName(), "error", err)
+		slog.Error("error parsing nomad job", "job_name", job.GetJobName(), "template", nomadTemplatePath, "error", err)
 		return fmt.Errorf("error starting nomad job: %w", err)
 	}
 
 	err = c.submitJob(jobDef)
 	if err != nil {
-		slog.Error("error submitting nomad job", "job_name", job.GetJobName(), "template", job.TemplateName(), "error", err)
+		slog.Error("error submitting nomad job", "job_name", job.GetJobName(), "template", nomadTemplatePath, "error", err)
 		return fmt.Errorf("error starting nomad job: %w", err)
 	}
 
-	slog.Info("nomad job started successfully", "job_name", job.GetJobName(), "template", job.TemplateName())
+	slog.Info("nomad job started successfully", "job_name", job.GetJobName(), "template", nomadTemplatePath)
 
 	return nil
 }

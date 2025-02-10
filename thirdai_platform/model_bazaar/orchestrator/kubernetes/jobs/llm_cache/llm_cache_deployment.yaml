@@ -16,7 +16,9 @@ spec:
     spec:
       containers:
         - name: backend
+          {{ with .Driver }}
           image: "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          {{ end }}
           command: ["python3"]
           args:
             - "-m"

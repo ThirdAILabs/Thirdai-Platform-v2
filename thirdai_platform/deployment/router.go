@@ -91,9 +91,8 @@ func (s *NdbRouter) Routes() chi.Router {
 
 		r.Post("/query", s.Search)
 		r.Get("/sources", s.Sources)
-		r.Post("/save", s.Save) // TODO Check low disk usage
-		r.Post("/implicit-feedback", s.ImplicitFeedback)
-		r.Get("/highlighted-pdf", s.HighlightedPdf)
+		// r.Post("/implicit-feedback", s.ImplicitFeedback)
+		// r.Get("/highlighted-pdf", s.HighlightedPdf)
 
 		if s.LLMProvider != nil {
 			r.Post("/generate", s.GenerateFromReferences)
@@ -324,9 +323,6 @@ func (s *NdbRouter) Sources(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJsonResponse(w, results)
-}
-
-func (s *NdbRouter) Save(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *NdbRouter) ImplicitFeedback(w http.ResponseWriter, r *http.Request) {

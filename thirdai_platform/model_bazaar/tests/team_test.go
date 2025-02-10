@@ -3,6 +3,7 @@ package tests
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"thirdai_platform/model_bazaar/schema"
 )
@@ -382,22 +383,17 @@ func TestTeamModels(t *testing.T) {
 		t.Fatal("user shouldn't be able to access another user's model")
 	}
 
-	err = user1.addModelToTeam(unusedTeam, model1)
-	if !errors.Is(err, ErrUnauthorized) {
-		t.Fatal("user cannot add model to a team they are not a member of")
-	}
-
-	err = user1.addModelToTeam(team, model1)
-	if err != nil {
-		t.Fatal(err)
+	err = user1.updateAccess(model1, schema.Protected, &unusedTeam)
+	if !strings.Contains(err.Error(), "user is not a member of team") {
+		t.Fatalf("user cannot add model to a team they are not a member of: %v", err)
 	}
 
 	_, err = user2.modelInfo(model1)
 	if !errors.Is(err, ErrUnauthorized) {
-		t.Fatal("model access must be updated after adding to team")
+		t.Fatal("model model cannot be accessed by non team member")
 	}
 
-	err = user1.updateAccess(model1, schema.Protected)
+	err = user1.updateAccess(model1, schema.Protected, &team)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -422,17 +418,12 @@ func TestTeamModels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = user1.updateAccess(model2, schema.Protected)
+	err = user1.updateAccess(model2, schema.Protected, &team)
 	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatal("only model owner can update access")
 	}
 
-	err = user2.updateAccess(model2, schema.Protected)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = user2.addModelToTeam(team, model2)
+	err = user2.updateAccess(model2, schema.Protected, &team)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -446,7 +437,7 @@ func TestTeamModels(t *testing.T) {
 		t.Fatalf("wrong team models %v", models)
 	}
 
-	err = admin.removeModelFromTeam(team, model1)
+	err = admin.updateAccess(model1, schema.Private, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -72,7 +72,7 @@ func TestPublicModelPermissions(t *testing.T) {
 	checkPermissions(user1, t, model, true, true, true)
 	checkPermissions(user2, t, model, false, false, false)
 
-	err = user1.updateAccess(model, schema.Public)
+	err = user1.updateAccess(model, schema.Public, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,14 +134,14 @@ func TestProtectedModelPermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	checkPermissions(admin, t, model, true, true, true)
-	checkPermissions(user1, t, model, true, true, true)
-	checkPermissions(user2, t, model, false, false, false)
-	checkPermissions(user3, t, model, false, false, false)
-
-	err = user1.updateAccess(model, schema.Protected)
-	if err != nil {
-		t.Fatal(err)
+	checkAccess := func(access string) {
+		info, err := user1.modelInfo(model)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Access != access {
+			t.Fatal("access should still be " + access)
+		}
 	}
 
 	checkPermissions(admin, t, model, true, true, true)
@@ -149,10 +149,24 @@ func TestProtectedModelPermissions(t *testing.T) {
 	checkPermissions(user2, t, model, false, false, false)
 	checkPermissions(user3, t, model, false, false, false)
 
-	err = user1.addModelToTeam(team, model)
+	err = user1.updateAccess(model, schema.Protected, nil)
+	if !strings.Contains(err.Error(), "must specifiy team id if changing the model access to protected") {
+		t.Fatal("must specify team id to change model to protected")
+	}
+
+	checkAccess(schema.Private)
+
+	checkPermissions(admin, t, model, true, true, true)
+	checkPermissions(user1, t, model, true, true, true)
+	checkPermissions(user2, t, model, false, false, false)
+	checkPermissions(user3, t, model, false, false, false)
+
+	err = user1.updateAccess(model, schema.Protected, &team)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	checkAccess(schema.Protected)
 
 	checkPermissions(admin, t, model, true, true, true)
 	checkPermissions(user1, t, model, true, true, true)
@@ -223,12 +237,7 @@ func TestListModels(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = user1.addModelToTeam(team, model1)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = user1.updateAccess(model1, schema.Protected)
+	err = user1.updateAccess(model1, schema.Protected, &team)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,7 +268,7 @@ func TestListModels(t *testing.T) {
 		t.Fatalf("wrong models returned %v", models3)
 	}
 
-	err = user3.updateAccess(model3, schema.Public)
+	err = user3.updateAccess(model3, schema.Public, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -419,17 +428,31 @@ func TestModelWithDeps(t *testing.T) {
 
 	checkSearchDeps(info)
 
-	models, err := user.listModels()
+	admin, err := env.adminClient()
 	if err != nil {
 		t.Fatal(err)
 	}
-	sortModelList(models)
 
-	if len(models) != 3 || models[0].ModelId.String() != ndb || models[1].ModelId.String() != nlp || models[2].ModelId.String() != es {
-		t.Fatalf("invalid models: %v", models)
+	checkModels := func(models []services.ModelInfo) {
+		sortModelList(models)
+		if len(models) != 3 || models[0].ModelId.String() != ndb || models[1].ModelId.String() != nlp || models[2].ModelId.String() != es {
+			t.Fatalf("invalid models: %v", models)
+		}
 	}
 
-	checkSearchDeps(models[2])
+	adminModels, err := admin.listModels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkModels(adminModels)
+	checkSearchDeps(adminModels[2])
+
+	userModels, err := user.listModels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkModels(userModels)
+	checkSearchDeps(userModels[2])
 
 	ndbToken := getJobAuthToken(env, t, ndb)
 	nlpToken := getJobAuthToken(env, t, nlp)

@@ -5,7 +5,7 @@ import shutil
 import time
 from collections import defaultdict
 from logging import Logger
-from typing import List
+from typing import Dict, List
 
 import thirdai
 from platform_common.file_handler import expand_cloud_buckets_and_directories
@@ -13,13 +13,15 @@ from platform_common.logging.logcodes import LogCode
 from platform_common.ndb.ndbv2_parser import parse_doc
 from platform_common.ndb.utils import delete_docs_and_remove_files
 from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
-from platform_common.pydantic_models.training import FileInfo, TrainConfig
+from platform_common.pydantic_models.training import FileInfo, FileLocation, TrainConfig
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.chunk_stores import PandasChunkStore
 from thirdai.neural_db_v2.retrievers import FinetunableRetriever
 from train_job.models.model import Model
 from train_job.reporter import Reporter
 from train_job.utils import check_disk, get_directory_size
+
+from thirdai_platform_py.train_job.llm.api_clients import llm_classes
 
 
 class NeuralDBV2(Model):
@@ -79,6 +81,19 @@ class NeuralDBV2(Model):
                     retriever=FinetunableRetriever(self.retriever_save_path()),
                     splade=splade,
                 )
+
+        if config.generative_supervision:
+            self.llm_response_dir = os.path.join(
+                self.config.model_bazaar_dir,
+                config.llm_config.provider,
+            )
+            os.makedirs(self.llm_response_dir, exist_ok=True)
+            self.llm = llm_classes.get(self.config.llm_config.provider)(
+                api_key=self.config.llm_config.api_key,
+                model_name=self.config.llm_config.model_name,
+                base_url=self.config.llm_config.base_url,
+                track_usage_at=os.path.join(self.llm_response_dir, "usage.json"),
+            )
 
     def retriever_save_path(self):
         return os.path.join(self.model_dir, "train_retriever")
@@ -330,13 +345,42 @@ class NeuralDBV2(Model):
             f"Listed {len(supervised_files)} supervised files in {e-s:.4f} seconds"
         )
 
-        start_time = time.time()
-
+        unsup_start = time.time()
         successfully_indexed_files = 0
         if unsupervised_files:
             check_disk(self.db, self.config.model_bazaar_dir, unsupervised_files)
             successfully_indexed_files = self.unsupervised_train(unsupervised_files)
+        unsup_end = time.time()
 
+        # Generative supervised training. Assuming that enough disk space is available for model for supervised training
+        self.logger.info(f"Starting question generation for supervised training.")
+        gen_sup_start = time.time()
+        documents = self.sources()
+        path_prefix = os.path.join(self.llm_response_dir, "generated_questions")
+        os.makedirs(path_prefix, exist_ok=True)
+        generated_supervised_fileinfo = []
+        for doc in documents:
+            write_at = os.path.join(path_prefix, f"{doc['source_id']}.csv")
+            self.generate_supervise_training_data(
+                doc["source_id"],
+                write_at=write_at,
+            )
+            generated_supervised_fileinfo.append(
+                FileInfo(
+                    path=write_at,
+                    location=FileLocation.nfs,
+                    options={
+                        "csv_query_column": "text",
+                        "csv_id_column": "chunk_id",
+                        "csv_id_delimiter": ":",  # random delimiter because there is only one label per query
+                    },
+                )
+            )
+        self.logger.info(
+            f"Completed question generation for supervised training in {time.time() - gen_sup_start:.4f} seconds."
+        )
+
+        sup_start = time.time()
         successfully_trained_files = 0
         if supervised_files:
             check_disk(self.db, self.config.model_bazaar_dir, supervised_files)
@@ -347,9 +391,10 @@ class NeuralDBV2(Model):
                 msg = "The number of documents indexed and trained is 0. Marking training as failed."
                 self.logger.error(msg, code=LogCode.MODEL_TRAIN)
                 raise ValueError(msg)
-
-        train_time = time.time() - start_time
-        self.logger.debug(f"Total training time: {train_time} seconds")
+        sup_end = time.time()
+        self.logger.debug(
+            f"Total training time: {(unsup_end - unsup_start) + (sup_end - sup_start)} seconds"
+        )
 
         if self.config.data.deletions:
             delete_docs_and_remove_files(
@@ -449,3 +494,83 @@ class NeuralDBV2(Model):
                 "latency": str(self.get_latency()),
             },
         )
+
+    def sources(self) -> List[Dict[str, str]]:
+        docs = self.db.documents()
+        return [
+            {
+                "source": self.full_source_path(doc["document"]),
+                "source_id": doc["doc_id"],
+                "version": doc["doc_version"],
+            }
+            for doc in docs
+        ]
+
+    def generate_supervise_training_data(
+        self,
+        doc_id: str,
+        write_at: str,
+        batch_size: int = 500,
+        questions_per_chunk: int = 2,
+    ):
+        # 1_000_000 is an absurdly high version number. Basically means "latest version".
+        chunk_ids = self.db.chunk_store.get_doc_chunks(
+            doc_id=doc_id, before_version=1_000_000
+        )
+
+        if not chunk_ids:
+            raise ValueError("No chunk found for the given doc_id")
+
+        from csv import DictWriter
+
+        from thirdai_platform_py.train_job.prompt_resources.supervise_questions import (
+            Response,
+            system_prompt,
+            user_prompt,
+        )
+
+        self.handler = open(
+            write_at,
+            "w",
+        )
+        writer = DictWriter(self.handler, fieldnames=["text", "chunk_id"])
+        writer.writeheader()
+
+        for i in range(0, len(chunk_ids), batch_size):
+            start_time = time.time()
+            batched_chunks = self.db.chunk_store.get_chunks(
+                chunk_ids[i : i + batch_size]
+            )
+
+            # Prepare prompts for these batched_chunks
+            batched_prompts = [
+                {
+                    "prompt": user_prompt.format(
+                        questions_per_chunk=questions_per_chunk, chunk_text=chunk.text
+                    ),
+                    "system_prompt": system_prompt,
+                    "metadata": {"chunk_id": chunk.chunk_id},
+                    "completion_kwargs": {"response_format": Response},
+                }
+                for chunk in batched_chunks
+            ]
+
+            batched_response = self.llm.run_and_collect_results(
+                batched_prompts, parallelize=True
+            )
+
+            writer.writerows(
+                [
+                    {
+                        "text": questions,
+                        "chunk_id": response["metadata"]["chunk_id"],
+                    }
+                    for response in batched_response
+                    for questions in response.questions
+                ]
+            )
+            self.logger.info(
+                f"Generated questions for {len(batched_chunks)} chunks in {(time.time() - start_time):.4f} seconds"
+            )
+
+        self.handler.close()

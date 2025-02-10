@@ -2,6 +2,7 @@ import os
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
+from platform_common.pydantic_models.llm_config import LLMConfig
 from platform_common.thirdai_storage.data_types import (
     LabelEntity,
     TokenClassificationData,
@@ -290,6 +291,8 @@ class TrainConfig(BaseModel):
 
     generative_supervision: bool = False
 
+    llm_config: Optional[LLMConfig] = None
+
     class Config:
         protected_namespaces = ()
 
@@ -297,6 +300,8 @@ class TrainConfig(BaseModel):
     def check_model_data_match(self):
         if self.data.model_data_type.value not in self.model_type.value:
             raise ValueError("Model and data fields don't match")
+        if self.generative_supervision and self.llm_config is None:
+            raise ValueError("Generative supervision requires LLM config")
         return self
 
     def save_train_config(self):

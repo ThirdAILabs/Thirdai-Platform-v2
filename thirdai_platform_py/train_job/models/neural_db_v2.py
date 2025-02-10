@@ -17,11 +17,10 @@ from platform_common.pydantic_models.training import FileInfo, FileLocation, Tra
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.chunk_stores import PandasChunkStore
 from thirdai.neural_db_v2.retrievers import FinetunableRetriever
+from train_job.llm.api_clients import llm_classes
 from train_job.models.model import Model
 from train_job.reporter import Reporter
 from train_job.utils import check_disk, get_directory_size
-
-from thirdai_platform_py.train_job.llm.api_clients import llm_classes
 
 
 class NeuralDBV2(Model):

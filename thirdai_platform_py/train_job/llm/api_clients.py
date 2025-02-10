@@ -54,7 +54,7 @@ class LLMBase(ABC):
             Format of each argument:
                 prompt: Generation prompt to the LLM.
                 system_prompt: system prompt to the LLM.
-                kwargs: passed to the completion function
+                completion_kwargs: passed to the completion function
         """
         data_points = []
         if parallelize:

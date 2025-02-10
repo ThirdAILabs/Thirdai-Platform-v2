@@ -20,3 +20,5 @@ func (r *Reporter) GetDeployStatusInternal() (services.StatusResponse, error) {
 	err := r.Get(fmt.Sprintf("/api/v2/deploy/%v/status-internal", r.ModelId)).Do(&res)
 	return res, err
 }
+
+// TODO(any): Add log method and integration with victoria logs

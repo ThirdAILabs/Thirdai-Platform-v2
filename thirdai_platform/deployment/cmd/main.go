@@ -11,22 +11,29 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"thirdai_platform/client"
 	"thirdai_platform/deployment"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/licensing"
-	"thirdai_platform/model_bazaar/nomad"
-	"thirdai_platform/utils"
 	"time"
+
+	"github.com/caarlos0/env/v10"
 )
 
-type deploymentEnv struct {
-	ConfigPath string
-	JobToken   string
+type CloudCredentials struct {
+	AwsAccessKey       string `env:"AWS_ACCESS_KEY"`
+	AwsAccessSecret    string `env:"AWS_ACCESS_SECRET"`
+	AwsRegionName      string `env:"AWS_REGION_NAME"`
+	AzureAccountName   string `env:"AZURE_ACCOUNT_NAME"`
+	AzureAccountKey    string `env:"AZURE_ACCOUNT_KEY"`
+	GcpCredentialsFile string `env:"GCP_CREDENTIALS_FILE"`
+}
 
-	CloudCredentials nomad.CloudCredentials
+type DeploymentEnv struct {
+	ConfigPath       string           `env:"CONFIG_PATH,required"`
+	JobToken         string           `env:"JOB_TOKEN,required"`
+	CloudCredentials CloudCredentials `env:""`
 }
 
 /**
@@ -37,37 +44,12 @@ type deploymentEnv struct {
  * ==== the system.                                                      ====
  * ==========================================================================
  */
-func loadEnv() deploymentEnv {
-	missingEnvs := []string{}
-
-	requiredEnv := func(key string) string {
-		env := os.Getenv(key)
-		if env == "" {
-			missingEnvs = append(missingEnvs, key)
-			slog.Error("missing required env variable", "key", key)
-		}
-		return env
+func loadEnv() (*DeploymentEnv, error) {
+	cfg := &DeploymentEnv{}
+	if err := env.Parse(cfg); err != nil {
+		return nil, err
 	}
-
-	env := deploymentEnv{
-		ConfigPath: requiredEnv("CONFIG_PATH"),
-		JobToken:   requiredEnv("JOB_TOKEN"),
-
-		CloudCredentials: nomad.CloudCredentials{
-			AwsAccessKey:       utils.OptionalEnv("AWS_ACCESS_KEY"),
-			AwsAccessSecret:    utils.OptionalEnv("AWS_ACCESS_SECRET"),
-			AwsRegionName:      utils.OptionalEnv("AWS_REGION_NAME"),
-			AzureAccountName:   utils.OptionalEnv("AZURE_ACCOUNT_NAME"),
-			AzureAccountKey:    utils.OptionalEnv("AZURE_ACCOUNT_KEY"),
-			GcpCredentialsFile: utils.OptionalEnv("GCP_CREDENTIALS_FILE"),
-		},
-	}
-
-	if len(missingEnvs) > 0 {
-		log.Fatalf("The following required env vars are missing: %s", strings.Join(missingEnvs, ", "))
-	}
-
-	return env
+	return cfg, nil
 }
 
 func initLogging(logFile *os.File) {
@@ -83,7 +65,10 @@ func runApp() error {
 
 	flag.Parse()
 
-	env := loadEnv()
+	env, err := loadEnv()
+	if err != nil {
+		return fmt.Errorf("failed to load environment variables: %w", err)
+	}
 
 	config, err := config.LoadDeployConfig(env.ConfigPath)
 	if err != nil {

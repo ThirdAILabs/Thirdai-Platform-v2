@@ -337,6 +337,10 @@ func CheckAssociateArgs(sources, targets []string) error {
 	return nil
 }
 
+const (
+	DefaultAssociateStrength uint32 = 4
+)
+
 func (ndb *NeuralDB) Associate(sources, targets []string, strength uint32) error {
 	if err := CheckAssociateArgs(sources, targets); err != nil {
 		return err

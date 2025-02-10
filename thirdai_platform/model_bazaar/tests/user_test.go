@@ -309,12 +309,22 @@ func TestDeleteUser(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = user.updateAccess(m1, "public")
+	team, err := admin.createTeam("xyz")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = user.updateAccess(m2, "protected")
+	err = admin.addUserToTeam(team, user.userId)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = user.updateAccess(m1, "public", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = user.updateAccess(m2, "protected", &team)
 	if err != nil {
 		t.Fatal(err)
 	}

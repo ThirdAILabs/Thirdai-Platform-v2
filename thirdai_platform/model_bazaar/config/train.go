@@ -240,6 +240,8 @@ type TrainConfig struct {
 	JobOptions JobOptions `json:"job_options"`
 
 	IsRetraining bool `json:"is_retraining"`
+
+	GenerativeSupervision bool `json:"generative_supervision"`
 }
 
 type JobOptions struct {

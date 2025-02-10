@@ -288,6 +288,8 @@ class TrainConfig(BaseModel):
 
     is_retraining: bool = False
 
+    generative_supervision: bool = False
+
     class Config:
         protected_namespaces = ()
 

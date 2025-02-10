@@ -14,4 +14,3 @@ class LLMConfig(BaseModel):
     api_key: str
     base_url: Optional[str] = None
     model_name: str
-    kwargs: Optional[dict] = None

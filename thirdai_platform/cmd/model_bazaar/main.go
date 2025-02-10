@@ -125,6 +125,8 @@ func loadEnv() modelBazaarEnv {
 		NomadEndpoint: optionalEnv("NOMAD_ENDPOINT"),
 		NomadToken:    optionalEnv("TASK_RUNNER_TOKEN"),
 
+		LicensePath: optionalEnv("LICENSE_PATH"),
+
 		Kubernetes: optionalEnv("KUBERNETES"),
 
 		ShareDir:  requiredEnv("SHARE_DIR"),

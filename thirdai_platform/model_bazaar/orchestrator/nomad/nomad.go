@@ -28,6 +28,10 @@ type NomadClient struct {
 	templates *template.Template
 }
 
+func NomadTemplatePath(jobPath string) string {
+	return jobPath + ".hcl.tmpl"
+}
+
 func NewNomadClient(addr string, token string) orchestrator.Client {
 	funcs := template.FuncMap{
 		"isLocal": func(d orchestrator.Driver) bool {
@@ -148,7 +152,9 @@ func (c *NomadClient) submitJob(jobDef interface{}) error {
 }
 
 func (c *NomadClient) StartJob(job orchestrator.Job) error {
-	slog.Info("starting nomad job", "job_name", job.GetJobName(), "template", job.TemplateName())
+
+	nomadTemplatePath := NomadTemplatePath(job.JobTemplatePath())
+	slog.Info("starting nomad job", "job_name", job.GetJobName(), "template", nomadTemplatePath)
 
 	jobDef, err := c.parseJob(job)
 	if err != nil {

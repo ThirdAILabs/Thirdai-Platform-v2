@@ -44,18 +44,14 @@ class AzureProvider(CloudProviderInterface):
             dockerfile=dockerfile_path,
             tag=tag,
             rm=True,
-            platform="linux/amd64",
+            platform="linux/x86_64",
             nocache=nocache,
             buildargs=buildargs,
-            pull=True,
         )
         image_id: Optional[str] = None
         for chunk in generator:
             for minichunk in chunk.strip(b"\r\n").split(b"\r\n"):
                 json_chunk = json.loads(minichunk)
-                print(f"Build output: {json_chunk}")
-                if "aux" in json_chunk and "ID" in json_chunk["aux"]:
-                    image_id = json_chunk["aux"]["ID"]
                 if "stream" in json_chunk:
                     print(json_chunk["stream"].strip())
                     match = re.search(
@@ -66,7 +62,6 @@ class AzureProvider(CloudProviderInterface):
                         image_id = match.group(2)
                 if "errorDetail" in json_chunk:
                     raise RuntimeError(json_chunk["errorDetail"]["message"])
-
         if not image_id:
             raise RuntimeError(f"Did not successfully build {tag} from {context_path}")
 

@@ -47,9 +47,7 @@ def get_args() -> argparse.Namespace:
         action="store_true",
         help="If this flag is present, we dont update the scope with latest images, helpful for running docker tests.",
     )
-    args = parser.parse_args()
-    print(f"[DEBUG] Parsed arguments: {args}")
-    return args
+    return parser.parse_args()
 
 
 def get_tag(branch: str, config: dict) -> str:
@@ -60,9 +58,7 @@ def get_tag(branch: str, config: dict) -> str:
     :param config: Configuration dictionary
     :return: Version tag
     """
-    tag = "v" + config[config["provider"]]["branches"][branch]["version"]
-    print(f"[DEBUG] get_tag: branch={branch}, tag={tag}")
-    return tag
+    return "v" + config[config["provider"]]["branches"][branch]["version"]
 
 
 def get_root_absolute_path() -> Path:
@@ -72,10 +68,9 @@ def get_root_absolute_path() -> Path:
     :return: Absolute path to the project root
     """
     current_path = Path(__file__).resolve()
-    print(f"[DEBUG] Starting search for project root from: {current_path}")
-    while current_path.name != "Thirdai-Platform-v2":
+    while current_path.name != "ThirdAI-Platform":
         current_path = current_path.parent
-    print(f"[DEBUG] Found project root: {current_path}")
+
     return current_path
 
 
@@ -102,22 +97,17 @@ def build_image(
     :param context_path: Path to the context used to build
     :return: Dictionary with image name and image ID
     """
-    print(f"[DEBUG] Starting build_image for {name}")
     dockerfile_path = Path(dockerfile_path)
     context_path = Path(context_path)
     if not context_path.is_absolute():
         context_path = get_root_absolute_path() / context_path
-        print(f"[DEBUG] Updated context_path to absolute: {context_path}")
     if not dockerfile_path.is_absolute():
         dockerfile_path = context_path / Path(dockerfile_path)
-        print(f"[DEBUG] Updated dockerfile_path to absolute: {dockerfile_path}")
 
     full_name = provider.get_full_image_name(name, branch, tag)
-    print(f"[DEBUG] Full image name: {full_name}")
     image_id = provider.build_image(
         str(dockerfile_path), str(context_path), full_name, nocache, buildargs
     )
-    print(f"[DEBUG] Built image {name} with ID: {image_id}")
     return {name: image_id}
 
 
@@ -140,11 +130,9 @@ def build_images(
     :param nocache: Whether to use cache during build
     :return: Dictionary of image names and their IDs
     """
-    print(f"[DEBUG] Starting build_images for branch {branch} with tag {tag}")
     image_ids = {}
 
     for image in images_to_build:
-        print(f"[DEBUG] Processing image: {image.name}")
         buildargs = {}
         if image.name == "thirdai_platform":
             buildargs = {
@@ -157,7 +145,6 @@ def build_images(
                     for image in images_to_build
                 },
             }
-            print(f"[DEBUG] Build args for thirdai_platform: {buildargs}")
 
         image_ids.update(
             build_image(
@@ -171,7 +158,6 @@ def build_images(
                 image.context_path,
             )
         )
-        print(f"[DEBUG] Updated image_ids: {image_ids}")
 
     return image_ids
 
@@ -188,20 +174,16 @@ def verify_tag(
     :param branch: Branch name
     :raises RuntimeError: If an image with the same tag but different checksum exists
     """
-    print(f"[DEBUG] Starting verify_tag for tag {tag} on branch {branch}")
     for name, image_id in image_ids.items():
-        print(f"[DEBUG] Verifying image: {name} with local image ID: {image_id}")
         existing = provider.get_image_digest(
             name=image_name_for_branch(name, branch), tag=tag
         )
         new = provider.get_local_image_digest(image_id=image_id)
-        print(f"[DEBUG] Existing digest: {existing}, New digest: {new}")
         if existing and existing != new:
             raise RuntimeError(
                 f"A docker image with name '{name}' and branch '{branch}' and tag '{tag}' with "
                 "a different checksum exists in the registry."
             )
-    print(f"[DEBUG] verify_tag completed successfully.")
 
 
 def push_images(
@@ -220,20 +202,12 @@ def push_images(
     :param branch: Branch name
     :param dont_update_latest: Whether to update the 'latest' tag
     """
-    print(f"[DEBUG] Starting push_images for branch {branch} with tag {tag}")
     for name, image_id in image_ids.items():
-        full_image_name_tagged = provider.get_full_image_name(name, branch, tag)
-        print(f"[DEBUG] Pushing image {name} with tag {tag}: {full_image_name_tagged}")
-        provider.push_image(image_id, full_image_name_tagged)
+        provider.push_image(image_id, provider.get_full_image_name(name, branch, tag))
         if not dont_update_latest:
-            full_image_name_latest = provider.get_full_image_name(
-                name, branch, "latest"
+            provider.push_image(
+                image_id, provider.get_full_image_name(name, branch, "latest")
             )
-            print(
-                f"[DEBUG] Also pushing image {name} with tag latest: {full_image_name_latest}"
-            )
-            provider.push_image(image_id, full_image_name_latest)
-    print(f"[DEBUG] push_images completed.")
 
 
 def save_config(config_path: str, config: dict) -> None:
@@ -243,31 +217,25 @@ def save_config(config_path: str, config: dict) -> None:
     :param config_path: Path to the configuration file
     :param config: Configuration dictionary
     """
-    print(f"[DEBUG] Saving configuration to {config_path}")
     with open(config_path, "w") as file:
         yaml.dump(config, file, default_flow_style=False)
-    print(f"[DEBUG] Configuration saved successfully.")
 
 
 def main() -> None:
     """
     Main function to build and push Docker images.
     """
-    print("[DEBUG] Starting main execution.")
     args = get_args()
     config = load_config(args.config)
-    print(f"[DEBUG] Loaded config: {config}")
 
     provider_name = config["provider"]
     if provider_name == "azure":
         if not config["azure"]["registry"]:
             config["azure"]["registry"] = "thirdaiplatform.azurecr.io"
-            print("[DEBUG] Set default registry for azure.")
 
         # Ensure branch configuration exists
         if "branches" not in config["azure"]:
             config["azure"]["branches"] = {}
-            print("[DEBUG] Added missing 'branches' to azure config.")
 
         if args.branch not in config["azure"]["branches"]:
             config["azure"]["branches"][args.branch] = {
@@ -275,17 +243,12 @@ def main() -> None:
                 "push_credentials": {"username": "", "password": ""},
                 "pull_credentials": {"username": "", "password": ""},
             }
-            print(f"[DEBUG] Added branch configuration for {args.branch}.")
 
         tag = "v" + args.version if args.version else get_tag(args.branch, config)
-        print(f"[DEBUG] Using tag: {tag}")
 
         azure_config = config["azure"]
         branch_config = azure_config["branches"][args.branch]
         provider = AzureProvider(registry=azure_config["registry"])
-        print(
-            f"[DEBUG] Initialized AzureProvider with registry: {azure_config['registry']}"
-        )
 
         push_credentials = branch_config.get("push_credentials", {})
         pull_credentials = branch_config.get("pull_credentials", {})
@@ -296,10 +259,8 @@ def main() -> None:
 
         # Replace underscores with hyphens in the branch name
         sanitized_branch = args.branch.replace("_", "-")
-        print(f"[DEBUG] Sanitized branch name: {sanitized_branch}")
 
         if not push_username or not push_password:
-            print("[DEBUG] Creating new push credentials.")
             new_push_credentials = provider.create_credentials(
                 name=f"thirdaiplatform-push-{sanitized_branch}",
                 image_names=[
@@ -316,10 +277,8 @@ def main() -> None:
                 "username": push_username,
                 "password": push_password,
             }
-            print(f"[DEBUG] New push credentials: {new_push_credentials}")
         else:
             if not args.dont_update_scope:
-                print("[DEBUG] Updating push credentials scope.")
                 provider.update_credentials(
                     name=f"thirdaiplatform-push-{sanitized_branch}",
                     image_names=[
@@ -331,7 +290,6 @@ def main() -> None:
                 )
 
         if not pull_username or not pull_password:
-            print("[DEBUG] Creating new pull credentials.")
             new_pull_credentials = provider.create_credentials(
                 name=f"thirdaiplatform-pull-{sanitized_branch}",
                 image_names=[
@@ -348,10 +306,8 @@ def main() -> None:
                 "username": pull_username,
                 "password": pull_password,
             }
-            print(f"[DEBUG] New pull credentials: {new_pull_credentials}")
         else:
             if not args.dont_update_scope:
-                print("[DEBUG] Updating pull credentials scope.")
                 provider.update_credentials(
                     name=f"thirdaiplatform-pull-{sanitized_branch}",
                     image_names=[
@@ -373,20 +329,14 @@ def main() -> None:
                 pull_password=pull_password,
             )
         )
-        print("[DEBUG] Credentials authorized.")
 
         # Build images
         image_ids = build_images(
             provider, args.branch, tag, pull_username, pull_password, args.no_cache
         )
-        print(f"[DEBUG] Built images: {image_ids}")
 
         verify_tag(provider, image_ids, tag, args.branch)
-        print("[DEBUG] Tag verification successful.")
-
         push_images(provider, image_ids, tag, args.branch, args.dont_update_latest)
-        print("[DEBUG] push_images completed.")
-    print("[DEBUG] main execution completed.")
 
 
 if __name__ == "__main__":

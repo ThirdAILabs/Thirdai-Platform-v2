@@ -494,6 +494,9 @@ class NeuralDBV2(Model):
             },
         )
 
+    def full_source_path(self, document: str) -> str:
+        return os.path.join(self.doc_save_path(), document)
+
     def sources(self) -> List[Dict[str, str]]:
         docs = self.db.documents()
         return [

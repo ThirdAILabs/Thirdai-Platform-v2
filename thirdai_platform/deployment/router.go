@@ -78,9 +78,8 @@ func (m *NdbRouter) Routes() chi.Router {
 
 		r.Post("/query", m.Search)
 		r.Get("/sources", m.Sources)
-		r.Post("/save", m.Save) // TODO Check low disk usage
-		r.Post("/implicit-feedback", m.ImplicitFeedback)
-		r.Get("/highlighted-pdf", m.HighlightedPdf)
+		// r.Post("/implicit-feedback", m.ImplicitFeedback)
+		// r.Get("/highlighted-pdf", m.HighlightedPdf)
 		r.Post("/generate", m.GenerateFromReferences)
 	})
 
@@ -303,9 +302,6 @@ func (s *NdbRouter) Sources(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJsonResponse(w, results)
-}
-
-func (s *NdbRouter) Save(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *NdbRouter) ImplicitFeedback(w http.ResponseWriter, r *http.Request) {

@@ -242,14 +242,6 @@ func (c *client) removeUserFromTeam(teamId, userId string) error {
 	return c.Delete(fmt.Sprintf("/team/%v/users/%v", teamId, userId)).Do(nil)
 }
 
-func (c *client) addModelToTeam(teamId, modelId string) error {
-	return c.Post(fmt.Sprintf("/team/%v/models/%v", teamId, modelId)).Do(nil)
-}
-
-func (c *client) removeModelFromTeam(teamId, modelId string) error {
-	return c.Delete(fmt.Sprintf("/team/%v/models/%v", teamId, modelId)).Do(nil)
-}
-
 func (c *client) addTeamAdmin(teamId, userId string) error {
 	return c.Post(fmt.Sprintf("/team/%v/admins/%v", teamId, userId)).Do(nil)
 }
@@ -336,8 +328,8 @@ func (c *client) deleteModel(modelId string) error {
 	return c.Delete(fmt.Sprintf("/model/%v", modelId)).Do(nil)
 }
 
-func (c *client) updateAccess(modelId, newAccess string) error {
-	body := map[string]string{"access": newAccess}
+func (c *client) updateAccess(modelId, newAccess string, teamId *string) error {
+	body := map[string]interface{}{"access": newAccess, "team_id": teamId}
 	return c.Post(fmt.Sprintf("/model/%v/access", modelId)).Json(body).Do(nil)
 }
 

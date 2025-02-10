@@ -64,12 +64,13 @@ __Example Response__:
 | ------ | ---- | ------------- | ----------  |
 | `POST` | `/api/v2/model/{model_id}/access` | Yes | Model Owner Only |
 
-Updates the access level of the given model.
+Updates the access level of the given model. If the new access level is `'protected'` then a second request parameter `'team_id'` must be specified to indicate which team the model should added to. If the model is already part of a different team, this will change which team the model belongs to. If the user is not an system admin then they must be a member of the team that the model is being added to.
 
 __Example Request__: 
 ```json
 {
-  "access": "private"
+  "access": "protected",
+  "team_id": "team uuid"
 }
 ```
 __Example Response__:

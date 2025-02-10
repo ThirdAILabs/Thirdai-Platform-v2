@@ -352,32 +352,33 @@ class NeuralDBV2(Model):
         unsup_end = time.time()
 
         # Generative supervised training. Assuming that enough disk space is available for model for supervised training
-        self.logger.info(f"Starting question generation for supervised training.")
-        gen_sup_start = time.time()
-        documents = self.sources()
-        path_prefix = os.path.join(self.llm_response_dir, "generated_questions")
-        os.makedirs(path_prefix, exist_ok=True)
-        generated_supervised_fileinfo = []
-        for doc in documents:
-            write_at = os.path.join(path_prefix, f"{doc['source_id']}.csv")
-            self.generate_supervise_training_data(
-                doc["source_id"],
-                write_at=write_at,
-            )
-            generated_supervised_fileinfo.append(
-                FileInfo(
-                    path=write_at,
-                    location=FileLocation.nfs,
-                    options={
-                        "csv_query_column": "text",
-                        "csv_id_column": "chunk_id",
-                        "csv_id_delimiter": ":",  # random delimiter because there is only one label per query
-                    },
+        if self.config.generative_supervision:
+            self.logger.info(f"Starting question generation for supervised training.")
+            gen_sup_start = time.time()
+            documents = self.sources()
+            path_prefix = os.path.join(self.llm_response_dir, "generated_questions")
+            os.makedirs(path_prefix, exist_ok=True)
+            generated_supervised_fileinfo = []
+            for doc in documents:
+                write_at = os.path.join(path_prefix, f"{doc['source_id']}.csv")
+                self.generate_supervise_training_data(
+                    doc["source_id"],
+                    write_at=write_at,
                 )
+                generated_supervised_fileinfo.append(
+                    FileInfo(
+                        path=write_at,
+                        location=FileLocation.nfs,
+                        options={
+                            "csv_query_column": "text",
+                            "csv_id_column": "chunk_id",
+                            "csv_id_delimiter": ":",  # random delimiter because there is only one label per query
+                        },
+                    )
+                )
+            self.logger.info(
+                f"Completed question generation for supervised training in {time.time() - gen_sup_start:.4f} seconds."
             )
-        self.logger.info(
-            f"Completed question generation for supervised training in {time.time() - gen_sup_start:.4f} seconds."
-        )
 
         sup_start = time.time()
         successfully_trained_files = 0

@@ -49,7 +49,7 @@ type CloudCredentials struct {
 type Job interface {
 	GetJobName() string
 
-	TemplateName() string
+	JobTemplatePath() string
 }
 
 type TrainJob struct {
@@ -64,8 +64,8 @@ func (j TrainJob) GetJobName() string {
 	return j.JobName
 }
 
-func (j TrainJob) TemplateName() string {
-	return "train.hcl.tmpl"
+func (j TrainJob) JobTemplatePath() string {
+	return "train"
 }
 
 type DeployJob struct {
@@ -93,8 +93,8 @@ func (j DeployJob) GetJobName() string {
 	return j.JobName
 }
 
-func (j DeployJob) TemplateName() string {
-	return "deploy.hcl.tmpl"
+func (j DeployJob) JobTemplatePath() string {
+	return "deploy"
 }
 
 type DatagenTrainJob struct {
@@ -108,8 +108,8 @@ func (j DatagenTrainJob) GetJobName() string {
 	return j.JobName
 }
 
-func (j DatagenTrainJob) TemplateName() string {
-	return "datagen_train.hcl.tmpl"
+func (j DatagenTrainJob) JobTemplatePath() string {
+	return "datagen_train"
 }
 
 type LlmCacheJob struct {
@@ -124,8 +124,8 @@ func (j LlmCacheJob) GetJobName() string {
 	return "llm-cache"
 }
 
-func (j LlmCacheJob) TemplateName() string {
-	return "llm_cache.hcl.tmpl"
+func (j LlmCacheJob) JobTemplatePath() string {
+	return "llm_cache"
 }
 
 type LlmDispatchJob struct {
@@ -139,8 +139,8 @@ func (j LlmDispatchJob) GetJobName() string {
 	return "llm-dispatch"
 }
 
-func (j LlmDispatchJob) TemplateName() string {
-	return "llm_dispatch.hcl.tmpl"
+func (j LlmDispatchJob) JobTemplatePath() string {
+	return "llm_dispatch"
 }
 
 type OnPremLlmGenerationJob struct {
@@ -161,8 +161,8 @@ func (j OnPremLlmGenerationJob) GetJobName() string {
 	return "on-prem-llm-generation"
 }
 
-func (j OnPremLlmGenerationJob) TemplateName() string {
-	return "on_prem_llm_generation.hcl.tmpl"
+func (j OnPremLlmGenerationJob) JobTemplatePath() string {
+	return "on_prem_llm_generation"
 }
 
 type TelemetryJob struct {
@@ -185,8 +185,8 @@ func (j TelemetryJob) GetJobName() string {
 	return "telemetry"
 }
 
-func (j TelemetryJob) TemplateName() string {
-	return "telemetry.hcl.tmpl"
+func (j TelemetryJob) JobTemplatePath() string {
+	return "telemetry"
 }
 
 type FrontendJob struct {
@@ -205,8 +205,8 @@ func (j FrontendJob) GetJobName() string {
 	return "thirdai-platform-frontend"
 }
 
-func (j FrontendJob) TemplateName() string {
-	return "frontend.hcl.tmpl"
+func (j FrontendJob) JobTemplatePath() string {
+	return "frontend"
 }
 
 type SnapshotJob struct {
@@ -221,6 +221,6 @@ func (j SnapshotJob) GetJobName() string {
 	return "snapshot"
 }
 
-func (j SnapshotJob) TemplateName() string {
+func (j SnapshotJob) JobTemplatePath() string {
 	return "snapshot.hcl.tmpl"
 }

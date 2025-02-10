@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"log"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1" // For Job manifests.
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
@@ -29,6 +31,15 @@ import (
 //go:embed jobs/*/*
 var jobTemplates embed.FS
 
+func getNamespace() (string, error) {
+	// Read the namespace from the well-known file
+	data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(data)), nil
+}
+
 type KubernetesClient struct {
 	namespace string
 	templates *template.Template
@@ -36,12 +47,7 @@ type KubernetesClient struct {
 }
 
 func NewKubernetesClient() orchestrator.Client {
-	funcs := template.FuncMap{
-		"replaceHyphen": func(s string) string {
-			return strings.Replace(s, "-", "_", -1)
-		},
-	}
-	tmpl, err := template.New("job_templates").Funcs(funcs).ParseFS(jobTemplates, "jobs/*/*")
+	tmpl, err := template.New("job_templates").ParseFS(jobTemplates, "jobs/*/*")
 	if err != nil {
 		log.Panicf("error parsing job templates: %v", err)
 	}
@@ -58,7 +64,11 @@ func NewKubernetesClient() orchestrator.Client {
 		log.Panicf("error creating kubernetes clientset: %v", err)
 	}
 
-	namespace := "thirdai-platform"
+	namespace, err := getNamespace()
+	if err != nil {
+		log.Panicf("error creating retrieving kubernetes namespace: %v", err)
+	}
+
 	slog.Info("creating kubernetes client", "namespace", namespace)
 	return &KubernetesClient{
 		namespace: namespace,
@@ -68,69 +78,113 @@ func NewKubernetesClient() orchestrator.Client {
 }
 
 func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
-	slog.Info("starting kubernetes job", "job_name", job.GetJobName(), "template", job.TemplateName())
+	slog.Info("starting kubernetes job", "job_name", job.GetJobName(), "template", job.JobTemplatePath())
 
-	subDir := fmt.Sprintf("jobs/%s", job.TemplateName())
-	entries, err := fs.ReadDir(jobTemplates, subDir)
-	if err != nil {
-		slog.Error("error reading job templates directory", "directory", subDir, "error", err)
-		return fmt.Errorf("error reading job templates directory %s: %w", subDir, err)
+	subDir := fmt.Sprintf("jobs/%s", job.JobTemplatePath())
+
+	type resourceDef struct {
+		FileSuffix string
+		Process    func(rendered string) error
 	}
 
 	ctx := context.TODO()
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		fileName := entry.Name()
-		if !(strings.HasSuffix(fileName, "deployment.yaml") ||
-			strings.HasSuffix(fileName, "service.yaml") ||
-			strings.HasSuffix(fileName, "ingress.yaml") ||
-			strings.HasSuffix(fileName, "job.yaml")) {
-			slog.Info("skipping unrecognized file", "file", fileName)
-			continue
+
+	resources := []resourceDef{
+		{
+			FileSuffix: "_job.yaml",
+			Process: func(rendered string) error {
+				var jobObj batchv1.Job
+				if err := yaml.Unmarshal([]byte(rendered), &jobObj); err != nil {
+					return fmt.Errorf("error unmarshaling job YAML: %w", err)
+				}
+				if _, err := c.clientset.BatchV1().Jobs(c.namespace).Create(ctx, &jobObj, metav1.CreateOptions{}); err != nil {
+					slog.Error("error creating job resource", "error", err)
+					return fmt.Errorf("error creating job resource: %w", err)
+				}
+				return nil
+			},
+		},
+		{
+			FileSuffix: "_deployment.yaml",
+			Process: func(rendered string) error {
+				var deployment appsv1.Deployment
+				if err := yaml.Unmarshal([]byte(rendered), &deployment); err != nil {
+					return fmt.Errorf("error unmarshaling deployment YAML: %w", err)
+				}
+				if _, err := c.clientset.AppsV1().Deployments(c.namespace).Create(ctx, &deployment, metav1.CreateOptions{}); err != nil {
+					slog.Error("error creating deployment resource", "error", err)
+					return fmt.Errorf("error creating deployment resource: %w", err)
+				}
+				return nil
+			},
+		},
+		{
+			FileSuffix: "_service.yaml",
+			Process: func(rendered string) error {
+				var service corev1.Service
+				if err := yaml.Unmarshal([]byte(rendered), &service); err != nil {
+					return fmt.Errorf("error unmarshaling service YAML: %w", err)
+				}
+				if _, err := c.clientset.CoreV1().Services(c.namespace).Create(ctx, &service, metav1.CreateOptions{}); err != nil {
+					slog.Error("error creating service resource", "error", err)
+					return fmt.Errorf("error creating service resource: %w", err)
+				}
+				return nil
+			},
+		},
+		{
+			FileSuffix: "_ingress.yaml",
+			Process: func(rendered string) error {
+				var ingress networkingv1.Ingress
+				if err := yaml.Unmarshal([]byte(rendered), &ingress); err != nil {
+					return fmt.Errorf("error unmarshaling ingress YAML: %w", err)
+				}
+				if _, err := c.clientset.NetworkingV1().Ingresses(c.namespace).Create(ctx, &ingress, metav1.CreateOptions{}); err != nil {
+					slog.Error("error creating ingress resource", "error", err)
+					return fmt.Errorf("error creating ingress resource: %w", err)
+				}
+				return nil
+			},
+		},
+		// TODO: add autoscaler process
+	}
+
+	processTemplate := func(fileSuffix string, process func(rendered string) error) error {
+		templatePath := filepath.Join(subDir, job.JobTemplatePath()+fileSuffix)
+		content, err := fs.ReadFile(jobTemplates, templatePath)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				slog.Info("template file not found, skipping", "template", templatePath)
+				return nil
+			}
+			slog.Error("error reading template file", "template", templatePath, "error", err)
+			return fmt.Errorf("error reading template file %s: %w", templatePath, err)
 		}
 
-		templateName := filepath.Join(job.TemplateName(), fileName)
+		tmpl, err := template.New(job.JobTemplatePath() + fileSuffix).Parse(string(content))
+		if err != nil {
+			slog.Error("error parsing template", "template", templatePath, "error", err)
+			return fmt.Errorf("error parsing template %s: %w", templatePath, err)
+		}
+
 		var buf strings.Builder
-		if err := c.templates.ExecuteTemplate(&buf, templateName, job); err != nil {
-			slog.Error("error rendering job template", "template", templateName, "error", err)
-			return fmt.Errorf("error rendering job template %s: %w", templateName, err)
+		if err := tmpl.Execute(&buf, job); err != nil {
+			slog.Error("error rendering template", "template", templatePath, "error", err)
+			return fmt.Errorf("error rendering template %s: %w", templatePath, err)
 		}
 		rendered := buf.String()
 
-		var createErr error
-		switch {
-		case strings.HasSuffix(fileName, "deployment.yaml"):
-			var deployment appsv1.Deployment
-			if err := yaml.Unmarshal([]byte(rendered), &deployment); err != nil {
-				return fmt.Errorf("error unmarshaling deployment YAML %s: %w", templateName, err)
-			}
-			_, createErr = c.clientset.AppsV1().Deployments(c.namespace).Create(ctx, &deployment, metav1.CreateOptions{})
-		case strings.HasSuffix(fileName, "service.yaml"):
-			var service corev1.Service
-			if err := yaml.Unmarshal([]byte(rendered), &service); err != nil {
-				return fmt.Errorf("error unmarshaling service YAML %s: %w", templateName, err)
-			}
-			_, createErr = c.clientset.CoreV1().Services(c.namespace).Create(ctx, &service, metav1.CreateOptions{})
-		case strings.HasSuffix(fileName, "ingress.yaml"):
-			var ingress networkingv1.Ingress
-			if err := yaml.Unmarshal([]byte(rendered), &ingress); err != nil {
-				return fmt.Errorf("error unmarshaling ingress YAML %s: %w", templateName, err)
-			}
-			_, createErr = c.clientset.NetworkingV1().Ingresses(c.namespace).Create(ctx, &ingress, metav1.CreateOptions{})
-		case strings.HasSuffix(fileName, "job.yaml"):
-			var jobObj batchv1.Job
-			if err := yaml.Unmarshal([]byte(rendered), &jobObj); err != nil {
-				return fmt.Errorf("error unmarshaling job YAML %s: %w", templateName, err)
-			}
-			_, createErr = c.clientset.BatchV1().Jobs(c.namespace).Create(ctx, &jobObj, metav1.CreateOptions{})
+		if err := process(rendered); err != nil {
+			return fmt.Errorf("error submitting template %s: %w", templatePath, err)
 		}
-		if createErr != nil {
-			slog.Error("error creating resource", "template", templateName, "error", createErr)
-			return fmt.Errorf("error creating resource %s: %w", templateName, createErr)
+		slog.Info("resource created successfully", "template", templatePath)
+		return nil
+	}
+
+	for _, res := range resources {
+		if err := processTemplate(res.FileSuffix, res.Process); err != nil {
+			return err
 		}
-		slog.Info("resource created successfully", "template", templateName)
 	}
 
 	slog.Info("all resources for job started successfully", "job_name", job.GetJobName())
@@ -158,7 +212,7 @@ func (c *KubernetesClient) StopJob(jobName string) error {
 	}
 
 	if len(errs) > 0 {
-		return errors.New(fmt.Sprintf("error stopping job resources for %s: %s", jobName, strings.Join(errs, "; ")))
+		return fmt.Errorf("error stopping job resources for %s: %s", jobName, strings.Join(errs, "; "))
 	}
 	slog.Info("kubernetes job resources stopped successfully", "job_name", jobName)
 	return nil
@@ -166,24 +220,51 @@ func (c *KubernetesClient) StopJob(jobName string) error {
 
 func (c *KubernetesClient) JobInfo(jobName string) (orchestrator.JobInfo, error) {
 	ctx := context.TODO()
+
 	deployment, err := c.clientset.AppsV1().Deployments(c.namespace).Get(ctx, jobName, metav1.GetOptions{})
-	if err != nil {
+	if err == nil {
+		var status string
+		if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas > 0 {
+			if deployment.Status.AvailableReplicas > 0 {
+				status = "running"
+			} else {
+				status = "pending"
+			}
+		} else {
+			status = "dead"
+		}
+		info := orchestrator.JobInfo{
+			Name:   deployment.Name,
+			Status: status,
+		}
+		slog.Info("job info retrieved from deployment", "job_name", jobName, "status", status)
+		return info, nil
+	}
+
+	if !apierrors.IsNotFound(err) {
 		slog.Error("error getting deployment", "job_name", jobName, "error", err)
 		return orchestrator.JobInfo{}, fmt.Errorf("error getting deployment %s: %w", jobName, err)
 	}
 
-	status := "Unknown"
-	if deployment.Status.ReadyReplicas > 0 {
-		status = "Active"
-	} else if deployment.Status.UnavailableReplicas > 0 {
-		status = "Unavailable"
+	job, err := c.clientset.BatchV1().Jobs(c.namespace).Get(ctx, jobName, metav1.GetOptions{})
+	if err != nil {
+		slog.Error("error getting job", "job_name", jobName, "error", err)
+		return orchestrator.JobInfo{}, fmt.Errorf("error getting job %s: %w", jobName, err)
 	}
 
+	var status string
+	if job.Status.Active > 0 {
+		status = "running"
+	} else if job.Status.Succeeded > 0 || job.Status.Failed > 0 {
+		status = "dead"
+	} else {
+		status = "pending"
+	}
 	info := orchestrator.JobInfo{
-		Name:   deployment.Name,
+		Name:   job.Name,
 		Status: status,
 	}
-	slog.Info("job info retrieved", "job_name", jobName, "status", status)
+	slog.Info("kubernetes job info retrieved", "job_name", jobName, "status", status)
 	return info, nil
 }
 

@@ -13,24 +13,87 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  merge_group:
+    types: [checks_requested]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
+  go-format:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Go >=1.23.1
+      uses: actions/setup-go@v5
+      with:
+        go-version: '>=1.23.1'
+    - name: Validate Go Module Files
+      run: | 
+        cd thirdai_platform
+        go mod tidy
+        git diff --name-only --exit-code
+      
+    - name: Run Formatter
+      run: |
+        cd thirdai_platform
+        test -z $(gofmt -e -l ./)
+    
   python-format:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Prepare Black
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Prepare autoflake, Black, and isort
         run: |
-          sudo pip3 install black
-      - name: Prepare isort
+          pip3 install autoflake black isort
+
+      # Check for unused imports without modifying files
+      - name: Check for unused imports with autoflake
         run: |
-          sudo pip3 install isort
+          autoflake --check --remove-all-unused-imports --ignore-pass-statements --recursive .
+        continue-on-error: false  # Fails the job if unused imports are found
+
       - name: Check Black format 
         run: |
           black  --check --diff --exclude "build|.venv|venv|.env|env|deps" .
+
       - name: Check isort format
         run: |
           isort --diff --check --profile black --skip-glob deps --skip _deps .
+
+  js-format:
+    name: Prettier
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        node-version: [20]
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          working-directory: ./frontend
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+          cache-dependency-path: ./frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Check code formatting with Prettier
+        run: pnpm exec prettier --config .prettierrc --ignore-path .prettierignore . --check

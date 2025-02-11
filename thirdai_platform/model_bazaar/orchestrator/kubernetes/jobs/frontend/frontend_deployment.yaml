@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thirdai-platform-frontend
+  labels:
+    app: thirdai-platform-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: thirdai-platform-frontend
+  template:
+    metadata:
+      labels:
+        app: thirdai-platform-frontend
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: thirdai-platform-frontend
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: server
+          image: "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_OPENAI_API_KEY
+              value: "{{ .OpenaiApiKey }}"
+            - name: NEXT_PUBLIC_IDENTITY_PROVIDER
+              value: "{{ .IdentityProvider }}"
+            - name: KEYCLOAK_CLIENT_ID
+              value: "thirdai-login-client"
+            - name: KEYCLOAK_CLIENT_SECRET
+              value: ""
+            - name: KEYCLOAK_ISSUER
+              value: "https://{{ .KeycloakServerHostname }}/keycloak/realms/ThirdAI-Platform"
+            - name: AUTH_TRUST_HOST
+              value: "true"
+            - name: NEXTAUTH_SECRET
+              value: "{{ .NextAuthSecret }}"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1500Mi"
+            limits:
+              cpu: "500m"
+              memory: "4000Mi"
+          readinessProbe:
+            tcpSocket:
+              port: 3000
+            periodSeconds: 10
+            timeoutSeconds: 2

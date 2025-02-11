@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-cache
+  labels:
+    app: llm-cache
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llm-cache
+  template:
+    metadata:
+      labels:
+        app: llm-cache
+    spec:
+      containers:
+        - name: backend
+          {{ with .Driver }}
+          image: "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          {{ end }}
+          command: ["python3"]
+          args:
+            - "-m"
+            - "uvicorn"
+            - "main:app"
+            - "--app-dir"
+            - "llm_cache_job"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "80"
+          env:
+            - name: MODEL_BAZAAR_ENDPOINT
+              value: "{{ .ModelBazaarEndpoint }}"
+            - name: LICENSE_KEY
+              value: "{{ .LicenseKey }}"
+            - name: MODEL_BAZAAR_DIR
+              value: "/model_bazaar"
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: shared-modelbazaar
+              mountPath: "/model_bazaar"
+          resources:
+            requests:
+              cpu: "2400m"
+              memory: "5000Mi"
+            limits:
+              cpu: "2400m"
+              memory: "5000Mi"
+      volumes:
+        - name: shared-modelbazaar
+          persistentVolumeClaim:
+            claimName: modelbazaar-efs-pvc
+

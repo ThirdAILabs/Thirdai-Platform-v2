@@ -23,7 +23,7 @@ azure:
       push_credentials:
         password: UOHr+9rD6lXanoZdRoMj0WRM3b1c5k7SFokO7DVru++ACRAwAEyR
         username: thirdaiplatform-push-eks-test
-      version: 0.0.8
+      version: 0.0.13
     frontend-keycloak:
       pull_credentials:
         password: 9O/dSuSgUaIHdu5tQp45xySaSQ7FJhZLv1kPCfDaxG+ACRCeCgsx

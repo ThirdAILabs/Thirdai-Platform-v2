@@ -9,7 +9,9 @@ spec:
       restartPolicy: Never
       initContainers:
         - name: datagen
+          {{- with .Driver }}
           image: "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          {{- end }}
           command: ["python3"]
           args:
             - "-m"
@@ -20,18 +22,22 @@ spec:
             - name: GENAI_KEY
               value: "{{ .GenaiKey }}"
           resources:
+            {{-  with .Resources }}
             requests:
               cpu: "{{ .AllocationMhz }}"
               memory: "{{ .AllocationMemory }}"
             limits:
               memory: "{{ .AllocationMemoryMax }}"
+            {{- end }}
           volumeMounts:
             - name: shared-modelbazaar
               mountPath: /model_bazaar
 
       containers:
         - name: backend
+          {{- with .Driver }}
           image: "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          {{- end }}
           command: ["python3"]
           args:
             - "-m"
@@ -39,6 +45,7 @@ spec:
             - "--config"
             - "{{ .ConfigPath }}"
           env:
+              {{- with .CloudCredentials }}
             - name: AWS_ACCESS_KEY
               value: "{{ .AwsAccessKey }}"
             - name: AWS_ACCESS_SECRET
@@ -51,16 +58,20 @@ spec:
               value: "{{ .AzureAccountKey }}"
             - name: GCP_CREDENTIALS_FILE
               value: "{{ .GcpCredentialsFile }}"
+              {{- end }}
           resources:
+            {{-  with .Resources }}
             requests:
               cpu: "{{ .AllocationMhz }}"
               memory: "{{ .AllocationMemory }}"
             limits:
               memory: "{{ .AllocationMemoryMax }}"
+            {{- end }}
           volumeMounts:
             - name: shared-modelbazaar
               mountPath: /model_bazaar
-
+      imagePullSecrets:
+        - name: docker-credentials-secret
       volumes:
         - name: shared-modelbazaar
           persistentVolumeClaim:

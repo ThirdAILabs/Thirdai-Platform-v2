@@ -23,7 +23,9 @@ spec:
               topologyKey: "kubernetes.io/hostname"
       containers:
         - name: server
+          {{- with .Driver }}
           image: "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          {{- end }}
           ports:
             - containerPort: 3000
           env:
@@ -53,3 +55,5 @@ spec:
               port: 3000
             periodSeconds: 10
             timeoutSeconds: 2
+      imagePullSecrets:
+        - name: docker-credentials-secret

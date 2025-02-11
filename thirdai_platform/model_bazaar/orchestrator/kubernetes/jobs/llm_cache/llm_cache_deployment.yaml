@@ -49,6 +49,8 @@ spec:
             limits:
               cpu: "2400m"
               memory: "5000Mi"
+      imagePullSecrets:
+        - name: docker-credentials-secret
       volumes:
         - name: shared-modelbazaar
           persistentVolumeClaim:

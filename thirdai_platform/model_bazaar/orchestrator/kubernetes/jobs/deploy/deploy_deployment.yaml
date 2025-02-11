@@ -15,6 +15,7 @@ spec:
         app: "{{ .JobName }}"
     spec:
       containers:
+          {{- if not .IsKE }}
         - name: backend
           image: "{{ .Driver.Registry }}/{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
           imagePullPolicy: IfNotPresent
@@ -34,7 +35,7 @@ spec:
               value: "{{ .ConfigPath }}"
             - name: JOB_TOKEN
               value: "{{ .JobToken }}"
-            {{- with .CloudCredentials }}
+              {{- with .CloudCredentials }}
             - name: AWS_ACCESS_KEY
               value: "{{ .AwsAccessKey }}"
             - name: AWS_ACCESS_SECRET
@@ -47,7 +48,7 @@ spec:
               value: "{{ .AzureAccountKey }}"
             - name: GCP_CREDENTIALS_FILE
               value: "{{ .GcpCredentialsFile }}"
-            {{- end }}
+              {{- end }}
           ports:
             - containerPort: 80
           resources:
@@ -59,8 +60,9 @@ spec:
           volumeMounts:
             - name: shared-modelbazaar
               mountPath: "/model_bazaar"
+          {{- end }}
 
-        {{- if .IsKE }}
+          {{- if .IsKE }}
         - name: knowledge-extraction-worker
           image: "{{ .Driver.Registry }}/{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
           imagePullPolicy: IfNotPresent
@@ -73,7 +75,7 @@ spec:
               value: "{{ .ConfigPath }}"
             - name: JOB_TOKEN
               value: "{{ .JobToken }}"
-            {{- with .CloudCredentials }}
+              {{- with .CloudCredentials }}
             - name: AWS_ACCESS_KEY
               value: "{{ .AwsAccessKey }}"
             - name: AWS_ACCESS_SECRET
@@ -86,7 +88,7 @@ spec:
               value: "{{ .AzureAccountKey }}"
             - name: GCP_CREDENTIALS_FILE
               value: "{{ .GcpCredentialsFile }}"
-            {{- end }}
+              {{- end }}
             - name: WORKER_CORES
               value: "4"
           resources:
@@ -95,8 +97,9 @@ spec:
               memory: "4000"
             limits:
               memory: "8000"
-        {{- end }}
-
+          {{- end }}
+      imagePullSecrets:
+        - name: docker-credentials-secret
       volumes:
         - name: shared-modelbazaar
           persistentVolumeClaim:

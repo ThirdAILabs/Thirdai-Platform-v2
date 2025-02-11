@@ -532,11 +532,11 @@ class NeuralDBV2(Model):
             user_prompt,
         )
 
-        self.handler = open(
+        handler = open(
             write_at,
             "w",
         )
-        writer = DictWriter(self.handler, fieldnames=["text", "chunk_id"])
+        writer = DictWriter(handler, fieldnames=["text", "chunk_id"])
         writer.writeheader()
 
         for i in range(0, len(chunk_ids), batch_size):
@@ -566,14 +566,14 @@ class NeuralDBV2(Model):
                 [
                     {
                         "text": questions,
-                        "chunk_id": response["metadata"]["chunk_id"],
+                        "chunk_id": response[1]["chunk_id"],
                     }
                     for response in batched_response
-                    for questions in response.questions
+                    for questions in response[0]
                 ]
             )
             self.logger.info(
                 f"Generated questions for {len(batched_chunks)} chunks in {(time.time() - start_time):.4f} seconds"
             )
 
-        self.handler.close()
+        handler.close()

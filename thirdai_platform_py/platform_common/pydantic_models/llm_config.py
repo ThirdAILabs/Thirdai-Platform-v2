@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class LLMProvider(str, Enum):
     openai = "openai"
     cohere = "cohere"
+    onprem = "on-prem"
 
 
 class LLMConfig(BaseModel):

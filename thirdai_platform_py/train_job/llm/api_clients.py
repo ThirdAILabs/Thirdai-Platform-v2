@@ -2,7 +2,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from threading import Lock
 from typing import Any, Dict, List, Optional
+from urllib.parse import urljoin
 
+import requests
 from platform_common.utils import save_dict
 from pydantic import BaseModel
 
@@ -31,7 +33,7 @@ class LLMBase(ABC):
                 self.usage[model_name] = self.usage[model_name] + current_usage
 
             if self.track_usage_at:
-                save_dict(self.usage, self.track_usage_at.__dict__)
+                save_dict(self.usage.__dict__, self.track_usage_at)
 
     def _process_prompt(
         self,
@@ -46,7 +48,7 @@ class LLMBase(ABC):
         return response, usage, metadata
 
     def run_and_collect_results(
-        self, tasks_prompt: List[Dict[str, Any]], parallelize: bool = True
+        self, tasks_prompt: List[Dict[str, Any]], parallelize: bool = True, logger  = None
     ):
         """
         Function to process the prompts parallely
@@ -81,7 +83,8 @@ class LLMBase(ABC):
                         data_points.append((response, metadata))
 
                     except Exception as e:
-                        # TODO(gautam): Add logging of error somewhere
+                        logger.error(f"Error processing prompt:")
+                        logger.error(f'{e:}')
                         pass
 
         else:
@@ -91,7 +94,7 @@ class LLMBase(ABC):
                         task["prompt"],
                         task.get("system_prompt"),
                         task.get("metadata", None),
-                        **(task.get("kwargs") or {}),
+                        **(task.get("completion_kwargs", {})),
                     )
                     data_points.append((response, metadata))
 
@@ -111,7 +114,7 @@ class OpenAILLM(LLMBase):
 
         def __add__(self, other):
             if not isinstance(other, OpenAILLM.Usage):
-                return NotImplementedError("Unsupported operation")
+                return NotImplemented
             return OpenAILLM.Usage(
                 completion_tokens=self.completion_tokens + other.completion_tokens,
                 prompt_tokens=self.prompt_tokens + other.prompt_tokens,
@@ -133,11 +136,10 @@ class OpenAILLM(LLMBase):
 
     def completion(
         self,
-        prompt,
-        system_prompt=None,
+        prompt: str,
+        system_prompt: Optional[str] = None,
         temperature: float = 0.8,
         response_format: Optional[BaseModel] = None,
-        **kwargs,
     ):
         messages = []
         if system_prompt:
@@ -152,6 +154,8 @@ class OpenAILLM(LLMBase):
                 temperature=temperature,
                 response_format=response_format,
             )
+            if len(completion.choices) == 0:
+                raise ValueError("No completions returned")
             res = completion.choices[0].message.parsed
         else:
             completion = self.client.chat.completions.create(
@@ -159,6 +163,8 @@ class OpenAILLM(LLMBase):
                 messages=messages,
                 temperature=temperature,
             )
+            if len(completion.choices) == 0:
+                raise ValueError("No completions returned")
             res = completion.choices[0].message.content
 
         current_usage = completion.usage
@@ -181,7 +187,7 @@ class CohereLLM(LLMBase):
 
         def __add__(self, other):
             if not isinstance(other, CohereLLM.Usage):
-                return NotImplementedError("Unsupported operation")
+                return NotImplemented
             return CohereLLM.Usage(
                 input_tokens=self.input_tokens + other.input_tokens,
                 output_tokens=self.output_tokens + other.output_tokens,
@@ -200,7 +206,7 @@ class CohereLLM(LLMBase):
         self.client = ClientV2(api_key=api_key, base_url=base_url)
         self.verify_access()
 
-    def completion(self, prompt, system_prompt: Optional[str] = None, **kwargs):
+    def completion(self, prompt: str, system_prompt: Optional[str] = None):
 
         messages = []
         if system_prompt:
@@ -210,6 +216,9 @@ class CohereLLM(LLMBase):
 
         completion = self.client.chat(model=self.model_name, messages=messages)
 
+        if len(completion.message.content) == 0:
+            raise ValueError("No completions returned")
+        
         response_text = completion.message.content[0].text
         current_usage = completion.usage.billed_units
         self.track_usage(
@@ -222,7 +231,52 @@ class CohereLLM(LLMBase):
         return response_text, current_usage
 
 
+class OnPremLLM(LLMBase):
+    def __init__(self, api_key: str, model_name: str, base_url: str):
+        super().__init__(model_name=model_name)
+        self.api_key = api_key
+        self.url = urljoin(base_url, "/on-prem-llm/v1/chat/completions")
+
+    def completion(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        temperature: float = 0.8,
+        **kwargs,
+    ):
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": self.model_name,
+            "messages": [],
+            "temperature": temperature,
+            **kwargs,
+        }
+
+        if system_prompt:
+            payload["messages"].append({"role": "system", "content": system_prompt})
+        payload["messages"].append({"role": "user", "content": prompt})
+
+        response = requests.post(self.url, json=payload, headers=headers)
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            response.raise_for_status()
+
+        response_json = response.json()
+        if response_json.get("choices"):
+            raise ValueError("No completions returned")
+
+        response_text = response_json["choices"][0]["text"]
+        usage = response_json.get("usage", {})
+        return response_text, usage
+
+
 llm_classes = {
     "openai": OpenAILLM,
     "cohere": CohereLLM,
+    "onprem": OnPremLLM,
 }

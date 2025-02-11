@@ -265,20 +265,22 @@ func (opts *JobOptions) CpuUsageMhz() int {
 
 type LLMConfig struct {
 	Provider  string `json:"provider"`
-	ApiKey    string `json:"api_key"`
+	ApiKey    string `json:"api_key,omitempty"`
 	BaseUrl   string `json:"base_url,omitempty"`
 	ModelName string `json:"model_name,omitempty"`
 }
 
 func (opts *LLMConfig) Validate() error {
-	if !slices.Contains([]string{"openai", "cohere"}, opts.Provider) {
+	if !slices.Contains([]string{"openai", "cohere", "onprem"}, opts.Provider) {
 		return fmt.Errorf("invalid provider '%v', must be 'openai' or 'cohere'", opts.Provider)
 	}
-	if opts.ApiKey == "" {
-		return fmt.Errorf("api_key must be specified")
-	}
-	if opts.ModelName == "" {
-		return fmt.Errorf("model_name must be specified")
+	if opts.Provider != "onprem" {
+		if opts.ApiKey == "" {
+			return fmt.Errorf("api_key must be specified")
+		}
+		if opts.ModelName == "" {
+			return fmt.Errorf("model_name must be specified")
+		}
 	}
 	return nil
 }

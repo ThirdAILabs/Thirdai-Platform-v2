@@ -106,7 +106,7 @@ func getDeploymentMemory(modelId uuid.UUID, userSpecified int, attrs map[string]
 func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autoscaling bool, autoscalingMin, autoscalingMax int, memory int, deploymentName string) error {
 	slog.Info("deploying model", "model_id", modelId, "autoscaling", autoscaling, "autoscalingMax", autoscalingMax, "memory", memory, "deployment_name", deploymentName)
 
-	requiresOnPremLlm := false
+	requiresOnPremLlm := true
 
 	var nomadErr error = nil
 	err := s.db.Transaction(func(txn *gorm.DB) error {

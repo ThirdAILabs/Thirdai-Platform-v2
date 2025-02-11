@@ -86,12 +86,18 @@ class NeuralDBV2(Model):
             self.llm_response_dir = self.model_dir / config.llm_config.provider.value
             self.llm_response_dir.mkdir(parents=True, exist_ok=True)
 
-            self.llm = llm_classes.get(self.config.llm_config.provider)(
-                api_key=self.config.llm_config.api_key,
-                model_name=self.config.llm_config.model_name,
-                base_url=self.config.llm_config.base_url,
-                track_usage_at=str(self.llm_response_dir / "usage.json"),
-            )
+            if config.llm_config.provider != LLMProvider.onprem:
+                llm_args = {
+                    "api_key": self.config.llm_config.api_key,
+                    "base_url": self.config.llm_config.base_url,
+                    "track_usage_at": str(self.llm_response_dir / "usage.json"),
+                }
+            else:
+                llm_args = {
+                    "base_url": self.config.llm_config.base_url,
+                }
+
+            self.llm = llm_classes.get(self.config.llm_config.provider)(**llm_args)
 
     def retriever_save_path(self):
         return os.path.join(self.model_dir, "train_retriever")

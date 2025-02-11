@@ -237,9 +237,8 @@ class CohereLLM(LLMBase):
 
 
 class OnPremLLM(LLMBase):
-    def __init__(self, api_key: str, model_name: str, base_url: str):
-        super().__init__(model_name=model_name)
-        self.api_key = api_key
+    def __init__(self, base_url: str):
+        super().__init__(model_name="onprem")
         self.url = urljoin(base_url, "/on-prem-llm/v1/chat/completions")
 
     def completion(
@@ -250,7 +249,6 @@ class OnPremLLM(LLMBase):
         **kwargs,
     ):
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
         payload = {

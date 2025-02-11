@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from logging import Logger
 from threading import Lock
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
@@ -20,7 +21,7 @@ class LLMBase(ABC):
     def completion(
         self, prompt: str, system_prompt: Optional[str] = None, **kwargs
     ) -> str:
-        pass
+        raise NotImplementedError
 
     def verify_access(self):
         self.client.models.list()
@@ -33,7 +34,9 @@ class LLMBase(ABC):
                 self.usage[model_name] = self.usage[model_name] + current_usage
 
             if self.track_usage_at:
-                save_dict(self.usage.__dict__, self.track_usage_at)
+                save_dict(
+                    self.track_usage_at, **{k: asdict(v) for k, v in self.usage.items()}
+                )
 
     def _process_prompt(
         self,
@@ -42,13 +45,16 @@ class LLMBase(ABC):
         metadata: Optional[dict] = None,
         **completion_kwargs,
     ):
-        response, usage = self.client.completion(
+        response, usage = self.completion(
             prompt=prompt, system_prompt=system_prompt, **completion_kwargs
         )
         return response, usage, metadata
 
     def run_and_collect_results(
-        self, tasks_prompt: List[Dict[str, Any]], parallelize: bool = True, logger  = None
+        self,
+        tasks_prompt: List[Dict[str, Any]],
+        parallelize: bool = True,
+        logger: Optional[Logger] = None,
     ):
         """
         Function to process the prompts parallely
@@ -83,10 +89,9 @@ class LLMBase(ABC):
                         data_points.append((response, metadata))
 
                     except Exception as e:
-                        logger.error(f"Error processing prompt:")
-                        logger.error(f'{e:}')
-                        pass
-
+                        if logger:
+                            logger.error(f"Error processing prompt:")
+                            logger.error(f"{e:=^50}")
         else:
             for task in tasks_prompt:
                 try:
@@ -99,9 +104,9 @@ class LLMBase(ABC):
                     data_points.append((response, metadata))
 
                 except Exception as e:
-                    # TODO(gautam): Add logging of error somewhere
-                    pass
-
+                    if logger:
+                        logger.error(f"Error processing prompt:")
+                        logger.error(f"{e:=^50}")
         return data_points
 
 
@@ -218,7 +223,7 @@ class CohereLLM(LLMBase):
 
         if len(completion.message.content) == 0:
             raise ValueError("No completions returned")
-        
+
         response_text = completion.message.content[0].text
         current_usage = completion.usage.billed_units
         self.track_usage(

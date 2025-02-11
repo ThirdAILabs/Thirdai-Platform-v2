@@ -13,6 +13,7 @@ from platform_common.logging.logcodes import LogCode
 from platform_common.ndb.ndbv2_parser import parse_doc
 from platform_common.ndb.utils import delete_docs_and_remove_files
 from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
+from platform_common.pydantic_models.llm_config import LLMProvider
 from platform_common.pydantic_models.training import FileInfo, FileLocation, TrainConfig
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.chunk_stores import PandasChunkStore
@@ -82,16 +83,14 @@ class NeuralDBV2(Model):
                 )
 
         if config.generative_supervision:
-            self.llm_response_dir = os.path.join(
-                self.config.model_bazaar_dir,
-                config.llm_config.provider,
-            )
-            os.makedirs(self.llm_response_dir, exist_ok=True)
+            self.llm_response_dir = self.model_dir / config.llm_config.provider.value
+            self.llm_response_dir.mkdir(parents=True, exist_ok=True)
+
             self.llm = llm_classes.get(self.config.llm_config.provider)(
                 api_key=self.config.llm_config.api_key,
                 model_name=self.config.llm_config.model_name,
                 base_url=self.config.llm_config.base_url,
-                track_usage_at=os.path.join(self.llm_response_dir, "usage.json"),
+                track_usage_at=str(self.llm_response_dir / "usage.json"),
             )
 
     def retriever_save_path(self):
@@ -351,21 +350,20 @@ class NeuralDBV2(Model):
             successfully_indexed_files = self.unsupervised_train(unsupervised_files)
         unsup_end = time.time()
 
-        # Generative supervised training. Assuming that enough disk space is available for model for supervised training
+        # Generative supervised training. Assuming that enough disk space is available for supervised training on model
         if self.config.generative_supervision:
             self.logger.info(f"Starting question generation for supervised training.")
             gen_sup_start = time.time()
             documents = self.sources()
             path_prefix = os.path.join(self.llm_response_dir, "generated_questions")
             os.makedirs(path_prefix, exist_ok=True)
-            generated_supervised_fileinfo = []
             for doc in documents:
                 write_at = os.path.join(path_prefix, f"{doc['source_id']}.csv")
                 self.generate_supervise_training_data(
                     doc["source_id"],
                     write_at=write_at,
                 )
-                generated_supervised_fileinfo.append(
+                supervised_files.append(
                     FileInfo(
                         path=write_at,
                         location=FileLocation.nfs,
@@ -392,9 +390,8 @@ class NeuralDBV2(Model):
                 self.logger.error(msg, code=LogCode.MODEL_TRAIN)
                 raise ValueError(msg)
         sup_end = time.time()
-        self.logger.debug(
-            f"Total training time: {(unsup_end - unsup_start) + (sup_end - sup_start)} seconds"
-        )
+        train_time = (unsup_end - unsup_start) + (sup_end - sup_start)
+        self.logger.debug(f"Total training time: {train_time:.4f} seconds")
 
         if self.config.data.deletions:
             delete_docs_and_remove_files(
@@ -526,8 +523,8 @@ class NeuralDBV2(Model):
 
         from csv import DictWriter
 
-        from thirdai_platform_py.train_job.prompt_resources.supervise_questions import (
-            Response,
+        from train_job.prompt_resources.supervise_questions import (
+            OpenAIResponse,
             system_prompt,
             user_prompt,
         )
@@ -541,39 +538,55 @@ class NeuralDBV2(Model):
 
         for i in range(0, len(chunk_ids), batch_size):
             start_time = time.time()
-            batched_chunks = self.db.chunk_store.get_chunks(
-                chunk_ids[i : i + batch_size]
-            )
 
             # Prepare prompts for these batched_chunks
             batched_prompts = [
                 {
-                    "prompt": user_prompt.format(
+                    "prompt": user_prompt[self.config.llm_config.provider].format(
                         questions_per_chunk=questions_per_chunk, chunk_text=chunk.text
                     ),
-                    "system_prompt": system_prompt,
+                    "system_prompt": system_prompt[self.config.llm_config.provider],
                     "metadata": {"chunk_id": chunk.chunk_id},
-                    "completion_kwargs": {"response_format": Response},
                 }
-                for chunk in batched_chunks
+                for chunk in self.db.chunk_store.get_chunks(
+                    chunk_ids[i : i + batch_size]
+                )
             ]
+            if self.config.llm_config.provider == LLMProvider.openai:
+                batched_prompts = [
+                    {**x, "completion_kwargs": {"response_format": OpenAIResponse}}
+                    for x in batched_prompts
+                ]
 
             batched_response = self.llm.run_and_collect_results(
                 batched_prompts, parallelize=True
             )
 
-            writer.writerows(
-                [
-                    {
-                        "text": questions,
-                        "chunk_id": response[1]["chunk_id"],
-                    }
-                    for response in batched_response
-                    for questions in response[0]
-                ]
-            )
+            if self.config.llm_config.provider == LLMProvider.openai:
+                writer.writerows(
+                    [
+                        {
+                            "text": ques,
+                            "chunk_id": response[1]["chunk_id"],
+                        }
+                        for response in batched_response
+                        for ques in response[0].questions
+                    ]
+                )
+            else:
+                writer.writerows(
+                    [
+                        {
+                            "text": ques,
+                            "chunk_id": response[1]["chunk_id"],
+                        }
+                        for response in batched_response
+                        for ques in response[0].split("\n")
+                    ]
+                )
+            handler.flush()
             self.logger.info(
-                f"Generated questions for {len(batched_chunks)} chunks in {(time.time() - start_time):.4f} seconds"
+                f"Generated questions for {len(batched_prompts)} chunks in {(time.time() - start_time):.4f} seconds"
             )
 
         handler.close()

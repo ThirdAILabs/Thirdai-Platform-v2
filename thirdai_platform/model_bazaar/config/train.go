@@ -266,8 +266,8 @@ func (opts *JobOptions) CpuUsageMhz() int {
 type LLMConfig struct {
 	Provider  string `json:"provider"`
 	ApiKey    string `json:"api_key"`
-	BaseUrl   string `json:"base_url"`
-	ModelName string `json:"model_name"`
+	BaseUrl   string `json:"base_url,omitempty"`
+	ModelName string `json:"model_name,omitempty"`
 }
 
 func (opts *LLMConfig) Validate() error {

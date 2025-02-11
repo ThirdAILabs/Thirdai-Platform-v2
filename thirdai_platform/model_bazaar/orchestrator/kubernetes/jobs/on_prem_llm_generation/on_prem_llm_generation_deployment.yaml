@@ -16,7 +16,9 @@ spec:
     spec:
       containers:
         - name: backend
+          {{ with .Driver }}
           image: "{{ .Registry }}/llama.cpp:server"
+          {{ end }}
           command: ["python3"]
           args:
             - "-m"
@@ -28,21 +30,25 @@ spec:
             - "--port"
             - "80"
             - "--threads"
-            - "{{ .AllocationCores }}"
+            - "{{ .Resources.AllocationCores }}"
             - "--threads-http"
-            - "{{ .AllocationCores }}"
+            - "{{ .Resources.AllocationCores }}"
           ports:
             - containerPort: 80
           volumeMounts:
             - name: shared-modelbazaar
               mountPath: "/model_bazaar"
           resources:
+            {{-  with .Resources }}
             requests:
               cpu: "{{ .AllocationCores }}"
               memory: "{{ .AllocationMemory }}Mi"
             limits:
               cpu: "{{ .AllocationCores }}"
               memory: "{{ .AllocationMemoryMax }}Mi"
+            {{- end }}
+      imagePullSecrets:
+        - name: docker-credentials-secret
       volumes:
         - name: shared-modelbazaar
           persistentVolumeClaim:

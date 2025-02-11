@@ -89,6 +89,15 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 
 	ctx := context.TODO()
 
+	// For each resource type, we define a Process function that:
+	// 1. Unmarshals the YAML into the appropriate object.
+	// 2. Checks whether the resource already exists.
+	// 3a. If it does not exist, creates it.
+	// 3b. If it exists:
+	//     - For resources that support an update (like Deployments or Ingresses),
+	//       we set the ResourceVersion and call Update.
+	//     - For resources that are better replaced (like Jobs or Services),
+	//       we delete the old resource and then create the new one.
 	resources := []resourceDef{
 		{
 			FileSuffix: "_job.yaml",
@@ -97,9 +106,26 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 				if err := yaml.Unmarshal([]byte(rendered), &jobObj); err != nil {
 					return fmt.Errorf("error unmarshaling job YAML: %w", err)
 				}
+
+				_, err := c.clientset.BatchV1().Jobs(c.namespace).Get(ctx, jobObj.Name, metav1.GetOptions{})
+				if err != nil {
+					if apierrors.IsNotFound(err) {
+						if _, err := c.clientset.BatchV1().Jobs(c.namespace).Create(ctx, &jobObj, metav1.CreateOptions{}); err != nil {
+							slog.Error("error creating job resource", "error", err)
+							return fmt.Errorf("error creating job resource: %w", err)
+						}
+						return nil
+					}
+					return fmt.Errorf("error checking for existing job: %w", err)
+				}
+
+				if err := c.clientset.BatchV1().Jobs(c.namespace).Delete(ctx, jobObj.Name, metav1.DeleteOptions{}); err != nil {
+					slog.Error("error deleting existing job resource", "error", err)
+					return fmt.Errorf("error deleting existing job resource: %w", err)
+				}
 				if _, err := c.clientset.BatchV1().Jobs(c.namespace).Create(ctx, &jobObj, metav1.CreateOptions{}); err != nil {
-					slog.Error("error creating job resource", "error", err)
-					return fmt.Errorf("error creating job resource: %w", err)
+					slog.Error("error re-creating job resource", "error", err)
+					return fmt.Errorf("error re-creating job resource: %w", err)
 				}
 				return nil
 			},
@@ -111,9 +137,24 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 				if err := yaml.Unmarshal([]byte(rendered), &deployment); err != nil {
 					return fmt.Errorf("error unmarshaling deployment YAML: %w", err)
 				}
-				if _, err := c.clientset.AppsV1().Deployments(c.namespace).Create(ctx, &deployment, metav1.CreateOptions{}); err != nil {
-					slog.Error("error creating deployment resource", "error", err)
-					return fmt.Errorf("error creating deployment resource: %w", err)
+
+				existing, err := c.clientset.AppsV1().Deployments(c.namespace).Get(ctx, deployment.Name, metav1.GetOptions{})
+				if err != nil {
+					if apierrors.IsNotFound(err) {
+						// Not found: create the deployment.
+						if _, err := c.clientset.AppsV1().Deployments(c.namespace).Create(ctx, &deployment, metav1.CreateOptions{}); err != nil {
+							slog.Error("error creating deployment resource", "error", err)
+							return fmt.Errorf("error creating deployment resource: %w", err)
+						}
+						return nil
+					}
+					return fmt.Errorf("error checking for existing deployment: %w", err)
+				}
+
+				deployment.ResourceVersion = existing.ResourceVersion
+				if _, err := c.clientset.AppsV1().Deployments(c.namespace).Update(ctx, &deployment, metav1.UpdateOptions{}); err != nil {
+					slog.Error("error updating deployment resource", "error", err)
+					return fmt.Errorf("error updating deployment resource: %w", err)
 				}
 				return nil
 			},
@@ -125,9 +166,26 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 				if err := yaml.Unmarshal([]byte(rendered), &service); err != nil {
 					return fmt.Errorf("error unmarshaling service YAML: %w", err)
 				}
+
+				_, err := c.clientset.CoreV1().Services(c.namespace).Get(ctx, service.Name, metav1.GetOptions{})
+				if err != nil {
+					if apierrors.IsNotFound(err) {
+						if _, err := c.clientset.CoreV1().Services(c.namespace).Create(ctx, &service, metav1.CreateOptions{}); err != nil {
+							slog.Error("error creating service resource", "error", err)
+							return fmt.Errorf("error creating service resource: %w", err)
+						}
+						return nil
+					}
+					return fmt.Errorf("error checking for existing service: %w", err)
+				}
+
+				if err := c.clientset.CoreV1().Services(c.namespace).Delete(ctx, service.Name, metav1.DeleteOptions{}); err != nil {
+					slog.Error("error deleting existing service resource", "error", err)
+					return fmt.Errorf("error deleting existing service resource: %w", err)
+				}
 				if _, err := c.clientset.CoreV1().Services(c.namespace).Create(ctx, &service, metav1.CreateOptions{}); err != nil {
-					slog.Error("error creating service resource", "error", err)
-					return fmt.Errorf("error creating service resource: %w", err)
+					slog.Error("error re-creating service resource", "error", err)
+					return fmt.Errorf("error re-creating service resource: %w", err)
 				}
 				return nil
 			},
@@ -139,16 +197,32 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 				if err := yaml.Unmarshal([]byte(rendered), &ingress); err != nil {
 					return fmt.Errorf("error unmarshaling ingress YAML: %w", err)
 				}
-				if _, err := c.clientset.NetworkingV1().Ingresses(c.namespace).Create(ctx, &ingress, metav1.CreateOptions{}); err != nil {
-					slog.Error("error creating ingress resource", "error", err)
-					return fmt.Errorf("error creating ingress resource: %w", err)
+
+				existing, err := c.clientset.NetworkingV1().Ingresses(c.namespace).Get(ctx, ingress.Name, metav1.GetOptions{})
+				if err != nil {
+					if apierrors.IsNotFound(err) {
+						if _, err := c.clientset.NetworkingV1().Ingresses(c.namespace).Create(ctx, &ingress, metav1.CreateOptions{}); err != nil {
+							slog.Error("error creating ingress resource", "error", err)
+							return fmt.Errorf("error creating ingress resource: %w", err)
+						}
+						return nil
+					}
+					return fmt.Errorf("error checking for existing ingress: %w", err)
+				}
+
+				ingress.ResourceVersion = existing.ResourceVersion
+				if _, err := c.clientset.NetworkingV1().Ingresses(c.namespace).Update(ctx, &ingress, metav1.UpdateOptions{}); err != nil {
+					slog.Error("error updating ingress resource", "error", err)
+					return fmt.Errorf("error updating ingress resource: %w", err)
 				}
 				return nil
 			},
 		},
-		// TODO: add autoscaler process
+		// TODO: add autoscaler process if needed.
 	}
 
+	// processTemplate reads the file, renders the template with the job’s data,
+	// and then calls the resource-specific process function.
 	processTemplate := func(fileSuffix string, process func(rendered string) error) error {
 		templatePath := filepath.Join(subDir, job.JobTemplatePath()+fileSuffix)
 		content, err := fs.ReadFile(jobTemplates, templatePath)
@@ -177,7 +251,7 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 		if err := process(rendered); err != nil {
 			return fmt.Errorf("error submitting template %s: %w", templatePath, err)
 		}
-		slog.Info("resource created successfully", "template", templatePath)
+		slog.Info("resource created/updated successfully", "template", templatePath)
 		return nil
 	}
 

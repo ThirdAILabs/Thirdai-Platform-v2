@@ -24,6 +24,14 @@ azure:
         password: n1h+tdIIYmQ93MDjTqhJYgHJghg89buIJMYWOxuQnb+ACRDWiBnd
         username: thirdaiplatform-push-frontend-keycloak
       version: 0.0.1
+    go_images:
+      pull_credentials:
+        password: DYFhV/Y2P8p23LqoPoExneMduFifU/cwUOwDlV2Y2l+ACRAxOl0u
+        username: thirdaiplatform-pull-go-images
+      push_credentials:
+        password: t53jJc//6Bypn8U7SAl46SxgiX+qH042PJBxLLHGcQ+ACRBGarrQ
+        username: thirdaiplatform-push-go-images
+      version: 0.0.1
     local_registry:
       pull_credentials:
         password: 1N7CsVddLTv4+enVywVCgjOkDkMqpv63WenU0bWihF+ACRBVBnXz

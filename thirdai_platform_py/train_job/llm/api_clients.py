@@ -89,6 +89,7 @@ class LLMBase(ABC):
                         data_points.append((response, metadata))
 
                     except Exception as e:
+                        raise e
                         if logger:
                             logger.error(f"Error processing prompt:")
                             logger.error(f"{e:=^50}")
@@ -262,20 +263,15 @@ class OnPremLLM(LLMBase):
             payload["messages"].append({"role": "system", "content": system_prompt})
         payload["messages"].append({"role": "user", "content": prompt})
 
-        response = requests.post(self.url, json=payload, headers=headers)
+        response = requests.post(self.url, headers=headers, json=payload)
 
-        if response.status_code == 200:
-            return response.json()
-        else:
-            response.raise_for_status()
-
+        response.raise_for_status()
         response_json = response.json()
-        if response_json.get("choices"):
+        if not response_json.get("choices"):
             raise ValueError("No completions returned")
 
-        response_text = response_json["choices"][0]["text"]
-        usage = response_json.get("usage", {})
-        return response_text, usage
+        response_text = response_json["choices"][0]["delta"]["content"]
+        return response_text, None
 
 
 llm_classes = {

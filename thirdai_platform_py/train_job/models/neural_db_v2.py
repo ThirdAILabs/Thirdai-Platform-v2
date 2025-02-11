@@ -94,7 +94,7 @@ class NeuralDBV2(Model):
                 }
             else:
                 llm_args = {
-                    "base_url": self.config.llm_config.base_url,
+                    "base_url": self.config.model_bazaar_endpoint,
                 }
 
             self.llm = llm_classes.get(self.config.llm_config.provider)(**llm_args)

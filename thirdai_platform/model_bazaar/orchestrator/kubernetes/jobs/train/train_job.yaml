@@ -42,6 +42,8 @@ spec:
         volumeMounts:
           - name: shared-modelbazaar
             mountPath: "/model_bazaar"
+      imagePullSecrets:
+        - name: docker-credentials-secret
       volumes:
         - name: shared-modelbazaar
           persistentVolumeClaim:

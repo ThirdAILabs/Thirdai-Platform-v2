@@ -60,7 +60,7 @@ class UDTBaseRouter:
     def get_text(
         self,
         file: UploadFile,
-        _: str = Depends(Permissions.verify_permission("read")),
+        _=Depends(Permissions.verify_permission("read")),
     ):
         """
         Process an uploaded file to extract text content.
@@ -111,7 +111,7 @@ class UDTBaseRouter:
             )
             raise e
 
-    def stats(self, token=Depends(Permissions.verify_permission("read"))):
+    def stats(self, _=Depends(Permissions.verify_permission("read"))):
         """
         Returns statistics about the deployment such as the number of tokens identified, number of
         queries ingested, and total size of queries ingested.
@@ -174,7 +174,7 @@ class UDTRouterTextClassification(UDTBaseRouter):
     def predict(
         self,
         params: TextAnalysisPredictParams,
-        token=Depends(Permissions.verify_permission("read")),
+        _=Depends(Permissions.verify_permission("read")),
     ):
         """
         Predicts the output based on the provided query parameters.
@@ -229,7 +229,7 @@ class UDTRouterTextClassification(UDTBaseRouter):
     def insert_sample(
         self,
         sample: TextClassificationData,
-        token=Depends(Permissions.verify_permission("write")),
+        _=Depends(Permissions.verify_permission("write")),
     ):
         self.model.insert_sample(sample)
         return response(status_code=status.HTTP_200_OK, message="Successful")
@@ -239,7 +239,7 @@ class UDTRouterTextClassification(UDTBaseRouter):
         num_samples: int = Query(
             default=5, ge=1, le=100, description="Number of recent samples to retrieve"
         ),
-        token: str = Depends(Permissions.verify_permission("read")),
+        _=Depends(Permissions.verify_permission("read")),
     ):
         recent_samples = self.model.get_recent_samples(num_samples=num_samples)
         return response(
@@ -275,7 +275,7 @@ class UDTRouterTokenClassification(UDTBaseRouter):
     def add_labels(
         self,
         labels: LabelCollection,
-        token=Depends(Permissions.verify_permission("write")),
+        _=Depends(Permissions.verify_permission("write")),
     ):
         """
         Adds new labels to the model.
@@ -310,7 +310,7 @@ class UDTRouterTokenClassification(UDTBaseRouter):
     def insert_sample(
         self,
         sample: TokenClassificationData,
-        token=Depends(Permissions.verify_permission("write")),
+        _=Depends(Permissions.verify_permission("write")),
     ):
         """
         Inserts a sample into the model.
@@ -331,7 +331,7 @@ class UDTRouterTokenClassification(UDTBaseRouter):
         self.model.insert_sample(sample)
         return response(status_code=status.HTTP_200_OK, message="Successful")
 
-    def get_labels(self, token=Depends(Permissions.verify_permission("read"))):
+    def get_labels(self, _=Depends(Permissions.verify_permission("read"))):
         """
         Retrieves the labels from the model.
         Parameters:
@@ -351,7 +351,7 @@ class UDTRouterTokenClassification(UDTBaseRouter):
         num_samples: int = Query(
             default=5, ge=1, le=100, description="Number of recent samples to retrieve"
         ),
-        token: str = Depends(Permissions.verify_permission("read")),
+        _=Depends(Permissions.verify_permission("read")),
     ):
         """
         Retrieves the most recent samples from the model.
@@ -374,7 +374,7 @@ class UDTRouterTokenClassification(UDTBaseRouter):
     def predict(
         self,
         params: TokenAnalysisPredictParams,
-        token=Depends(Permissions.verify_permission("read")),
+        _=Depends(Permissions.verify_permission("read")),
     ):
         """
         Predicts the output based on the provided query parameters.

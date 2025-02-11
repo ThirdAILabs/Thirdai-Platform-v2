@@ -40,7 +40,7 @@ func setupTestEnv(t *testing.T) *testEnv {
 	err = db.AutoMigrate(
 		&schema.Model{}, &schema.ModelAttribute{}, &schema.ModelDependency{},
 		&schema.User{}, &schema.Team{}, &schema.UserTeam{}, &schema.JobLog{},
-		&schema.Upload{},
+		&schema.Upload{}, &schema.UserAPIKey{},
 	)
 	if err != nil {
 		t.Fatal(err)

@@ -194,35 +194,3 @@ __Example Response__:
 ```json
 {}
 ```
-
-## Add a Model to a Team 
-
-| Method | Path | Auth Required | Permissions |
-| ------ | ---- | ------------- | ----------  |
-| `POST` | `/api/v2/team/{team_id}/models/{model_id}` | Yes | Model Owner Only |
-
-Adds a model to a team.
-
-__Example Request__: 
-```json
-```
-__Example Response__:
-```json
-{}
-```
-
-## Remove a Model from a Team 
-
-| Method | Path | Auth Required | Permissions |
-| ------ | ---- | ------------- | ----------  |
-| `DELETE` | `/api/v2/team/{team_id}/models/{model_id}` | Yes | Model Owner Only |
-
-Removes a model from the team.
-
-__Example Request__: 
-```json
-```
-__Example Response__:
-```json
-{}
-```

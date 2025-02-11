@@ -116,7 +116,7 @@ class KnowledgeExtractionRouter:
         self,
         documents: str = Form(...),
         files: List[UploadFile] = [],
-        _: str = Depends(Permissions.verify_permission("write")),
+        _=Depends(Permissions.verify_permission("write")),
     ):
         try:
             documents = DocumentList.model_validate_json(documents).documents
@@ -161,7 +161,7 @@ class KnowledgeExtractionRouter:
         )
 
     def get_report(
-        self, report_id: str, _: str = Depends(Permissions.verify_permission("read"))
+        self, report_id: str, _=Depends(Permissions.verify_permission("read"))
     ):
         with self.get_session() as session:
             report: Report = session.query(Report).get(report_id)
@@ -218,7 +218,7 @@ class KnowledgeExtractionRouter:
             )
 
     def delete_report(
-        self, report_id: str, _: str = Depends(Permissions.verify_permission("write"))
+        self, report_id: str, _=Depends(Permissions.verify_permission("write"))
     ):
         with self.get_session() as session:
             report = session.query(Report).get(report_id)
@@ -248,7 +248,7 @@ class KnowledgeExtractionRouter:
             message=f"Successfully deleted report with ID '{report_id}'.",
         )
 
-    def list_reports(self, _: str = Depends(Permissions.verify_permission("read"))):
+    def list_reports(self, _=Depends(Permissions.verify_permission("read"))):
         with self.get_session() as session:
             reports = session.query(Report).all()
 
@@ -272,7 +272,7 @@ class KnowledgeExtractionRouter:
         self,
         question: str,
         keywords: Optional[List[str]] = None,
-        _: str = Depends(Permissions.verify_permission("write")),
+        _=Depends(Permissions.verify_permission("write")),
     ):
         try:
             with self.get_session() as session:
@@ -351,15 +351,13 @@ class KnowledgeExtractionRouter:
     def get_questions_internal(self, _=Depends(verify_job_token)):
         return self.get_questions()
 
-    def get_questions_public(
-        self, _: str = Depends(Permissions.verify_permission("read"))
-    ):
+    def get_questions_public(self, _=Depends(Permissions.verify_permission("read"))):
         return self.get_questions()
 
     def delete_question(
         self,
         question_id: str,
-        _: str = Depends(Permissions.verify_permission("write")),
+        _=Depends(Permissions.verify_permission("write")),
     ):
         try:
             with self.get_session() as session:
@@ -395,7 +393,7 @@ class KnowledgeExtractionRouter:
         self,
         question_id: str,
         keywords: List[str],
-        _: str = Depends(Permissions.verify_permission("write")),
+        _=Depends(Permissions.verify_permission("write")),
     ):
         try:
             with self.get_session() as session:

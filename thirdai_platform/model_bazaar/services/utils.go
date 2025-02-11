@@ -20,6 +20,15 @@ import (
 	"gorm.io/gorm"
 )
 
+const thirdaiPlatformKeyPrefix = "thirdai_platform_key"
+
+var (
+	ErrMissingAPIKey       = errors.New("API key is missing")
+	ErrInvalidAPIKey       = errors.New("API key is invalid")
+	ErrExpiredAPIKey       = errors.New("API key has expired")
+	ErrAPIKeyModelMismatch = errors.New("API key does not have access to the requested model")
+)
+
 type codedError struct {
 	err  error
 	code int
@@ -539,6 +548,16 @@ func checkModelExists(txn *gorm.DB, modelId uuid.UUID) error {
 	if _, err := schema.GetModel(modelId, txn, false, false, false); err != nil {
 		if errors.Is(err, schema.ErrModelNotFound) {
 			return CodedError(err, http.StatusNotFound)
+		}
+		return CodedError(err, http.StatusInternalServerError)
+	}
+	return nil
+}
+
+func checkTeamMember(txn *gorm.DB, userId, teamId uuid.UUID) error {
+	if _, err := schema.GetUserTeam(teamId, userId, txn); err != nil {
+		if errors.Is(err, schema.ErrUserTeamNotFound) {
+			return CodedError(errors.New("user is not a member of team"), http.StatusNotFound)
 		}
 		return CodedError(err, http.StatusInternalServerError)
 	}

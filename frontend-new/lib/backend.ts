@@ -1028,7 +1028,7 @@ export interface Workflow {
   train_status: string;
   deploy_status: string;
   publish_date: string;
-  username: string;
+  Username: string;
   user_email: string;
   team_id: string | null;
   attributes: Attributes;

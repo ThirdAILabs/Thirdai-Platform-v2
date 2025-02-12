@@ -9,6 +9,20 @@ import requests
 from platform_common.utils import save_dict
 from pydantic import BaseModel
 
+@dataclass
+class TokenCount:
+    completion_token: int
+    prompt_token: int
+    total_token: int
+
+    def __add__(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        return TokenCount(
+            completion_tokens=self.completion_tokens + other.completion_tokens,
+            prompt_tokens=self.prompt_tokens + other.prompt_tokens,
+            total_tokens=self.total_tokens + other.total_tokens,
+        )
 
 class LLMBase(ABC):
     def __init__(self, model_name: str, track_usage_at: Optional[str] = None):
@@ -26,7 +40,7 @@ class LLMBase(ABC):
     def verify_access(self):
         self.client.models.list()
 
-    def track_usage(self, current_usage):
+    def track_usage(self, current_usage: TokenCount):
         with self.lock:
             if self.model_name not in self.usage:
                 self.usage[self.model_name] = current_usage
@@ -114,21 +128,6 @@ class LLMBase(ABC):
 
 
 class OpenAILLM(LLMBase):
-    @dataclass
-    class Usage:
-        completion_tokens: int
-        prompt_tokens: int
-        total_tokens: int
-
-        def __add__(self, other):
-            if not isinstance(other, OpenAILLM.Usage):
-                return NotImplemented
-            return OpenAILLM.Usage(
-                completion_tokens=self.completion_tokens + other.completion_tokens,
-                prompt_tokens=self.prompt_tokens + other.prompt_tokens,
-                total_tokens=self.total_tokens + other.total_tokens,
-            )
-
     def __init__(
         self,
         api_key: str,
@@ -177,7 +176,7 @@ class OpenAILLM(LLMBase):
 
         current_usage = completion.usage
         self.track_usage(
-            self.Usage(
+            TokenCount(
                 completion_tokens=current_usage.completion_tokens,
                 prompt_tokens=current_usage.prompt_tokens,
                 total_tokens=current_usage.total_tokens,
@@ -187,19 +186,6 @@ class OpenAILLM(LLMBase):
 
 
 class CohereLLM(LLMBase):
-    @dataclass
-    class Usage:
-        input_tokens: int
-        output_tokens: int
-
-        def __add__(self, other):
-            if not isinstance(other, CohereLLM.Usage):
-                return NotImplemented
-            return CohereLLM.Usage(
-                input_tokens=self.input_tokens + other.input_tokens,
-                output_tokens=self.output_tokens + other.output_tokens,
-            )
-
     def __init__(
         self,
         api_key: str,
@@ -229,29 +215,16 @@ class CohereLLM(LLMBase):
         response_text = completion.message.content[0].text
         current_usage = completion.usage.billed_units
         self.track_usage(
-            self.Usage(
-                input_tokens=current_usage.input_tokens,
-                output_tokens=current_usage.output_tokens,
+            TokenCount(
+                completion_tokens=current_usage.output_tokens,
+                prompt_tokens=current_usage.input_tokens,
+                total_tokens=current_usage.output_tokens + current_usage.input_tokens,
             ),
         )
         return response_text, current_usage
 
 
 class OnPremLLM(LLMBase):
-    @dataclass
-    class Usage:
-        completion_tokens: int
-        prompt_tokens: int
-        total_tokens: int
-
-        def __add__(self, other):
-            if not isinstance(other, OnPremLLM.Usage):
-                return NotImplemented
-            return OnPremLLM.Usage(
-                completion_tokens=self.completion_tokens + other.completion_tokens,
-                prompt_tokens=self.prompt_tokens + other.prompt_tokens,
-                total_tokens=self.total_tokens + other.total_tokens,
-            )
 
     def __init__(self, base_url: str, track_usage_at: Optional[str] = None):
         super().__init__(model_name="onprem", track_usage_at=track_usage_at)
@@ -282,14 +255,14 @@ class OnPremLLM(LLMBase):
 
         response.raise_for_status()
         response_json = response.json()
-        if not response_json.get("choices") or len(response_json.get("choices")) == 0:
+        if not response_json.get("choices"):
             raise ValueError("No completions returned")
 
         response_text = response_json["choices"][0]["message"]["content"]
         current_usage = response_json.get("usage", {})
 
         self.track_usage(
-            self.Usage(
+            TokenCount(
                 completion_tokens=current_usage.get("completion_tokens", 0),
                 prompt_tokens=current_usage.get("prompt_tokens", 0),
                 total_tokens=current_usage.get("total_tokens", 0),

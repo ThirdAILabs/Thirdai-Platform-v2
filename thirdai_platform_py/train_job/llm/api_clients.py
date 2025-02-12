@@ -26,12 +26,14 @@ class LLMBase(ABC):
     def verify_access(self):
         self.client.models.list()
 
-    def track_usage(self, model_name: str, current_usage):
+    def track_usage(self, current_usage):
         with self.lock:
-            if model_name not in self.usage:
-                self.usage[model_name] = current_usage
+            if self.model_name not in self.usage:
+                self.usage[self.model_name] = current_usage
             else:
-                self.usage[model_name] = self.usage[model_name] + current_usage
+                self.usage[self.model_name] = (
+                    self.usage[self.model_name] + current_usage
+                )
 
             if self.track_usage_at:
                 save_dict(
@@ -175,7 +177,6 @@ class OpenAILLM(LLMBase):
 
         current_usage = completion.usage
         self.track_usage(
-            self.model_name,
             self.Usage(
                 completion_tokens=current_usage.completion_tokens,
                 prompt_tokens=current_usage.prompt_tokens,
@@ -228,7 +229,6 @@ class CohereLLM(LLMBase):
         response_text = completion.message.content[0].text
         current_usage = completion.usage.billed_units
         self.track_usage(
-            self.model_name,
             self.Usage(
                 input_tokens=current_usage.input_tokens,
                 output_tokens=current_usage.output_tokens,
@@ -238,8 +238,23 @@ class CohereLLM(LLMBase):
 
 
 class OnPremLLM(LLMBase):
-    def __init__(self, base_url: str):
-        super().__init__(model_name="onprem")
+    @dataclass
+    class Usage:
+        completion_tokens: int
+        prompt_tokens: int
+        total_tokens: int
+
+        def __add__(self, other):
+            if not isinstance(other, OnPremLLM.Usage):
+                return NotImplemented
+            return OnPremLLM.Usage(
+                completion_tokens=self.completion_tokens + other.completion_tokens,
+                prompt_tokens=self.prompt_tokens + other.prompt_tokens,
+                total_tokens=self.total_tokens + other.total_tokens,
+            )
+
+    def __init__(self, base_url: str, track_usage_at: Optional[str] = None):
+        super().__init__(model_name="onprem", track_usage_at=track_usage_at)
         self.url = urljoin(base_url, "/on-prem-llm/v1/chat/completions")
 
     def completion(
@@ -267,11 +282,20 @@ class OnPremLLM(LLMBase):
 
         response.raise_for_status()
         response_json = response.json()
-        if not response_json.get("choices"):
+        if not response_json.get("choices") or len(response_json.get("choices")) == 0:
             raise ValueError("No completions returned")
 
-        response_text = response_json["choices"][0]["delta"]["content"]
-        return response_text, None
+        response_text = response_json["choices"][0]["message"]["content"]
+        current_usage = response_json.get("usage", {})
+
+        self.track_usage(
+            self.Usage(
+                completion_tokens=current_usage.get("completion_tokens", 0),
+                prompt_tokens=current_usage.get("prompt_tokens", 0),
+                total_tokens=current_usage.get("total_tokens", 0),
+            )
+        )
+        return response_text, current_usage
 
 
 llm_classes = {

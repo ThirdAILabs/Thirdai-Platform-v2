@@ -86,16 +86,19 @@ class NeuralDBV2(Model):
             self.llm_response_dir = self.model_dir / config.llm_config.provider.value
             self.llm_response_dir.mkdir(parents=True, exist_ok=True)
 
+            llm_args = {
+                "track_usage_at": str(self.llm_response_dir / "usage.json"),
+            }
+
             if config.llm_config.provider != LLMProvider.onprem:
-                llm_args = {
-                    "api_key": self.config.llm_config.api_key,
-                    "base_url": self.config.llm_config.base_url,
-                    "track_usage_at": str(self.llm_response_dir / "usage.json"),
-                }
+                llm_args["api_key"] = self.config.llm_config.api_key
+                if self.config.llm_config.base_url:
+                    llm_args["base_url"] = self.config.llm_config.base_url
+
+                if self.config.llm_config.model_name:
+                    llm_args["model_name"] = self.config.llm_config.model_name
             else:
-                llm_args = {
-                    "base_url": self.config.model_bazaar_endpoint,
-                }
+                llm_args["base_url"] = self.config.model_bazaar_endpoint
 
             self.llm = llm_classes.get(self.config.llm_config.provider)(**llm_args)
 
@@ -588,6 +591,9 @@ class NeuralDBV2(Model):
                         }
                         for response in batched_response
                         for ques in response[0].split("\n")
+                        if ques
+                        and len(ques.split())
+                        >= 4  # Ignore questions of less than 4 words as it is possibly not a valid question.
                     ]
                 )
             handler.flush()

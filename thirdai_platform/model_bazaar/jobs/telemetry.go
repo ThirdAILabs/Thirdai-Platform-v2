@@ -91,6 +91,7 @@ func StartTelemetryJob(orchestratorClient orchestrator.Client, storage storage.S
 		GrafanaDbUrl:           args.GrafanaDbUrl,
 		ModelBazaarPrivateHost: url.Hostname(),
 		Docker:                 args.Docker,
+		IngressHostname:        orchestratorClient.IngressHostname(),
 	}
 
 	if args.IsLocal {

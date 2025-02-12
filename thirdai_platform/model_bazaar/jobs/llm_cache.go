@@ -21,6 +21,7 @@ func StartLlmCacheJob(orchestratorClient orchestrator.Client, license *licensing
 		LicenseKey:          licenseKey.BoltLicenseKey,
 		ShareDir:            shareDir,
 		Driver:              driver,
+		IngressHostname:     orchestratorClient.IngressHostname(),
 	}
 
 	if driver.DriverType() == "local" {

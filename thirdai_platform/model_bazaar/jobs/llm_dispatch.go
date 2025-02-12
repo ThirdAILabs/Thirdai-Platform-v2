@@ -13,6 +13,7 @@ func StartLlmDispatchJob(orchestratorClient orchestrator.Client, driver orchestr
 		ModelBazaarEndpoint: modelBazaarEndpoint,
 		Driver:              driver,
 		ShareDir:            shareDir,
+		IngressHostname:     orchestratorClient.IngressHostname(),
 	}
 
 	if driver.DriverType() == "local" {

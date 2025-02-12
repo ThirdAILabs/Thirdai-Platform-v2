@@ -45,3 +45,7 @@ func (c *NomadStub) TotalCpuUsage() (int, error) {
 func (c *NomadStub) Clear() {
 	c.activeJobs = map[string]string{}
 }
+
+func (c *NomadStub) IngressHostname() string {
+	return "ingress.hostname"
+}

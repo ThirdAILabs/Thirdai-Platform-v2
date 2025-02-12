@@ -147,6 +147,7 @@ class OpenAILLM(LLMBase):
         system_prompt: Optional[str] = None,
         temperature: float = 0.8,
         response_format: Optional[BaseModel] = None,
+        **kwargs
     ):
         messages = []
         if system_prompt:
@@ -160,6 +161,7 @@ class OpenAILLM(LLMBase):
                 messages=messages,
                 temperature=temperature,
                 response_format=response_format,
+                **kwargs
             )
             if len(completion.choices) == 0:
                 raise ValueError("No completions returned")
@@ -169,6 +171,7 @@ class OpenAILLM(LLMBase):
                 model=self.model_name,
                 messages=messages,
                 temperature=temperature,
+                **kwargs
             )
             if len(completion.choices) == 0:
                 raise ValueError("No completions returned")
@@ -199,7 +202,7 @@ class CohereLLM(LLMBase):
         self.client = ClientV2(api_key=api_key, base_url=base_url)
         self.verify_access()
 
-    def completion(self, prompt: str, system_prompt: Optional[str] = None):
+    def completion(self, prompt: str, system_prompt: Optional[str] = None, **kwargs):
 
         messages = []
         if system_prompt:
@@ -207,7 +210,7 @@ class CohereLLM(LLMBase):
 
         messages.append({"role": "user", "content": prompt})
 
-        completion = self.client.chat(model=self.model_name, messages=messages)
+        completion = self.client.chat(model=self.model_name, messages=messages, **kwargs)
 
         if len(completion.message.content) == 0:
             raise ValueError("No completions returned")
@@ -244,6 +247,7 @@ class OnPremLLM(LLMBase):
             "model": self.model_name,
             "messages": [],
             "temperature": temperature,
+            "n_predict": n_predict,
             **kwargs,
         }
 
@@ -274,5 +278,5 @@ class OnPremLLM(LLMBase):
 llm_classes = {
     "openai": OpenAILLM,
     "cohere": CohereLLM,
-    "onprem": OnPremLLM,
+    "onprem": OpenAILLM,        # OpenAI client can be use for on-prem as well. Benefits from structured outputs
 }

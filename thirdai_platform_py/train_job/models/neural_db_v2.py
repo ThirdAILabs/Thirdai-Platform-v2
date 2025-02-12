@@ -6,6 +6,7 @@ import time
 from collections import defaultdict
 from logging import Logger
 from typing import Dict, List
+from urllib.parse import urljoin
 
 import thirdai
 from platform_common.file_handler import expand_cloud_buckets_and_directories
@@ -98,7 +99,9 @@ class NeuralDBV2(Model):
                 if self.config.llm_config.model_name:
                     llm_args["model_name"] = self.config.llm_config.model_name
             else:
-                llm_args["base_url"] = self.config.model_bazaar_endpoint
+                llm_args["base_url"] = urljoin(self.config.model_bazaar_endpoint, "/on-prem-llm/v1")
+                llm_args["api_key"] = "sk-no-key-required"
+                llm_args["model_name"] = "onPrem"
 
             self.llm = llm_classes.get(self.config.llm_config.provider)(**llm_args)
 
@@ -556,22 +559,23 @@ class NeuralDBV2(Model):
                     ),
                     "system_prompt": system_prompt[self.config.llm_config.provider],
                     "metadata": {"chunk_id": chunk.chunk_id},
+                    "completion_kwargs": {
+                        "max_tokens": 1000
+                    }
                 }
                 for chunk in self.db.chunk_store.get_chunks(
                     chunk_ids[i : i + batch_size]
                 )
             ]
-            if self.config.llm_config.provider == LLMProvider.openai:
-                batched_prompts = [
-                    {**x, "completion_kwargs": {"response_format": OpenAIResponse}}
-                    for x in batched_prompts
-                ]
+            if self.config.llm_config.provider != LLMProvider.cohere:
+                for prompt in batched_prompts:
+                    prompt["completion_kwargs"]["response_format"] = OpenAIResponse
 
             batched_response = self.llm.run_and_collect_results(
                 batched_prompts, parallelize=True
             )
 
-            if self.config.llm_config.provider == LLMProvider.openai:
+            if self.config.llm_config.provider != LLMProvider.cohere:
                 csv_writer.writerows(
                     [
                         (ques, response[1]["chunk_id"])

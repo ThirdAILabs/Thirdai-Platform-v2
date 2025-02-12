@@ -4,7 +4,10 @@ metadata:
   name: "{{ .JobName }}-ingress"
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
+  tls:
+    - secretName: thirdai-platform-tls
   rules:
     - http:
         paths:

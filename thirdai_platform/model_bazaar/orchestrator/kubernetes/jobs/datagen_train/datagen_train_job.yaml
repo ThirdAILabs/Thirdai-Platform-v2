@@ -24,10 +24,10 @@ spec:
           resources:
             {{-  with .Resources }}
             requests:
-              cpu: "{{ .AllocationMhz }}"
-              memory: "{{ .AllocationMemory }}"
+              cpu: "{{ .AllocationCores }}"
+              memory: "{{ .AllocationMemory }}Mi"
             limits:
-              memory: "{{ .AllocationMemoryMax }}"
+              memory: "{{ .AllocationMemoryMax }}Mi"
             {{- end }}
           volumeMounts:
             - name: shared-modelbazaar
@@ -62,10 +62,10 @@ spec:
           resources:
             {{-  with .Resources }}
             requests:
-              cpu: "{{ .AllocationMhz }}"
-              memory: "{{ .AllocationMemory }}"
+              cpu: "{{ .AllocationCores }}"
+              memory: "{{ .AllocationMemory }}Mi"
             limits:
-              memory: "{{ .AllocationMemoryMax }}"
+              memory: "{{ .AllocationMemoryMax }}Mi"
             {{- end }}
           volumeMounts:
             - name: shared-modelbazaar

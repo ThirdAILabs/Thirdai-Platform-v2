@@ -227,54 +227,6 @@ class CohereLLM(LLMBase):
         return response_text, current_usage
 
 
-class OnPremLLM(LLMBase):
-
-    def __init__(self, base_url: str, track_usage_at: Optional[str] = None):
-        super().__init__(model_name="onprem", track_usage_at=track_usage_at)
-        self.url = urljoin(base_url, "/on-prem-llm/v1/chat/completions")
-
-    def completion(
-        self,
-        prompt: str,
-        system_prompt: Optional[str] = None,
-        temperature: float = 0.8,
-        **kwargs,
-    ):
-        headers = {
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "model": self.model_name,
-            "messages": [],
-            "temperature": temperature,
-            "n_predict": n_predict,
-            **kwargs,
-        }
-
-        if system_prompt:
-            payload["messages"].append({"role": "system", "content": system_prompt})
-        payload["messages"].append({"role": "user", "content": prompt})
-
-        response = requests.post(self.url, headers=headers, json=payload)
-
-        response.raise_for_status()
-        response_json = response.json()
-        if not response_json.get("choices"):
-            raise ValueError("No completions returned")
-
-        response_text = response_json["choices"][0]["message"]["content"]
-        current_usage = response_json.get("usage", {})
-
-        self.track_usage(
-            TokenCount(
-                completion_tokens=current_usage.get("completion_tokens", 0),
-                prompt_tokens=current_usage.get("prompt_tokens", 0),
-                total_tokens=current_usage.get("total_tokens", 0),
-            )
-        )
-        return response_text, current_usage
-
-
 llm_classes = {
     "openai": OpenAILLM,
     "cohere": CohereLLM,

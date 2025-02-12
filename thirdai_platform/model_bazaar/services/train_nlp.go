@@ -563,6 +563,7 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 			ConfigPath: trainConfigPath,
 			Driver:     s.variables.BackendDriver,
 			Resources: orchestrator.Resources{
+				AllocationCores:     2,
 				AllocationMhz:       trainConfig.JobOptions.CpuUsageMhz(),
 				AllocationMemory:    trainConfig.JobOptions.AllocationMemory,
 				AllocationMemoryMax: 60000,

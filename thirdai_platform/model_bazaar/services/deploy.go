@@ -142,6 +142,7 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 
 		memory := getDeploymentMemory(modelId, memory, attrs)
 		resources := orchestrator.Resources{
+			AllocationCores:     2,
 			AllocationMhz:       2400,
 			AllocationMemory:    memory,
 			AllocationMemoryMax: 4 * memory,

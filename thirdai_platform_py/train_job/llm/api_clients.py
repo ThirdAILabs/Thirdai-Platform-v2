@@ -240,5 +240,5 @@ llm_classes = {
     "openai": OpenAILLM,
     "cohere": CohereLLM,
     "onprem": OpenAILLM,  # OpenAI client can be use for on-prem as well. Benefits from structured outputs
-    "mock": MockLLM       # For testing purpose
+    "mock": MockLLM,  # For testing purpose
 }

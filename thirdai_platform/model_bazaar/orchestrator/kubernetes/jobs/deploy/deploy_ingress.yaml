@@ -3,11 +3,11 @@ kind: Ingress
 metadata:
   name: "{{ .JobName }}-ingress"
   annotations:
-    kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.org/mergeable-ingress-type: "minion"
 spec:
+  ingressClassName: nginx
   tls:
     - hosts:
         - {{ .IngressHostname }}

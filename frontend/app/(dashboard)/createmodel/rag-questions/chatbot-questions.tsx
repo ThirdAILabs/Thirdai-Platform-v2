@@ -142,18 +142,18 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
 
   const modelDropDownList = existingSSmodels.map((model) => ({
     id: model.model_id,
-    name: model.username + '/' + model.model_name,
+    name: model.Username + '/' + model.model_name,
   }));
 
   const grDropDownList = existingNERModels.map((model) => ({
     id: model.model_id,
-    name: model.username + '/' + model.model_name,
+    name: model.Username + '/' + model.model_name,
   }));
 
   const handleSSIdentifier = (ssID: string) => {
     setSsIdentifier(ssID);
     const ssModel = existingSSmodels.find(
-      (model) => `${model.username}/${model.model_name}` === ssID
+      (model) => `${model.Username}/${model.model_name}` === ssID
     );
     if (ssModel) {
       setSsModelId(ssModel.model_id);
@@ -163,7 +163,7 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
   const handleGrIdentifier = (grID: string) => {
     setGrIdentifier(grID);
     const grModel = existingNERModels.find(
-      (model) => `${model.username}/${model.model_name}` === grID
+      (model) => `${model.Username}/${model.model_name}` === grID
     );
     if (grModel) {
       setGrModelId(grModel.model_id);
@@ -479,7 +479,7 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
                     }}
                     teams={existingNLPClassifierModels.map((model) => ({
                       id: model.model_id,
-                      name: model.username + '/' + model.model_name,
+                      name: model.Username + '/' + model.model_name,
                     }))}
                   />
                 </div>

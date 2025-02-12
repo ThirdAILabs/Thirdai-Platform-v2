@@ -26,6 +26,7 @@ func StartFrontendJob(orchestratorClient orchestrator.Client, driver orchestrato
 		MajorityCriticalServiceNodes: args.MajorityCriticalServiceNodes,
 		UseSslInLogin:                args.UseSslInLogin,
 		Driver:                       driver,
+		IngressHostname:              orchestratorClient.IngressHostname(),
 	}
 
 	err := orchestratorClient.StartJob(job)

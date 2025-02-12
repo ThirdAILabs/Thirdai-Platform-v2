@@ -3,17 +3,16 @@ from dataclasses import asdict, dataclass
 from logging import Logger
 from threading import Lock
 from typing import Any, Dict, List, Optional
-from urllib.parse import urljoin
 
-import requests
 from platform_common.utils import save_dict
 from pydantic import BaseModel
 
+
 @dataclass
 class TokenCount:
-    completion_token: int
-    prompt_token: int
-    total_token: int
+    completion_tokens: int
+    prompt_tokens: int
+    total_tokens: int
 
     def __add__(self, other):
         if not isinstance(other, self.__class__):
@@ -23,6 +22,7 @@ class TokenCount:
             prompt_tokens=self.prompt_tokens + other.prompt_tokens,
             total_tokens=self.total_tokens + other.total_tokens,
         )
+
 
 class LLMBase(ABC):
     def __init__(self, model_name: str, track_usage_at: Optional[str] = None):
@@ -147,7 +147,7 @@ class OpenAILLM(LLMBase):
         system_prompt: Optional[str] = None,
         temperature: float = 0.8,
         response_format: Optional[BaseModel] = None,
-        **kwargs
+        **kwargs,
     ):
         messages = []
         if system_prompt:
@@ -161,7 +161,7 @@ class OpenAILLM(LLMBase):
                 messages=messages,
                 temperature=temperature,
                 response_format=response_format,
-                **kwargs
+                **kwargs,
             )
             if len(completion.choices) == 0:
                 raise ValueError("No completions returned")
@@ -171,19 +171,19 @@ class OpenAILLM(LLMBase):
                 model=self.model_name,
                 messages=messages,
                 temperature=temperature,
-                **kwargs
+                **kwargs,
             )
             if len(completion.choices) == 0:
                 raise ValueError("No completions returned")
             res = completion.choices[0].message.content
 
-        current_usage = completion.usage
+        current_usage = TokenCount(
+            completion_tokens=completion.usage.completion_tokens,
+            prompt_tokens=completion.usage.prompt_tokens,
+            total_tokens=completion.usage.total_tokens,
+        )
         self.track_usage(
-            TokenCount(
-                completion_tokens=current_usage.completion_tokens,
-                prompt_tokens=current_usage.prompt_tokens,
-                total_tokens=current_usage.total_tokens,
-            ),
+            current_usage,
         )
         return res, current_usage
 
@@ -210,25 +210,35 @@ class CohereLLM(LLMBase):
 
         messages.append({"role": "user", "content": prompt})
 
-        completion = self.client.chat(model=self.model_name, messages=messages, **kwargs)
+        completion = self.client.chat(
+            model=self.model_name, messages=messages, **kwargs
+        )
 
         if len(completion.message.content) == 0:
             raise ValueError("No completions returned")
 
         response_text = completion.message.content[0].text
-        current_usage = completion.usage.billed_units
-        self.track_usage(
-            TokenCount(
-                completion_tokens=current_usage.output_tokens,
-                prompt_tokens=current_usage.input_tokens,
-                total_tokens=current_usage.output_tokens + current_usage.input_tokens,
-            ),
+        current_usage = TokenCount(
+            completion_tokens=completion.usage.billed_units.output_tokens,
+            prompt_tokens=completion.usage.billed_units.input_tokens,
+            total_tokens=completion.usage.billed_units.output_tokens
+            + completion.usage.billed_units.input_tokens,
         )
+        self.track_usage(current_usage)
         return response_text, current_usage
+
+
+class MockLLM(LLMBase):
+    def __init__(self, api_key: str, track_usage_at: Optional[str] = None):
+        super().__init__("mock", track_usage_at)
+
+    def completion(self, prompt: str, system_prompt: Optional[str] = None, **kwargs):
+        return "Mocked response", TokenCount(0, 0, 0)
 
 
 llm_classes = {
     "openai": OpenAILLM,
     "cohere": CohereLLM,
-    "onprem": OpenAILLM,        # OpenAI client can be use for on-prem as well. Benefits from structured outputs
+    "onprem": OpenAILLM,  # OpenAI client can be use for on-prem as well. Benefits from structured outputs
+    "mock": MockLLM       # For testing purpose
 }

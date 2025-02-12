@@ -99,7 +99,9 @@ class NeuralDBV2(Model):
                 if self.config.llm_config.model_name:
                     llm_args["model_name"] = self.config.llm_config.model_name
             else:
-                llm_args["base_url"] = urljoin(self.config.model_bazaar_endpoint, "/on-prem-llm/v1")
+                llm_args["base_url"] = urljoin(
+                    self.config.model_bazaar_endpoint, "/on-prem-llm/v1"
+                )
                 llm_args["api_key"] = "sk-no-key-required"
                 llm_args["model_name"] = "onPrem"
 
@@ -546,7 +548,7 @@ class NeuralDBV2(Model):
             "w",
         )
         csv_writer = writer(handler)
-        csv_writer.writerow(('text', 'chunk_id'))
+        csv_writer.writerow(("text", "chunk_id"))
 
         for i in range(0, len(chunk_ids), batch_size):
             start_time = time.time()
@@ -559,9 +561,7 @@ class NeuralDBV2(Model):
                     ),
                     "system_prompt": system_prompt[self.config.llm_config.provider],
                     "metadata": {"chunk_id": chunk.chunk_id},
-                    "completion_kwargs": {
-                        "max_tokens": 1000
-                    }
+                    "completion_kwargs": {"max_tokens": 1000},
                 }
                 for chunk in self.db.chunk_store.get_chunks(
                     chunk_ids[i : i + batch_size]

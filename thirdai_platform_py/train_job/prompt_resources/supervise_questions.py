@@ -38,7 +38,7 @@ Are there any preferred geographical locations for the product?
 context:
 ```{chunk_text}```
 """,
-    LLMProvider.onprem:"""
+    LLMProvider.onprem: """
 ** Generate {questions_per_chunk} high-quality questions based on the following context. **
 - Ensure each question contains enough context to be answerable without requiring external knowledge.
 - Avoid generic or vague questions that rely solely on keywords (e.g., `"What is the primary purpose of Figure 2?"`).

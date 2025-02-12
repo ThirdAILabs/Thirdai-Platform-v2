@@ -278,9 +278,6 @@ func (opts *LLMConfig) Validate() error {
 		if opts.ApiKey == "" {
 			return fmt.Errorf("api_key must be specified")
 		}
-		if opts.ModelName == "" {
-			return fmt.Errorf("model_name must be specified")
-		}
 	}
 	return nil
 }

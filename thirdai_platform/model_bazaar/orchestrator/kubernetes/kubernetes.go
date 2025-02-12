@@ -41,12 +41,13 @@ func getNamespace() (string, error) {
 }
 
 type KubernetesClient struct {
-	namespace string
-	templates *template.Template
-	clientset *kubernetes.Clientset
+	namespace       string
+	templates       *template.Template
+	clientset       *kubernetes.Clientset
+	ingressHostname string
 }
 
-func NewKubernetesClient() orchestrator.Client {
+func NewKubernetesClient(ingressHostname string) orchestrator.Client {
 	tmpl, err := template.New("job_templates").ParseFS(jobTemplates, "jobs/*/*")
 	if err != nil {
 		log.Panicf("error parsing job templates: %v", err)
@@ -71,9 +72,10 @@ func NewKubernetesClient() orchestrator.Client {
 
 	slog.Info("creating kubernetes client", "namespace", namespace)
 	return &KubernetesClient{
-		namespace: namespace,
-		templates: tmpl,
-		clientset: clientset,
+		namespace:       namespace,
+		templates:       tmpl,
+		clientset:       clientset,
+		ingressHostname: ingressHostname,
 	}
 }
 
@@ -471,4 +473,8 @@ func parseCPUQuantity(q string) (int, error) {
 		return 0, err
 	}
 	return int(f * 1000), nil
+}
+
+func (c *KubernetesClient) IngressHostname() string {
+	return c.ingressHostname
 }

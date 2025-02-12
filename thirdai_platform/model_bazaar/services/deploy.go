@@ -205,7 +205,7 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 				Resources:          resources,
 				CloudCredentials:   s.variables.CloudCredentials,
 				JobToken:           uuid.New().String(),
-				IsKE:               isKE,
+				IsKE:               model.Type == schema.KnowledgeExtraction,
 				IngressHostname:    s.orchestratorClient.IngressHostname(),
 			},
 		)

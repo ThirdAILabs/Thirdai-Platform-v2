@@ -34,4 +34,6 @@ type Client interface {
 	ListServices() ([]ServiceInfo, error)
 
 	TotalCpuUsage() (int, error)
+
+	IngressHostname() string
 }

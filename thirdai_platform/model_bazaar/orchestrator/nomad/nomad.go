@@ -23,16 +23,17 @@ import (
 var jobTemplates embed.FS
 
 type NomadClient struct {
-	addr      string
-	token     string
-	templates *template.Template
+	addr            string
+	token           string
+	templates       *template.Template
+	ingressHostname string
 }
 
 func NomadTemplatePath(jobPath string) string {
 	return jobPath + ".hcl.tmpl"
 }
 
-func NewNomadClient(addr string, token string) orchestrator.Client {
+func NewNomadClient(addr string, token string, ingressHostname string) orchestrator.Client {
 	funcs := template.FuncMap{
 		"isLocal": func(d orchestrator.Driver) bool {
 			return d.DriverType() == "local"
@@ -55,7 +56,7 @@ func NewNomadClient(addr string, token string) orchestrator.Client {
 		slog.Info("found job template: " + t.Name())
 	}
 
-	return &NomadClient{addr: addr, token: token, templates: tmpl}
+	return &NomadClient{addr: addr, token: token, templates: tmpl, ingressHostname: ingressHostname}
 }
 
 var errNomadReturnedNotFound = errors.New("nomad returned status 404")

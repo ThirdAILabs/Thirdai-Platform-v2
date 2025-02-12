@@ -122,7 +122,7 @@ func loadEnv() modelBazaarEnv {
 	}
 
 	env := modelBazaarEnv{
-		PublicModelBazaarEndpoint:  requiredEnv("PUBLIC_MODEL_BAZAAR_ENDPOINT"),
+		IngressHostname:            requiredEnv("INGRESS_HOSTNAME"),
 		PrivateModelBazaarEndpoint: requiredEnv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
 
 		NomadEndpoint: optionalEnv("NOMAD_ENDPOINT"),
@@ -183,7 +183,7 @@ func loadEnv() modelBazaarEnv {
 	}
 
 	if (env.NomadEndpoint != "" && env.Kubernetes != "") || (env.NomadEndpoint == "" && env.Kubernetes == "") {
-		log.Fatal("Must specify exactly one of NOMAD_ENDPOINT or KUBERNETES_ENDPOINT")
+		log.Fatal("Must specify exactly one of NOMAD_ENDPOINT or KUBERNETES")
 	}
 	if env.NomadEndpoint != "" && env.NomadToken == "" {
 		log.Fatal("Must specify TASK_RUNNER_TOKEN when using NOMAD_ENDPOINT")
@@ -317,9 +317,9 @@ func main() {
 	var orchestratorClient orchestrator.Client
 
 	if env.NomadEndpoint != "" {
-		orchestratorClient = nomad.NewNomadClient(env.NomadEndpoint, env.NomadToken)
+		orchestratorClient = nomad.NewNomadClient(env.NomadEndpoint, env.NomadToken, env.IngressHostname)
 	} else if env.Kubernetes != "" {
-		orchestratorClient = kubernetes.NewKubernetesClient()
+		orchestratorClient = kubernetes.NewKubernetesClient(env.IngressHostname)
 	}
 
 	licenseVerifier := licensing.NewVerifier(env.LicensePath)

@@ -9,11 +9,15 @@ import { useEffect, useState, useCallback } from 'react';
 export const thirdaiPlatformBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 export const deploymentBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
-export function getAccessToken(throwIfNotFound: boolean = true): string | null {
+export function getAccessToken(redirectToLogin: boolean = true): string | null {
   const accessToken = localStorage.getItem('accessToken');
-  if (!accessToken && throwIfNotFound) {
-    throw new Error('Access token is not available');
+  
+  if (!accessToken && redirectToLogin) {
+    // Redirect to login page
+    window.location.href = '/login-email';
+    return null;
   }
+  
   return accessToken;
 }
 

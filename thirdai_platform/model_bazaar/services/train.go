@@ -150,6 +150,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 		ConfigPath: configPath,
 		Driver:     s.variables.BackendDriver,
 		Resources: orchestrator.Resources{
+			AllocationCores:     2,
 			AllocationMhz:       trainConfig.JobOptions.CpuUsageMhz(),
 			AllocationMemory:    trainConfig.JobOptions.AllocationMemory,
 			AllocationMemoryMax: 60000,

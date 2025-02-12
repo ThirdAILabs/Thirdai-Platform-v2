@@ -53,10 +53,10 @@ spec:
             - containerPort: 80
           resources:
             requests:
-              cpu: "{{ .Resources.AllocationMhz }}"
-              memory: "{{ .Resources.AllocationMemory }}"
+              cpu: "{{ .Resources.AllocationCores }}"
+              memory: "{{ .Resources.AllocationMemory }}Mi"
             limits:
-              memory: "{{ .Resources.AllocationMemoryMax }}"
+              memory: "{{ .Resources.AllocationMemoryMax }}Mi"
           volumeMounts:
             - name: shared-modelbazaar
               mountPath: "/model_bazaar"

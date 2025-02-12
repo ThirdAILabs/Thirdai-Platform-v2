@@ -87,6 +87,8 @@ type DeployJob struct {
 
 	JobToken string
 	IsKE     bool
+
+	IngressHostname string
 }
 
 func (j DeployJob) GetJobName() string {
@@ -118,6 +120,8 @@ type LlmCacheJob struct {
 	ShareDir            string
 
 	Driver Driver
+
+	IngressHostname string
 }
 
 func (j LlmCacheJob) GetJobName() string {
@@ -133,6 +137,8 @@ type LlmDispatchJob struct {
 	ShareDir            string
 
 	Driver Driver
+
+	IngressHostname string
 }
 
 func (j LlmDispatchJob) GetJobName() string {
@@ -155,6 +161,8 @@ type OnPremLlmGenerationJob struct {
 	Docker DockerEnv
 
 	Resources Resources
+
+	IngressHostname string
 }
 
 func (j OnPremLlmGenerationJob) GetJobName() string {
@@ -179,6 +187,8 @@ type TelemetryJob struct {
 	ModelBazaarPrivateHost string
 
 	Docker DockerEnv
+
+	IngressHostname string
 }
 
 func (j TelemetryJob) GetJobName() string {
@@ -199,6 +209,8 @@ type FrontendJob struct {
 
 	UseSslInLogin bool
 	Driver        DockerDriver
+
+	IngressHostname string
 }
 
 func (j FrontendJob) GetJobName() string {

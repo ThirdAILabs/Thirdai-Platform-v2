@@ -67,6 +67,7 @@ func StartOnPremGenerationJob(
 			AllocationMemoryMax: 2 * int(modelSize),
 			AllocationCores:     coresPerAllocation,
 		},
+		IngressHostname: orchestratorClient.IngressHostname(),
 	}
 
 	if !restart {

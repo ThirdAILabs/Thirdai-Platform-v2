@@ -3,12 +3,17 @@ kind: Ingress
 metadata:
   name: thirdai-platform-frontend
   annotations:
+    kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.org/mergeable-ingress-type: "minion"
 spec:
   tls:
-    - secretName: thirdai-platform-tls
+    - hosts:
+        - {{ .IngressHostname }}
+      secretName: thirdai-platform-tls
   rules:
-    - http:
+    - host: {{ .IngressHostname }}
+      http:
         paths:
           - path: /
             pathType: Prefix

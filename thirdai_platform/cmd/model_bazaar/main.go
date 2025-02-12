@@ -122,6 +122,9 @@ func loadEnv() modelBazaarEnv {
 	}
 
 	env := modelBazaarEnv{
+		PublicModelBazaarEndpoint:  requiredEnv("PUBLIC_MODEL_BAZAAR_ENDPOINT"),
+		PrivateModelBazaarEndpoint: requiredEnv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
+
 		NomadEndpoint: optionalEnv("NOMAD_ENDPOINT"),
 		NomadToken:    optionalEnv("TASK_RUNNER_TOKEN"),
 

@@ -1032,7 +1032,7 @@ export interface Workflow {
   train_status: string;
   deploy_status: string;
   publish_date: string;
-  Username: string;
+  username: string;
   user_email: string;
   team_id: string | null;
   attributes: Attributes;
@@ -2014,7 +2014,7 @@ interface ModelResponse {
   training_time: string;
   type: string;
   user_email: string;
-  Username: string;
+  username: string;
 }
 
 interface UserTeamInfo {

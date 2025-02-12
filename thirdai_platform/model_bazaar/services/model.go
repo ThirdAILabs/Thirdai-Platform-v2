@@ -114,7 +114,7 @@ type ModelInfo struct {
 	DeployStatus string     `json:"deploy_status"`
 	PublishDate  string     `json:"publish_date"`
 	UserEmail    string     `json:"user_email"`
-	Username     string     `json:"Username"`
+	Username     string     `json:"username"`
 	TeamId       *uuid.UUID `json:"team_id"`
 
 	Attributes map[string]string `json:"attributes"`

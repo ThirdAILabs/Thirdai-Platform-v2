@@ -150,41 +150,20 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
     }
   };
 
-  useEffect(() => {
-    const filteredModels = models.filter((model) => model.type === 'ndb');
-    console.log('All available models:', models);
-    console.log('Filtered ndb models:', filteredModels);
-    
-    // Detailed inspection of each model's structure
-    filteredModels.forEach((model, index) => {
-      console.log(`Model ${index + 1} detailed structure:`, {
-        model_id: model.model_id,
-        model_name: model.model_name,
-        username: model.Username,
-        type: model.type,
-        // Log all available properties
-        allProperties: Object.keys(model),
-        fullModel: model
-      });
-    });
-    
-    setExistingSSmodels(filteredModels);
-  }, [models]);
-
   const modelDropDownList = existingSSmodels.map((model) => ({
     id: model.model_id,
-    name: model.Username + '/' + model.model_name,
+    name: model.username + '/' + model.model_name,
   }));
 
   const grDropDownList = existingNERModels.map((model) => ({
     id: model.model_id,
-    name: model.Username + '/' + model.model_name,
+    name: model.username + '/' + model.model_name,
   }));
 
   const handleSSIdentifier = (ssID: string) => {
     setSsIdentifier(ssID);
     const ssModel = existingSSmodels.find(
-      (model) => `${model.Username}/${model.model_name}` === ssID
+      (model) => `${model.username}/${model.model_name}` === ssID
     );
     if (ssModel) {
       setSsModelId(ssModel.model_id);
@@ -205,7 +184,7 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
   const handleGrIdentifier = (grID: string) => {
     setGrIdentifier(grID);
     const grModel = existingNERModels.find(
-      (model) => `${model.Username}/${model.model_name}` === grID
+      (model) => `${model.username}/${model.model_name}` === grID
     );
     if (grModel) {
       setGrModelId(grModel.model_id);

@@ -17,7 +17,7 @@ class LLMConfig(BaseModel):
     model_name: Optional[str] = None
 
     @model_validator(mode="before")
-    def check_onprem_requirements(cls, values):
+    def check_llm_requirements(cls, values):
         provider = values.get("provider")
         api_key = values.get("api_key")
         model_name = values.get("model_name")

@@ -530,7 +530,7 @@ class NeuralDBV2(Model):
         if not chunk_ids:
             raise ValueError("No chunk found for the given doc_id")
 
-        from csv import DictWriter
+        from csv import writer
 
         from train_job.prompt_resources.supervise_questions import (
             OpenAIResponse,
@@ -542,8 +542,8 @@ class NeuralDBV2(Model):
             write_at,
             "w",
         )
-        writer = DictWriter(handler, fieldnames=["text", "chunk_id"])
-        writer.writeheader()
+        csv_writer = writer(handler)
+        csv_writer.writerow(('text', 'chunk_id'))
 
         for i in range(0, len(chunk_ids), batch_size):
             start_time = time.time()
@@ -572,23 +572,17 @@ class NeuralDBV2(Model):
             )
 
             if self.config.llm_config.provider == LLMProvider.openai:
-                writer.writerows(
+                csv_writer.writerows(
                     [
-                        {
-                            "text": ques,
-                            "chunk_id": response[1]["chunk_id"],
-                        }
+                        (ques, response[1]["chunk_id"])
                         for response in batched_response
                         for ques in response[0].questions
                     ]
                 )
             else:
-                writer.writerows(
+                csv_writer.writerows(
                     [
-                        {
-                            "text": ques,
-                            "chunk_id": response[1]["chunk_id"],
-                        }
+                        (ques, response[1]["chunk_id"])
                         for response in batched_response
                         for ques in response[0].split("\n")
                         if ques

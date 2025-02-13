@@ -21,11 +21,29 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-var query_metric = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_query", Help: "NDB Queries"})
-var upvote_metric = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_upvote", Help: "NDB Upvotes"})
-var associate_metric = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_associate", Help: "NDB Associations"})
-var insert_metric = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_insert", Help: "NDB Inserts"})
-var delete_metric = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_delete", Help: "NDB Deletes"})
+var (
+	topKSelectionsToTrack = 5
+	queryMetric           = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_query", Help: "NDB Queries"})
+	upvoteMetric          = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_upvote", Help: "NDB Upvotes"})
+	associateMetric       = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_associate", Help: "NDB Associations"})
+	insertMetric          = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_insert", Help: "NDB Inserts"})
+	deleteMetric          = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_delete", Help: "NDB Deletes"})
+
+	implicitFeedbackMetric = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_implicit_feedback", Help: "NDB Implicit Feedback"})
+
+	// Add counters for tracking top-k selections
+	ndbTopKSelections = make([]prometheus.Counter, topKSelectionsToTrack)
+)
+
+func init() {
+	// inserting values in an init function to make sure prometheus metrics are initialized whenever router is imported
+	for i := 0; i < topKSelectionsToTrack; i++ {
+		ndbTopKSelections[i] = promauto.NewCounter(prometheus.CounterOpts{
+			Name: fmt.Sprintf("ndb_result_%d_selections", i+1),
+			Help: fmt.Sprintf("Number of selections of result %d by user.", i+1),
+		})
+	}
+}
 
 type NdbRouter struct {
 	Ndb         ndb.NeuralDB
@@ -41,6 +59,7 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 		slog.Error("failed to open ndb", "error", err, "code", logging.MODEL_INIT)
 		return nil, fmt.Errorf("failed to open ndb: %v", err)
 	}
+
 	return &NdbRouter{ndb, config, reporter, &Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
 }
 
@@ -108,7 +127,7 @@ type SearchResults struct {
 
 func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 	// log time taken for serving the request
-	timer := prometheus.NewTimer(query_metric)
+	timer := prometheus.NewTimer(queryMetric)
 	defer timer.ObserveDuration()
 
 	var req SearchRequest
@@ -163,7 +182,7 @@ type InsertRequest struct {
 // TODO how to do insert from files that already have been uploaded?
 // do we need go bindings for documents or to parse them with a service beforehand?
 func (s *NdbRouter) Insert(w http.ResponseWriter, r *http.Request) {
-	timer := prometheus.NewTimer(insert_metric)
+	timer := prometheus.NewTimer(insertMetric)
 	defer timer.ObserveDuration()
 
 	var req InsertRequest
@@ -187,7 +206,7 @@ type DeleteRequest struct {
 }
 
 func (s *NdbRouter) Delete(w http.ResponseWriter, r *http.Request) {
-	timer := prometheus.NewTimer(delete_metric)
+	timer := prometheus.NewTimer(deleteMetric)
 	defer timer.ObserveDuration()
 
 	var req DeleteRequest
@@ -223,7 +242,7 @@ type UpvoteInput struct {
 }
 
 func (s *NdbRouter) Upvote(w http.ResponseWriter, r *http.Request) {
-	timer := prometheus.NewTimer(upvote_metric)
+	timer := prometheus.NewTimer(upvoteMetric)
 	defer timer.ObserveDuration()
 
 	var req UpvoteInput
@@ -259,7 +278,7 @@ type AssociateInput struct {
 }
 
 func (s *NdbRouter) Associate(w http.ResponseWriter, r *http.Request) {
-	timer := prometheus.NewTimer(associate_metric)
+	timer := prometheus.NewTimer(associateMetric)
 	defer timer.ObserveDuration()
 
 	var req AssociateInput
@@ -325,7 +344,36 @@ func (s *NdbRouter) Sources(w http.ResponseWriter, r *http.Request) {
 	slog.Debug("retrieved sources", "sources", results.Sources, "code", logging.MODEL_INFO)
 }
 
+type ImplicitFeedback struct {
+	QueryText     string `json:"query_text"`
+	ReferenceId   int    `json:"reference_id"`
+	EventDesc     string `json:"event_desc"`
+	ReferenceRank int    `json:"reference_rank"`
+}
+
 func (s *NdbRouter) ImplicitFeedback(w http.ResponseWriter, r *http.Request) {
+	timer := prometheus.NewTimer(implicitFeedbackMetric)
+	defer timer.ObserveDuration()
+
+	var req ImplicitFeedback
+	if !utils.ParseRequestBody(w, r, &req) {
+		return
+	}
+
+	var queries = ([]string{req.QueryText})
+	var labels = []uint64{uint64(req.ReferenceId)}
+
+	if err := s.Ndb.Finetune(queries, labels); err != nil {
+		slog.Error("implicit feedback error", "error", err, "code", logging.MODEL_RLHF)
+		http.Error(w, fmt.Sprintf("implicit feedback error: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Increment the counter for the rank of the selected result
+	if req.ReferenceRank > 0 && req.ReferenceRank <= topKSelectionsToTrack {
+		ndbTopKSelections[req.ReferenceRank-1].Inc()
+	}
+	slog.Debug("implicit feedback received", "query_text", req.QueryText, "reference_id", req.ReferenceId, "event_desc", req.EventDesc, "reference_rank", req.ReferenceRank, "code", logging.MODEL_RLHF)
 }
 
 func (s *NdbRouter) HighlightedPdf(w http.ResponseWriter, r *http.Request) {

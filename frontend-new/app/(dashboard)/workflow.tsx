@@ -210,11 +210,7 @@ export function WorkFlow({
       } else {
         setDeployType('Enterprise Search');
       }
-    }
-    // else if (workflow.access === 'document') {
-    //   setDeployType('Document Classification');// TODO: Ask Nick regarding this.
-    // } 
-    else if (workflow.type === 'nlp-token') {
+    } else if (workflow.type === 'nlp-token') {
       setDeployType('Text Extraction');
     } else if (workflow.type === 'nlp-text') {
       setDeployType('Text Classification');
@@ -226,6 +222,8 @@ export function WorkFlow({
       }
     } else if (workflow.type === 'knowledge-extraction') {
       setDeployType('Knowledge Extraction');
+    } else if (workflow.type === 'nlp-doc') {
+      setDeployType('Document Classification');
     }
   }, [workflow.type]);
 

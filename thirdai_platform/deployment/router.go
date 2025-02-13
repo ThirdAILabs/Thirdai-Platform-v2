@@ -155,6 +155,7 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJsonResponse(w, &results)
+	slog.Debug("searched ndb", "query", req.Query, "top_k", req.Topk, "code", logging.MODEL_SEARCH)
 }
 
 type InsertRequest struct {

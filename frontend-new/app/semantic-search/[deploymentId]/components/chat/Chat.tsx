@@ -251,7 +251,7 @@ export default function Chat({
     if (modelService && provider) {
       // Set the chat settings based on the provider
       modelService
-        .setChat(provider)
+        .setChat(provider, process.env.NEXT_PUBLIC_OPENAI_API_KEY)
         .then(() => {
           // After setting chat settings, fetch chat history
           modelService.getChatHistory(provider).then(setChatHistory);

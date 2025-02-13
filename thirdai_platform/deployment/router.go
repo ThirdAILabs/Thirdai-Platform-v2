@@ -15,7 +15,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+var query_metric = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_query", Help: "NDB Queries"})
+var upvote_metric = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_upvote", Help: "NDB Upvotes"})
+var associate_metric = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_associate", Help: "NDB Associations"})
+var insert_metric = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_insert", Help: "NDB Inserts"})
+var delete_metric = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_delete", Help: "NDB Deletes"})
 
 type NdbRouter struct {
 	Ndb         ndb.NeuralDB
@@ -68,6 +78,8 @@ func (m *NdbRouter) Routes() chi.Router {
 		utils.WriteSuccess(w)
 	})
 
+	r.Handle("/metrics", promhttp.Handler())
+
 	return r
 }
 
@@ -95,6 +107,10 @@ type SearchResults struct {
 }
 
 func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
+	// log time taken for serving the request
+	timer := prometheus.NewTimer(query_metric)
+	defer timer.ObserveDuration()
+
 	var req SearchRequest
 	if !utils.ParseRequestBody(w, r, &req) {
 		return
@@ -147,6 +163,9 @@ type InsertRequest struct {
 // TODO how to do insert from files that already have been uploaded?
 // do we need go bindings for documents or to parse them with a service beforehand?
 func (s *NdbRouter) Insert(w http.ResponseWriter, r *http.Request) {
+	timer := prometheus.NewTimer(insert_metric)
+	defer timer.ObserveDuration()
+
 	var req InsertRequest
 	if !utils.ParseRequestBody(w, r, &req) {
 		return
@@ -168,6 +187,9 @@ type DeleteRequest struct {
 }
 
 func (s *NdbRouter) Delete(w http.ResponseWriter, r *http.Request) {
+	timer := prometheus.NewTimer(delete_metric)
+	defer timer.ObserveDuration()
+
 	var req DeleteRequest
 	if !utils.ParseRequestBody(w, r, &req) {
 		return
@@ -201,6 +223,9 @@ type UpvoteInput struct {
 }
 
 func (s *NdbRouter) Upvote(w http.ResponseWriter, r *http.Request) {
+	timer := prometheus.NewTimer(upvote_metric)
+	defer timer.ObserveDuration()
+
 	var req UpvoteInput
 	if !utils.ParseRequestBody(w, r, &req) {
 		return
@@ -234,6 +259,9 @@ type AssociateInput struct {
 }
 
 func (s *NdbRouter) Associate(w http.ResponseWriter, r *http.Request) {
+	timer := prometheus.NewTimer(associate_metric)
+	defer timer.ObserveDuration()
+
 	var req AssociateInput
 	if !utils.ParseRequestBody(w, r, &req) {
 		return

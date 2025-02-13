@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -445,6 +446,16 @@ func main() {
 	go model_bazaar.JobStatusSync(5 * time.Second)
 
 	r := chi.NewRouter()
+
+	// Allow everything (ALL origins, methods, headers)
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"},                                       // Allow all origins
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}, // Allow all HTTP methods
+		AllowedHeaders:   []string{"*"},                                       // Allow all headers
+		ExposedHeaders:   []string{"*"},                                       // Expose all headers
+		AllowCredentials: true,                                                // Allow cookies/auth headers
+		MaxAge:           300,                                                 // Cache preflight response for 5 minutes
+	}))
 	r.Mount("/api/v2", model_bazaar.Routes())
 
 	slog.Info("starting server", "port", *port)

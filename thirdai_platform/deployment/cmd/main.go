@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
+	slogmulti "github.com/samber/slog-multi"
 	"log"
 	"log/slog"
 	"net/http"
@@ -16,6 +16,7 @@ import (
 	"thirdai_platform/deployment"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/licensing"
+	logutils "thirdai_platform/utils/logging"
 	"time"
 
 	"github.com/caarlos0/env/v10"
@@ -52,10 +53,22 @@ func loadEnv() (*DeploymentEnv, error) {
 	return cfg, nil
 }
 
-func initLogging(logFile *os.File) {
-	log.SetFlags(log.Lshortfile | log.Ltime | log.Ldate)
-	log.SetOutput(io.MultiWriter(logFile, os.Stderr))
-	slog.Info("logging initialized", "log_file", logFile.Name())
+func initLogging(logFile *os.File, config *config.DeployConfig) {
+	// victoria logs option transform keys like msg and time into victoria log keys _msg and _time
+	var jsonHandler slog.Handler = slog.NewJSONHandler(logFile, logutils.GetVictoriaLogsOptions(true))
+
+	// add default values to add to json logs
+	// these fields will be used for filtering logs
+	jsonHandler = jsonHandler.WithAttrs([]slog.Attr{
+		slog.String("service_type", "deployment"),
+		slog.String("model_id", config.ModelId.String()),
+		slog.String("user_id", config.UserId.String()),
+		slog.String("model_type", config.ModelType),
+	})
+	textHandler := slog.NewTextHandler(os.Stderr, nil)
+
+	logger := slog.New(slogmulti.Fanout(jsonHandler, textHandler))
+	slog.SetDefault(logger)
 }
 
 // The reason we have a separate runApp function is because the defer calls don't
@@ -92,7 +105,7 @@ func runApp() error {
 	}
 	defer logFile.Close()
 
-	initLogging(logFile)
+	initLogging(logFile, config)
 
 	ndbrouter, err := deployment.NewNdbRouter(config, reporter)
 	if err != nil {

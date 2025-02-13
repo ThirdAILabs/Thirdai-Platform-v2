@@ -3,6 +3,7 @@ package deployment
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/search/ndb"
 	"thirdai_platform/utils"
+	"thirdai_platform/utils/logging"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -26,6 +28,7 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 	ndbPath := filepath.Join(config.ModelBazaarDir, "models", config.ModelId.String(), "model", "model.ndb")
 	ndb, err := ndb.New(ndbPath)
 	if err != nil {
+		slog.Error("failed to open ndb", "error", err, "code", logging.MODEL_INIT)
 		return nil, fmt.Errorf("failed to open ndb: %v", err)
 	}
 	return &NdbRouter{ndb, config, reporter, &Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
@@ -107,6 +110,7 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 		case "gt":
 			constraints[key] = ndb.GreaterThan(c.Value)
 		default:
+			slog.Error("invalid constraint operator", "operator", c.Op, "key", key, "code", logging.MODEL_SEARCH)
 			http.Error(w, fmt.Sprintf("invalid constraint operator '%s' for key '%s'", c.Op, key), http.StatusBadRequest)
 			return
 		}
@@ -114,6 +118,7 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 
 	chunks, err := s.Ndb.Query(req.Query, req.Topk, constraints)
 	if err != nil {
+		slog.Error("ndb query error", "error", err, "code", logging.MODEL_SEARCH)
 		http.Error(w, fmt.Sprintf("ndb query error: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -148,11 +153,13 @@ func (s *NdbRouter) Insert(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.Ndb.Insert(req.Document, req.DocId, req.Chunks, req.Metadata, req.Version); err != nil {
+		slog.Error("insert error", "error", err, "code", logging.MODEL_INSERT)
 		http.Error(w, fmt.Sprintf("insert error: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	utils.WriteSuccess(w)
+	slog.Info("inserted document", "doc_id", req.DocId, "code", logging.MODEL_INSERT)
 }
 
 type DeleteRequest struct {
@@ -173,12 +180,14 @@ func (s *NdbRouter) Delete(w http.ResponseWriter, r *http.Request) {
 
 	for _, docID := range req.DocIds {
 		if err := s.Ndb.Delete(docID, keepLatest); err != nil {
+			slog.Error("delete error", "error", err, "doc_id", docID, "code", logging.MODEL_DELETE)
 			http.Error(w, fmt.Sprintf("delete error for doc '%s': %v", docID, err), http.StatusInternalServerError)
 			return
 		}
 	}
 
 	utils.WriteSuccess(w)
+	slog.Info("deleted documents", "doc_ids", req.DocIds, "code", logging.MODEL_DELETE)
 }
 
 type UpvoteInputSingle struct {
@@ -205,11 +214,13 @@ func (s *NdbRouter) Upvote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.Ndb.Finetune(queries, labels); err != nil {
+		slog.Error("upvote error", "error", err, "code", logging.MODEL_RLHF)
 		http.Error(w, fmt.Sprintf("upvote error: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	utils.WriteSuccess(w)
+	slog.Debug("upvoted text pairs", "text_id_pairs", req.TextIdPairs, "code", logging.MODEL_RLHF)
 }
 
 type AssociateInputSingle struct {
@@ -241,11 +252,13 @@ func (s *NdbRouter) Associate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.Ndb.Associate(sources, targets, strength); err != nil {
+		slog.Error("associate error", "error", err, "code", logging.MODEL_RLHF)
 		http.Error(w, fmt.Sprintf("associate error: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	utils.WriteSuccess(w)
+	slog.Debug("associated text pairs", "text_pairs", req.TextPairs, "code", logging.MODEL_RLHF)
 }
 
 type Source struct {
@@ -262,6 +275,7 @@ type Sources struct {
 func (s *NdbRouter) Sources(w http.ResponseWriter, r *http.Request) {
 	srcs, err := s.Ndb.Sources()
 	if err != nil {
+		slog.Error("sources error", "error", err, "code", logging.MODEL_INFO)
 		http.Error(w, fmt.Sprintf("sources error: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -280,6 +294,7 @@ func (s *NdbRouter) Sources(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJsonResponse(w, results)
+	slog.Debug("retrieved sources", "sources", results.Sources, "code", logging.MODEL_INFO)
 }
 
 func (s *NdbRouter) ImplicitFeedback(w http.ResponseWriter, r *http.Request) {

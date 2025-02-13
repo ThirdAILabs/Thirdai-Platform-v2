@@ -439,8 +439,9 @@ func main() {
 
 	r := chi.NewRouter()
 
+	// Allow everything (ALL origins, methods, headers)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{env.IngressHostname},                       // Allow public ingress origin
+		AllowedOrigins:   []string{"*"},                                       // Allow all origins
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}, // Allow all HTTP methods
 		AllowedHeaders:   []string{"*"},                                       // Allow all headers
 		ExposedHeaders:   []string{"*"},                                       // Expose all headers

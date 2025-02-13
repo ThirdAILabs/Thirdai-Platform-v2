@@ -3,7 +3,6 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -37,9 +36,9 @@ func (m *MockPermissions) ModelPermissionsCheck(permission_type string) func(htt
 	}
 }
 
-func makeNdbServer(t *testing.T, modelbazaardir string) *httptest.Server {
-	modelID := uuid.New()
-	modelDir := filepath.Join(modelbazaardir, "models", modelID.String(), "model", "model.ndb")
+func makeNdbServer(t *testing.T, config *config.DeployConfig) *httptest.Server {
+	modelID := config.ModelId
+	modelDir := filepath.Join(config.ModelBazaarDir, "models", modelID.String(), "model", "model.ndb")
 
 	db, err := ndb.New(modelDir)
 	if err != nil {
@@ -56,16 +55,9 @@ func makeNdbServer(t *testing.T, modelbazaardir string) *httptest.Server {
 		t.Fatalf("failed to insert into NDB: %v", err)
 	}
 
-	slog.Info("NDB initialized successfully")
-
-	deployConfig := config.DeployConfig{
-		ModelId:        modelID,
-		ModelBazaarDir: modelbazaardir,
-	}
-
 	mockPermissions := MockPermissions{}
 
-	router := deployment.NdbRouter{Ndb: db, Config: &deployConfig, Permissions: &mockPermissions}
+	router := deployment.NdbRouter{Ndb: db, Config: config, Permissions: &mockPermissions}
 
 	r := router.Routes()
 	testServer := httptest.NewServer(r)
@@ -237,8 +229,12 @@ func TestBasicEndpoints(t *testing.T) {
 		t.Fatalf("license check error: %v", err)
 	}
 
-	modelbazaardir := t.TempDir()
-	testServer := makeNdbServer(t, modelbazaardir)
+	config := &config.DeployConfig{
+		ModelId:        uuid.New(),
+		ModelBazaarDir: t.TempDir(),
+	}
+
+	testServer := makeNdbServer(t, config)
 	defer testServer.Close()
 
 	checkSources(t, testServer, []string{"doc_id_1"})

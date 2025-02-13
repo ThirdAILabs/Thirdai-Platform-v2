@@ -219,7 +219,11 @@ export function WorkFlow({
     } else if (workflow.type === 'nlp-text') {
       setDeployType('Text Classification');
     } else if (workflow.type === 'enterprise-search') {
-      setDeployType('Enterprise Search & Summarizer');
+      if (workflow.attributes.default_mode === 'chat') {
+        setDeployType('Chatbot');
+      } else {
+        setDeployType('Enterprise Search & Summarizer');
+      }
     } else if (workflow.type === 'knowledge-extraction') {
       setDeployType('Knowledge Extraction');
     }

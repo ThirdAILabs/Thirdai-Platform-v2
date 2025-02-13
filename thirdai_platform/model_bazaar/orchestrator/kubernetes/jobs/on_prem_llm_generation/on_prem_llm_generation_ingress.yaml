@@ -9,10 +9,6 @@ metadata:
     nginx.org/mergeable-ingress-type: "minion"
 spec:
   ingressClassName: nginx
-  tls:
-    - hosts:
-        - {{ .IngressHostname }}
-      secretName: thirdai-platform-tls
   rules:
     - host: {{ .IngressHostname }}
       http:

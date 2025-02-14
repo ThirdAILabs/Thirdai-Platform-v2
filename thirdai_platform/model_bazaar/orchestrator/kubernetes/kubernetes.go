@@ -21,6 +21,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -32,12 +33,15 @@ import (
 var jobTemplates embed.FS
 
 func getNamespace() (string, error) {
-	// Read the namespace from the well-known file
+	slog.Info("reading namespace from file", "path", "/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
+		slog.Info("failed to read namespace file", "error", err)
 		return "", err
 	}
-	return strings.TrimSpace(string(data)), nil
+	namespace := strings.TrimSpace(string(data))
+	slog.Info("namespace retrieved", "namespace", namespace)
+	return namespace, nil
 }
 
 type KubernetesClient struct {
@@ -47,7 +51,7 @@ type KubernetesClient struct {
 }
 
 func NewKubernetesClient(ingressHostname string) orchestrator.Client {
-
+	slog.Info("initializing NewKubernetesClient", "ingressHostname", ingressHostname)
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Panicf("error getting in-cluster config: %v", err)
@@ -63,7 +67,7 @@ func NewKubernetesClient(ingressHostname string) orchestrator.Client {
 		log.Panicf("error creating retrieving kubernetes namespace: %v", err)
 	}
 
-	slog.Info("creating kubernetes client", "namespace", namespace)
+	slog.Info("creating kubernetes client", "namespace", namespace, "ingressHostname", ingressHostname)
 	return &KubernetesClient{
 		namespace:       namespace,
 		clientset:       clientset,
@@ -72,8 +76,7 @@ func NewKubernetesClient(ingressHostname string) orchestrator.Client {
 }
 
 func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
-	slog.Info("starting kubernetes job", "job_name", job.GetJobName(), "template", job.JobTemplatePath())
-
+	slog.Info("starting kubernetes job", "job_name", job.GetJobName(), "template", job.JobTemplatePath(), "namespace", c.namespace)
 	subDir := fmt.Sprintf("jobs/%s", job.JobTemplatePath())
 
 	type resourceDef struct {
@@ -96,119 +99,148 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 		{
 			FileSuffix: "_job.yaml",
 			Process: func(doc string) error {
+				slog.Info("processing job YAML document", "namespace", c.namespace)
 				var jobObj batchv1.Job
 				if err := yaml.Unmarshal([]byte(doc), &jobObj); err != nil {
 					return fmt.Errorf("error unmarshaling job YAML: %w", err)
 				}
+				slog.Info("job YAML unmarshaled", "job_name", jobObj.Name)
 
+				slog.Info("checking if job resource exists", "job_name", jobObj.Name, "namespace", c.namespace)
 				_, err := c.clientset.BatchV1().Jobs(c.namespace).Get(ctx, jobObj.Name, metav1.GetOptions{})
 				if err != nil {
 					if apierrors.IsNotFound(err) {
+						slog.Info("job resource not found, creating new job", "job_name", jobObj.Name)
 						if _, err := c.clientset.BatchV1().Jobs(c.namespace).Create(ctx, &jobObj, metav1.CreateOptions{}); err != nil {
-							slog.Error("error creating job resource", "error", err)
+							slog.Error("error creating job resource", "job_name", jobObj.Name, "error", err)
 							return fmt.Errorf("error creating job resource: %w", err)
 						}
+						slog.Info("job resource created successfully", "job_name", jobObj.Name)
 						return nil
 					}
 					return fmt.Errorf("error checking for existing job: %w", err)
 				}
 
+				slog.Info("job resource exists, deleting it", "job_name", jobObj.Name)
 				if err := c.clientset.BatchV1().Jobs(c.namespace).Delete(ctx, jobObj.Name, metav1.DeleteOptions{}); err != nil {
-					slog.Error("error deleting existing job resource", "error", err)
+					slog.Error("error deleting existing job resource", "job_name", jobObj.Name, "error", err)
 					return fmt.Errorf("error deleting existing job resource: %w", err)
 				}
+				slog.Info("re-creating job resource after deletion", "job_name", jobObj.Name)
 				if _, err := c.clientset.BatchV1().Jobs(c.namespace).Create(ctx, &jobObj, metav1.CreateOptions{}); err != nil {
-					slog.Error("error re-creating job resource", "error", err)
+					slog.Error("error re-creating job resource", "job_name", jobObj.Name, "error", err)
 					return fmt.Errorf("error re-creating job resource: %w", err)
 				}
+				slog.Info("job resource re-created successfully", "job_name", jobObj.Name)
 				return nil
 			},
 		},
 		{
 			FileSuffix: "_deployment.yaml",
 			Process: func(doc string) error {
+				slog.Info("processing deployment YAML document", "namespace", c.namespace)
 				var deployment appsv1.Deployment
 				if err := yaml.Unmarshal([]byte(doc), &deployment); err != nil {
 					return fmt.Errorf("error unmarshaling deployment YAML: %w", err)
 				}
+				slog.Info("deployment YAML unmarshaled", "deployment_name", deployment.Name)
 
+				slog.Info("checking if deployment resource exists", "deployment_name", deployment.Name, "namespace", c.namespace)
 				existing, err := c.clientset.AppsV1().Deployments(c.namespace).Get(ctx, deployment.Name, metav1.GetOptions{})
 				if err != nil {
 					if apierrors.IsNotFound(err) {
-						// Not found: create the deployment.
+						slog.Info("deployment resource not found, creating new deployment", "deployment_name", deployment.Name)
 						if _, err := c.clientset.AppsV1().Deployments(c.namespace).Create(ctx, &deployment, metav1.CreateOptions{}); err != nil {
-							slog.Error("error creating deployment resource", "error", err)
+							slog.Error("error creating deployment resource", "deployment_name", deployment.Name, "error", err)
 							return fmt.Errorf("error creating deployment resource: %w", err)
 						}
+						slog.Info("deployment resource created successfully", "deployment_name", deployment.Name)
 						return nil
 					}
 					return fmt.Errorf("error checking for existing deployment: %w", err)
 				}
 
+				slog.Info("deployment resource exists, updating deployment", "deployment_name", deployment.Name)
 				deployment.ResourceVersion = existing.ResourceVersion
 				if _, err := c.clientset.AppsV1().Deployments(c.namespace).Update(ctx, &deployment, metav1.UpdateOptions{}); err != nil {
-					slog.Error("error updating deployment resource", "error", err)
+					slog.Error("error updating deployment resource", "deployment_name", deployment.Name, "error", err)
 					return fmt.Errorf("error updating deployment resource: %w", err)
 				}
+				slog.Info("deployment resource updated successfully", "deployment_name", deployment.Name)
 				return nil
 			},
 		},
 		{
 			FileSuffix: "_service.yaml",
 			Process: func(doc string) error {
+				slog.Info("processing service YAML document", "namespace", c.namespace)
 				var service corev1.Service
 				if err := yaml.Unmarshal([]byte(doc), &service); err != nil {
 					return fmt.Errorf("error unmarshaling service YAML: %w", err)
 				}
+				slog.Info("service YAML unmarshaled", "service_name", service.Name)
 
+				slog.Info("checking if service resource exists", "service_name", service.Name, "namespace", c.namespace)
 				_, err := c.clientset.CoreV1().Services(c.namespace).Get(ctx, service.Name, metav1.GetOptions{})
 				if err != nil {
 					if apierrors.IsNotFound(err) {
+						slog.Info("service resource not found, creating new service", "service_name", service.Name)
 						if _, err := c.clientset.CoreV1().Services(c.namespace).Create(ctx, &service, metav1.CreateOptions{}); err != nil {
-							slog.Error("error creating service resource", "error", err)
+							slog.Error("error creating service resource", "service_name", service.Name, "error", err)
 							return fmt.Errorf("error creating service resource: %w", err)
 						}
+						slog.Info("service resource created successfully", "service_name", service.Name)
 						return nil
 					}
 					return fmt.Errorf("error checking for existing service: %w", err)
 				}
 
+				slog.Info("service resource exists, deleting it", "service_name", service.Name)
 				if err := c.clientset.CoreV1().Services(c.namespace).Delete(ctx, service.Name, metav1.DeleteOptions{}); err != nil {
-					slog.Error("error deleting existing service resource", "error", err)
+					slog.Error("error deleting existing service resource", "service_name", service.Name, "error", err)
 					return fmt.Errorf("error deleting existing service resource: %w", err)
 				}
+				slog.Info("re-creating service resource after deletion", "service_name", service.Name)
 				if _, err := c.clientset.CoreV1().Services(c.namespace).Create(ctx, &service, metav1.CreateOptions{}); err != nil {
-					slog.Error("error re-creating service resource", "error", err)
+					slog.Error("error re-creating service resource", "service_name", service.Name, "error", err)
 					return fmt.Errorf("error re-creating service resource: %w", err)
 				}
+				slog.Info("service resource re-created successfully", "service_name", service.Name)
 				return nil
 			},
 		},
 		{
 			FileSuffix: "_ingress.yaml",
 			Process: func(doc string) error {
+				slog.Info("processing ingress YAML document", "namespace", c.namespace)
 				var ingress networkingv1.Ingress
 				if err := yaml.Unmarshal([]byte(doc), &ingress); err != nil {
 					return fmt.Errorf("error unmarshaling ingress YAML: %w", err)
 				}
+				slog.Info("ingress YAML unmarshaled", "ingress_name", ingress.Name)
 
+				slog.Info("checking if ingress resource exists", "ingress_name", ingress.Name, "namespace", c.namespace)
 				existing, err := c.clientset.NetworkingV1().Ingresses(c.namespace).Get(ctx, ingress.Name, metav1.GetOptions{})
 				if err != nil {
 					if apierrors.IsNotFound(err) {
+						slog.Info("ingress resource not found, creating new ingress", "ingress_name", ingress.Name)
 						if _, err := c.clientset.NetworkingV1().Ingresses(c.namespace).Create(ctx, &ingress, metav1.CreateOptions{}); err != nil {
-							slog.Error("error creating ingress resource", "error", err)
+							slog.Error("error creating ingress resource", "ingress_name", ingress.Name, "error", err)
 							return fmt.Errorf("error creating ingress resource: %w", err)
 						}
+						slog.Info("ingress resource created successfully", "ingress_name", ingress.Name)
 						return nil
 					}
 					return fmt.Errorf("error checking for existing ingress: %w", err)
 				}
 
+				slog.Info("ingress resource exists, updating ingress", "ingress_name", ingress.Name)
 				ingress.ResourceVersion = existing.ResourceVersion
 				if _, err := c.clientset.NetworkingV1().Ingresses(c.namespace).Update(ctx, &ingress, metav1.UpdateOptions{}); err != nil {
-					slog.Error("error updating ingress resource", "error", err)
+					slog.Error("error updating ingress resource", "ingress_name", ingress.Name, "error", err)
 					return fmt.Errorf("error updating ingress resource: %w", err)
 				}
+				slog.Info("ingress resource updated successfully", "ingress_name", ingress.Name)
 				return nil
 			},
 		},
@@ -219,6 +251,7 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 	// and then calls the resource-specific process function.
 	processTemplate := func(fileSuffix string, process func(rendered string) error) error {
 		templatePath := filepath.Join(subDir, job.JobTemplatePath()+fileSuffix)
+		slog.Info("processing template", "templatePath", templatePath, "fileSuffix", fileSuffix, "job_name", job.GetJobName(), "namespace", c.namespace)
 		content, err := fs.ReadFile(jobTemplates, templatePath)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
@@ -240,6 +273,7 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 			slog.Error("error parsing template", "template", templatePath, "error", err)
 			return fmt.Errorf("error parsing template %s: %w", templatePath, err)
 		}
+		slog.Info("template parsed successfully", "template", templatePath)
 
 		var buf strings.Builder
 		if err := tmpl.Execute(&buf, job); err != nil {
@@ -247,14 +281,17 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 			return fmt.Errorf("error rendering template %s: %w", templatePath, err)
 		}
 		rendered := buf.String()
+		slog.Info("template rendered", "template", templatePath)
 
 		// Process multiple docs in a single YAML file
 		docs := strings.Split(rendered, "\n---\n")
+		slog.Info("splitting rendered template into documents", "template", templatePath, "docCount", len(docs))
 		for _, doc := range docs {
 			doc = strings.TrimSpace(doc)
 			if doc == "" {
 				continue
 			}
+			slog.Info("processing individual YAML document", "template", templatePath)
 			if err := process(doc); err != nil {
 				return fmt.Errorf("error submitting template %s: %w", templatePath, err)
 			}
@@ -263,48 +300,93 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 		return nil
 	}
 
+	// Process all defined resource templates.
 	for _, res := range resources {
+		slog.Info("processing resource type", "fileSuffix", res.FileSuffix, "job_name", job.GetJobName())
 		if err := processTemplate(res.FileSuffix, res.Process); err != nil {
+			slog.Error("error processing template", "fileSuffix", res.FileSuffix, "job_name", job.GetJobName(), "error", err)
 			return err
 		}
 	}
 
-	slog.Info("all resources for job started successfully", "job_name", job.GetJobName())
+	slog.Info("all resources for job started successfully", "job_name", job.GetJobName(), "namespace", c.namespace)
 	return nil
 }
 
 func (c *KubernetesClient) StopJob(jobName string) error {
-	slog.Info("stopping kubernetes job resources", "job_name", jobName)
+	slog.Info("stopping kubernetes job resources", "job_name", jobName, "namespace", c.namespace)
 	var errs []string
 	ctx := context.TODO()
 
-	if err := c.clientset.AppsV1().Deployments(c.namespace).Delete(ctx, jobName, metav1.DeleteOptions{}); err != nil {
-		slog.Error("error stopping deployment", "job_name", jobName, "error", err)
-		errs = append(errs, fmt.Sprintf("deployment: %v", err))
+	// Delete deployment with suffix "-deployment"
+	deploymentName := jobName + "-deployment"
+	slog.Info("attempting to delete deployment", "deployment_name", deploymentName, "namespace", c.namespace)
+	if err := c.clientset.AppsV1().Deployments(c.namespace).Delete(ctx, deploymentName, metav1.DeleteOptions{}); err != nil {
+		if apierrors.IsNotFound(err) {
+			slog.Info("deployment not found, skipping deletion", "deployment_name", deploymentName)
+		} else {
+			slog.Error("error stopping deployment", "deployment_name", deploymentName, "error", err)
+			errs = append(errs, fmt.Sprintf("deployment: %v", err))
+		}
+	} else {
+		slog.Info("deployment deleted successfully", "deployment_name", deploymentName)
 	}
 
+	// Delete service (assumed to use the jobName)
+	slog.Info("attempting to delete service", "service_name", jobName, "namespace", c.namespace)
 	if err := c.clientset.CoreV1().Services(c.namespace).Delete(ctx, jobName, metav1.DeleteOptions{}); err != nil {
-		slog.Error("error stopping service", "job_name", jobName, "error", err)
-		errs = append(errs, fmt.Sprintf("service: %v", err))
+		if apierrors.IsNotFound(err) {
+			slog.Info("service not found, skipping deletion", "service_name", jobName)
+		} else {
+			slog.Error("error stopping service", "service_name", jobName, "error", err)
+			errs = append(errs, fmt.Sprintf("service: %v", err))
+		}
+	} else {
+		slog.Info("service deleted successfully", "service_name", jobName)
 	}
 
+	// Delete primary ingress (assumed to use the jobName)
+	slog.Info("attempting to delete ingress", "ingress_name", jobName, "namespace", c.namespace)
 	if err := c.clientset.NetworkingV1().Ingresses(c.namespace).Delete(ctx, jobName, metav1.DeleteOptions{}); err != nil {
-		slog.Error("error stopping ingress", "job_name", jobName, "error", err)
-		errs = append(errs, fmt.Sprintf("ingress: %v", err))
+		if apierrors.IsNotFound(err) {
+			slog.Info("ingress not found, skipping deletion", "ingress_name", jobName)
+		} else {
+			slog.Error("error stopping ingress", "ingress_name", jobName, "error", err)
+			errs = append(errs, fmt.Sprintf("ingress: %v", err))
+		}
+	} else {
+		slog.Info("ingress deleted successfully", "ingress_name", jobName)
+	}
+
+	// Delete internal ingress with suffix "-internal"
+	internalIngressName := jobName + "-internal"
+	slog.Info("attempting to delete internal ingress", "ingress_name", internalIngressName, "namespace", c.namespace)
+	if err := c.clientset.NetworkingV1().Ingresses(c.namespace).Delete(ctx, internalIngressName, metav1.DeleteOptions{}); err != nil {
+		if apierrors.IsNotFound(err) {
+			slog.Info("internal ingress not found, skipping deletion", "ingress_name", internalIngressName)
+		} else {
+			slog.Error("error stopping internal ingress", "ingress_name", internalIngressName, "error", err)
+			errs = append(errs, fmt.Sprintf("internal ingress: %v", err))
+		}
+	} else {
+		slog.Info("internal ingress deleted successfully", "ingress_name", internalIngressName)
 	}
 
 	if len(errs) > 0 {
+		slog.Info("one or more errors occurred while stopping job resources", "job_name", jobName, "errors", errs)
 		return fmt.Errorf("error stopping job resources for %s: %s", jobName, strings.Join(errs, "; "))
 	}
-	slog.Info("kubernetes job resources stopped successfully", "job_name", jobName)
+	slog.Info("kubernetes job resources stopped successfully", "job_name", jobName, "namespace", c.namespace)
 	return nil
 }
 
 func (c *KubernetesClient) JobInfo(jobName string) (orchestrator.JobInfo, error) {
+	slog.Info("retrieving job info", "job_name", jobName, "namespace", c.namespace)
 	ctx := context.TODO()
 
 	deployment, err := c.clientset.AppsV1().Deployments(c.namespace).Get(ctx, jobName, metav1.GetOptions{})
 	if err == nil {
+		slog.Info("deployment found for job", "job_name", jobName)
 		var status string
 		if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas > 0 {
 			if deployment.Status.AvailableReplicas > 0 {
@@ -328,6 +410,7 @@ func (c *KubernetesClient) JobInfo(jobName string) (orchestrator.JobInfo, error)
 		return orchestrator.JobInfo{}, fmt.Errorf("error getting deployment %s: %w", jobName, err)
 	}
 
+	slog.Info("deployment not found, trying batch job for", "job_name", jobName)
 	job, err := c.clientset.BatchV1().Jobs(c.namespace).Get(ctx, jobName, metav1.GetOptions{})
 	if err != nil {
 		slog.Error("error getting job", "job_name", jobName, "error", err)
@@ -351,6 +434,7 @@ func (c *KubernetesClient) JobInfo(jobName string) (orchestrator.JobInfo, error)
 }
 
 func (c *KubernetesClient) JobLogs(jobName string) ([]orchestrator.JobLog, error) {
+	slog.Info("retrieving job logs", "job_name", jobName, "namespace", c.namespace)
 	ctx := context.TODO()
 	podList, err := c.clientset.CoreV1().Pods(c.namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app=%s", jobName),
@@ -359,9 +443,11 @@ func (c *KubernetesClient) JobLogs(jobName string) ([]orchestrator.JobLog, error
 		slog.Error("error listing pods for job", "job_name", jobName, "error", err)
 		return nil, fmt.Errorf("error listing pods for job %s: %w", jobName, err)
 	}
+	slog.Info("pods listed for job", "job_name", jobName, "podCount", len(podList.Items))
 
 	var logs []orchestrator.JobLog
 	for _, pod := range podList.Items {
+		slog.Info("retrieving logs for pod", "pod", pod.Name)
 		podLog, err := c.getPodLogs(pod.Name)
 		if err != nil {
 			slog.Error("error getting logs for pod", "pod", pod.Name, "error", err)
@@ -371,39 +457,47 @@ func (c *KubernetesClient) JobLogs(jobName string) ([]orchestrator.JobLog, error
 			Stdout: podLog,
 			Stderr: "",
 		})
+		slog.Info("logs retrieved for pod", "pod", pod.Name)
 	}
 	slog.Info("job logs retrieved", "job_name", jobName)
 	return logs, nil
 }
 
 func (c *KubernetesClient) getPodLogs(podName string) (string, error) {
+	slog.Info("opening log stream for pod", "podName", podName, "namespace", c.namespace)
 	ctx := context.TODO()
 	podLogOpts := corev1.PodLogOptions{}
 	req := c.clientset.CoreV1().Pods(c.namespace).GetLogs(podName, &podLogOpts)
 	stream, err := req.Stream(ctx)
 	if err != nil {
+		slog.Error("error opening log stream", "podName", podName, "error", err)
 		return "", fmt.Errorf("error opening log stream for pod %s: %w", podName, err)
 	}
 	defer stream.Close()
+	slog.Info("log stream opened", "podName", podName)
 
 	var builder strings.Builder
 	_, err = io.Copy(&builder, stream)
 	if err != nil {
+		slog.Error("error reading log stream", "podName", podName, "error", err)
 		return "", fmt.Errorf("error reading log stream for pod %s: %w", podName, err)
 	}
+	slog.Info("log stream read completed", "podName", podName)
 	return builder.String(), nil
 }
 
 func (c *KubernetesClient) ListServices() ([]orchestrator.ServiceInfo, error) {
+	slog.Info("listing services", "namespace", c.namespace)
 	ctx := context.TODO()
 	svcList, err := c.clientset.CoreV1().Services(c.namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		slog.Error("error listing services", "error", err)
+		slog.Error("error listing services", "namespace", c.namespace, "error", err)
 		return nil, fmt.Errorf("error listing services: %w", err)
 	}
 
 	var services []orchestrator.ServiceInfo
 	for _, svc := range svcList.Items {
+		slog.Info("processing service", "service_name", svc.Name, "namespace", c.namespace)
 		endpoints, err := c.clientset.CoreV1().Endpoints(c.namespace).Get(ctx, svc.Name, metav1.GetOptions{})
 		if err != nil {
 			slog.Error("error getting endpoints for service", "service", svc.Name, "error", err)
@@ -424,6 +518,7 @@ func (c *KubernetesClient) ListServices() ([]orchestrator.ServiceInfo, error) {
 						allocation.AllocID = addr.TargetRef.Name
 					}
 					allocations = append(allocations, allocation)
+					slog.Info("service allocation added", "service", svc.Name, "address", addr.IP, "port", port.Port)
 				}
 			}
 		}
@@ -433,54 +528,65 @@ func (c *KubernetesClient) ListServices() ([]orchestrator.ServiceInfo, error) {
 			Allocations: allocations,
 		})
 	}
-	slog.Info("services listed", "count", len(services))
+	slog.Info("services listed", "count", len(services), "namespace", c.namespace)
 	return services, nil
 }
 
 func (c *KubernetesClient) TotalCpuUsage() (int, error) {
+	slog.Info("calculating total CPU usage", "namespace", c.namespace)
 	ctx := context.TODO()
 	podList, err := c.clientset.CoreV1().Pods(c.namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		slog.Error("error listing pods", "error", err)
+		slog.Error("error listing pods", "namespace", c.namespace, "error", err)
 		return 0, fmt.Errorf("error listing pods: %w", err)
 	}
 
 	totalMillicores := 0
 	for _, pod := range podList.Items {
+		slog.Info("processing pod for CPU usage", "pod", pod.Name, "phase", pod.Status.Phase)
 		if pod.Status.Phase != corev1.PodRunning {
+			slog.Info("skipping pod not in Running phase", "pod", pod.Name, "phase", pod.Status.Phase)
 			continue
 		}
 		for _, container := range pod.Spec.Containers {
 			if cpu, ok := container.Resources.Requests["cpu"]; ok {
+				slog.Info("found CPU request", "pod", pod.Name, "container", container.Name, "cpuRequest", cpu.String())
 				m, err := parseCPUQuantity(cpu.String())
 				if err != nil {
-					slog.Error("error parsing cpu quantity", "quantity", cpu.String(), "error", err)
+					slog.Error("error parsing cpu quantity", "pod", pod.Name, "quantity", cpu.String(), "error", err)
 					continue
 				}
 				totalMillicores += m
 			}
 		}
 	}
-	slog.Info("total CPU usage calculated", "totalMillicores", totalMillicores)
+	slog.Info("total CPU usage calculated", "totalMillicores", totalMillicores, "namespace", c.namespace)
 	return totalMillicores, nil
 }
 
 func parseCPUQuantity(q string) (int, error) {
+	slog.Info("parsing CPU quantity", "quantity", q)
 	if strings.HasSuffix(q, "m") {
 		trimmed := strings.TrimSuffix(q, "m")
 		m, err := strconv.Atoi(trimmed)
 		if err != nil {
+			slog.Error("error converting milli value", "quantity", q, "error", err)
 			return 0, err
 		}
+		slog.Info("parsed milli CPU quantity", "quantity", q, "millicores", m)
 		return m, nil
 	}
 	f, err := strconv.ParseFloat(q, 64)
 	if err != nil {
+		slog.Error("error converting CPU quantity to float", "quantity", q, "error", err)
 		return 0, err
 	}
-	return int(f * 1000), nil
+	millicores := int(f * 1000)
+	slog.Info("parsed CPU quantity", "quantity", q, "millicores", millicores)
+	return millicores, nil
 }
 
 func (c *KubernetesClient) IngressHostname() string {
+	slog.Info("returning ingress hostname", "ingressHostname", c.ingressHostname)
 	return c.ingressHostname
 }

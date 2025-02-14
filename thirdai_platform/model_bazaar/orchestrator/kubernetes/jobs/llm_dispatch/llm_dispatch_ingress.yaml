@@ -18,3 +18,24 @@ spec:
                 name: llm-dispatch
                 port:
                   number: 80
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: llm-dispatch-internal
+  annotations:
+    nginx.org/mergeable-ingress-type: "minion"
+spec:
+  ingressClassName: nginx-internal
+  rules:
+    - host: thirdai-internal-ingress-nginx-controller.{{ namespace }}.svc.cluster.local
+      http:
+        paths:
+          - path: /llm-dispatch/
+            pathType: Prefix
+            backend:
+              service:
+                name: llm-dispatch
+                port:
+                  number: 80

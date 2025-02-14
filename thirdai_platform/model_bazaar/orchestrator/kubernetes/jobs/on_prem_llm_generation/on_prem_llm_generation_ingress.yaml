@@ -20,3 +20,26 @@ spec:
                 name: on-prem-generation
                 port:
                   number: 80
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: on-prem-generation-internal
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    nginx.org/mergeable-ingress-type: "minion"
+spec:
+  ingressClassName: nginx-internal
+  rules:
+    - host: thirdai-internal-ingress-nginx-controller.{{ namespace }}.svc.cluster.local
+      http:
+        paths:
+          - path: /on-prem-llm/(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: on-prem-generation
+                port:
+                  number: 80

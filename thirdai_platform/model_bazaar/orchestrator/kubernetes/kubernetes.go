@@ -42,20 +42,13 @@ func getNamespace() (string, error) {
 
 type KubernetesClient struct {
 	namespace       string
-	templates       *template.Template
 	clientset       *kubernetes.Clientset
 	ingressHostname string
 }
 
 func NewKubernetesClient(ingressHostname string) orchestrator.Client {
-	tmpl, err := template.New("job_templates").ParseFS(jobTemplates, "jobs/*/*")
-	if err != nil {
-		log.Panicf("error parsing job templates: %v", err)
-	}
 
-	var config *rest.Config
-
-	config, err = rest.InClusterConfig()
+	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Panicf("error getting in-cluster config: %v", err)
 	}
@@ -73,7 +66,6 @@ func NewKubernetesClient(ingressHostname string) orchestrator.Client {
 	slog.Info("creating kubernetes client", "namespace", namespace)
 	return &KubernetesClient{
 		namespace:       namespace,
-		templates:       tmpl,
 		clientset:       clientset,
 		ingressHostname: ingressHostname,
 	}
@@ -103,9 +95,9 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 	resources := []resourceDef{
 		{
 			FileSuffix: "_job.yaml",
-			Process: func(rendered string) error {
+			Process: func(doc string) error {
 				var jobObj batchv1.Job
-				if err := yaml.Unmarshal([]byte(rendered), &jobObj); err != nil {
+				if err := yaml.Unmarshal([]byte(doc), &jobObj); err != nil {
 					return fmt.Errorf("error unmarshaling job YAML: %w", err)
 				}
 
@@ -134,9 +126,9 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 		},
 		{
 			FileSuffix: "_deployment.yaml",
-			Process: func(rendered string) error {
+			Process: func(doc string) error {
 				var deployment appsv1.Deployment
-				if err := yaml.Unmarshal([]byte(rendered), &deployment); err != nil {
+				if err := yaml.Unmarshal([]byte(doc), &deployment); err != nil {
 					return fmt.Errorf("error unmarshaling deployment YAML: %w", err)
 				}
 
@@ -163,9 +155,9 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 		},
 		{
 			FileSuffix: "_service.yaml",
-			Process: func(rendered string) error {
+			Process: func(doc string) error {
 				var service corev1.Service
-				if err := yaml.Unmarshal([]byte(rendered), &service); err != nil {
+				if err := yaml.Unmarshal([]byte(doc), &service); err != nil {
 					return fmt.Errorf("error unmarshaling service YAML: %w", err)
 				}
 
@@ -194,9 +186,9 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 		},
 		{
 			FileSuffix: "_ingress.yaml",
-			Process: func(rendered string) error {
+			Process: func(doc string) error {
 				var ingress networkingv1.Ingress
-				if err := yaml.Unmarshal([]byte(rendered), &ingress); err != nil {
+				if err := yaml.Unmarshal([]byte(doc), &ingress); err != nil {
 					return fmt.Errorf("error unmarshaling ingress YAML: %w", err)
 				}
 
@@ -220,7 +212,7 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 				return nil
 			},
 		},
-		// TODO: add autoscaler process if needed.
+		// TODO: add autoscaler process
 	}
 
 	// processTemplate reads the file, renders the template with the job’s data,
@@ -237,7 +229,13 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 			return fmt.Errorf("error reading template file %s: %w", templatePath, err)
 		}
 
-		tmpl, err := template.New(job.JobTemplatePath() + fileSuffix).Parse(string(content))
+		tmpl, err := template.New(job.JobTemplatePath() + fileSuffix).
+			Funcs(template.FuncMap{
+				"namespace": func() string {
+					return c.namespace
+				},
+			}).
+			Parse(string(content))
 		if err != nil {
 			slog.Error("error parsing template", "template", templatePath, "error", err)
 			return fmt.Errorf("error parsing template %s: %w", templatePath, err)
@@ -250,8 +248,16 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 		}
 		rendered := buf.String()
 
-		if err := process(rendered); err != nil {
-			return fmt.Errorf("error submitting template %s: %w", templatePath, err)
+		// Process multiple docs in a single YAML file
+		docs := strings.Split(rendered, "\n---\n")
+		for _, doc := range docs {
+			doc = strings.TrimSpace(doc)
+			if doc == "" {
+				continue
+			}
+			if err := process(doc); err != nil {
+				return fmt.Errorf("error submitting template %s: %w", templatePath, err)
+			}
 		}
 		slog.Info("resource created/updated successfully", "template", templatePath)
 		return nil

@@ -181,27 +181,22 @@ const DocumentQuestions = ({
         return;
       }
 
-      // Extract the categories from validation result
+      // Extract the categories from folder structure
       const categories = new Set(
         Array.from(selectedFolder!)
           .map((file) => {
             const parts = file.webkitRelativePath.split('/');
-            return parts.length >= 3 ? parts[1] : ''; // Changed from parts[0] to parts[1]
+            return parts.length >= 3 ? parts[1] : '';
           })
           .filter(Boolean)
       );
 
-      // Determine n_target_classes based on the number of categories
-      const nTargetClasses = categories.size;
-
-      // If validation passes, proceed with training and pass nTargetClasses
+      // If validation passes, proceed with training
       const trainingResult = await trainNLPTextModel({
         uploadId: upload_id,
         model_name: modelName,
-        labelColumn: 'label',
-        textColumn: 'text',
-        doc_classification: true,
-        nTargetClasses: nTargetClasses,
+        nTargetClasses: categories.size,
+        doc_classification: true // Make sure this is set to true
       });
 
       setSuccess(true);

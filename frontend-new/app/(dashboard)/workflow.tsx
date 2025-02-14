@@ -131,6 +131,10 @@ export function WorkFlow({
         window.open(`${'/text-classification'}/${workflow.model_id}`, '_blank');
         break;
       }
+      case 'nlp-doc': {
+        window.open(`${'/doc-classification'}/${workflow.model_id}`, '_blank');
+        break;
+      }
       default:
         throw new Error(`Invalid workflow type ${workflow.type}`);
         break;

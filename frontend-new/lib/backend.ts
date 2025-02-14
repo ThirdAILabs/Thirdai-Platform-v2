@@ -1848,13 +1848,18 @@ interface TextClassificationResult {
   predicted_classes: [string, number][];
 }
 
+interface PredictionClass {
+  class: string;
+  score: number;
+}
+
 interface PredictionResult {
   status: string;
   message: string;
   data: {
     prediction_results: {
       query_text: string;
-      predicted_classes: [string, number][];
+      predicted_classes: PredictionClass[];
     };
     time_taken: number;
   };
@@ -2568,8 +2573,8 @@ interface NLPTextTrainResponse {
 export async function trainNLPTextModel(params: {
   model_name: string;
   uploadId: string;
-  textColumn: string;
-  labelColumn: string;
+  textColumn?: string;
+  labelColumn?: string;
   nTargetClasses: number;
   baseModelId?: string;
   trainOptions?: TrainOptions;
@@ -2579,11 +2584,11 @@ export async function trainNLPTextModel(params: {
 
   const payload: NLPTextTrainRequest = {
     model_name: params.model_name,
-    doc_classification: params.doc_classification || false,
+    doc_classification: params.doc_classification === true,
     base_model_id: params.baseModelId || null,
     model_options: {
-      text_column: params.textColumn,
-      label_column: params.labelColumn,
+      text_column: params.doc_classification ? "text" : (params.textColumn || "text"),
+      label_column: params.doc_classification ? "label" : (params.labelColumn || "label"),
       n_target_classes: params.nTargetClasses,
       delimiter: ","
     },

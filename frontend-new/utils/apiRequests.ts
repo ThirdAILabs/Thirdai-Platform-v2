@@ -48,7 +48,7 @@ const getModels = async () => {
             : model.access_level === 'protected'
               ? 'Protected Model'
               : 'Public Model',
-        owner: model.Username,
+        owner: model.username,
         users: [],
         team: model.team_id !== 'None' ? model.team_id : undefined,
         teamAdmin: undefined,

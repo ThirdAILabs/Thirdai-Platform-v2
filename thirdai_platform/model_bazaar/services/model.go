@@ -112,7 +112,7 @@ type ModelInfo struct {
 	Access       string     `json:"access"`
 	TrainStatus  string     `json:"train_status"`
 	DeployStatus string     `json:"deploy_status"`
-	PublishDate  string     `json:"publish_date"`
+	PublishDate  time.Time  `json:"publish_date"`
 	UserEmail    string     `json:"user_email"`
 	Username     string     `json:"username"`
 	TeamId       *uuid.UUID `json:"team_id"`
@@ -213,9 +213,9 @@ func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 		Access:       model.Access,
 		TrainStatus:  trainStatus,
 		DeployStatus: deployStatus,
-		PublishDate:  model.PublishedDate.String(),
-		UserEmail:    userEmail,
-		Username:     username,
+		PublishDate:  model.PublishedDate,
+		UserEmail:    model.User.Email,
+		Username:     model.User.Username,
 		TeamId:       model.TeamId,
 		Attributes:   attributes,
 		Dependencies: deps,
@@ -258,7 +258,13 @@ func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 	var models []schema.Model
 	var result *gorm.DB
 	if user.IsAdmin {
-		result = s.db.Preload("Dependencies").Preload("Dependencies.Dependency").Preload("Attributes").Preload("User").Find(&models)
+		result = s.db.
+			Preload("Dependencies").
+			Preload("Dependencies.Dependency").
+			Preload("Dependencies.Dependency.User").
+			Preload("Attributes").
+			Preload("User").
+			Find(&models)
 	} else {
 		userTeams, err := schema.GetUserTeamIds(user.Id, s.db)
 		if err != nil {
@@ -973,7 +979,8 @@ func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateAccessRequest struct {
-	Access string `json:"access"`
+	Access string     `json:"access"`
+	TeamId *uuid.UUID `json:"team_id"`
 }
 
 func (s *ModelService) UpdateAccess(w http.ResponseWriter, r *http.Request) {
@@ -993,14 +1000,52 @@ func (s *ModelService) UpdateAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := s.db.Model(&schema.Model{Id: modelId}).Update("access", params.Access)
-	if result.Error != nil {
-		slog.Error("sql error updating model access", "model_id", modelId, "error", result.Error)
-		http.Error(w, fmt.Sprintf("error updating model access: %v", schema.ErrDbAccessFailed), http.StatusInternalServerError)
+	if params.Access == schema.Protected && params.TeamId == nil {
+		http.Error(w, "must specifiy team id if changing the model access to protected", http.StatusUnprocessableEntity)
 		return
 	}
-	if result.RowsAffected != 1 {
-		http.Error(w, schema.ErrModelNotFound.Error(), http.StatusNotFound)
+
+	user, err := auth.UserFromContext(r)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error retrieving user id from request: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	if err := s.db.Transaction(func(txn *gorm.DB) error {
+		model, err := schema.GetModel(modelId, txn, false, false, false)
+		if err != nil {
+			if errors.Is(err, schema.ErrModelNotFound) {
+				return CodedError(err, http.StatusNotFound)
+			}
+			return CodedError(err, http.StatusInternalServerError)
+		}
+
+		model.Access = params.Access
+		if params.Access == schema.Protected {
+			if err := checkTeamExists(txn, *params.TeamId); err != nil {
+				return err
+			}
+
+			if !user.IsAdmin {
+				if err := checkTeamMember(txn, user.Id, *params.TeamId); err != nil {
+					return err
+				}
+			}
+
+			model.TeamId = params.TeamId
+		} else {
+			model.TeamId = nil
+		}
+
+		if err := txn.Save(model).Error; err != nil {
+			slog.Error("sql error updating model access", "model_id", modelId, "error", err)
+			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)
+		}
+
+		return nil
+	}); err != nil {
+		slog.Error("error updating model access", "model_id", modelId, "access", params.Access, "team_id", params.TeamId, "error", err)
+		http.Error(w, err.Error(), GetResponseCode(err))
 		return
 	}
 

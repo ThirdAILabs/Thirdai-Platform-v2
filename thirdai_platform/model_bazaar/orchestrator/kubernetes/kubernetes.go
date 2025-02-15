@@ -16,6 +16,7 @@ import (
 	"text/template"
 
 	appsv1 "k8s.io/api/apps/v1"
+	v2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1" // For Job manifests.
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -244,7 +245,41 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 				return nil
 			},
 		},
-		// TODO: add autoscaler process
+		{
+			FileSuffix: "_hpa.yaml",
+			Process: func(doc string) error {
+				slog.Info("Processing HPA YAML document", "namespace", c.namespace)
+				var hpa v2.HorizontalPodAutoscaler
+				if err := yaml.Unmarshal([]byte(doc), &hpa); err != nil {
+					return fmt.Errorf("error unmarshaling HPA YAML: %w", err)
+				}
+				slog.Info("HPA YAML unmarshaled", "hpa_name", hpa.Name)
+
+				existing, err := c.clientset.AutoscalingV2().HorizontalPodAutoscalers(c.namespace).Get(ctx, hpa.Name, metav1.GetOptions{})
+				if err != nil {
+					if apierrors.IsNotFound(err) {
+						slog.Info("HPA resource not found, creating new HPA", "hpa_name", hpa.Name)
+						if _, err := c.clientset.AutoscalingV2().HorizontalPodAutoscalers(c.namespace).Create(ctx, &hpa, metav1.CreateOptions{}); err != nil {
+							slog.Error("Error creating HPA resource", "hpa_name", hpa.Name, "error", err)
+							return fmt.Errorf("error creating HPA resource: %w", err)
+						}
+						slog.Info("HPA resource created successfully", "hpa_name", hpa.Name)
+						return nil
+					}
+					return fmt.Errorf("error checking for existing HPA: %w", err)
+				}
+
+				// HPA exists, so update it.
+				slog.Info("HPA resource exists, updating HPA", "hpa_name", hpa.Name)
+				hpa.ResourceVersion = existing.ResourceVersion
+				if _, err := c.clientset.AutoscalingV2().HorizontalPodAutoscalers(c.namespace).Update(ctx, &hpa, metav1.UpdateOptions{}); err != nil {
+					slog.Error("Error updating HPA resource", "hpa_name", hpa.Name, "error", err)
+					return fmt.Errorf("error updating HPA resource: %w", err)
+				}
+				slog.Info("HPA resource updated successfully", "hpa_name", hpa.Name)
+				return nil
+			},
+		},
 	}
 
 	// processTemplate reads the file, renders the template with the job’s data,
@@ -345,7 +380,7 @@ func (c *KubernetesClient) StopJob(jobName string) error {
 		slog.Info("service deleted successfully", "service_name", jobName)
 	}
 
-	// Delete primary ingress (assumed to use the jobName)
+	// Delete external ingress (assumed to use the jobName)
 	slog.Info("attempting to delete ingress", "ingress_name", jobName, "namespace", c.namespace)
 	if err := c.clientset.NetworkingV1().Ingresses(c.namespace).Delete(ctx, jobName, metav1.DeleteOptions{}); err != nil {
 		if apierrors.IsNotFound(err) {

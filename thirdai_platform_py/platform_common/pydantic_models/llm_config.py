@@ -8,6 +8,7 @@ class LLMProvider(str, Enum):
     openai = "openai"
     cohere = "cohere"
     onprem = "onprem"
+    mock = "mock"
 
 
 class LLMConfig(BaseModel):
@@ -22,7 +23,7 @@ class LLMConfig(BaseModel):
         api_key = values.get("api_key")
         model_name = values.get("model_name")
 
-        if provider != LLMProvider.onprem:
+        if provider not in [LLMProvider.onprem, LLMProvider.mock]:
             if not api_key:
                 raise ValueError("api_key must be provided for non-onprem providers")
             if not model_name:

@@ -26,6 +26,4 @@ class LLMConfig(BaseModel):
         if provider not in [LLMProvider.onprem, LLMProvider.mock]:
             if not api_key:
                 raise ValueError("api_key must be provided for non-onprem providers")
-            if not model_name:
-                raise ValueError("model_name must be provided for non-onprem providers")
         return values

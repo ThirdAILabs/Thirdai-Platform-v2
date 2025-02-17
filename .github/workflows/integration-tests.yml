@@ -202,6 +202,10 @@ jobs:
         cat vault.log
         
         bash local_setup/fetch_nomad_logs.sh
+    
+    - name: Display nomad job stdout/stderr
+      run: |
+        find /opt/nomad/data/alloc -type f \( -name "backend.stderr.0" -o -name "backend.stdout.0" \) -exec echo "==== {} ====" \; -exec cat {} \;
 
     - name: Stop Services
       if: always()

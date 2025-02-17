@@ -575,7 +575,7 @@ class NeuralDBV2(Model):
                 batched_prompts, parallelize=True
             )
 
-            if self.config.llm_config.provider != LLMProvider.cohere:
+            if self.config.llm_config.provider not in [LLMProvider.cohere, LLMProvider.mock]:
                 csv_writer.writerows(
                     [
                         (ques, response[1]["chunk_id"])

@@ -70,6 +70,14 @@ jobs:
         source venv/bin/activate
         pip install -r thirdai_platform_py/requirements.txt
     
+    # Issue with cryptography installation: https://github.com/ThirdAILabs/Thirdai-Platform-v2/actions/runs/13363756703/job/37317627704?pr=20#step:9:32
+    # Fix: https://stackoverflow.com/questions/68886239/cannot-uninstall-numpy-1-21-2-record-file-not-found
+    - name: Clean incomplete installation of cryptography in site-packages
+      run: |
+        SITE_PACKAGES_FOLDER=$(python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")
+        pip install trash-cli
+        trash-put $SITE_PACKAGES_FOLDER/cryptography*
+
     - name: Update openssl
       run: |
         sudo pip install --upgrade cryptography pyopenssl

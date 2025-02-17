@@ -20,7 +20,7 @@ class TestMockLLM(TestLLMBase):
 
     def test_completion(self):
         response, token_count = self.llm.completion(self.test_prompt)
-        self.assertEqual(response, "Mocked response")
+        self.assertEqual(response, "Mocked response from the llm to test the generation flow")
         self.assertEqual(token_count, TokenCount(0, 0, 0))
 
 

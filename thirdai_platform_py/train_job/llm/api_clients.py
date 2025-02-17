@@ -105,7 +105,6 @@ class LLMBase(ABC):
                         data_points.append((response, metadata))
 
                     except Exception as e:
-                        raise e
                         if logger:
                             logger.error(f"Error processing prompt:")
                             logger.error(f"{e:=^50}")
@@ -182,9 +181,7 @@ class OpenAILLM(LLMBase):
             prompt_tokens=completion.usage.prompt_tokens,
             total_tokens=completion.usage.total_tokens,
         )
-        self.track_usage(
-            current_usage,
-        )
+        self.track_usage(current_usage)
         return res, current_usage
 
 

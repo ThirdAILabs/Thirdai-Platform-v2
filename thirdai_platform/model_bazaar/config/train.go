@@ -271,13 +271,11 @@ type LLMConfig struct {
 }
 
 func (opts *LLMConfig) Validate() error {
-	if !slices.Contains([]string{"openai", "cohere", "onprem"}, opts.Provider) {
+	if !slices.Contains([]string{"openai", "cohere", "onprem", "mock"}, opts.Provider) {
 		return fmt.Errorf("invalid provider '%v', must be 'openai' or 'cohere'", opts.Provider)
 	}
-	if opts.Provider != "onprem" {
-		if opts.ApiKey == "" {
-			return fmt.Errorf("api_key must be specified")
-		}
+	if !slices.Contains([]string{"onprem", "mock"}, opts.Provider) && opts.ApiKey == "" {
+		return fmt.Errorf("api_key must be specified")
 	}
 	return nil
 }

@@ -230,7 +230,9 @@ class MockLLM(LLMBase):
         super().__init__("mock", track_usage_at)
 
     def completion(self, prompt: str, system_prompt: Optional[str] = None, **kwargs):
-        return "Mocked response from the llm to test the generation flow", TokenCount(0, 0, 0)
+        return "Mocked response from the llm to test the generation flow", TokenCount(
+            0, 0, 0
+        )
 
 
 llm_classes = {

@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: backend
-          {{ with .Driver }}
+          {{ with .Docker }}
           image: "{{ .Registry }}/llama.cpp:server"
           {{ end }}
           command: ["python3"]

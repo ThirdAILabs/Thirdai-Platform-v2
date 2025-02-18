@@ -251,7 +251,7 @@ export default function Chat({
     if (modelService && provider) {
       // Set the chat settings based on the provider
       modelService
-        .setChat(provider)
+        .setChat(provider, process.env.NEXT_PUBLIC_OPENAI_API_KEY)
         .then(() => {
           // After setting chat settings, fetch chat history
           modelService.getChatHistory(provider).then(setChatHistory);
@@ -262,43 +262,41 @@ export default function Chat({
     }
   }, [modelService, provider]);
 
-  const performPIIDetection = (messageContent: string): Promise<string[][]> => {
+  const performPIIDetection = async (messageContent: string): Promise<string[][]> => {
     if (!piiWorkflowId) {
       return Promise.resolve([]);
     }
 
-    return piiDetect(messageContent, piiWorkflowId)
-      .then((result) => {
-        const { tokens, predicted_tags } = result;
-        let transformed: string[][] = [];
-        let currentSentence = '';
-        let currentTag = '';
+    try {
+      const result = await piiDetect(messageContent, piiWorkflowId);
+      const { tokens, predicted_tags } = result;
+      let transformed: string[][] = [];
+      let currentSentence = '';
+      let currentTag = '';
 
-        for (let i = 0; i < tokens.length; i++) {
-          const word = tokens[i];
-          const tag = predicted_tags[i] && predicted_tags[i][0];
+      for (let i = 0; i < tokens.length; i++) {
+        const word = tokens[i];
+        const tag = predicted_tags[i] && predicted_tags[i][0];
 
-          if (tag !== currentTag) {
-            if (currentSentence) {
-              transformed.push([currentSentence.trim(), currentTag]);
-            }
-            currentSentence = word;
-            currentTag = tag;
-          } else {
-            currentSentence += ` ${word}`;
+        if (tag !== currentTag) {
+          if (currentSentence) {
+            transformed.push([currentSentence.trim(), currentTag]);
           }
+          currentSentence = word;
+          currentTag = tag;
+        } else {
+          currentSentence += ` ${word}`;
         }
+      }
 
-        if (currentSentence) {
-          transformed.push([currentSentence.trim(), currentTag]);
-        }
-
-        return transformed;
-      })
-      .catch((error) => {
-        console.error('Error detecting PII:', error);
-        return [];
-      });
+      if (currentSentence) {
+        transformed.push([currentSentence.trim(), currentTag]);
+      }
+      return transformed;
+    } catch (error) {
+      console.error('Error detecting PII:', error);
+      return [];
+    }
   };
 
   const [sentiments, setSentiments] = useState<Record<number, string>>({}); // Store sentiment for human messages

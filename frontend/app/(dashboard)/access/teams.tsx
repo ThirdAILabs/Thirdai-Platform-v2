@@ -81,12 +81,14 @@ export default function Teams() {
   const createNewTeam = async () => {
     try {
       const createdTeam = await createTeam(newTeamName);
-      const team_id = createdTeam.data.team_id;
+      if (!createdTeam) return;
+
+      const team_id = createdTeam.team_id;
 
       for (const memberName of newTeamMembers) {
         const member = users.find((user) => user.name === memberName);
         if (member) {
-          await addUserToTeam(member.email, team_id);
+          await addUserToTeam(member.id, team_id);
         } else {
           console.error(`User with name ${memberName} not found`);
           alert(`User with name ${memberName} not found`);
@@ -95,7 +97,7 @@ export default function Teams() {
 
       const admin = users.find((user) => user.name === newTeamAdmin);
       if (admin) {
-        await assignTeamAdmin(admin.email, team_id);
+        await assignTeamAdmin(admin.id, team_id);
       } else {
         console.error(`User with name ${newTeamAdmin} not found`);
         alert(`User with name ${newTeamAdmin} not found`);
@@ -128,7 +130,7 @@ export default function Teams() {
         return;
       }
 
-      await addUserToTeam(user.email, team.id);
+      await addUserToTeam(user.id, team.id);
       await getTeamsData();
       await getUsersData();
       setSelectedTeamForAdd('Select Team');
@@ -171,7 +173,7 @@ export default function Teams() {
         return;
       }
 
-      await deleteUserFromTeam(user.email, team.id);
+      await deleteUserFromTeam(user.id, team.id);
       await getTeamsData();
       await getUsersData();
       setSelectedTeamForRemove('Select Team');
@@ -216,7 +218,7 @@ export default function Teams() {
       }
 
       try {
-        await assignTeamAdmin(user.email, selectedTeam.id);
+        await assignTeamAdmin(user.id, selectedTeam.id);
         await getTeamsData();
         await getUsersData();
         setSelectedTeamForAddAdmin('Select Team');
@@ -255,7 +257,7 @@ export default function Teams() {
         return;
       }
       try {
-        await removeTeamAdmin(user.email, selectedTeam.id);
+        await removeTeamAdmin(user.id, selectedTeam.id);
         await getTeamsData();
         await getUsersData();
         setSelectedTeamForRemoveAdmin('Select Team');
@@ -292,7 +294,7 @@ export default function Teams() {
     if (user?.teams.length !== undefined) {
       for (let index = 0; index < user?.teams.length; index++) {
         const team = user?.teams[index];
-        if (team.team_name === teamName && team.role === 'team_admin') setCanAddMember(true);
+        if (team.team_name === teamName && team.team_admin) setCanAddMember(true);
       }
     }
   };
@@ -302,7 +304,7 @@ export default function Teams() {
     if (user?.teams.length !== undefined) {
       for (let index = 0; index < user?.teams.length; index++) {
         const team = user?.teams[index];
-        if (team.team_name === teamName && team.role === 'team_admin') setCanRemoveMember(true);
+        if (team.team_name === teamName && team.team_admin) setCanRemoveMember(true);
       }
     }
   };
@@ -314,8 +316,10 @@ export default function Teams() {
   };
   //Check if the user is Team Admin
   useEffect(() => {
-    if (user?.teams.some((team) => team.role === 'team_admin')) setIsTeamAdmin(true);
+    if (user?.teams.some((team) => team.team_admin)) setIsTeamAdmin(true);
   });
+
+  console.log('Teams data coming from backend', teams);
   return (
     <div className="mb-12">
       <h3 className="text-xl font-semibold text-gray-800 mb-4">Teams</h3>

@@ -35,7 +35,7 @@ export default function Users() {
       const isConfirmed = window.confirm(`Are you sure you want to delete the user "${userName}"?`);
       if (!isConfirmed) return;
 
-      await deleteUserAccount(user.email);
+      await deleteUserAccount(user.id);
       await getUsersData();
     } catch (error) {
       console.error('Failed to delete user', error);
@@ -43,9 +43,9 @@ export default function Users() {
     }
   };
 
-  const handleVerifyUser = async (email: string) => {
+  const handleVerifyUser = async (user_id: string) => {
     try {
-      await verifyUser(email);
+      await verifyUser(user_id);
       await getUsersData();
     } catch (error: any) {
       console.error('Failed to verify user', error);
@@ -66,13 +66,14 @@ export default function Users() {
       );
       if (!isConfirmed) return;
 
-      await promoteUserToGlobalAdmin(user.email);
+      await promoteUserToGlobalAdmin(user.id);
       await getUsers();
     } catch (error) {
       console.error('Failed to promote user', error);
       alert('Failed to promote user: ' + error);
     }
   };
+  console.log('Users in user.tsx', users);
   return (
     <div className="mb-12">
       {isGlobalAdmin && <UserCreationForm onUserCreated={getUsersData} />}
@@ -83,15 +84,17 @@ export default function Users() {
           <div className="flex justify-between items-start">
             <div>
               <h4 className="text-lg font-semibold text-gray-800">{user.name}</h4>
-              <div className="text-gray-700 mb-2">Role: {user.role}</div>
+              <div className="text-gray-700 mb-2">
+                Role: {user.globalAdmin ? 'Global Admin' : 'User'}
+              </div>
               <div className="text-gray-700 mb-2">
                 Status: {user.verified ? 'Verified' : 'Not Verified'}
               </div>
-              {user.teams.filter((team) => team.role === 'team_admin').length > 0 && (
+              {user.teams.filter((team) => team.team_admin).length > 0 && (
                 <div className="text-gray-700 mb-2">
                   Admin Teams:{' '}
                   {user.teams
-                    .filter((team) => team.role === 'team_admin')
+                    .filter((team) => team.team_admin)
                     .map((team) => team.name)
                     .join(', ')}
                 </div>
@@ -104,7 +107,7 @@ export default function Users() {
               <div className="flex gap-2">
                 {!user.verified && (
                   <Button
-                    onClick={() => handleVerifyUser(user.email)}
+                    onClick={() => handleVerifyUser(user.id)}
                     variant="contained"
                     color="primary"
                   >
@@ -122,7 +125,7 @@ export default function Users() {
           )}
           {isGlobalAdmin && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '30%' }}>
-              {user.role !== 'Global Admin' && (
+              {!user.globalAdmin && (
                 <Button
                   onClick={() => handlePromotion(user.name)}
                   variant="contained"

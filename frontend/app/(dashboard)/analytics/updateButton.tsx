@@ -3,6 +3,7 @@ import { Button } from '@mui/material';
 import { retrainTokenClassifier } from '@/lib/backend';
 
 interface UpdateButtonProps {
+  modelId: string;
   modelName: string;
 }
 
@@ -15,7 +16,7 @@ interface UpdateResponse {
   };
 }
 
-export default function UpdateButton({ modelName }: UpdateButtonProps) {
+export default function UpdateButton({ modelId, modelName }: UpdateButtonProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState('');
   const [initiateUpdateSuccess, setInitiateUpdateSuccess] = useState(false);
@@ -26,7 +27,10 @@ export default function UpdateButton({ modelName }: UpdateButtonProps) {
     setInitiateUpdateSuccess(false);
 
     try {
-      const response: UpdateResponse = await retrainTokenClassifier({ model_name: modelName });
+      const response: UpdateResponse = await retrainTokenClassifier({
+        base_model_id: modelId,
+        model_name: modelName,
+      });
       if (response.status === 'success') {
         setInitiateUpdateSuccess(true);
         console.log('Model update initiated successfully:', response.message);

@@ -253,6 +253,11 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 		saveDir = filepath.Join(saveDir, subDir)
 	}
 
+	slog.Info("starting file upload", 
+        "user_id", user.Id,
+        "sub_dir", r.URL.Query().Get("sub_dir"))
+
+
 	for {
 		part, err := reader.NextPart()
 		if err == io.EOF {
@@ -265,6 +270,11 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 		defer part.Close()
 
 		if part.FormName() == "files" {
+			slog.Info("processing file",
+                "filename", part.FileName(),
+                "saveDir", saveDir,
+                "newPath", filepath.Join(saveDir, part.FileName()))
+
 			if part.FileName() == "" {
 				http.Error(w, "invalid filename detected in upload files: filename cannot be empty", http.StatusUnprocessableEntity)
 				return

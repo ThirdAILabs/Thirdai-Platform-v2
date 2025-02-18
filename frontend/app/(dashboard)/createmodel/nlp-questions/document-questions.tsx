@@ -50,6 +50,11 @@ const DocumentQuestions = ({
   const handleFolderSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
+      console.log("Selected files structure:", Array.from(files).map(f => ({
+        name: f.name,
+        path: f.webkitRelativePath
+      })));
+
       setSelectedFolder(files);
       setError('');
       setSuccess(false);
@@ -58,6 +63,12 @@ const DocumentQuestions = ({
       const structure: FolderStructure = {};
       Array.from(files).forEach((file) => {
         const pathParts = file.webkitRelativePath.split('/');
+        console.log("Processing file:", {
+            file: file.name,
+            fullPath: file.webkitRelativePath,
+            pathParts: pathParts,
+            category: pathParts[1]
+        });
         if (pathParts.length >= 3) {
           // Changed from >= 2 to >= 3 since we expect 3 parts
           const category = pathParts[1]; // Changed from pathParts[0] to pathParts[1]
@@ -173,8 +184,15 @@ const DocumentQuestions = ({
     setSuccess(false);
 
     try {
+      console.log("Uploading files with structure:", {
+          folderStructure,
+          totalFiles: selectedFolder?.length,
+          modelName
+      });
+
       // First validate the folder structure
       const { upload_id } = await uploadDocument(selectedFolder);
+      console.log("Upload response:", { upload_id });
 
       if (!upload_id) {
         setError('Error validating folder structure');

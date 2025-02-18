@@ -266,10 +266,16 @@ func (c *PlatformClient) TrainNlpTextWithBaseModel(name string, baseModel *NlpTe
 }
 
 func (c *PlatformClient) trainNlpTextHelper(name string, baseModel *NlpTextClient, nTargetClasses int, files []FileInfo, trainOptions config.NlpTrainOptions) (*NlpTextClient, error) {
+	slog.Info("starting NLP text training",
+        "modelName", name,
+        "nTargetClasses", nTargetClasses,
+        "files", files)
+
 	uploadFiles, err := c.uploadFiles(files, "")
 	if err != nil {
 		return nil, fmt.Errorf("error uploading files for training: %w", err)
 	}
+    slog.Info("files uploaded for training", "uploadFiles", uploadFiles)
 
 	var baseModelId *uuid.UUID
 	if baseModel != nil {

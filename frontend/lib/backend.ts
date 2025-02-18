@@ -417,7 +417,7 @@ export async function uploadDocument(files: FileList | File): Promise<UploadResp
       throw new Error('Invalid folder structure. Files must be within category folders.');
     }
 
-    const category = pathParts[1];
+    const category = pathParts[1];  // Get category from folder structure
     if (!categoryMap.has(category)) {
       categoryMap.set(category, []);
     }
@@ -429,30 +429,40 @@ export async function uploadDocument(files: FileList | File): Promise<UploadResp
   }
 
   // Add files to FormData maintaining category structure
-  categoryMap.forEach((categoryFiles, category) => {
-    categoryFiles.forEach((file) => {
-      formData.append('files', file, file.webkitRelativePath);
-    });
-  });
+  for (const [category, categoryFiles] of categoryMap.entries()) {
+    try {
+      const categoryFormData = new FormData();
+      
+      categoryFiles.forEach((file) => {
+        // Add files while preserving the category structure
+        categoryFormData.append('files', file);
+      });
 
-  try {
-    const response = await axios.post<UploadResponse>(
-      `${thirdaiPlatformBaseUrl}/api/v2/train/upload-data`,
-      formData,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'multipart/form-data',
-        },
+      // Make a separate request for each category with the sub_dir parameter
+      const response = await axios.post<UploadResponse>(
+        `${thirdaiPlatformBaseUrl}/api/v2/train/upload-data?sub_dir=${category}`,
+        categoryFormData,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      // Return the first upload_id (we'll need to modify this if we need to track multiple upload_ids)
+      return response.data;
+      
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.data) {
+        throw new Error(error.response.data.message || 'Upload failed');
       }
-    );
-    return response.data;
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.data) {
-      throw new Error(error.response.data.message || 'Upload failed');
+      throw new Error('Failed to upload files');
     }
-    throw new Error('Failed to upload files');
   }
+
+  // This shouldn't be reached due to the returns in the loop above
+  throw new Error('No files were uploaded');
 }
 
 interface TrainDocumentClassifierParams {

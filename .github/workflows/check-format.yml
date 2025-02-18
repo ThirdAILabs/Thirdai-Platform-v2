@@ -75,7 +75,7 @@ jobs:
         node-version: [20]
     defaults:
       run:
-        working-directory: ./frontend
+        working-directory: ./frontend-new
     steps:
       - uses: actions/checkout@v3
 

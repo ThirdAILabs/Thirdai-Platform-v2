@@ -448,6 +448,10 @@ func (c *KubernetesClient) JobInfo(jobName string) (orchestrator.JobInfo, error)
 	slog.Info("deployment not found, trying batch job for", "job_name", jobName)
 	job, err := c.clientset.BatchV1().Jobs(c.namespace).Get(ctx, jobName, metav1.GetOptions{})
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			slog.Info("kubernetes job not found")
+			return orchestrator.JobInfo{}, orchestrator.ErrJobNotFound
+		}
 		slog.Error("error getting job", "job_name", jobName, "error", err)
 		return orchestrator.JobInfo{}, fmt.Errorf("error getting job %s: %w", jobName, err)
 	}

@@ -51,12 +51,12 @@ export default function CopyButton({ toCopy, referenceID, queryText }: CopyButto
         textArea.select();
         const successful = document.execCommand('copy');
         document.body.removeChild(textArea);
-        
+
         if (!successful) {
           throw new Error('Failed to copy using fallback method');
         }
       }
-      
+
       // Log implicit feedback after successful copy
       const feedback: ImplicitFeedback = {
         reference_id: referenceID,
@@ -74,8 +74,8 @@ export default function CopyButton({ toCopy, referenceID, queryText }: CopyButto
           console.log('Implicit feedback recorded successfully:', data);
         } catch (error) {
           // Log the error but don't disrupt the user experience
-          console.warn('Failed to record feedback - this won\'t affect the copy operation:', error);
-          
+          console.warn("Failed to record feedback - this won't affect the copy operation:", error);
+
           // Only log detailed error info in development
           if (process.env.NODE_ENV === 'development') {
             console.debug('Feedback that failed to record:', feedback);
@@ -90,10 +90,7 @@ export default function CopyButton({ toCopy, referenceID, queryText }: CopyButto
   };
 
   return (
-    <NotifyingClickable
-      onClick={copyToClipboard}
-      text="Copied to clipboard!"
-    >
+    <NotifyingClickable onClick={copyToClipboard} text="Copied to clipboard!">
       <StyledCopy />
     </NotifyingClickable>
   );

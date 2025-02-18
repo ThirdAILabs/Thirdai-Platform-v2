@@ -73,7 +73,7 @@ export default function Users() {
       alert('Failed to promote user: ' + error);
     }
   };
-  console.log("Users in user.tsx", users);
+  console.log('Users in user.tsx', users);
   return (
     <div className="mb-12">
       {isGlobalAdmin && <UserCreationForm onUserCreated={getUsersData} />}
@@ -84,7 +84,9 @@ export default function Users() {
           <div className="flex justify-between items-start">
             <div>
               <h4 className="text-lg font-semibold text-gray-800">{user.name}</h4>
-              <div className="text-gray-700 mb-2">Role: {user.globalAdmin ? "Global Admin" : "User"}</div>
+              <div className="text-gray-700 mb-2">
+                Role: {user.globalAdmin ? 'Global Admin' : 'User'}
+              </div>
               <div className="text-gray-700 mb-2">
                 Status: {user.verified ? 'Verified' : 'Not Verified'}
               </div>

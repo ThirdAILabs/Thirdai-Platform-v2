@@ -103,7 +103,7 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
         nlp_classifier_id: nlpClassifierModelId || '',
         llm_provider: '',
         default_mode: 'chat',
-        model_name: ''
+        model_name: '',
       };
 
       switch (llmType) {

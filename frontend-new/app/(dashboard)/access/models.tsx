@@ -111,7 +111,7 @@ export default function Models() {
         let value = false;
         if (user?.teams && model.type === 'Protected Model') {
           for (let itr = 0; itr < user?.teams.length; itr++) {
-            if ((user?.teams[itr].team_id === model.team) && user.teams[itr].team_admin) {
+            if (user?.teams[itr].team_id === model.team && user.teams[itr].team_admin) {
               value = true;
               break;
             }

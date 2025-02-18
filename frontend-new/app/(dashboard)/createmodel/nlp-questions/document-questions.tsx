@@ -196,7 +196,7 @@ const DocumentQuestions = ({
         uploadId: upload_id,
         model_name: modelName,
         nTargetClasses: categories.size,
-        doc_classification: true // Make sure this is set to true
+        doc_classification: true, // Make sure this is set to true
       });
 
       setSuccess(true);

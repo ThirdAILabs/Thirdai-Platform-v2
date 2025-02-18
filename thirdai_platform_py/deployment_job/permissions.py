@@ -6,8 +6,8 @@ from urllib.parse import urljoin
 
 import fastapi
 import requests
-from fastapi import Request, status
 from dateutil import parser
+from fastapi import Request, status
 
 CREDENTIALS_EXCEPTION = fastapi.HTTPException(
     status_code=fastapi.status.HTTP_401_UNAUTHORIZED,

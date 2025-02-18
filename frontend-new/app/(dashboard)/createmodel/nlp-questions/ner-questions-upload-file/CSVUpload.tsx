@@ -122,7 +122,7 @@ const CSVUpload = ({ modelName, onSuccess, onError, workflowNames = [] }: CSVUpl
 
       setUploadId(upload_id); //set the upload id to the state
 
-      const type = "token";
+      const type = 'token';
       const { labels } = await validateCSV({ upload_id, type });
       if (labels && labels?.length > 0) {
         setDetectedLabels(labels);
@@ -166,17 +166,18 @@ const CSVUpload = ({ modelName, onSuccess, onError, workflowNames = [] }: CSVUpl
         model_name: modelName,
         model_options: {
           target_labels: detectedLabels,
-          source_column: "source",
-          target_column: "target",
-          default_tag: "O",
+          source_column: 'source',
+          target_column: 'target',
+          default_tag: 'O',
         },
         data: {
           supervised_files: [
             {
               path: UploadId,
-              location: 'upload'
-            }],
-        }
+              location: 'upload',
+            },
+          ],
+        },
       });
 
       if (response?.model_id) {

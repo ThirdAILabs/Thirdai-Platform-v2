@@ -98,7 +98,6 @@ export function WorkFlow({
     getModelsData();
   }, []);
 
-
   function goToEndpoint() {
     switch (workflow.type) {
       case 'enterprise-search': {
@@ -265,10 +264,7 @@ export function WorkFlow({
           ]);
 
           // Check training status
-          if (
-            trainStatus.status === 'failed' &&
-            (trainStatus.errors?.length > 0)
-          ) {
+          if (trainStatus.status === 'failed' && trainStatus.errors?.length > 0) {
             setError({
               type: 'training',
               messages: trainStatus.errors,
@@ -288,10 +284,7 @@ export function WorkFlow({
           }
 
           // Check deployment
-          if (
-            deployStatus.status === 'failed' &&
-            deployStatus.errors?.length > 0
-          ) {
+          if (deployStatus.status === 'failed' && deployStatus.errors?.length > 0) {
             setError({
               type: 'deployment',
               messages: deployStatus.errors,
@@ -443,9 +436,7 @@ export function WorkFlow({
                   <DropdownMenuItem
                     onClick={async () => {
                       try {
-                        const response = await stop_workflow(
-                          workflow.model_id
-                        );
+                        const response = await stop_workflow(workflow.model_id);
                         console.log('Workflow undeployed successfully:', response);
                         // Optionally, update the UI state to reflect the undeployment
                         setDeployStatus(DeployStatus.Inactive);
@@ -464,9 +455,7 @@ export function WorkFlow({
                     onClick={async () => {
                       if (window.confirm('Are you sure you want to delete this workflow?')) {
                         try {
-                          const response = await delete_workflow(
-                            workflow.model_id
-                          );
+                          const response = await delete_workflow(workflow.model_id);
                           console.log('Workflow deleted successfully:', response);
                         } catch (error) {
                           console.error('Error deleting workflow:', error);

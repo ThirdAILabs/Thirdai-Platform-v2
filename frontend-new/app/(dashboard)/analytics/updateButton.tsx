@@ -27,7 +27,10 @@ export default function UpdateButton({ modelId, modelName }: UpdateButtonProps) 
     setInitiateUpdateSuccess(false);
 
     try {
-      const response: UpdateResponse = await retrainTokenClassifier({ base_model_id: modelId, model_name: modelName });
+      const response: UpdateResponse = await retrainTokenClassifier({
+        base_model_id: modelId,
+        model_name: modelName,
+      });
       if (response.status === 'success') {
         setInitiateUpdateSuccess(true);
         console.log('Model update initiated successfully:', response.message);

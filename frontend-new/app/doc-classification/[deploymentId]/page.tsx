@@ -46,7 +46,7 @@ interface PredictionResponse {
       predicted_classes: PredictionClass[];
     };
     time_taken: number;
-  }
+  };
 }
 
 export default function Page() {
@@ -131,7 +131,7 @@ export default function Page() {
             {
               filename: file.name,
               predictions: predictions.data.prediction_results.predicted_classes.map(
-                prediction => [prediction.class, Math.floor(prediction.score * 100)]
+                (prediction) => [prediction.class, Math.floor(prediction.score * 100)]
               ),
               processingTime,
             },
@@ -224,14 +224,14 @@ export default function Page() {
       return;
     }
     setIsLoading(true);
-    setFolderResults([]); 
+    setFolderResults([]);
     try {
       const result: PredictionResponse = await predict(text);
       console.log('result', result);
       setPredictions(
-        result.data.prediction_results.predicted_classes.map(prediction => [
+        result.data.prediction_results.predicted_classes.map((prediction) => [
           prediction.class,
-          Math.floor(prediction.score * 100)
+          Math.floor(prediction.score * 100),
         ])
       );
       setProcessingTime(result.data.time_taken);

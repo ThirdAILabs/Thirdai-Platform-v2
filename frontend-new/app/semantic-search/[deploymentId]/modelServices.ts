@@ -823,7 +823,7 @@ export class ModelService {
     const url = new URL(this.url + '/update-chat-settings');
     const settings = {
       provider,
-      key
+      key,
     };
 
     return fetch(url, {

@@ -29,7 +29,7 @@ export default function ModelUpdate({
   deploymentUrl,
   workflowNames,
   deployStatus,
-  modelId
+  modelId,
 }: ModelUpdateProps) {
   // States for CSV upload
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -276,7 +276,7 @@ export default function ModelUpdate({
     setPollingError('');
     setPollingSuccess(false);
     setPollingButtonDisabled(true);
-    getTrainReport(modelId);//Dummy call to getTrainReport
+    getTrainReport(modelId); //Dummy call to getTrainReport
     try {
       const response = await retrainTokenClassifier({
         model_name: pollingModelName, // Use custom name for new model

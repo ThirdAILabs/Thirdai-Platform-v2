@@ -27,7 +27,7 @@ class DataFactory(ABC):
             record_usage_at=self.save_dir / "llm_usage.json",
         )
 
-        print(f"{self.save_dir / 'response.txt' = }", flush = True)
+        print(f"{self.save_dir / 'response.txt' = }", flush=True)
 
         self.train_dir = self.save_dir / "train"
         self.test_dir = self.save_dir / "test"
@@ -43,7 +43,7 @@ class DataFactory(ABC):
         self.config_file_location = self.save_dir / "config.json"
         self.generation_args_location = self.save_dir / "generation_args.json"
 
-        print(f'{self.config_file_location  = }', flush=True)
+        print(f"{self.config_file_location  = }", flush=True)
 
         # These many samples would be asked to generate from an LLM call.
         self.generate_at_a_time = 40
@@ -190,7 +190,7 @@ class DataFactory(ABC):
 
     # Common function to report any error during any stage of pipeline
     def write_on_errorfile(self, text: str):
-        print(f'text = {text}', flush=True)
+        print(f"text = {text}", flush=True)
         with open(self.errored_file_location, "a") as errored_fp:
             errored_fp.write("\n" + "=" * 100 + "\n")
             errored_fp.write(text)

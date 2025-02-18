@@ -81,8 +81,7 @@ export default function Teams() {
   const createNewTeam = async () => {
     try {
       const createdTeam = await createTeam(newTeamName);
-      if (!createdTeam)
-        return;
+      if (!createdTeam) return;
 
       const team_id = createdTeam.team_id;
 
@@ -320,7 +319,7 @@ export default function Teams() {
     if (user?.teams.some((team) => team.team_admin)) setIsTeamAdmin(true);
   });
 
-  console.log("Teams data coming from backend", teams);
+  console.log('Teams data coming from backend', teams);
   return (
     <div className="mb-12">
       <h3 className="text-xl font-semibold text-gray-800 mb-4">Teams</h3>
@@ -416,13 +415,13 @@ export default function Teams() {
               options={
                 selectedTeamForAdd
                   ? users
-                    .map((user) => user.name)
-                    .filter(
-                      (userName) =>
-                        !teams
-                          .find((team) => team.name === selectedTeamForAdd)
-                          ?.members.includes(userName)
-                    )
+                      .map((user) => user.name)
+                      .filter(
+                        (userName) =>
+                          !teams
+                            .find((team) => team.name === selectedTeamForAdd)
+                            ?.members.includes(userName)
+                      )
                   : []
               }
               placeholder="New Member"

@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { Box, Button, Typography, Alert, CircularProgress, Paper } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import { trainNLPTextModel, trainTextClassifierWithCSV, uploadDocument, validateCSV } from '@/lib/backend';
+import {
+  trainNLPTextModel,
+  trainTextClassifierWithCSV,
+  uploadDocument,
+  validateCSV,
+} from '@/lib/backend';
 import LabelConfirmationDialog from './LabelConfirmationDialog';
 
 interface CSVUploadProps {
@@ -30,7 +35,7 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
 
       setUploadId(upload_id); //set the upload id to the state
 
-      const type = "text";
+      const type = 'text';
       const { labels } = await validateCSV({ upload_id, type });
 
       if (labels && labels?.length > 0) {
@@ -80,9 +85,9 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
       const response = await trainNLPTextModel({
         model_name: modelName,
         uploadId: uploadId,
-        textColumn: "source",
-        labelColumn: "target",
-        nTargetClasses: detectedLabels.length
+        textColumn: 'source',
+        labelColumn: 'target',
+        nTargetClasses: detectedLabels.length,
       });
 
       if (response?.model_id) {

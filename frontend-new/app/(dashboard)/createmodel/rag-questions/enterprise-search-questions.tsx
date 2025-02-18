@@ -116,7 +116,7 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
         guardrail_id: grModelId || '',
         llm_provider: '',
         default_mode: 'search',
-        model_name: ''
+        model_name: '',
       };
 
       if (llmType && llmType !== LlmProvider.None) {
@@ -136,7 +136,7 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
       options = Object.fromEntries(
         Object.entries(options).filter(([_, v]) => v !== undefined && v !== '')
       ) as EnterpriseSearchOptions;
-      options.model_name = modelName
+      options.model_name = modelName;
       const workflowResponse = await create_enterprise_search_workflow({
         workflow_name: modelName,
         options,

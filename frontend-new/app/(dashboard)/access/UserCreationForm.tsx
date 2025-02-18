@@ -26,12 +26,10 @@ const UserCreationForm: React.FC<UserCreationFormProps> = ({ onUserCreated }) =>
         onUserCreated();
         // Clear success message after 5 seconds
         setTimeout(() => setSuccessMessage(''), 5000);
-      }
-      else {
+      } else {
         setErrorMessage('Error creating user');
         setSuccessMessage('');
       }
-
     } catch (error: any) {
       setErrorMessage(error.response?.data?.message || 'Error creating user');
       setSuccessMessage('');

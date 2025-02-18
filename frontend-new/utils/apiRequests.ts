@@ -31,7 +31,7 @@ type User = {
   name: string;
   email: string;
   globalAdmin: boolean;
-  teams: { id: string; name: string; team_admin: boolean; }[];
+  teams: { id: string; name: string; team_admin: boolean }[];
   ownedModels: string[];
   verified: boolean;
 };
@@ -74,7 +74,7 @@ const getModels = async () => {
 const getUsers = async () => {
   try {
     const response = await fetchAllUsers();
-    console.log("Response from fetchAllUsers", response);
+    console.log('Response from fetchAllUsers', response);
     const userData = response.data.map(
       (user): User => ({
         id: user.id,
@@ -90,7 +90,7 @@ const getUsers = async () => {
         verified: user.verified,
       })
     );
-    console.log("User data in apiRequest", userData);
+    console.log('User data in apiRequest', userData);
     return userData;
   } catch (error) {
     console.error('Failed to fetch users', error);

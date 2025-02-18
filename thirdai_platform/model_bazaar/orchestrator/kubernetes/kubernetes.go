@@ -7,13 +7,14 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"text/template"
+
+	"gopkg.in/yaml.v3"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v2 "k8s.io/api/autoscaling/v2"
@@ -23,7 +24,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -53,19 +53,23 @@ type KubernetesClient struct {
 
 func NewKubernetesClient(ingressHostname string) orchestrator.Client {
 	slog.Info("initializing NewKubernetesClient", "ingressHostname", ingressHostname)
+
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		log.Panicf("error getting in-cluster config: %v", err)
+		slog.Error("error getting in-cluster config", "error", err)
+		panic(fmt.Sprintf("error getting in-cluster config: %v", err))
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		log.Panicf("error creating kubernetes clientset: %v", err)
+		slog.Error("error creating kubernetes clientset", "error", err)
+		panic(fmt.Sprintf("error creating kubernetes clientset: %v", err))
 	}
 
 	namespace, err := getNamespace()
 	if err != nil {
-		log.Panicf("error creating retrieving kubernetes namespace: %v", err)
+		slog.Error("error retrieving kubernetes namespace", "error", err)
+		panic(fmt.Sprintf("error retrieving kubernetes namespace: %v", err))
 	}
 
 	slog.Info("creating kubernetes client", "namespace", namespace, "ingressHostname", ingressHostname)
@@ -91,11 +95,9 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 	// 1. Unmarshals the YAML into the appropriate object.
 	// 2. Checks whether the resource already exists.
 	// 3a. If it does not exist, creates it.
-	// 3b. If it exists:
-	//     - For resources that support an update (like Deployments or Ingresses),
-	//       we set the ResourceVersion and call Update.
-	//     - For resources that are better replaced (like Jobs or Services),
-	//       we delete the old resource and then create the new one.
+	// 3b. If it exists and supports an update, we set the ResourceVersion
+	//     and call Update. If it is better replaced, we delete the old
+	//     resource and then create the new one.
 	resources := []resourceDef{
 		{
 			FileSuffix: "_job.yaml",
@@ -182,7 +184,7 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 				slog.Info("service YAML unmarshaled", "service_name", service.Name)
 
 				slog.Info("checking if service resource exists", "service_name", service.Name, "namespace", c.namespace)
-				_, err := c.clientset.CoreV1().Services(c.namespace).Get(ctx, service.Name, metav1.GetOptions{})
+				existing, err := c.clientset.CoreV1().Services(c.namespace).Get(ctx, service.Name, metav1.GetOptions{})
 				if err != nil {
 					if apierrors.IsNotFound(err) {
 						slog.Info("service resource not found, creating new service", "service_name", service.Name)
@@ -196,17 +198,13 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 					return fmt.Errorf("error checking for existing service: %w", err)
 				}
 
-				slog.Info("service resource exists, deleting it", "service_name", service.Name)
-				if err := c.clientset.CoreV1().Services(c.namespace).Delete(ctx, service.Name, metav1.DeleteOptions{}); err != nil {
-					slog.Error("error deleting existing service resource", "service_name", service.Name, "error", err)
-					return fmt.Errorf("error deleting existing service resource: %w", err)
+				slog.Info("service resource exists, updating service", "service_name", service.Name)
+				service.ResourceVersion = existing.ResourceVersion
+				if _, err := c.clientset.CoreV1().Services(c.namespace).Update(ctx, &service, metav1.UpdateOptions{}); err != nil {
+					slog.Error("error updating service resource", "service_name", service.Name, "error", err)
+					return fmt.Errorf("error updating service resource: %w", err)
 				}
-				slog.Info("re-creating service resource after deletion", "service_name", service.Name)
-				if _, err := c.clientset.CoreV1().Services(c.namespace).Create(ctx, &service, metav1.CreateOptions{}); err != nil {
-					slog.Error("error re-creating service resource", "service_name", service.Name, "error", err)
-					return fmt.Errorf("error re-creating service resource: %w", err)
-				}
-				slog.Info("service resource re-created successfully", "service_name", service.Name)
+				slog.Info("service resource updated successfully", "service_name", service.Name)
 				return nil
 			},
 		},
@@ -319,19 +317,31 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 		slog.Info("template rendered", "template", templatePath)
 
 		// Process multiple docs in a single YAML file
-		docs := strings.Split(rendered, "\n---\n")
-		slog.Info("splitting rendered template into documents", "template", templatePath, "docCount", len(docs))
-		for _, doc := range docs {
-			doc = strings.TrimSpace(doc)
-			if doc == "" {
+		decoder := yaml.NewDecoder(strings.NewReader(rendered))
+		for {
+			var doc interface{}
+			if err := decoder.Decode(&doc); err == io.EOF {
+				break
+			} else if err != nil {
+				return fmt.Errorf("error decoding YAML document: %w", err)
+			}
+
+			if doc == nil {
 				continue
 			}
+
 			slog.Info("processing individual YAML document", "template", templatePath)
-			if err := process(doc); err != nil {
+
+			docBytes, err := yaml.Marshal(doc)
+			if err != nil {
+				return fmt.Errorf("error marshaling YAML document: %w", err)
+			}
+
+			if err := process(string(docBytes)); err != nil {
 				return fmt.Errorf("error submitting template %s: %w", templatePath, err)
 			}
 		}
-		slog.Info("resource created/updated successfully", "template", templatePath)
+		slog.Info("resources created/updated successfully", "template", templatePath)
 		return nil
 	}
 
@@ -350,7 +360,7 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 
 func (c *KubernetesClient) StopJob(jobName string) error {
 	slog.Info("stopping kubernetes job resources", "job_name", jobName, "namespace", c.namespace)
-	var errs []string
+	var errs []error
 	ctx := context.TODO()
 
 	// Delete deployment with suffix "-deployment"
@@ -361,7 +371,7 @@ func (c *KubernetesClient) StopJob(jobName string) error {
 			slog.Info("deployment not found, skipping deletion", "deployment_name", deploymentName)
 		} else {
 			slog.Error("error stopping deployment", "deployment_name", deploymentName, "error", err)
-			errs = append(errs, fmt.Sprintf("deployment: %v", err))
+			errs = append(errs, fmt.Errorf("deployment: %w", err))
 		}
 	} else {
 		slog.Info("deployment deleted successfully", "deployment_name", deploymentName)
@@ -374,7 +384,7 @@ func (c *KubernetesClient) StopJob(jobName string) error {
 			slog.Info("service not found, skipping deletion", "service_name", jobName)
 		} else {
 			slog.Error("error stopping service", "service_name", jobName, "error", err)
-			errs = append(errs, fmt.Sprintf("service: %v", err))
+			errs = append(errs, fmt.Errorf("service: %w", err))
 		}
 	} else {
 		slog.Info("service deleted successfully", "service_name", jobName)
@@ -387,7 +397,7 @@ func (c *KubernetesClient) StopJob(jobName string) error {
 			slog.Info("ingress not found, skipping deletion", "ingress_name", jobName)
 		} else {
 			slog.Error("error stopping ingress", "ingress_name", jobName, "error", err)
-			errs = append(errs, fmt.Sprintf("ingress: %v", err))
+			errs = append(errs, fmt.Errorf("ingress: %w", err))
 		}
 	} else {
 		slog.Info("ingress deleted successfully", "ingress_name", jobName)
@@ -401,7 +411,7 @@ func (c *KubernetesClient) StopJob(jobName string) error {
 			slog.Info("internal ingress not found, skipping deletion", "ingress_name", internalIngressName)
 		} else {
 			slog.Error("error stopping internal ingress", "ingress_name", internalIngressName, "error", err)
-			errs = append(errs, fmt.Sprintf("internal ingress: %v", err))
+			errs = append(errs, fmt.Errorf("internal ingress: %w", err))
 		}
 	} else {
 		slog.Info("internal ingress deleted successfully", "ingress_name", internalIngressName)
@@ -409,7 +419,7 @@ func (c *KubernetesClient) StopJob(jobName string) error {
 
 	if len(errs) > 0 {
 		slog.Info("one or more errors occurred while stopping job resources", "job_name", jobName, "errors", errs)
-		return fmt.Errorf("error stopping job resources for %s: %s", jobName, strings.Join(errs, "; "))
+		return fmt.Errorf("error stopping job resources for %s: %w", jobName, errors.Join(errs...))
 	}
 	slog.Info("kubernetes job resources stopped successfully", "job_name", jobName, "namespace", c.namespace)
 	return nil

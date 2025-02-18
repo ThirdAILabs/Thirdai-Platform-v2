@@ -69,10 +69,10 @@ jobs:
         python -m venv ${{ github.workspace }}/venv
         source venv/bin/activate
         pip install -r thirdai_platform_py/requirements.txt
-    
+
     - name: Update openssl
       run: |
-        sudo pip install --upgrade cryptography pyopenssl
+        pip install --upgrade --force-reinstall cryptography pyopenssl
         sudo apt-get install --only-upgrade openssl
 
     - name: Install PostgreSQL client version 17.x
@@ -202,6 +202,11 @@ jobs:
         cat vault.log
         
         bash local_setup/fetch_nomad_logs.sh
+    
+    - name: Display nomad job stdout/stderr
+      if: always()
+      run: |
+        sudo find /opt/nomad/data/alloc -type f \( -name "backend.stderr.0" -o -name "backend.stdout.0" \) -exec echo "==== {} ====" \; -exec cat {} \;
 
     - name: Stop Services
       if: always()

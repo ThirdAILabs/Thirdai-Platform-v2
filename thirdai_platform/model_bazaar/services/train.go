@@ -80,14 +80,16 @@ func (s *TrainService) Routes() chi.Router {
 }
 
 type basicTrainArgs struct {
-	modelName    string
-	modelType    string
-	baseModelId  *uuid.UUID
-	modelOptions interface{}
-	data         interface{}
-	trainOptions interface{}
-	jobOptions   config.JobOptions
-	retraining   bool
+	modelName             string
+	modelType             string
+	baseModelId           *uuid.UUID
+	modelOptions          interface{}
+	data                  interface{}
+	trainOptions          interface{}
+	llmConfig             *config.LLMConfig
+	jobOptions            config.JobOptions
+	retraining            bool
+	generativeSupervision bool
 }
 
 type trainResponse struct {
@@ -119,19 +121,21 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 	}
 
 	trainConfig := config.TrainConfig{
-		ModelBazaarDir:      s.storage.Location(),
-		LicenseKey:          license,
-		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
-		JobAuthToken:        jobToken,
-		ModelId:             model.Id,
-		ModelType:           args.modelType,
-		BaseModelId:         args.baseModelId,
-		UserId:              user.Id,
-		ModelOptions:        args.modelOptions,
-		Data:                args.data,
-		TrainOptions:        args.trainOptions,
-		JobOptions:          args.jobOptions,
-		IsRetraining:        args.retraining,
+		ModelBazaarDir:        s.storage.Location(),
+		LicenseKey:            license,
+		ModelBazaarEndpoint:   s.variables.ModelBazaarEndpoint,
+		JobAuthToken:          jobToken,
+		ModelId:               model.Id,
+		ModelType:             args.modelType,
+		BaseModelId:           args.baseModelId,
+		UserId:                user.Id,
+		ModelOptions:          args.modelOptions,
+		Data:                  args.data,
+		TrainOptions:          args.trainOptions,
+		JobOptions:            args.jobOptions,
+		IsRetraining:          args.retraining,
+		GenerativeSupervision: args.generativeSupervision,
+		LLMConfig:             args.llmConfig,
 	}
 
 	configPath, err := saveConfig(trainConfig.ModelId, "train", trainConfig, s.storage)

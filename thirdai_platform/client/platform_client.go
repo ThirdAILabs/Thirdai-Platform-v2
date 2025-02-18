@@ -151,10 +151,14 @@ func (c *PlatformClient) uploadFiles(files []FileInfo, subDir string) ([]config.
 }
 
 func (c *PlatformClient) TrainNdb(name string, unsupervised []FileInfo, supervised []FileInfo, jobOptions config.JobOptions) (*NdbClient, error) {
-	return c.TrainNdbWithBaseModel(name, nil, unsupervised, supervised, jobOptions)
+	return c.TrainNdbWithBaseModel(name, nil, unsupervised, supervised, jobOptions, false, nil)
 }
 
-func (c *PlatformClient) TrainNdbWithBaseModel(name string, baseModel *NdbClient, unsupervised []FileInfo, supervised []FileInfo, jobOptions config.JobOptions) (*NdbClient, error) {
+func (c *PlatformClient) TrainNdbWithGenerativeSupervision(name string, unsupervised []FileInfo, supervised []FileInfo, jobOptions config.JobOptions, llmConfig *config.LLMConfig) (*NdbClient, error) {
+	return c.TrainNdbWithBaseModel(name, nil, unsupervised, supervised, jobOptions, true, llmConfig)
+}
+
+func (c *PlatformClient) TrainNdbWithBaseModel(name string, baseModel *NdbClient, unsupervised []FileInfo, supervised []FileInfo, jobOptions config.JobOptions, generativeSupervision bool, llmConfig *config.LLMConfig) (*NdbClient, error) {
 	unsupervisedFiles, err := c.uploadFiles(unsupervised, "")
 	if err != nil {
 		return nil, fmt.Errorf("error uploading unsupervised files for training: %w", err)
@@ -182,7 +186,9 @@ func (c *PlatformClient) TrainNdbWithBaseModel(name string, baseModel *NdbClient
 			UnsupervisedFiles: unsupervisedFiles,
 			SupervisedFiles:   supervisedFiles,
 		},
-		JobOptions: jobOptions,
+		JobOptions:            jobOptions,
+		LLMConfig:             llmConfig,
+		GenerativeSupervision: generativeSupervision,
 	}
 
 	var res newModelResponse

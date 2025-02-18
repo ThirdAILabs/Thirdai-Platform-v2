@@ -1,6 +1,6 @@
 // app/endpoints/generate-data-sentence-classification/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import OpenAI from 'openai/index.mjs';
 
 const openai = new OpenAI({
   apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,

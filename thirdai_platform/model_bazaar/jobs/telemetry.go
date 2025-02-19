@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"thirdai_platform/model_bazaar/orchestrator"
+	"thirdai_platform/model_bazaar/orchestrator/kubernetes"
 	"thirdai_platform/model_bazaar/storage"
 
 	"gopkg.in/yaml.v3"
@@ -58,6 +59,13 @@ type TelemetryJobArgs struct {
 }
 
 func StartTelemetryJob(orchestratorClient orchestrator.Client, storage storage.Storage, args TelemetryJobArgs) error {
+
+	// TODO: implement telemetry job for Kubernetes client, and remove this if statement
+	if _, ok := orchestratorClient.(*kubernetes.KubernetesClient); ok {
+		slog.Warn("Telemetry job not implemented for Kubernetes, skipping telemetry job")
+		return nil
+	}
+
 	slog.Info("starting telemetry job")
 
 	err := createPromFile(storage, args.ModelBazaarEndpoint, args.IsLocal)

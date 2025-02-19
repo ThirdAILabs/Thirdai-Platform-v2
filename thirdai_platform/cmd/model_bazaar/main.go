@@ -282,7 +282,7 @@ func main() {
 	skipAll := flag.Bool("skip_all", false, "If specified will not restart llm-cache, llm-dispatch, and telemetry jobs.")
 	skipCache := flag.Bool("skip_cache", false, "If specified will not restart llm-cache job.")
 	skipDispatch := flag.Bool("skip_dispatch", false, "If specified will not restart llm-dispatch job.")
-	skipTelemetry := flag.Bool("skip_telemetry", true, "If specified will not restart telemetry job.")
+	skipTelemetry := flag.Bool("skip_telemetry", false, "If specified will not restart telemetry job.")
 
 	port := flag.Int("port", 8000, "Port to run server on")
 
@@ -439,9 +439,8 @@ func main() {
 
 	r := chi.NewRouter()
 
-	// Allow everything (ALL origins, methods, headers)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},                                       // Allow all origins
+		AllowedOrigins:   []string{env.IngressHostname},                       // Allow public ingress origin
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}, // Allow all HTTP methods
 		AllowedHeaders:   []string{"*"},                                       // Allow all headers
 		ExposedHeaders:   []string{"*"},                                       // Expose all headers

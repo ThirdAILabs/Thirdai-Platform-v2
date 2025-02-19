@@ -2399,7 +2399,6 @@ export interface User {
   teams: Team[];
   role_signature: string;
 }
-<<<<<<< Updated upstream
 interface APIUserResponse {
   id: string;
   username: string;
@@ -2410,17 +2409,13 @@ interface APIUserResponse {
     team_name: string;
     team_admin: boolean;
   }[];
+  role_signature: string;
 }
 export async function accessTokenUser(accessToken: string | null) {
-=======
-
-export async function accessTokenUser(accessToken: string | null): Promise<User | null> {
->>>>>>> Stashed changes
   if (accessToken === null) {
     return null;
   }
 
-<<<<<<< Updated upstream
   try {
     const response = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/user/info`, {
       method: 'GET',
@@ -2445,35 +2440,29 @@ export async function accessTokenUser(accessToken: string | null): Promise<User 
         team_name: team.team_name,
         team_admin: team.team_admin,
       })),
+      role_signature: data.role_signature
     };
-    return transformedData;
-  } catch (error) {
-    console.error('Error fetching user info:', error);
-=======
-  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
-  try {
-    const response = await axios.get(`${thirdaiPlatformBaseUrl}/api/user/info`);
-    const userInfo = response.data.data as User;
 
     const expectedPayload = {
-      global_admin: userInfo.global_admin,
-      teams: userInfo.teams,
+      global_admin: data.admin,
+      teams: data.teams.map((team) => ({
+        team_id: team.team_id,
+        team_name: team.team_name,
+        team_admin: team.team_admin,
+      })),
     };
 
     // Await the asynchronous verification.
-    const isValid = await verifyRoleSignature(expectedPayload, userInfo.role_signature);
+    const isValid = await verifyRoleSignature(expectedPayload, data.role_signature);
     if (!isValid) {
       console.error("Role signature verification failed");
       alert("Authorization failed. Please try again.");
       return null;
     }
     
-
-    return userInfo;
+    return transformedData;
   } catch (error) {
-    console.error("Error fetching access token user:", error);
->>>>>>> Stashed changes
+    console.error('Error fetching user info:', error);
     return null;
   }
 }

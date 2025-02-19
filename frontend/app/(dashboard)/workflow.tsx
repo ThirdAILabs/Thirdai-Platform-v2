@@ -299,7 +299,7 @@ export function WorkFlow({
     fetchStatuses();
     const intervalId = setInterval(fetchStatuses, 2000);
     return () => clearInterval(intervalId);
-  }, [workflow.Username, workflow.model_name]);
+  }, [workflow.username, workflow.model_name]);
 
   const copyContentToClipboard = () => {
     try {
@@ -483,7 +483,7 @@ export function WorkFlow({
 
                 {(workflow.type === 'nlp-token' || workflow.type === 'nlp-text') && (
                   <Link
-                    href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.Username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
+                    href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
                   >
                     <DropdownMenuItem>
                       <Tooltip

@@ -1,6 +1,8 @@
 FROM golang:1.23 AS build-stage
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y libssl-dev
+
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 

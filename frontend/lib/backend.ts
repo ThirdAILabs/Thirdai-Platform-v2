@@ -16,7 +16,14 @@ export function getAccessToken(redirectToLogin: boolean = true): string | null {
 
   if (!accessToken && redirectToLogin) {
     // Redirect to login page
-    window.location.href = '/login-email';
+    if (
+          process.env.NEXT_PUBLIC_IDENTITY_PROVIDER &&
+          process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes('keycloak')
+        ) {
+          window.location.href = '/login-keycloak';
+        } else {
+          window.location.href = '/login-email';
+        }
     return null;
   }
 
@@ -1257,7 +1264,7 @@ export async function SyncKeycloakUser(
   setAccessToken: (token: string | null | undefined) => void
 ): Promise<any> {
   try {
-    const response = await fetch(`${thirdaiPlatformBaseUrl}/api/user/keycloak-user-sync`, {
+    const response = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/user/login-with-token`, {
       method: 'POST',
       headers: {
         contentType: 'application/json',

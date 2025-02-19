@@ -9,7 +9,6 @@ import (
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/utils"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
@@ -367,17 +366,11 @@ func convertToUserInfo(user *schema.User) (UserInfo, error) {
 		})
 	}
 
-	// Create role payload for signing
 	rolePayload := RolePayload{
 		Admin: user.IsAdmin,
 		Teams: teams,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)), // Token expires in 1 hour
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
 	}
 
-	// Generate role signature (JWT)
 	roleSignature, err := SignRolePayload(rolePayload)
 	if err != nil {
 		slog.Error("Error signing role payload", "error", err.Error())

@@ -23,6 +23,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -104,7 +105,7 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 			Process: func(doc string) error {
 				slog.Info("processing job YAML document", "namespace", c.namespace)
 				var jobObj batchv1.Job
-				if err := yaml.Unmarshal([]byte(doc), &jobObj); err != nil {
+				if err := k8syaml.Unmarshal([]byte(doc), &jobObj); err != nil {
 					return fmt.Errorf("error unmarshaling job YAML: %w", err)
 				}
 				slog.Info("job YAML unmarshaled", "job_name", jobObj.Name)
@@ -143,7 +144,7 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 			Process: func(doc string) error {
 				slog.Info("processing deployment YAML document", "namespace", c.namespace)
 				var deployment appsv1.Deployment
-				if err := yaml.Unmarshal([]byte(doc), &deployment); err != nil {
+				if err := k8syaml.Unmarshal([]byte(doc), &deployment); err != nil {
 					return fmt.Errorf("error unmarshaling deployment YAML: %w", err)
 				}
 				slog.Info("deployment YAML unmarshaled", "deployment_name", deployment.Name)
@@ -178,7 +179,7 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 			Process: func(doc string) error {
 				slog.Info("processing service YAML document", "namespace", c.namespace)
 				var service corev1.Service
-				if err := yaml.Unmarshal([]byte(doc), &service); err != nil {
+				if err := k8syaml.Unmarshal([]byte(doc), &service); err != nil {
 					return fmt.Errorf("error unmarshaling service YAML: %w", err)
 				}
 				slog.Info("service YAML unmarshaled", "service_name", service.Name)
@@ -213,7 +214,7 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 			Process: func(doc string) error {
 				slog.Info("processing ingress YAML document", "namespace", c.namespace)
 				var ingress networkingv1.Ingress
-				if err := yaml.Unmarshal([]byte(doc), &ingress); err != nil {
+				if err := k8syaml.Unmarshal([]byte(doc), &ingress); err != nil {
 					return fmt.Errorf("error unmarshaling ingress YAML: %w", err)
 				}
 				slog.Info("ingress YAML unmarshaled", "ingress_name", ingress.Name)
@@ -248,7 +249,7 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 			Process: func(doc string) error {
 				slog.Info("Processing HPA YAML document", "namespace", c.namespace)
 				var hpa v2.HorizontalPodAutoscaler
-				if err := yaml.Unmarshal([]byte(doc), &hpa); err != nil {
+				if err := k8syaml.Unmarshal([]byte(doc), &hpa); err != nil {
 					return fmt.Errorf("error unmarshaling HPA YAML: %w", err)
 				}
 				slog.Info("HPA YAML unmarshaled", "hpa_name", hpa.Name)
@@ -363,18 +364,17 @@ func (c *KubernetesClient) StopJob(jobName string) error {
 	var errs []error
 	ctx := context.TODO()
 
-	// Delete deployment with suffix "-deployment"
-	deploymentName := jobName + "-deployment"
-	slog.Info("attempting to delete deployment", "deployment_name", deploymentName, "namespace", c.namespace)
-	if err := c.clientset.AppsV1().Deployments(c.namespace).Delete(ctx, deploymentName, metav1.DeleteOptions{}); err != nil {
+	// Delete deployment (assumed to use the jobName)
+	slog.Info("attempting to delete deployment", "deployment_name", jobName, "namespace", c.namespace)
+	if err := c.clientset.AppsV1().Deployments(c.namespace).Delete(ctx, jobName, metav1.DeleteOptions{}); err != nil {
 		if apierrors.IsNotFound(err) {
-			slog.Info("deployment not found, skipping deletion", "deployment_name", deploymentName)
+			slog.Info("deployment not found, skipping deletion", "deployment_name", jobName)
 		} else {
-			slog.Error("error stopping deployment", "deployment_name", deploymentName, "error", err)
+			slog.Error("error stopping deployment", "deployment_name", jobName, "error", err)
 			errs = append(errs, fmt.Errorf("deployment: %w", err))
 		}
 	} else {
-		slog.Info("deployment deleted successfully", "deployment_name", deploymentName)
+		slog.Info("deployment deleted successfully", "deployment_name", jobName)
 	}
 
 	// Delete service (assumed to use the jobName)

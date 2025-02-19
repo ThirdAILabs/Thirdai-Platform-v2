@@ -440,7 +440,6 @@ func (auth *KeycloakIdentityProvider) LoginWithEmail(email, password string) (Lo
 }
 
 func (auth *KeycloakIdentityProvider) LoginWithToken(accessToken string) (LoginResult, error) {
-	slog.Info("LoginWithToken called", "accessToken", accessToken)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -450,7 +449,6 @@ func (auth *KeycloakIdentityProvider) LoginWithToken(accessToken string) (LoginR
 		slog.Error("failed to get user info from keycloak", "error", err)
 		return LoginResult{}, fmt.Errorf("failed to authenticate user with keycloak: %w", err)
 	}
-	slog.Info("userInfo retrieved from keycloak", "userInfo", userInfo)
 
 	if userInfo.Sub == nil || userInfo.Email == nil || userInfo.PreferredUsername == nil {
 		slog.Error("invalid user info from keycloak, missing required fields", "userInfo", userInfo)
@@ -462,22 +460,18 @@ func (auth *KeycloakIdentityProvider) LoginWithToken(accessToken string) (LoginR
 		slog.Error("invalid uuid returned from keycloak", "uuid", *userInfo.Sub, "error", err)
 		return LoginResult{}, fmt.Errorf("invalid uuid '%v' returned from keycloak: %w", *userInfo.Sub, err)
 	}
-	slog.Info("parsed userId from keycloak userInfo", "userId", userId)
 
 	var user schema.User
 
 	err = auth.db.Transaction(func(txn *gorm.DB) error {
-		slog.Info("starting database transaction to find or create user", "email", *userInfo.Email)
 
 		findUserResult := txn.Limit(1).Find(&user, "email = ?", *userInfo.Email)
 		if findUserResult.Error != nil {
 			slog.Error("sql error checking for existing user in keycloak identity provider", "email", *userInfo.Email, "error", findUserResult.Error)
 			return schema.ErrDbAccessFailed
 		}
-		slog.Info("findUserResult", "rowsAffected", findUserResult.RowsAffected)
 
 		if findUserResult.RowsAffected != 1 {
-			slog.Info("user not found, creating new user", "userId", userId, "username", *userInfo.PreferredUsername, "email", *userInfo.Email)
 			user = schema.User{
 				Id:       userId,
 				Username: *userInfo.PreferredUsername,
@@ -490,20 +484,14 @@ func (auth *KeycloakIdentityProvider) LoginWithToken(accessToken string) (LoginR
 				slog.Error("sql error creating new user in keycloak identity provider", "error", createUserResult.Error)
 				return schema.ErrDbAccessFailed
 			}
-			slog.Info("new user created successfully", "user", user)
-		} else {
-			slog.Info("existing user found", "user", user)
 		}
-
 		return nil
 	})
 
 	if err != nil {
-		slog.Error("error logging in user", "error", err)
 		return LoginResult{}, fmt.Errorf("error logging in user: %w", err)
 	}
 
-	slog.Info("user logged in successfully", "userId", user.Id, "accessToken", accessToken)
 	return LoginResult{UserId: user.Id, AccessToken: accessToken}, nil
 }
 

@@ -122,47 +122,6 @@ type ModelInfo struct {
 	Dependencies []ModelDependency `json:"dependencies"`
 }
 
-// func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
-// 	trainStatus, _, err := getModelStatus(model, db, true)
-// 	if err != nil {
-// 		return ModelInfo{}, fmt.Errorf("error retrieving model train status: %w", err)
-// 	}
-// 	deployStatus, _, err := getModelStatus(model, db, false)
-// 	if err != nil {
-// 		return ModelInfo{}, fmt.Errorf("error retrieving model deploy status: %w", err)
-// 	}
-
-// 	attributes := make(map[string]string, len(model.Attributes))
-// 	for _, attr := range model.Attributes {
-// 		attributes[attr.Key] = attr.Value
-// 	}
-
-// 	deps := make([]ModelDependency, 0, len(model.Dependencies))
-// 	for _, dep := range model.Dependencies {
-// 		deps = append(deps, ModelDependency{
-// 			ModelId:   dep.DependencyId,
-// 			ModelName: dep.Dependency.Name,
-// 			Type:      dep.Dependency.Type,
-// 			Username:  dep.Dependency.User.Username,
-// 		})
-// 	}
-
-// 	return ModelInfo{
-// 		ModelId:      model.Id,
-// 		ModelName:    model.Name,
-// 		Type:         model.Type,
-// 		Access:       model.Access,
-// 		TrainStatus:  trainStatus,
-// 		DeployStatus: deployStatus,
-// 		PublishDate:  model.PublishedDate.String(),
-// 		UserEmail:    model.User.Email,
-// 		Username:     model.User.Username,
-// 		TeamId:       model.TeamId,
-// 		Attributes:   attributes,
-// 		Dependencies: deps,
-// 	}, nil
-// }
-
 func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 	trainStatus, _, err := getModelStatus(model, db, true)
 	if err != nil {

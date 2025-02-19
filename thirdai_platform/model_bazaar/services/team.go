@@ -280,11 +280,11 @@ func (s *TeamService) RemoveTeamAdmin(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		if err := checkUserTeamExists(txn, userId, teamId); err != nil {
+		if err := checkTeamMember(txn, userId, teamId); err != nil {
 			return err
 		}
 
-		result := txn.Save(&schema.UserTeam{TeamId: teamId, UserId: userId, IsTeamAdmin: false})
+		result := txn.Model(&schema.UserTeam{TeamId: teamId, UserId: userId}).Update("is_team_admin", false)
 		if result.Error != nil {
 			slog.Error("sql error removing user team admin permission", "user_id", userId, "team_id", teamId, "error", result.Error)
 			return CodedError(schema.ErrDbAccessFailed, http.StatusInternalServerError)

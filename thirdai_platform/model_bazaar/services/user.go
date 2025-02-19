@@ -302,9 +302,8 @@ type RolePayload struct {
 	jwt.RegisteredClaims
 }
 
-var privateKey *rsa.PrivateKey
-
-func loadKeys() error {
+func SignRolePayload(payload RolePayload) (string, error) {
+	var privateKey *rsa.PrivateKey
 	privateKeyData := `-----BEGIN PRIVATE KEY-----
 MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDgyAUl9RGfWdeX
 hyo+ByzffCs7XaAf7+PDp3u9s6woYVe4wppauECkBy7+2i6/Iaqw95D+8mSHXDK7
@@ -334,24 +333,13 @@ jvSxHiMtyZAoH4EhTVAjlkAavOQu7vYC0U3QIwHJXme4H7bsSq11i9mrMhOgbJrD
 wsrLbFp5MB71vcT+xNKuEFWuyQ==
 -----END PRIVATE KEY-----`
 
-	if privateKeyData == "" {
-		return fmt.Errorf("missing RSA keys in environment variables")
-	}
-
 	var err error
 	privateKey, err = jwt.ParseRSAPrivateKeyFromPEM([]byte(privateKeyData))
 	if err != nil {
-		return fmt.Errorf("error loading private key: %w", err)
-	}
-
-	return nil
-}
-
-func SignRolePayload(payload RolePayload) (string, error) {
-	if err := loadKeys(); err != nil {
 		slog.Error("Failed to load RSA keys", "error", err.Error())
-		return "", err
+		return "", fmt.Errorf("error loading private key: %w", err)
 	}
+
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, payload)
 	return token.SignedString(privateKey)
 }

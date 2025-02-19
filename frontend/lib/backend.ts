@@ -6,6 +6,8 @@ import _, { get, set } from 'lodash';
 import { useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 
+import { verifyRoleSignature } from './cryptoUtils';
+
 export const thirdaiPlatformBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 export const deploymentBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -2395,7 +2397,9 @@ export interface User {
   email: string;
   global_admin: boolean;
   teams: Team[];
+  role_signature: string;
 }
+<<<<<<< Updated upstream
 interface APIUserResponse {
   id: string;
   username: string;
@@ -2408,10 +2412,15 @@ interface APIUserResponse {
   }[];
 }
 export async function accessTokenUser(accessToken: string | null) {
+=======
+
+export async function accessTokenUser(accessToken: string | null): Promise<User | null> {
+>>>>>>> Stashed changes
   if (accessToken === null) {
     return null;
   }
 
+<<<<<<< Updated upstream
   try {
     const response = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/user/info`, {
       method: 'GET',
@@ -2440,6 +2449,31 @@ export async function accessTokenUser(accessToken: string | null) {
     return transformedData;
   } catch (error) {
     console.error('Error fetching user info:', error);
+=======
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  try {
+    const response = await axios.get(`${thirdaiPlatformBaseUrl}/api/user/info`);
+    const userInfo = response.data.data as User;
+
+    const expectedPayload = {
+      global_admin: userInfo.global_admin,
+      teams: userInfo.teams,
+    };
+
+    // Await the asynchronous verification.
+    const isValid = await verifyRoleSignature(expectedPayload, userInfo.role_signature);
+    if (!isValid) {
+      console.error("Role signature verification failed");
+      alert("Authorization failed. Please try again.");
+      return null;
+    }
+    
+
+    return userInfo;
+  } catch (error) {
+    console.error("Error fetching access token user:", error);
+>>>>>>> Stashed changes
     return null;
   }
 }

@@ -144,13 +144,34 @@ func createRealm(client *gocloak.GoCloak, adminToken, realmName string) error {
 	}
 
 	args := gocloak.RealmRepresentation{
-		Realm:                &realmName,
-		Enabled:              boolArg(true),
-		IdentityProviders:    &[]interface{}{},
-		DefaultRoles:         &[]string{"user"},
-		RegistrationAllowed:  boolArg(true),
-		ResetPasswordAllowed: boolArg(true),
-		AccessCodeLifespan:   intArg(1500),
+		Realm:                        &realmName,
+		Enabled:                      boolArg(true),
+		IdentityProviders:            &[]interface{}{},
+		DefaultRoles:                 &[]string{"user"},
+		RegistrationAllowed:          boolArg(true),
+		ResetPasswordAllowed:         boolArg(true),
+		AccessCodeLifespan:           intArg(1500),
+		VerifyEmail:                  boolArg(true), // Require email verification for new users
+		AccessTokenLifespan:          intArg(1500),  // Access token lifespan (in seconds)
+		PasswordPolicy:               strArg("length(8) and digits(1) and lowerCase(1) and upperCase(1) and specialChars(1)"),
+		BruteForceProtected:          boolArg(true),
+		MaxFailureWaitSeconds:        intArg(900),
+		MinimumQuickLoginWaitSeconds: intArg(60),
+		WaitIncrementSeconds:         intArg(60),
+		QuickLoginCheckMilliSeconds:  pArg(int64(1000)),
+		MaxDeltaTimeSeconds:          intArg(43200),
+		FailureFactor:                intArg(30),
+		SMTPServer: &map[string]string{
+			"host":     "smtp.sendgrid.net",
+			"port":     "465",
+			"from":     "platform@thirdai.com",
+			"replyTo":  "platform@thirdai.com",
+			"ssl":      "true",
+			"starttls": "true",
+			"auth":     "true",
+			"user":     "apikey",
+			"password": "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",
+		},
 	}
 
 	if serverInfo.Themes != nil {

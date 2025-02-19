@@ -986,7 +986,7 @@ func (s *ModelService) UpdateAccess(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if !user.IsAdmin {
-				if err := checkUserTeamExists(txn, user.Id, *params.TeamId); err != nil {
+				if err := checkTeamMember(txn, user.Id, *params.TeamId); err != nil {
 					return err
 				}
 			}

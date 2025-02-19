@@ -9,7 +9,7 @@ RUN go mod download && go mod verify
 COPY . .
 
 RUN mkdir -p bin
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/model_bazaar -v ./cmd/model_bazaar/main.go 
+RUN CGO_ENABLED=1 GOOS=linux go build -o bin/model_bazaar -v ./cmd/model_bazaar/main.go 
 
 # Per https://docs.docker.com/guides/golang/build-images/#multi-stage-builds
 FROM gcr.io/distroless/base-debian11 AS build-release-stage

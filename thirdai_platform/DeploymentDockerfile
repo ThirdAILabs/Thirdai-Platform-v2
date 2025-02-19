@@ -1,0 +1,36 @@
+FROM golang:1.23 AS build-stage
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y libssl-dev
+
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
+
+COPY . .
+
+RUN mkdir -p bin
+RUN CGO_ENABLED=1 GOOS=linux go build -o bin/deployment -v ./deployment/cmd/main.go 
+
+# Per https://docs.docker.com/guides/golang/build-images/#multi-stage-builds
+FROM gcr.io/distroless/base-debian11 AS build-release-stage
+WORKDIR /app
+
+# Copy the deployment binary
+COPY --from=build-stage /app/bin/deployment .
+
+# Expose the port
+EXPOSE 8000
+
+# required environment variables for running the deployment
+ENV CONFIG_PATH=
+ENV JOB_TOKEN=
+# optional environment variables for running the deployment
+ENV AWS_ACCESS_KEY=
+ENV AWS_ACCESS_SECRET=
+ENV AWS_REGION_NAME=
+ENV AZURE_ACCOUNT_NAME=
+ENV AZURE_ACCOUNT_KEY=
+ENV GCP_CREDENTIALS_FILE=
+
+
+CMD ["./deployment"] 

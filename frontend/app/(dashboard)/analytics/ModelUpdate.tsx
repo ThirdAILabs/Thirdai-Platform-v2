@@ -20,6 +20,7 @@ interface ModelUpdateProps {
   deploymentUrl: string;
   workflowNames: string[];
   deployStatus: string;
+  modelId: string;
 }
 
 export default function ModelUpdate({
@@ -28,6 +29,7 @@ export default function ModelUpdate({
   deploymentUrl,
   workflowNames,
   deployStatus,
+  modelId,
 }: ModelUpdateProps) {
   // States for CSV upload
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -92,7 +94,7 @@ export default function ModelUpdate({
       try {
         setIsLoadingReport(true);
         setReportError('');
-        const response = await getTrainReport(`${username}/${modelName}`);
+        const response = await getTrainReport(modelId);
         setTrainReport(response.data);
       } catch (error) {
         setReportError(error instanceof Error ? error.message : 'Failed to fetch training report');
@@ -274,14 +276,14 @@ export default function ModelUpdate({
     setPollingError('');
     setPollingSuccess(false);
     setPollingButtonDisabled(true);
-
+    getTrainReport(modelId); //Dummy call to getTrainReport
     try {
       const response = await retrainTokenClassifier({
         model_name: pollingModelName, // Use custom name for new model
-        base_model_identifier: `${username}/${modelName}`, // Trigger new model creation
+        base_model_id: modelId,
       });
-
-      if (response.status === 'success') {
+      console.log('Response from retrainTokenClassifier:', response);
+      if (response?.model_id) {
         setPollingSuccess(true);
       } else {
         throw new Error(response.message || 'Failed to initiate update');
@@ -441,7 +443,7 @@ export default function ModelUpdate({
                 accept=".csv"
                 onChange={handleFileInput}
               />
-              <Upload className="mx-auto mb-2 text-gray-400" size={24} />
+              <Upload className="mx-auto mb-2 text-gray-400" size={24} aria-multiselectable />
               {selectedFile ? (
                 <p className="text-green-600">Selected: {selectedFile.name}</p>
               ) : (

@@ -4,11 +4,10 @@ import { Input } from '@/components/ui/input';
 import { retrainTokenClassifier } from '@/lib/backend';
 
 interface RetrainButtonProps {
-  modelName: string;
-  username: string;
+  modelId: string;
 }
 
-export default function RetrainButton({ modelName, username }: RetrainButtonProps) {
+export default function RetrainButton({ modelId }: RetrainButtonProps) {
   const [newModelName, setNewModelName] = useState('');
   const [isRetraining, setIsRetraining] = useState(false);
   const [retrainError, setRetrainError] = useState('');
@@ -25,7 +24,7 @@ export default function RetrainButton({ modelName, username }: RetrainButtonProp
     try {
       await retrainTokenClassifier({
         model_name: newModelName,
-        base_model_identifier: `${username}/${modelName}`,
+        base_model_id: modelId,
       });
       console.log('New model created successfully');
       setNewModelName(''); // Clear the input after successful creation

@@ -180,10 +180,10 @@ const SyntheticClassification = ({
 
       const modelResponse = await trainSentenceClassifier(modelName, question, apiCategories);
 
-      console.log('Created text classification model:', modelResponse.data.model_id);
+      console.log('Created text classification model:', modelResponse.model_id);
 
       if (onModelCreated) {
-        onModelCreated(modelResponse.data.model_id);
+        onModelCreated(modelResponse.model_id);
       }
 
       if (!stayOnPage) {

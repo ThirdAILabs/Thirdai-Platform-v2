@@ -257,7 +257,7 @@ const SemanticSearchQuestions = ({
 
       // Step 1: Create the model
       const modelResponse = await train_ndb({ name: modelName, formData });
-      modelId = modelResponse.data.model_id;
+      modelId = modelResponse.model_id;
 
       // This is called from RAG
       if (onCreateModel) {

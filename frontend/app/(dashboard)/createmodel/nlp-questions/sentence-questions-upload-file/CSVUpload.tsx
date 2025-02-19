@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { Box, Button, Typography, Alert, CircularProgress, Paper } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import { trainTextClassifierWithCSV, validateSentenceClassifierCSV } from '@/lib/backend';
+import {
+  trainNLPTextModel,
+  trainTextClassifierWithCSV,
+  uploadDocument,
+  validateCSV,
+} from '@/lib/backend';
 import LabelConfirmationDialog from './LabelConfirmationDialog';
 
 interface CSVUploadProps {
@@ -17,21 +22,36 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
   const [success, setSuccess] = useState(false);
   const [detectedLabels, setDetectedLabels] = useState<string[]>([]);
   const [showConfirmation, setShowConfirmation] = useState(false);
-
+  const [uploadId, setUploadId] = useState('');
   const validateAndProcessFile = async (file: File) => {
     try {
-      const validationResult = await validateSentenceClassifierCSV(file);
+      const { upload_id } = await uploadDocument(file);
 
-      if (!validationResult.valid) {
-        setError(validationResult.message);
+      if (!upload_id) {
+        setError('Error uploading file');
+        setSelectedFile(null);
         return false;
       }
 
-      setDetectedLabels(validationResult.labels || []);
+      setUploadId(upload_id); //set the upload id to the state
+
+      const type = 'text';
+      const { labels } = await validateCSV({ upload_id, type });
+
+      if (labels && labels?.length > 0) {
+        setDetectedLabels(labels);
+        setShowConfirmation(true);
+      } else {
+        setError('No valid token types found in the file');
+        setSelectedFile(null);
+        setUploadId('');
+      }
       setShowConfirmation(true);
       return true;
     } catch (error) {
       setError('Error validating file format');
+      setSelectedFile(null);
+      setUploadId('');
       return false;
     }
   };
@@ -62,18 +82,19 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
     setSuccess(false);
 
     try {
-      const response = await trainTextClassifierWithCSV({
-        modelName: modelName,
-        file: selectedFile,
-        labels: detectedLabels,
-        testSplit: 0.1,
+      const response = await trainNLPTextModel({
+        model_name: modelName,
+        uploadId: uploadId,
+        textColumn: 'source',
+        labelColumn: 'target',
+        nTargetClasses: detectedLabels.length,
       });
 
-      if (response.status === 'success') {
+      if (response?.model_id) {
         setSuccess(true);
         onSuccess?.();
       } else {
-        throw new Error(response.message || 'Failed to train model');
+        throw new Error('Failed to train model');
       }
     } catch (error) {
       const errorMessage =

@@ -258,7 +258,7 @@ const NERQuestions = ({
 
     try {
       const modelResponse = await trainTokenClassifier(modelName, modelGoal, categories);
-      const modelId = modelResponse.data.model_id;
+      const modelId = modelResponse.model_id;
 
       // This is called from RAG
       if (onCreateModel) {

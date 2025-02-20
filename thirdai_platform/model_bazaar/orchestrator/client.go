@@ -36,4 +36,6 @@ type Client interface {
 	TotalCpuUsage() (int, error)
 
 	IngressHostname() string
+
+	GetName() string
 }

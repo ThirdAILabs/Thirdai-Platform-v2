@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-service
+  labels:
+    app: grafana
+spec:
+  selector:
+    app: telemetery
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: victorialogs-service
+  labels:
+    app: victorialogs
+spec:
+  selector:
+    app: victoria-metrics-logs
+  ports:
+    - name: http
+      port: 9428
+      targetPort: 9428
+
+  

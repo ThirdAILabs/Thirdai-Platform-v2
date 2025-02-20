@@ -400,11 +400,6 @@ func main() {
 	}
 
 	if !*skipAll && !*skipTelemetry {
-		orchestrator := "kubernetes"
-		if env.NomadEndpoint != "" {
-			orchestrator = "nomad"
-		}
-
 		telemetryArgs := jobs.TelemetryJobArgs{
 			IsLocal:             env.BackendImage == "",
 			ModelBazaarEndpoint: env.PrivateModelBazaarEndpoint,
@@ -413,7 +408,6 @@ func main() {
 			AdminUsername:       env.AdminUsername,
 			AdminEmail:          env.AdminEmail,
 			AdminPassword:       env.AdminPassword,
-			Orchestrator:        orchestrator,
 		}
 		err = jobs.StartTelemetryJob(orchestratorClient, sharedStorage, telemetryArgs)
 		if err != nil {

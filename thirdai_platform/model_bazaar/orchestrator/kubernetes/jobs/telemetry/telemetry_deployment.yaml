@@ -23,10 +23,6 @@ spec:
                 "--retentionPeriod=10d",
                 "--httpListenAddr=:8428",
                 "--promscrape.config={{ .NomadMonitoringDir }}/node_discovery/prometheus.yaml",
-                "--http.pathPrefix=/victoriametrics",
-                {{ if .Orchestrator == "nomad" }}
-                "--promscrape.fileSDCheckInterval=5s",
-                {{ end }}
                 ]
           ports: 
             - containerPort: 8428

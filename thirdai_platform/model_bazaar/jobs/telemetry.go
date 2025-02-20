@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"thirdai_platform/model_bazaar/orchestrator"
-	"thirdai_platform/model_bazaar/orchestrator/kubernetes"
 	"thirdai_platform/model_bazaar/storage"
 
 	"gopkg.in/yaml.v3"
@@ -55,17 +54,9 @@ type TelemetryJobArgs struct {
 	AdminUsername string
 	AdminEmail    string
 	AdminPassword string
-	Orchestrator  string
 }
 
 func StartTelemetryJob(orchestratorClient orchestrator.Client, storage storage.Storage, args TelemetryJobArgs) error {
-
-	// TODO: implement telemetry job for Kubernetes client, and remove this if statement
-	if _, ok := orchestratorClient.(*kubernetes.KubernetesClient); ok {
-		slog.Warn("Telemetry job not implemented for Kubernetes, skipping telemetry job")
-		return nil
-	}
-
 	slog.Info("starting telemetry job")
 
 	// create prometheus config file
@@ -82,20 +73,20 @@ func StartTelemetryJob(orchestratorClient orchestrator.Client, storage storage.S
 	}
 
 	//create grafana provisioning configs
-	err = createGrafanaProvisionings(storage, args.IsLocal, args.Orchestrator, args.ModelBazaarEndpoint)
+	err = createGrafanaProvisionings(storage, args.IsLocal, orchestratorClient.GetName(), args.ModelBazaarEndpoint)
 	if err != nil {
 		return fmt.Errorf("error creating grafana provisioning: %w", err)
 	}
 
 	// create vector config file
-	err = createVectorConfig(storage)
+	err = createVectorConfig(storage, orchestratorClient.IngressHostname())
 	if err != nil {
 		return fmt.Errorf("error creating vector config file: %w", err)
 	}
 
 	job := orchestrator.TelemetryJob{
 		IsLocal:            args.IsLocal,
-		NomadMonitoringDir: "/model_bazaar/nomad-monitoring",
+		NomadMonitoringDir: filepath.Join(storage.Location(), "nomad-monitoring"),
 		AdminUsername:      args.AdminUsername,
 		AdminEmail:         args.AdminEmail,
 		AdminPassword:      args.AdminPassword,
@@ -133,7 +124,7 @@ type targetList struct {
 	Labels  map[string]string
 }
 
-func createPromFile(orchestrator string, storage storage.Storage, modelBazaarEndpoint string, isLocal bool) error {
+func createPromFile(orchestratorName string, storage storage.Storage, modelBazaarEndpoint string, isLocal bool) error {
 	serverNodeFile := filepath.Join("nomad-monitoring", "nomad_nodes", "server.yaml")
 
 	if isLocal {
@@ -153,7 +144,7 @@ func createPromFile(orchestrator string, storage storage.Storage, modelBazaarEnd
 		}
 	}
 
-	promfile, err := yaml.Marshal(prometheusConfig(orchestrator, modelBazaarEndpoint, isLocal))
+	promfile, err := yaml.Marshal(prometheusConfig(orchestratorName, modelBazaarEndpoint, isLocal))
 	if err != nil {
 		return fmt.Errorf("error creating promfile: %w", err)
 	}
@@ -169,19 +160,19 @@ func createPromFile(orchestrator string, storage storage.Storage, modelBazaarEnd
 	return nil
 }
 
-func getDeploymentTargetsEndpoint(modelBazaarEndpoint string, isLocal bool) string {
-	if isLocal {
+func getDeploymentTargetsEndpoint(modelBazaarEndpoint string, isLocal bool, orchestratorName string) string {
+	if isLocal && orchestratorName == "nomad" {
 		return "http://host.docker.internal:80/api/v2/telemetry/deployment-services"
 	} else {
 		return strings.TrimSuffix(modelBazaarEndpoint, "/") + "/api/v2/telemetry/deployment-services"
 	}
 }
 
-func prometheusConfig(orchestrator string, modelBazaarEndpoint string, isLocal bool) map[string]interface{} {
-	deploymentTargetsEndpoint := getDeploymentTargetsEndpoint(modelBazaarEndpoint, isLocal)
+func prometheusConfig(orchestratorName string, modelBazaarEndpoint string, isLocal bool) map[string]interface{} {
+	deploymentTargetsEndpoint := getDeploymentTargetsEndpoint(modelBazaarEndpoint, isLocal, orchestratorName)
 
 	var orchestratorEntry map[string]interface{}
-	if orchestrator == "nomad" {
+	if orchestratorName == "nomad" {
 		orchestratorEntry = map[string]interface{}{
 			"job_name":     "nomad-agent",
 			"metrics_path": "/v1/metrics?format=prometheus",
@@ -268,7 +259,7 @@ func prometheusConfig(orchestrator string, modelBazaarEndpoint string, isLocal b
 	}
 }
 
-func createVectorConfig(storage storage.Storage) error {
+func createVectorConfig(storage storage.Storage, modelBazaarEndpoint string) error {
 	config := map[string]interface{}{
 		// the checkpoints for different logs will be stored in this directory
 		"data_dir": "/model_bazaar/logs",
@@ -319,7 +310,7 @@ func createVectorConfig(storage storage.Storage) error {
 				"inputs": []string{
 					"filter_debug_logs",
 				},
-				"uri": "http://victorialogs-service/insert/jsonline?_stream_fields=model_id,service_type&_msg_field=_msg&_time_field=_time&extra_fields=retention=48h",
+				"uri": strings.TrimSuffix(modelBazaarEndpoint, "/") + "/victorialogs/insert/jsonline?_stream_fields=model_id,service_type&_msg_field=_msg&_time_field=_time&extra_fields=retention=48h",
 				"encoding": map[string]interface{}{
 					"codec": "json",
 				},
@@ -340,7 +331,7 @@ func createVectorConfig(storage storage.Storage) error {
 				"inputs": []string{
 					"filter_non_debug_logs",
 				},
-				"uri": "http://victorialogs-service/insert/jsonline?_stream_fields=model_id,service_type&_msg_field=_msg&_time_field=_time&extra_fields=retention=30d",
+				"uri": strings.TrimSuffix(modelBazaarEndpoint, "/") + "/victorialogs/insert/jsonline?_stream_fields=model_id,service_type&_msg_field=_msg&_time_field=_time&extra_fields=retention=30d",
 				"encoding": map[string]interface{}{
 					"codec": "json",
 				},
@@ -375,7 +366,7 @@ func createVectorConfig(storage storage.Storage) error {
 	return nil
 }
 
-func createGrafanaProvisionings(storage storage.Storage, isLocal bool, orchestrator string, modelBazaarPrivateHost string) error {
+func createGrafanaProvisionings(storage storage.Storage, isLocal bool, orchestratorName string, modelBazaarEndpoint string) error {
 	// Create grafana dashboard config
 	dashboardConfig := map[string]interface{}{
 		"apiversions": "1",
@@ -408,10 +399,10 @@ func createGrafanaProvisionings(storage storage.Storage, isLocal bool, orchestra
 
 	// Create grafana datasource config
 	var url string
-	if isLocal && orchestrator == "nomad" {
+	if isLocal && orchestratorName == "nomad" {
 		url = "http://host.docker.internal/victoriametrics"
 	} else {
-		url = "http://" + modelBazaarPrivateHost + "/victoriametrics"
+		url = strings.TrimSuffix(modelBazaarEndpoint, "/") + "/victoriametrics"
 	}
 	datasourceConfig := map[string]interface{}{
 		"apiVersion": 1,

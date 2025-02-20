@@ -234,5 +234,5 @@ func (j SnapshotJob) GetJobName() string {
 }
 
 func (j SnapshotJob) JobTemplatePath() string {
-	return "snapshot.hcl.tmpl"
+	return "snapshot"
 }

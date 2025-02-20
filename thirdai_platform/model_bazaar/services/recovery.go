@@ -11,6 +11,7 @@ import (
 	"strings"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/orchestrator"
+	"thirdai_platform/model_bazaar/orchestrator/kubernetes"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/model_bazaar/utils"
 
@@ -112,6 +113,14 @@ type BackupRequest struct {
 }
 
 func (s *RecoveryService) Backup(w http.ResponseWriter, r *http.Request) {
+
+	// TODO: implement backup job for Kubernetes client, and remove this if statement
+	if _, ok := s.orchestratorClient.(*kubernetes.KubernetesClient); ok {
+		slog.Warn("Backup job not implemented for Kubernetes")
+		http.Error(w, "backup job not implemented in kubernetes environment", http.StatusNotImplemented)
+		return
+	}
+
 	var params BackupRequest
 	if !utils.ParseRequestBody(w, r, &params) {
 		return

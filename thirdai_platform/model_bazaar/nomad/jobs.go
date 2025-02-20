@@ -228,3 +228,18 @@ func (j SnapshotJob) GetJobName() string {
 func (j SnapshotJob) TemplateName() string {
 	return "snapshot.hcl.tmpl"
 }
+
+type ParsingJob struct {
+	ModelBazaarEndpoint string
+	ShareDir            string
+
+	Driver Driver
+}
+
+func (j ParsingJob) GetJobName() string {
+	return "parsing"
+}
+
+func (j ParsingJob) TemplateName() string {
+	return "parsing.hcl.tmpl"
+}

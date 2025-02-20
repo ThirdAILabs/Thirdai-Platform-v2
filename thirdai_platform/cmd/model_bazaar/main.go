@@ -377,6 +377,13 @@ func main() {
 		}
 	}
 
+	if !*skipAll && !*skipDispatch {
+		err = jobs.StartParsingJob(nomadClient, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
+		if err != nil {
+			log.Fatalf("failed to start parsing job: %v", err)
+		}
+	}
+
 	if !*skipAll && !*skipTelemetry {
 		telemetryArgs := jobs.TelemetryJobArgs{
 			IsLocal:             env.BackendImage == "",

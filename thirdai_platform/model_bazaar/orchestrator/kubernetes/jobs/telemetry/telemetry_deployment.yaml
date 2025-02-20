@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: telemetery
   labels:
-    app: telemeetry
+    app: telemetry
 spec:
   replicas: 1
   selector:

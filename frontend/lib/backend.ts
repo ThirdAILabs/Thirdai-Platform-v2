@@ -6,6 +6,8 @@ import _, { get, set } from 'lodash';
 import { useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 
+import { verifyRoleSignature } from './cryptoUtils';
+
 export const thirdaiPlatformBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 export const deploymentBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -14,7 +16,14 @@ export function getAccessToken(redirectToLogin: boolean = true): string | null {
 
   if (!accessToken && redirectToLogin) {
     // Redirect to login page
-    window.location.href = '/login-email';
+    if (
+      process.env.NEXT_PUBLIC_IDENTITY_PROVIDER &&
+      process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes('keycloak')
+    ) {
+      window.location.href = '/login-keycloak';
+    } else {
+      window.location.href = '/login-email';
+    }
     return null;
   }
 
@@ -1255,7 +1264,7 @@ export async function SyncKeycloakUser(
   setAccessToken: (token: string | null | undefined) => void
 ): Promise<any> {
   try {
-    const response = await fetch(`${thirdaiPlatformBaseUrl}/api/user/keycloak-user-sync`, {
+    const response = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/user/login-with-token`, {
       method: 'POST',
       headers: {
         contentType: 'application/json',
@@ -2395,6 +2404,7 @@ export interface User {
   email: string;
   global_admin: boolean;
   teams: Team[];
+  role_signature: string;
 }
 interface APIUserResponse {
   id: string;
@@ -2406,6 +2416,7 @@ interface APIUserResponse {
     team_name: string;
     team_admin: boolean;
   }[];
+  role_signature: string;
 }
 export async function accessTokenUser(accessToken: string | null) {
   if (accessToken === null) {
@@ -2436,7 +2447,26 @@ export async function accessTokenUser(accessToken: string | null) {
         team_name: team.team_name,
         team_admin: team.team_admin,
       })),
+      role_signature: data.role_signature,
     };
+
+    const expectedPayload = {
+      global_admin: data.admin,
+      teams: data.teams.map((team) => ({
+        team_id: team.team_id,
+        team_name: team.team_name,
+        team_admin: team.team_admin,
+      })),
+    };
+
+    // Await the asynchronous verification.
+    const isValid = await verifyRoleSignature(expectedPayload, data.role_signature);
+    if (!isValid) {
+      console.error('Role signature verification failed');
+      alert('Authorization failed. Please try again.');
+      return null;
+    }
+
     return transformedData;
   } catch (error) {
     console.error('Error fetching user info:', error);

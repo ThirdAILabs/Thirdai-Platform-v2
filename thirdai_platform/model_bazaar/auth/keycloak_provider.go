@@ -55,8 +55,8 @@ func adminLogin(client *gocloak.GoCloak, adminUsername, adminPassword string) (s
 	return adminToken.AccessToken, nil
 }
 
-func getUserID(ctx context.Context, client *gocloak.GoCloak, adminToken, username string) (*string, error) {
-	users, err := client.GetUsers(ctx, adminToken, "master", gocloak.GetUsersParams{
+func getUserID(ctx context.Context, client *gocloak.GoCloak, adminToken, username, realmName string) (*string, error) {
+	users, err := client.GetUsers(ctx, adminToken, realmName, gocloak.GetUsersParams{
 		Username: &username,
 		Max:      intArg(1),
 		Exact:    boolArg(true),
@@ -70,11 +70,11 @@ func getUserID(ctx context.Context, client *gocloak.GoCloak, adminToken, usernam
 	return nil, nil
 }
 
-func createAdminIfNotExists(client *gocloak.GoCloak, adminToken, username, email, password string) (string, error) {
+func createAdminIfNotExists(client *gocloak.GoCloak, adminToken, username, email, password, realmName string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	existingUserId, err := getUserID(ctx, client, adminToken, username)
+	existingUserId, err := getUserID(ctx, client, adminToken, username, realmName)
 	if err != nil {
 		return "", fmt.Errorf("error checking for existing admin : %w", err)
 	}
@@ -83,7 +83,7 @@ func createAdminIfNotExists(client *gocloak.GoCloak, adminToken, username, email
 		return *existingUserId, nil
 	}
 
-	userId, err := client.CreateUser(ctx, adminToken, "master", gocloak.User{
+	userId, err := client.CreateUser(ctx, adminToken, realmName, gocloak.User{
 		Username:      &username,
 		Email:         &email,
 		Enabled:       boolArg(true),
@@ -99,7 +99,7 @@ func createAdminIfNotExists(client *gocloak.GoCloak, adminToken, username, email
 
 	if err != nil {
 		if isConflict(err) {
-			userId, err := getUserID(ctx, client, adminToken, username)
+			userId, err := getUserID(ctx, client, adminToken, username, realmName)
 			slog.Info("KEYCLOAK: admin user has already been created")
 			if err != nil {
 				return "", fmt.Errorf("error retrieving existing admin after conflict creating admin: %w", err)
@@ -115,7 +115,7 @@ func createAdminIfNotExists(client *gocloak.GoCloak, adminToken, username, email
 	return userId, nil
 }
 
-func assignAdminRole(client *gocloak.GoCloak, adminToken, userId string) error {
+func assignAdminRole(client *gocloak.GoCloak, adminToken, userId, realm string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
@@ -144,13 +144,34 @@ func createRealm(client *gocloak.GoCloak, adminToken, realmName string) error {
 	}
 
 	args := gocloak.RealmRepresentation{
-		Realm:                &realmName,
-		Enabled:              boolArg(true),
-		IdentityProviders:    &[]interface{}{},
-		DefaultRoles:         &[]string{"user"},
-		RegistrationAllowed:  boolArg(true),
-		ResetPasswordAllowed: boolArg(true),
-		AccessCodeLifespan:   intArg(1500),
+		Realm:                        &realmName,
+		Enabled:                      boolArg(true),
+		IdentityProviders:            &[]interface{}{},
+		DefaultRoles:                 &[]string{"user"},
+		RegistrationAllowed:          boolArg(true),
+		ResetPasswordAllowed:         boolArg(true),
+		AccessCodeLifespan:           intArg(1500),
+		VerifyEmail:                  boolArg(true), // Require email verification for new users
+		AccessTokenLifespan:          intArg(1500),  // Access token lifespan (in seconds)
+		PasswordPolicy:               strArg("length(8) and digits(1) and lowerCase(1) and upperCase(1) and specialChars(1)"),
+		BruteForceProtected:          boolArg(true),
+		MaxFailureWaitSeconds:        intArg(900),
+		MinimumQuickLoginWaitSeconds: intArg(60),
+		WaitIncrementSeconds:         intArg(60),
+		QuickLoginCheckMilliSeconds:  pArg(int64(1000)),
+		MaxDeltaTimeSeconds:          intArg(43200),
+		FailureFactor:                intArg(30),
+		SMTPServer: &map[string]string{
+			"host":     "smtp.sendgrid.net",
+			"port":     "465",
+			"from":     "platform@thirdai.com",
+			"replyTo":  "platform@thirdai.com",
+			"ssl":      "true",
+			"starttls": "true",
+			"auth":     "true",
+			"user":     "apikey",
+			"password": "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",
+		},
 	}
 
 	if serverInfo.Themes != nil {
@@ -201,7 +222,7 @@ func createClient(client *gocloak.GoCloak, adminToken, realm string, redirectUrl
 		RedirectURIs:              &redirectUrls,    // URIs where the client will redirect after authentication.
 		RootURL:                   &rootUrl,         // Root URL for the client application.
 		BaseURL:                   strArg("/login"), // Base URL for the client application.
-		DirectAccessGrantsEnabled: boolArg(false),   // Direct grants like password flow are disabled.
+		DirectAccessGrantsEnabled: boolArg(true),    // Direct grants like password flow are disabled.
 		ServiceAccountsEnabled:    boolArg(false),   // Service accounts are disabled.
 		StandardFlowEnabled:       boolArg(true),    // Standard authorization code flow is enabled.
 		ImplicitFlowEnabled:       boolArg(false),   // Implicit flow is disabled.
@@ -271,32 +292,6 @@ func NewKeycloakIdentityProvider(db *gorm.DB, auditLog AuditLogger, args Keycloa
 	}
 	slog.Info("KEYCLOAK: admin login successful")
 
-	userId, err := createAdminIfNotExists(client, adminToken, args.AdminUsername, args.AdminEmail, args.AdminPassword)
-	if err != nil {
-		slog.Error("KEYCLOAK: new admin creation failed", "error", err)
-		return nil, err
-	}
-	slog.Info("KEYCLOAK: new admin creation successful")
-
-	userUUID, err := uuid.Parse(userId)
-	if err != nil {
-		return nil, fmt.Errorf("invalid uuid '%v' returned from keycloak: %w", userId, err)
-	}
-
-	err = addInitialAdminToDb(db, userUUID, args.AdminUsername, args.AdminEmail, nil)
-	if err != nil {
-		slog.Error("KEYCLOAK: adding new admin to db failed", "error", err)
-		return nil, err
-	}
-	slog.Info("KEYCLOAK: adding new admin to db successful")
-
-	err = assignAdminRole(client, adminToken, userId)
-	if err != nil {
-		slog.Error("KEYCLOAK: admin role assignment failed", "error", err)
-		return nil, err
-	}
-	slog.Info("KEYCLOAK: admin role assignment successful")
-
 	err = createRealm(client, adminToken, realm)
 	if err != nil {
 		slog.Error("KEYCLOAK: realm creation failed", "error", err)
@@ -327,6 +322,41 @@ func NewKeycloakIdentityProvider(db *gorm.DB, auditLog AuditLogger, args Keycloa
 		return nil, err
 	}
 	slog.Info("KEYCLOAK: client creation successful")
+
+	// Create new admin user in master realm
+	masterUserId, err := createAdminIfNotExists(client, adminToken, args.AdminUsername, args.AdminEmail, args.AdminPassword, "master")
+	if err != nil {
+		slog.Error("KEYCLOAK: new admin creation failed", "realm", "master", "error", err)
+		return nil, err
+	}
+	slog.Info("KEYCLOAK: new admin creation successful")
+
+	err = assignAdminRole(client, adminToken, masterUserId, "master")
+	if err != nil {
+		slog.Error("KEYCLOAK: admin role assignment failed", "error", err)
+		return nil, err
+	}
+	slog.Info("KEYCLOAK: admin role assignment successful")
+
+	// Create new admin user in platform realm
+	userId, err := createAdminIfNotExists(client, adminToken, args.AdminUsername, args.AdminEmail, args.AdminPassword, realm)
+	if err != nil {
+		slog.Error("KEYCLOAK: new admin creation failed", "realm", realm, "error", err)
+		return nil, err
+	}
+	slog.Info("KEYCLOAK: new admin creation successful")
+
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid uuid '%v' returned from keycloak: %w", userId, err)
+	}
+
+	err = addInitialAdminToDb(db, userUUID, args.AdminUsername, args.AdminEmail, nil)
+	if err != nil {
+		slog.Error("KEYCLOAK: adding new admin to db failed", "error", err)
+		return nil, err
+	}
+	slog.Info("KEYCLOAK: adding new admin to db successful")
 
 	return &KeycloakIdentityProvider{
 		keycloak:      client,
@@ -407,10 +437,10 @@ func (auth *KeycloakIdentityProvider) AllowDirectSignup() bool {
 
 func (auth *KeycloakIdentityProvider) LoginWithEmail(email, password string) (LoginResult, error) {
 	return LoginResult{}, fmt.Errorf("login with email is not supported for this identity provider")
-
 }
 
 func (auth *KeycloakIdentityProvider) LoginWithToken(accessToken string) (LoginResult, error) {
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
@@ -421,20 +451,23 @@ func (auth *KeycloakIdentityProvider) LoginWithToken(accessToken string) (LoginR
 	}
 
 	if userInfo.Sub == nil || userInfo.Email == nil || userInfo.PreferredUsername == nil {
+		slog.Error("invalid user info from keycloak, missing required fields", "userInfo", userInfo)
 		return LoginResult{}, fmt.Errorf("invalid user info from keycloak, missing required fields")
 	}
 
 	userId, err := uuid.Parse(*userInfo.Sub)
 	if err != nil {
+		slog.Error("invalid uuid returned from keycloak", "uuid", *userInfo.Sub, "error", err)
 		return LoginResult{}, fmt.Errorf("invalid uuid '%v' returned from keycloak: %w", *userInfo.Sub, err)
 	}
 
 	var user schema.User
 
 	err = auth.db.Transaction(func(txn *gorm.DB) error {
+
 		findUserResult := txn.Limit(1).Find(&user, "email = ?", *userInfo.Email)
 		if findUserResult.Error != nil {
-			slog.Error("sql error checking for existing user in keycloak identity provider", "email", user.Email, "error", findUserResult.Error)
+			slog.Error("sql error checking for existing user in keycloak identity provider", "email", *userInfo.Email, "error", findUserResult.Error)
 			return schema.ErrDbAccessFailed
 		}
 
@@ -448,11 +481,10 @@ func (auth *KeycloakIdentityProvider) LoginWithToken(accessToken string) (LoginR
 
 			createUserResult := txn.Create(&user)
 			if createUserResult.Error != nil {
-				slog.Error("sql error creating new user in keycloak identify provider", "error", err)
+				slog.Error("sql error creating new user in keycloak identity provider", "error", createUserResult.Error)
 				return schema.ErrDbAccessFailed
 			}
 		}
-
 		return nil
 	})
 

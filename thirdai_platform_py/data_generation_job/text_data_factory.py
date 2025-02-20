@@ -173,6 +173,7 @@ class TextDataFactory(DataFactory):
         }
         save_dict(self.config_file_location, **dataset_config)
         self.logger.info(f"Data generation completed config={dataset_config}")
+        print(f"{self.config_file_location = }", flush=True)
         return dataset_config
 
     def fill_and_transform(self, texts: str, target_label: str):

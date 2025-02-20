@@ -17,7 +17,7 @@ interface ChatbotQuestionsProps {
 enum LlmProvider {
   OpenAI = 'openai',
   OnPrem = 'on-prem',
-  SelfHosted = 'self-host',
+  SelfHosted = 'self-hosted',
 }
 
 const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNames }) => {
@@ -44,7 +44,7 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
 
   useEffect(() => {
     setExistingNERModels(
-      models.filter((model) => model.type === 'udt' && model.sub_type === 'token')
+      models.filter((model) => model.type === 'udt' && model.access === 'token')
     );
   }, [models]);
 
@@ -56,7 +56,7 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
 
   useEffect(() => {
     setExistingNLPClassifierModels(
-      models.filter((model) => model.type === 'udt' && model.sub_type === 'text')
+      models.filter((model) => model.type === 'udt' && model.access === 'text')
     );
   }, [models]);
 
@@ -103,6 +103,7 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
         nlp_classifier_id: nlpClassifierModelId || '',
         llm_provider: '',
         default_mode: 'chat',
+        model_name: '',
       };
 
       switch (llmType) {
@@ -125,12 +126,12 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
       options = Object.fromEntries(
         Object.entries(options).filter(([_, v]) => v !== undefined && v !== '')
       ) as EnterpriseSearchOptions;
-
+      options.model_name = modelName;
       const workflowResponse = await create_enterprise_search_workflow({
         workflow_name: modelName,
         options,
       });
-      console.log('Workflow created:', workflowResponse.data.model_id);
+      console.log('Workflow created:', workflowResponse.model_id);
       router.push('/');
     } catch (error) {
       console.error('Error during workflow creation:', error);

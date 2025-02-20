@@ -1,0 +1,10 @@
+apiVersion: skaffold/v2beta26
+kind: Config
+build:
+  artifacts:
+    - image: thirdai_platform
+      context: ../../thirdai_platform_py/
+      docker:
+        dockerfile: Dockerfile
+  tagPolicy:
+    gitCommit: {}

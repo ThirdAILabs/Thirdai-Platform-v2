@@ -59,7 +59,7 @@ spec:
               memory: "{{ .Resources.AllocationMemoryMax }}Mi"
           volumeMounts:
             - name: shared-modelbazaar
-              mountPath: "/model_bazaar"
+              mountPath: "/opt/model_bazaar"
           {{- end }}
 
           {{- if .IsKE }}
@@ -101,6 +101,11 @@ spec:
       imagePullSecrets:
         - name: docker-credentials-secret
       volumes:
-        - name: shared-modelbazaar
+          {{- if eq .Platform "local" }}
+          hostPath:
+            path: "{{ .ShareDir }}"
+            type: Directory
+          {{- else }}
           persistentVolumeClaim:
             claimName: modelbazaar-efs-pvc
+          {{- end }}

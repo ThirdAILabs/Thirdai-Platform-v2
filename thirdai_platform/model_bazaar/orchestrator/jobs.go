@@ -58,6 +58,8 @@ type TrainJob struct {
 	Driver           Driver
 	Resources        Resources
 	CloudCredentials CloudCredentials
+	ShareDir         string
+	Platform         string
 }
 
 func (j TrainJob) GetJobName() string {
@@ -89,6 +91,9 @@ type DeployJob struct {
 	IsKE     bool
 
 	IngressHostname string
+
+	ShareDir string
+	Platform string
 }
 
 func (j DeployJob) GetJobName() string {
@@ -104,6 +109,8 @@ type DatagenTrainJob struct {
 
 	DatagenConfigPath string
 	GenaiKey          string
+	Platform          string
+	ShareDir          string
 }
 
 func (j DatagenTrainJob) GetJobName() string {
@@ -122,6 +129,7 @@ type LlmCacheJob struct {
 	Driver Driver
 
 	IngressHostname string
+	Platform        string
 }
 
 func (j LlmCacheJob) GetJobName() string {
@@ -139,6 +147,7 @@ type LlmDispatchJob struct {
 	Driver Driver
 
 	IngressHostname string
+	Platform        string
 }
 
 func (j LlmDispatchJob) GetJobName() string {
@@ -163,6 +172,8 @@ type OnPremLlmGenerationJob struct {
 	Resources Resources
 
 	IngressHostname string
+	ShareDir        string
+	Platform        string
 }
 
 func (j OnPremLlmGenerationJob) GetJobName() string {

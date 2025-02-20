@@ -1,0 +1,31 @@
+http:
+  routers:
+    modelbazaar-http:
+      rule: "(PathPrefix(`/api`) && !PathPrefix(`/api/auth`))"
+      priority: 10
+      service: "modelbazaar-service"
+      middlewares:
+        - "limit-request-body-size"
+
+    frontend-http:
+      rule: "(PathPrefix(`/api/auth`) || PathPrefix(`/`))"
+      priority: 1
+      service: "frontend-service"
+
+  services:
+    modelbazaar-service:
+      loadBalancer:
+        servers:
+          - url: "http://localhost:8000"
+
+    frontend-service:
+      loadBalancer:
+        servers:
+          - url: "http://localhost:3006"
+
+  middlewares:
+    limit-request-body-size:
+      buffering:
+        # For reference: https://doc.traefik.io/traefik/v2.0/middlewares/buffering/
+        maxRequestBodyBytes: 524288000 # 500MB in bytes
+        memRequestBodyBytes: 1048576 # 1MB in bytes

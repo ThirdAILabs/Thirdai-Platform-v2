@@ -25,6 +25,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
+	"k8s.io/client-go/tools/clientcmd"
+
 	"thirdai_platform/model_bazaar/orchestrator"
 )
 
@@ -46,11 +48,30 @@ type KubernetesClient struct {
 	ingressHostname string
 }
 
-func NewKubernetesClient(ingressHostname string) orchestrator.Client {
+// NewKubernetesClient creates a Kubernetes client using kubeconfig (if local) or in-cluster config (if deployed)
+func NewKubernetesClient(ingressHostname string) *KubernetesClient {
+	var config *rest.Config
+	var err error
 
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		log.Panicf("error getting in-cluster config: %v", err)
+	platform := os.Getenv("PLATFORM")
+	if platform == "local" {
+		slog.Info("PLATFORM is set to 'local', using kubeconfig...")
+
+		kubeconfigPath := clientcmd.RecommendedHomeFile
+
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+		if err != nil {
+			log.Panicf("error loading kubeconfig from file (%s): %v", kubeconfigPath, err)
+		}
+		slog.Info("Using kubeconfig", "path", kubeconfigPath)
+	} else {
+
+		slog.Info("PLATFORM is not set to 'local', using in-cluster Kubernetes config...")
+
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			log.Panicf("error getting in-cluster config: %v", err)
+		}
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
@@ -58,9 +79,14 @@ func NewKubernetesClient(ingressHostname string) orchestrator.Client {
 		log.Panicf("error creating kubernetes clientset: %v", err)
 	}
 
-	namespace, err := getNamespace()
-	if err != nil {
-		log.Panicf("error creating retrieving kubernetes namespace: %v", err)
+	var namespace string
+	if platform == "local" {
+		namespace = "default"
+	} else {
+		namespace, err = getNamespace()
+		if err != nil {
+			log.Panicf("error retrieving kubernetes namespace: %v", err)
+		}
 	}
 
 	slog.Info("creating kubernetes client", "namespace", namespace)

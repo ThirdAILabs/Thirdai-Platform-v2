@@ -39,6 +39,7 @@ type modelBazaarEnv struct {
 	Kubernetes                 string
 	ShareDir                   string
 	JwtSecret                  string
+	Platform                   string
 
 	AdminUsername string
 	AdminEmail    string
@@ -134,6 +135,7 @@ func loadEnv() modelBazaarEnv {
 
 		ShareDir:  requiredEnv("SHARE_DIR"),
 		JwtSecret: requiredEnv("JWT_SECRET"),
+		Platform:  requiredEnv("PLATFORM"),
 
 		AdminUsername: requiredEnv("ADMIN_USERNAME"),
 		AdminEmail:    requiredEnv("ADMIN_MAIL"),
@@ -345,6 +347,7 @@ func main() {
 		ModelBazaarEndpoint: env.PrivateModelBazaarEndpoint,
 		CloudCredentials:    env.CloudCredentials,
 		LlmProviders:        env.llmProviders(),
+		Platform:            env.Platform,
 	}
 
 	var identityProvider auth.IdentityProvider
@@ -394,7 +397,7 @@ func main() {
 	)
 
 	if !*skipAll && !*skipCache {
-		err = jobs.StartLlmCacheJob(orchestratorClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
+		err = jobs.StartLlmCacheJob(orchestratorClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir, env.Platform)
 		if err != nil {
 			log.Fatalf("failed to start llm cache job: %v", err)
 		}

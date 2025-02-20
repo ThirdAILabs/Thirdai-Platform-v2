@@ -1,0 +1,24 @@
+# frontend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  type: ExternalName
+  externalName: host.minikube.internal
+  ports:
+    - port: 3000
+      targetPort: 3000
+
+---
+# backend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  type: ExternalName
+  externalName: host.minikube.internal
+  ports:
+    - port: 8000
+      targetPort: 8000

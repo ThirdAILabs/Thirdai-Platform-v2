@@ -31,7 +31,7 @@ spec:
             {{- end }}
           volumeMounts:
             - name: shared-modelbazaar
-              mountPath: /model_bazaar
+              mountPath: /opt/model_bazaar
 
       containers:
         - name: backend
@@ -69,10 +69,16 @@ spec:
             {{- end }}
           volumeMounts:
             - name: shared-modelbazaar
-              mountPath: /model_bazaar
+              mountPath: /opt/model_bazaar
       imagePullSecrets:
         - name: docker-credentials-secret
       volumes:
         - name: shared-modelbazaar
+          {{- if eq .Platform "local" }}
+          hostPath:
+            path: "{{ .ShareDir }}"
+            type: Directory
+          {{- else }}
           persistentVolumeClaim:
             claimName: modelbazaar-efs-pvc
+          {{- end }}

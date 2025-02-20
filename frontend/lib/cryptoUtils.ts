@@ -11,7 +11,10 @@ XrWl0t4u2H6EhQPzercfuPcItbZp/N2RJ0lAO+/CQ43Nlzn898R6tsy6ChwdOZCl
 qQIDAQAB
 -----END PUBLIC KEY-----`;
 
-export async function verifyRoleSignature(expectedPayload: object, token: string): Promise<boolean> {
+export async function verifyRoleSignature(
+  expectedPayload: object,
+  token: string
+): Promise<boolean> {
   try {
     const publicKey = await importSPKI(PUBLIC_KEY_PEM, 'RS256');
 
@@ -19,7 +22,7 @@ export async function verifyRoleSignature(expectedPayload: object, token: string
 
     return JSON.stringify(payload) === JSON.stringify(expectedPayload);
   } catch (error) {
-    console.error("JWT verification error:", error);
+    console.error('JWT verification error:', error);
     return false;
   }
 }

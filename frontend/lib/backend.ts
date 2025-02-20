@@ -17,13 +17,13 @@ export function getAccessToken(redirectToLogin: boolean = true): string | null {
   if (!accessToken && redirectToLogin) {
     // Redirect to login page
     if (
-          process.env.NEXT_PUBLIC_IDENTITY_PROVIDER &&
-          process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes('keycloak')
-        ) {
-          window.location.href = '/login-keycloak';
-        } else {
-          window.location.href = '/login-email';
-        }
+      process.env.NEXT_PUBLIC_IDENTITY_PROVIDER &&
+      process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes('keycloak')
+    ) {
+      window.location.href = '/login-keycloak';
+    } else {
+      window.location.href = '/login-email';
+    }
     return null;
   }
 
@@ -2447,7 +2447,7 @@ export async function accessTokenUser(accessToken: string | null) {
         team_name: team.team_name,
         team_admin: team.team_admin,
       })),
-      role_signature: data.role_signature
+      role_signature: data.role_signature,
     };
 
     const expectedPayload = {
@@ -2462,11 +2462,11 @@ export async function accessTokenUser(accessToken: string | null) {
     // Await the asynchronous verification.
     const isValid = await verifyRoleSignature(expectedPayload, data.role_signature);
     if (!isValid) {
-      console.error("Role signature verification failed");
-      alert("Authorization failed. Please try again.");
+      console.error('Role signature verification failed');
+      alert('Authorization failed. Please try again.');
       return null;
     }
-    
+
     return transformedData;
   } catch (error) {
     console.error('Error fetching user info:', error);

@@ -4,15 +4,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/jobs"
 	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/nomad"
+	common "thirdai_platform/model_bazaar/platform_common"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/model_bazaar/utils"
@@ -57,7 +61,11 @@ func (s *DeployService) Routes() chi.Router {
 
 			r.Post("/save", s.SaveDeployed)
 		})
+		r.Group(func(r chi.Router) {
+			r.Use(auth.ModelPermissionOnly(s.db, auth.OwnerPermission))
 
+			r.Post("/feedbacks", s.RecentFeedbacks)
+		})
 	})
 
 	r.Group(func(r chi.Router) {
@@ -437,4 +445,109 @@ func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJsonResponse(w, saveDeployedResponse{ModelId: newModelId, UpdateToken: updateToken})
+}
+
+type RecentFeedbacksRequest struct {
+	PerEventCount int `json:"per_event_count"`
+}
+
+func (opts *RecentFeedbacksRequest) validate() error {
+	if opts.PerEventCount <= 0 {
+		return fmt.Errorf("per event count should be a positive integer")
+	}
+	return nil
+}
+
+func (s *DeployService) RecentFeedbacks(w http.ResponseWriter, r *http.Request) {
+	modelId, err := utils.URLParamUUID(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var params RecentFeedbacksRequest
+	if !utils.ParseRequestBody(w, r, &params) {
+		return
+	}
+
+	if err := params.validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+
+	fileNames, err := s.storage.List(filepath.Join(storage.ModelPath(modelId), "deployments", "data", "feedback"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	fileNames = utils.Filter(fileNames, func(file string) bool {
+		return filepath.Ext(file) == ".jsonl"
+	})
+	EventQueue := map[string][]common.EventData{
+		"upvote":    {},
+		"associate": {},
+	}
+
+	if len(fileNames) == 0 {
+		// no feedback found.
+		utils.WriteJsonResponse(w, EventQueue)
+		return
+	}
+
+	for _, name := range fileNames {
+		UpvotesFound, AssociateFound := 0, 0
+		fileHandle, err := s.storage.Read(filepath.Join(storage.ModelPath(modelId), "deployments", "data", "feedback", name))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		out, stop, error_ch := make(chan string), make(chan bool), make(chan error)
+		go utils.ReadFileLinesBackward(fileHandle.(*os.File), out, stop, error_ch)
+
+		// https://www.ardanlabs.com/blog/2013/11/label-breaks-in-go.html
+	FileProcessingComplete:
+		for {
+			if UpvotesFound == params.PerEventCount && AssociateFound == params.PerEventCount {
+				stop <- true
+				break
+			}
+			select {
+			case err := <-error_ch:
+				if !errors.Is(err, io.EOF) {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				} else {
+					break FileProcessingComplete
+				}
+			case line := <-out:
+				event, err := common.UnmarshalFeedbackEvent(line)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					stop <- true
+					return
+				}
+
+				if event.Event["action"] == "upvote" && UpvotesFound < params.PerEventCount {
+					EventQueue["upvote"] = append(EventQueue["upvote"], event)
+					UpvotesFound++
+				} else if event.Event["action"] == "associate" && AssociateFound < params.PerEventCount {
+					EventQueue["associate"] = append(EventQueue["associate"], event)
+					AssociateFound++
+				}
+			}
+		}
+	}
+	// Sort EventQueue["associate"] and EventQueue["upvotes"]
+	for eventType := range EventQueue {
+		sort.Slice(EventQueue[eventType], func(i, j int) bool {
+			return EventQueue[eventType][i].Timestamp.After(EventQueue[eventType][j].Timestamp)
+		})
+
+		EventQueue[eventType] = EventQueue[eventType][:min(len(EventQueue[eventType]), params.PerEventCount)]
+	}
+
+	// Pending: Write Response
+	utils.WriteJsonResponse(w, EventQueue)
+
 }

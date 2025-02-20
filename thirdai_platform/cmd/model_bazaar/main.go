@@ -27,6 +27,16 @@ import (
 	"gorm.io/gorm"
 )
 
+type DockerImageNames struct {
+	FrontEnd string
+
+	// all python jobs are merged in a single image
+	PythonBackend string
+
+	// golang docker images will be independent of each other
+	GolangDeployment string
+}
+
 type modelBazaarEnv struct {
 	PublicModelBazaarEndpoint  string
 	PrivateModelBazaarEndpoint string
@@ -55,8 +65,8 @@ type modelBazaarEnv struct {
 	DockerUsername string
 	DockerPassword string
 	Tag            string
-	BackendImage   string
-	FrontendImage  string
+
+	DockerImageNames DockerImageNames
 
 	// These args are only needed if backend image is not specified, this is used to run locally.
 	PythonPath  string
@@ -123,8 +133,12 @@ func loadEnv() modelBazaarEnv {
 		DockerUsername: requiredEnv("DOCKER_USERNAME"),
 		DockerPassword: requiredEnv("DOCKER_PASSWORD"),
 		Tag:            utils.OptionalEnv("TAG"),
-		BackendImage:   utils.OptionalEnv("JOBS_IMAGE_NAME"),
-		FrontendImage:  utils.OptionalEnv("FRONTEND_IMAGE_NAME"),
+
+		DockerImageNames: DockerImageNames{
+			FrontEnd:         utils.OptionalEnv("FRONTEND_IMAGE_NAME"),
+			PythonBackend:    utils.OptionalEnv("JOBS_IMAGE_NAME"),
+			GolangDeployment: utils.OptionalEnv("GO_DEPLOYMENT_IMAGE_NAME"),
+		},
 
 		PythonPath:  utils.OptionalEnv("PYTHON_PATH"),
 		PlatformDir: utils.OptionalEnv("PLATFORM_DIR"),
@@ -146,9 +160,9 @@ func loadEnv() modelBazaarEnv {
 		log.Fatalf("The following required env vars are missing: %s", strings.Join(missingEnvs, ", "))
 	}
 
-	if env.BackendImage == "" && (env.PythonPath == "" || env.PlatformDir == "") {
-		log.Fatal("If JOBS_IMAGE_NAME env var is not specified then PYTHON_PATH and PLATFORM_DIR env vars must be provided.")
-	} else if (env.BackendImage != "" || env.FrontendImage != "") && env.Tag == "" {
+	if (env.DockerImageNames.PythonBackend == "" || env.DockerImageNames.GolangDeployment == "") && (env.PythonPath == "" || env.PlatformDir == "") {
+		log.Fatal("If JOBS_IMAGE_NAME or GO_DEPLOYMENT_IMAGE_NAME env var is not specified then PYTHON_PATH and PLATFORM_DIR env vars must be provided.")
+	} else if (env.DockerImageNames.PythonBackend != "" || env.DockerImageNames.FrontEnd != "") && env.Tag == "" {
 		log.Fatal("If JOBS_IMAGE_NAME or FRONTEND_IMAGE_NAME env vars are specified then TAG must be specified as well.")
 	}
 
@@ -165,8 +179,8 @@ func (env *modelBazaarEnv) postgresDsn() string {
 	return fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=%v", parts.Hostname(), parts.User.Username(), pwd, dbname, parts.Port())
 }
 
-func (env *modelBazaarEnv) BackendDriver() nomad.Driver {
-	if env.BackendImage == "" {
+func (env *modelBazaarEnv) PythonBackendDriver() nomad.Driver {
+	if env.DockerImageNames.PythonBackend == "" {
 		return nomad.LocalDriver{
 			PythonPath:  env.PythonPath,
 			PlatformDir: env.PlatformDir,
@@ -174,7 +188,26 @@ func (env *modelBazaarEnv) BackendDriver() nomad.Driver {
 	}
 
 	return nomad.DockerDriver{
-		ImageName: env.BackendImage,
+		ImageName: env.DockerImageNames.PythonBackend,
+		Tag:       env.Tag,
+		DockerEnv: nomad.DockerEnv{
+			Registry:       env.DockerRegistry,
+			DockerUsername: env.DockerUsername,
+			DockerPassword: env.DockerPassword,
+			ShareDir:       env.ShareDir,
+		},
+	}
+}
+
+func (env *modelBazaarEnv) GoDeploymentDriver() nomad.Driver {
+	if env.DockerImageNames.GolangDeployment == "" {
+		return nomad.LocalDriver{
+			PlatformDir: env.PlatformDir,
+		}
+	}
+
+	return nomad.DockerDriver{
+		ImageName: env.DockerImageNames.GolangDeployment,
 		Tag:       env.Tag,
 		DockerEnv: nomad.DockerEnv{
 			Registry:       env.DockerRegistry,
@@ -187,7 +220,7 @@ func (env *modelBazaarEnv) BackendDriver() nomad.Driver {
 
 func (env *modelBazaarEnv) FrontendDriver() nomad.DockerDriver {
 	return nomad.DockerDriver{
-		ImageName: env.FrontendImage,
+		ImageName: env.DockerImageNames.FrontEnd,
 		Tag:       env.Tag,
 		DockerEnv: nomad.DockerEnv{
 			Registry:       env.DockerRegistry,
@@ -284,7 +317,8 @@ func main() {
 	sharedStorage := storage.NewSharedDisk(env.ShareDir)
 
 	variables := services.Variables{
-		BackendDriver: env.BackendDriver(),
+		PythonBackendDriver: env.PythonBackendDriver(),
+		GoDeploymentDriver:  env.GoDeploymentDriver(),
 		DockerRegistry: services.DockerRegistry{
 			Registry:       env.DockerRegistry,
 			DockerUsername: env.DockerUsername,
@@ -343,14 +377,14 @@ func main() {
 	)
 
 	if !*skipAll && !*skipCache {
-		err = jobs.StartLlmCacheJob(nomadClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
+		err = jobs.StartLlmCacheJob(nomadClient, licenseVerifier, env.PythonBackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
 		if err != nil {
 			log.Fatalf("failed to start llm cache job: %v", err)
 		}
 	}
 
 	if !*skipAll && !*skipDispatch {
-		err = jobs.StartLlmDispatchJob(nomadClient, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
+		err = jobs.StartLlmDispatchJob(nomadClient, env.PythonBackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
 		if err != nil {
 			log.Fatalf("failed to start llm dispatch job: %v", err)
 		}
@@ -358,7 +392,7 @@ func main() {
 
 	if !*skipAll && !*skipTelemetry {
 		telemetryArgs := jobs.TelemetryJobArgs{
-			IsLocal:             env.BackendImage == "",
+			IsLocal:             env.DockerImageNames.PythonBackend == "",
 			ModelBazaarEndpoint: env.PrivateModelBazaarEndpoint,
 			Docker:              variables.DockerEnv(),
 			GrafanaDbUrl:        env.GrafanaDbUri,
@@ -372,7 +406,7 @@ func main() {
 		}
 	}
 
-	if env.FrontendImage != "" {
+	if env.DockerImageNames.FrontEnd != "" {
 		keycloakUrl, err := url.Parse(env.KeycloakServerUrl)
 		if err != nil {
 			log.Fatalf("unable to parse keycloak url: %v", err)

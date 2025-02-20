@@ -101,6 +101,34 @@ func (j DeployJob) TemplateName() string {
 	return "deploy.hcl.tmpl"
 }
 
+type GoDeployJob struct {
+	JobName string
+	ModelId string
+
+	ConfigPath     string
+	DeploymentName string
+
+	AutoscalingEnabled bool
+	AutoscalingMin     int
+	AutoscalingMax     int
+
+	Driver Driver
+
+	Resources Resources
+
+	CloudCredentials CloudCredentials
+
+	JobToken string
+}
+
+func (j GoDeployJob) GetJobName() string {
+	return j.JobName
+}
+
+func (j GoDeployJob) TemplateName() string {
+	return "go_deploy.hcl.tmpl"
+}
+
 type DatagenTrainJob struct {
 	TrainJob
 

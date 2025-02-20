@@ -44,6 +44,15 @@ func (m *Model) GetAttributes() map[string]string {
 	return attrs
 }
 
+func (m *Model) GetVersion() string {
+	attrs := m.GetAttributes()
+	if version, exists := attrs["version"]; exists {
+		return version
+	}
+	// v1 is the default python version
+	return "v1"
+}
+
 type ModelAttribute struct {
 	ModelId uuid.UUID `gorm:"type:uuid;primaryKey"`
 	Key     string    `gorm:"primaryKey"`

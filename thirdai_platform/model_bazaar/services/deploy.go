@@ -35,6 +35,43 @@ type DeployService struct {
 	variables Variables
 }
 
+func (service *DeployService) getDeployJob(model schema.Model, configPath string, deploymentName string, autoscaling bool, autoscalingMin int, autoscalingMax int, resources nomad.Resources) (nomad.Job, error) {
+	if model.GetVersion() == "v1"  || model.Type != "ndb" {
+		return nomad.DeployJob{
+			JobName:            model.DeployJobName(),
+			ModelId:            model.Id.String(),
+			ConfigPath:         configPath,
+			DeploymentName:     deploymentName,
+			AutoscalingEnabled: autoscaling,
+			AutoscalingMin:     autoscalingMin,
+			AutoscalingMax:     autoscalingMax,
+			Driver:             service.variables.PythonBackendDriver,
+			Resources:          resources,
+			CloudCredentials:   service.variables.CloudCredentials,
+			JobToken:           uuid.New().String(),
+			IsKE:               model.Type == schema.KnowledgeExtraction,
+		}, nil
+	}
+
+	if model.Type == "ndb" && model.GetVersion() == "v2" {
+		return nomad.GoDeployJob{
+			JobName:            model.DeployJobName(),
+			ModelId:            model.Id.String(),
+			ConfigPath:         configPath,
+			DeploymentName:     deploymentName,
+			AutoscalingEnabled: autoscaling,
+			AutoscalingMin:     autoscalingMin,
+			AutoscalingMax:     autoscalingMax,
+			Driver:             service.variables.GoDeploymentDriver,
+			Resources:          resources,
+			CloudCredentials:   service.variables.CloudCredentials,
+			JobToken:           uuid.New().String(),
+		}, nil
+	}
+
+	return nil, fmt.Errorf("unsupported model type: %v for version: %v", model.Type, model.GetVersion())
+}
+
 func (s *DeployService) Routes() chi.Router {
 	r := chi.NewRouter()
 
@@ -167,7 +204,7 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 		}
 
 		var hostDir string
-		if s.variables.BackendDriver.DriverType() == "local" {
+		if s.variables.PythonBackendDriver.DriverType() == "local" {
 			hostDir = filepath.Join(s.variables.ShareDir, "host_dir")
 		} else {
 			hostDir = filepath.Join("/thirdai_platform", "host_dir")
@@ -191,22 +228,12 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 			return CodedError(errors.New("error creating model deployment config"), http.StatusInternalServerError)
 		}
 
-		nomadErr = s.nomad.StartJob(
-			nomad.DeployJob{
-				JobName:            model.DeployJobName(),
-				ModelId:            model.Id.String(),
-				ConfigPath:         configPath,
-				DeploymentName:     deploymentName,
-				AutoscalingEnabled: autoscaling,
-				AutoscalingMin:     autoscalingMin,
-				AutoscalingMax:     autoscalingMax,
-				Driver:             s.variables.BackendDriver,
-				Resources:          resources,
-				CloudCredentials:   s.variables.CloudCredentials,
-				JobToken:           uuid.New().String(),
-				IsKE:               model.Type == schema.KnowledgeExtraction,
-			},
-		)
+		deployJob, err := s.getDeployJob(model, configPath, deploymentName, autoscaling, autoscalingMin, autoscalingMax, resources)
+		if err != nil {
+			return CodedError(errors.New("error getting deploy job"), http.StatusInternalServerError)
+		}
+
+		nomadErr = s.nomad.StartJob(deployJob)
 		var newStatus string
 		if nomadErr != nil {
 			newStatus = schema.Failed

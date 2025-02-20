@@ -38,6 +38,12 @@ images_to_build = [
         dockerfile_path="Dockerfile",
         context_path="thirdai_platform",
     ),
+    Image(
+        key="thirdai_platform_golang_deployment",
+        name="thirdai_platform_golang_deployment",
+        dockerfile_path="DeploymentDockerfile",
+        context_path="thirdai_platform",
+    ),
 ]
 
 

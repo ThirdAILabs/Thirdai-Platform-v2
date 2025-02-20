@@ -101,6 +101,14 @@ func (j DeployJob) TemplateName() string {
 	return "deploy.hcl.tmpl"
 }
 
+type GoDeployJob struct {
+	DeployJob
+}
+
+func (j GoDeployJob) TemplateName() string {
+	return "go_deploy.hcl.tmpl"
+}
+
 type DatagenTrainJob struct {
 	TrainJob
 

@@ -1,8 +1,17 @@
 package orchestrator
 
+type JobStatus string
+
+// These are the default Nomad job status types
+const (
+	StatusPending JobStatus = "pending"
+	StatusRunning JobStatus = "running"
+	StatusDead    JobStatus = "dead"
+)
+
 type JobInfo struct {
 	Name   string
-	Status string
+	Status JobStatus
 }
 
 type JobLog struct {

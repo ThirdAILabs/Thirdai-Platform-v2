@@ -53,7 +53,7 @@ func (service *DeployService) getDeployJob(model schema.Model, configPath string
 		}, nil
 	}
 
-	if model.Type == "ndb" {
+	if model.Type == "ndb" && model.GetVersion() == "v2" {
 		return nomad.GoDeployJob{
 			JobName:            model.DeployJobName(),
 			ModelId:            model.Id.String(),
@@ -69,7 +69,7 @@ func (service *DeployService) getDeployJob(model schema.Model, configPath string
 		}, nil
 	}
 
-	return nil, fmt.Errorf("unsupported model type for deployment %v and version: %v", model.Type, model.GetVersion())
+	return nil, fmt.Errorf("unsupported model type: %v for version: %v", model.Type, model.GetVersion())
 }
 
 func (s *DeployService) Routes() chi.Router {

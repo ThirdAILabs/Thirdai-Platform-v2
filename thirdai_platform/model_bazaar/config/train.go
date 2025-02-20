@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"slices"
 	"thirdai_platform/model_bazaar/schema"
 
 	"github.com/google/uuid"
@@ -236,10 +237,13 @@ type TrainConfig struct {
 	ModelOptions interface{} `json:"model_options"`
 	Data         interface{} `json:"data"`
 	TrainOptions interface{} `json:"train_options"`
+	LLMConfig    interface{} `json:"llm_config"`
 
 	JobOptions JobOptions `json:"job_options"`
 
 	IsRetraining bool `json:"is_retraining"`
+
+	GenerativeSupervision bool `json:"generative_supervision"`
 }
 
 type JobOptions struct {
@@ -257,4 +261,21 @@ func (opts *JobOptions) Validate() error {
 
 func (opts *JobOptions) CpuUsageMhz() int {
 	return opts.AllocationCores * 2400
+}
+
+type LLMConfig struct {
+	Provider  string `json:"provider"`
+	ApiKey    string `json:"api_key,omitempty"`
+	BaseUrl   string `json:"base_url,omitempty"`
+	ModelName string `json:"model_name,omitempty"`
+}
+
+func (opts *LLMConfig) Validate() error {
+	if !slices.Contains([]string{"openai", "cohere", "onprem", "mock"}, opts.Provider) {
+		return fmt.Errorf("invalid provider '%v', must be 'openai' or 'cohere'", opts.Provider)
+	}
+	if !slices.Contains([]string{"onprem", "mock"}, opts.Provider) && opts.ApiKey == "" {
+		return fmt.Errorf("api_key must be specified")
+	}
+	return nil
 }

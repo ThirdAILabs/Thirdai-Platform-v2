@@ -79,10 +79,16 @@ class TextClassificationModel(ClassificationModel):
                 # For text classification, get the class names from the model
                 labels = [self.model.class_name(i) for i in range(self.num_classes)]
                 tag_metadata = TagMetadata()
+
+                # Create a set of existing tag names for faster lookup
+                existing_tags = set()
+
                 for label in labels:
-                    tag_metadata.add_tag(
-                        LabelEntity(name=label, status=LabelStatus.trained)
-                    )
+                    if label not in existing_tags:  # Only add if not already present
+                        tag_metadata.add_tag(
+                            LabelEntity(name=label, status=LabelStatus.trained)
+                        )
+                        existing_tags.add(label)
 
                 # Connector will instantiate an sqlite db at the specified path if it doesn't exist
                 self.data_storage = DataStorage(

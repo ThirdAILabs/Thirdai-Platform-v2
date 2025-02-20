@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"thirdai_platform/model_bazaar/orchestrator"
+	"thirdai_platform/model_bazaar/orchestrator/kubernetes"
 	"thirdai_platform/model_bazaar/storage"
 
 	"gopkg.in/yaml.v3"
@@ -58,6 +59,13 @@ type TelemetryJobArgs struct {
 }
 
 func StartTelemetryJob(orchestratorClient orchestrator.Client, storage storage.Storage, args TelemetryJobArgs) error {
+
+	// TODO: implement telemetry job for Kubernetes client, and remove this if statement
+	if _, ok := orchestratorClient.(*kubernetes.KubernetesClient); ok {
+		slog.Warn("Telemetry job not implemented for Kubernetes, skipping telemetry job")
+		return nil
+	}
+
 	slog.Info("starting telemetry job")
 
 	// create prometheus config file
@@ -73,27 +81,17 @@ func StartTelemetryJob(orchestratorClient orchestrator.Client, storage storage.S
 		return fmt.Errorf("error initializing grafana dashboards: %w", err)
 	}
 
-	//create grafana provisioning configs
-	err = createGrafanaProvisionings(storage, args.IsLocal, args.Orchestrator, args.ModelBazaarEndpoint)
-	if err != nil {
-		return fmt.Errorf("error creating grafana provisioning: %w", err)
-	}
-
-	// create vector config file
-	err = createVectorConfig(storage)
-	if err != nil {
-		return fmt.Errorf("error creating vector config file: %w", err)
-	}
-
 	job := orchestrator.TelemetryJob{
-		IsLocal:            args.IsLocal,
-		NomadMonitoringDir: "/model_bazaar/nomad-monitoring",
-		AdminUsername:      args.AdminUsername,
-		AdminEmail:         args.AdminEmail,
-		AdminPassword:      args.AdminPassword,
-		GrafanaDbUrl:       args.GrafanaDbUrl,
-		Docker:             args.Docker,
-		IngressHostname:    orchestratorClient.IngressHostname(),
+		IsLocal:                args.IsLocal,
+		TargetCount:            targetCount,
+		NomadMonitoringDir:     "/model_bazaar/nomad-monitoring",
+		AdminUsername:          args.AdminUsername,
+		AdminEmail:             args.AdminEmail,
+		AdminPassword:          args.AdminPassword,
+		GrafanaDbUrl:           args.GrafanaDbUrl,
+		ModelBazaarPrivateHost: url.Hostname(),
+		Docker:                 args.Docker,
+		IngressHostname:        orchestratorClient.IngressHostname(),
 	}
 
 	if args.IsLocal {

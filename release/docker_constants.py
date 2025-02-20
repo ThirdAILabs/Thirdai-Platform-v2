@@ -30,7 +30,7 @@ images_to_build = [
         key="thirdai_platform_frontend",
         name="frontend",
         dockerfile_path="Dockerfile",
-        context_path="frontend-new",
+        context_path="frontend",
     ),
     Image(
         key="thirdai_platform",

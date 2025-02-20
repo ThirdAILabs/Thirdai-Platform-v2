@@ -94,9 +94,9 @@ spec:
           resources:
             requests:
               cpu: "4"
-              memory: "4000"
+              memory: "4000Mi"
             limits:
-              memory: "8000"
+              memory: "8000Mi"
           {{- end }}
       imagePullSecrets:
         - name: docker-credentials-secret

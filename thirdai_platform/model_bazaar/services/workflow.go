@@ -150,7 +150,7 @@ func (r *KnowledgeExtractionRequest) validate() error {
 		return fmt.Errorf("model_name must be specified")
 	}
 	if len(r.Questions) == 0 {
-		return fmt.Errorf("Must provide at least one question to create knowledge extraction model")
+		return fmt.Errorf("must provide at least one question to create knowledge extraction model")
 	}
 
 	questions := make(map[string]bool)

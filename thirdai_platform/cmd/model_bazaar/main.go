@@ -324,15 +324,7 @@ func main() {
 
 	licenseVerifier := licensing.NewVerifier(env.LicensePath)
 
-	var modelBazaarPath string
-
-	if _, err := os.Stat("/.dockerenv"); err == nil {
-		modelBazaarPath = "/model_bazaar"
-	} else {
-		modelBazaarPath = env.ShareDir
-	}
-
-	sharedStorage := storage.NewSharedDisk(modelBazaarPath)
+	sharedStorage := storage.NewSharedDisk(env.ShareDir)
 
 	variables := services.Variables{
 		BackendDriver: env.BackendDriver(),
@@ -447,9 +439,8 @@ func main() {
 
 	r := chi.NewRouter()
 
-	// Allow everything (ALL origins, methods, headers)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},                                       // Allow all origins
+		AllowedOrigins:   []string{env.IngressHostname},                       // Allow public ingress origin
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}, // Allow all HTTP methods
 		AllowedHeaders:   []string{"*"},                                       // Allow all headers
 		ExposedHeaders:   []string{"*"},                                       // Expose all headers

@@ -141,7 +141,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 	job := nomad.TrainJob{
 		JobName:    model.TrainJobName(),
 		ConfigPath: configPath,
-		Driver:     s.variables.BackendDriver,
+		Driver:     s.variables.PythonBackendDriver,
 		Resources: nomad.Resources{
 			AllocationMhz:       trainConfig.JobOptions.CpuUsageMhz(),
 			AllocationMemory:    trainConfig.JobOptions.AllocationMemory,

@@ -23,6 +23,7 @@ ARG docker_username
 ARG docker_password
 ARG thirdai_platform_jobs
 ARG thirdai_platform_frontend
+ARG thirdai_platform_golang_deployment
 
 ENV TAG=$tag
 ENV DOCKER_REGISTRY=$docker_registry
@@ -30,5 +31,6 @@ ENV DOCKER_USERNAME=$docker_username
 ENV DOCKER_PASSWORD=$docker_password
 ENV JOBS_IMAGE_NAME=$thirdai_platform_jobs
 ENV FRONTEND_IMAGE_NAME=$thirdai_platform_frontend
+ENV GO_DEPLOYMENT_IMAGE_NAME=$thirdai_platform_golang_deployment
 
 CMD ["./model_bazaar"]

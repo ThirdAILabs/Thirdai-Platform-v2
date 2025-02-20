@@ -36,7 +36,7 @@ func (s *TelemetryService) DeploymentServices(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	isLocal := s.variables.BackendDriver.DriverType() == "local"
+	isLocal := s.variables.PythonBackendDriver.DriverType() == "local"
 
 	targets := make([]scrapeTarget, 0)
 	for _, service := range services {

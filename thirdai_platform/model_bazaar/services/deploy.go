@@ -45,7 +45,7 @@ func (service *DeployService) getDeployJob(model schema.Model, configPath string
 			AutoscalingEnabled: autoscaling,
 			AutoscalingMin:     autoscalingMin,
 			AutoscalingMax:     autoscalingMax,
-			Driver:             service.variables.BackendDriver,
+			Driver:             service.variables.PythonBackendDriver,
 			Resources:          resources,
 			CloudCredentials:   service.variables.CloudCredentials,
 			JobToken:           uuid.New().String(),
@@ -62,7 +62,7 @@ func (service *DeployService) getDeployJob(model schema.Model, configPath string
 			AutoscalingEnabled: autoscaling,
 			AutoscalingMin:     autoscalingMin,
 			AutoscalingMax:     autoscalingMax,
-			Driver:             service.variables.BackendDriver,
+			Driver:             service.variables.GoDeploymentDriver,
 			Resources:          resources,
 			CloudCredentials:   service.variables.CloudCredentials,
 			JobToken:           uuid.New().String(),
@@ -204,7 +204,7 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 		}
 
 		var hostDir string
-		if s.variables.BackendDriver.DriverType() == "local" {
+		if s.variables.PythonBackendDriver.DriverType() == "local" {
 			hostDir = filepath.Join(s.variables.ShareDir, "host_dir")
 		} else {
 			hostDir = filepath.Join("/thirdai_platform", "host_dir")
@@ -228,22 +228,12 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 			return CodedError(errors.New("error creating model deployment config"), http.StatusInternalServerError)
 		}
 
-		nomadErr = s.nomad.StartJob(
-			nomad.DeployJob{
-				JobName:            model.DeployJobName(),
-				ModelId:            model.Id.String(),
-				ConfigPath:         configPath,
-				DeploymentName:     deploymentName,
-				AutoscalingEnabled: autoscaling,
-				AutoscalingMin:     autoscalingMin,
-				AutoscalingMax:     autoscalingMax,
-				Driver:             s.variables.BackendDriver,
-				Resources:          resources,
-				CloudCredentials:   s.variables.CloudCredentials,
-				JobToken:           uuid.New().String(),
-				IsKE:               model.Type == schema.KnowledgeExtraction,
-			},
-		)
+		deployJob, err := s.getDeployJob(model, configPath, deploymentName, autoscaling, autoscalingMin, autoscalingMax, resources)
+		if err != nil {
+			return CodedError(errors.New("error getting deploy job"), http.StatusInternalServerError)
+		}
+
+		nomadErr = s.nomad.StartJob(deployJob)
 		var newStatus string
 		if nomadErr != nil {
 			newStatus = schema.Failed

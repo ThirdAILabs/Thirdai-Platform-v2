@@ -199,6 +199,25 @@ func (env *modelBazaarEnv) PythonBackendDriver() nomad.Driver {
 	}
 }
 
+func (env *modelBazaarEnv) GoDeploymentDriver() nomad.Driver {
+	if env.DockerImageNames.GolangDeployment == "" {
+		return nomad.LocalDriver{
+			PlatformDir: env.PlatformDir,
+		}
+	}
+
+	return nomad.DockerDriver{
+		ImageName: env.DockerImageNames.GolangDeployment,
+		Tag:       env.Tag,
+		DockerEnv: nomad.DockerEnv{
+			Registry:       env.DockerRegistry,
+			DockerUsername: env.DockerUsername,
+			DockerPassword: env.DockerPassword,
+			ShareDir:       env.ShareDir,
+		},
+	}
+}
+
 func (env *modelBazaarEnv) FrontendDriver() nomad.DockerDriver {
 	return nomad.DockerDriver{
 		ImageName: env.DockerImageNames.FrontEnd,
@@ -298,7 +317,8 @@ func main() {
 	sharedStorage := storage.NewSharedDisk(env.ShareDir)
 
 	variables := services.Variables{
-		BackendDriver: env.PythonBackendDriver(),
+		PythonBackendDriver: env.PythonBackendDriver(),
+		GoDeploymentDriver:  env.GoDeploymentDriver(),
 		DockerRegistry: services.DockerRegistry{
 			Registry:       env.DockerRegistry,
 			DockerUsername: env.DockerUsername,

@@ -137,7 +137,7 @@ func (s *RecoveryService) Backup(w http.ResponseWriter, r *http.Request) {
 		ConfigPath: filepath.Join(s.storage.Location(), configPath),
 		ShareDir:   s.variables.ShareDir,
 		DbUri:      dbUri,
-		Driver:     s.variables.BackendDriver,
+		Driver:     s.variables.PythonBackendDriver,
 	}
 
 	err = nomad.StopJobIfExists(s.nomad, job.GetJobName())

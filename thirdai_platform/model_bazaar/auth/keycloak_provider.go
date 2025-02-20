@@ -55,8 +55,8 @@ func adminLogin(client *gocloak.GoCloak, adminUsername, adminPassword string) (s
 	return adminToken.AccessToken, nil
 }
 
-func getUserID(ctx context.Context, client *gocloak.GoCloak, adminToken, username, realm_name string) (*string, error) {
-	users, err := client.GetUsers(ctx, adminToken, realm_name, gocloak.GetUsersParams{
+func getUserID(ctx context.Context, client *gocloak.GoCloak, adminToken, username, realmName string) (*string, error) {
+	users, err := client.GetUsers(ctx, adminToken, realmName, gocloak.GetUsersParams{
 		Username: &username,
 		Max:      intArg(1),
 		Exact:    boolArg(true),
@@ -70,11 +70,11 @@ func getUserID(ctx context.Context, client *gocloak.GoCloak, adminToken, usernam
 	return nil, nil
 }
 
-func createAdminIfNotExists(client *gocloak.GoCloak, adminToken, username, email, password, realm_name string) (string, error) {
+func createAdminIfNotExists(client *gocloak.GoCloak, adminToken, username, email, password, realmName string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	existingUserId, err := getUserID(ctx, client, adminToken, username, realm_name)
+	existingUserId, err := getUserID(ctx, client, adminToken, username, realmName)
 	if err != nil {
 		return "", fmt.Errorf("error checking for existing admin : %w", err)
 	}
@@ -83,7 +83,7 @@ func createAdminIfNotExists(client *gocloak.GoCloak, adminToken, username, email
 		return *existingUserId, nil
 	}
 
-	userId, err := client.CreateUser(ctx, adminToken, realm_name, gocloak.User{
+	userId, err := client.CreateUser(ctx, adminToken, realmName, gocloak.User{
 		Username:      &username,
 		Email:         &email,
 		Enabled:       boolArg(true),
@@ -99,7 +99,7 @@ func createAdminIfNotExists(client *gocloak.GoCloak, adminToken, username, email
 
 	if err != nil {
 		if isConflict(err) {
-			userId, err := getUserID(ctx, client, adminToken, username, realm_name)
+			userId, err := getUserID(ctx, client, adminToken, username, realmName)
 			slog.Info("KEYCLOAK: admin user has already been created")
 			if err != nil {
 				return "", fmt.Errorf("error retrieving existing admin after conflict creating admin: %w", err)

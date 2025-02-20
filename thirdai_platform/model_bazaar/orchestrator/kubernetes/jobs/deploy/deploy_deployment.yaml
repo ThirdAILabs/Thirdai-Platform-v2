@@ -93,10 +93,10 @@ spec:
               value: "4"
           resources:
             requests:
-              cpu: "4"
-              memory: "4000Mi"
+              cpu: "{{ .Resources.AllocationCores }}"
+              memory: "{{ .Resources.AllocationMemory }}Mi"
             limits:
-              memory: "8000Mi"
+              memory: "{{ .Resources.AllocationMemoryMax }}Mi"
           {{- end }}
       imagePullSecrets:
         - name: docker-credentials-secret

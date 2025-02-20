@@ -5,7 +5,6 @@ import (
 	"embed"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,6 +55,7 @@ type TelemetryJobArgs struct {
 	AdminUsername string
 	AdminEmail    string
 	AdminPassword string
+	Orchestrator  string
 }
 
 func StartTelemetryJob(orchestratorClient orchestrator.Client, storage storage.Storage, args TelemetryJobArgs) error {
@@ -68,38 +68,40 @@ func StartTelemetryJob(orchestratorClient orchestrator.Client, storage storage.S
 
 	slog.Info("starting telemetry job")
 
-	err := createPromFile(storage, args.ModelBazaarEndpoint, args.IsLocal)
+	// create prometheus config file
+	err := createPromFile(orchestratorClient.GetName(), storage, args.ModelBazaarEndpoint, args.IsLocal)
 	if err != nil {
 		return fmt.Errorf("error creating promfile: %w", err)
 	}
 
-	url, err := url.Parse(args.ModelBazaarEndpoint)
-	if err != nil {
-		return fmt.Errorf("unable to parse model bazaar endpoint: %w", err)
-	}
-
-	targetCount, err := countTargets(storage)
-	if err != nil {
-		return fmt.Errorf("error counting telemetry targets: %w", err)
-	}
-
+	// copy grafana dashboards to appropriate directory
 	err = copyGrafanaDashboards(storage)
 	if err != nil {
 		slog.Error("error initializing grafana dashboards", "error", err)
 		return fmt.Errorf("error initializing grafana dashboards: %w", err)
 	}
 
+	//create grafana provisioning configs
+	err = createGrafanaProvisionings(storage, args.IsLocal, args.Orchestrator, args.ModelBazaarEndpoint)
+	if err != nil {
+		return fmt.Errorf("error creating grafana provisioning: %w", err)
+	}
+
+	// create vector config file
+	err = createVectorConfig(storage)
+	if err != nil {
+		return fmt.Errorf("error creating vector config file: %w", err)
+	}
+
 	job := orchestrator.TelemetryJob{
-		IsLocal:                args.IsLocal,
-		TargetCount:            targetCount,
-		NomadMonitoringDir:     "/model_bazaar/nomad-monitoring",
-		AdminUsername:          args.AdminUsername,
-		AdminEmail:             args.AdminEmail,
-		AdminPassword:          args.AdminPassword,
-		GrafanaDbUrl:           args.GrafanaDbUrl,
-		ModelBazaarPrivateHost: url.Hostname(),
-		Docker:                 args.Docker,
-		IngressHostname:        orchestratorClient.IngressHostname(),
+		IsLocal:            args.IsLocal,
+		NomadMonitoringDir: "/model_bazaar/nomad-monitoring",
+		AdminUsername:      args.AdminUsername,
+		AdminEmail:         args.AdminEmail,
+		AdminPassword:      args.AdminPassword,
+		GrafanaDbUrl:       args.GrafanaDbUrl,
+		Docker:             args.Docker,
+		IngressHostname:    orchestratorClient.IngressHostname(),
 	}
 
 	if args.IsLocal {
@@ -131,7 +133,7 @@ type targetList struct {
 	Labels  map[string]string
 }
 
-func createPromFile(storage storage.Storage, modelBazaarEndpoint string, isLocal bool) error {
+func createPromFile(orchestrator string, storage storage.Storage, modelBazaarEndpoint string, isLocal bool) error {
 	serverNodeFile := filepath.Join("nomad-monitoring", "nomad_nodes", "server.yaml")
 
 	if isLocal {
@@ -151,7 +153,7 @@ func createPromFile(storage storage.Storage, modelBazaarEndpoint string, isLocal
 		}
 	}
 
-	promfile, err := yaml.Marshal(prometheusConfig(modelBazaarEndpoint, isLocal))
+	promfile, err := yaml.Marshal(prometheusConfig(orchestrator, modelBazaarEndpoint, isLocal))
 	if err != nil {
 		return fmt.Errorf("error creating promfile: %w", err)
 	}
@@ -175,30 +177,81 @@ func getDeploymentTargetsEndpoint(modelBazaarEndpoint string, isLocal bool) stri
 	}
 }
 
-func prometheusConfig(modelBazaarEndpoint string, isLocal bool) map[string]interface{} {
+func prometheusConfig(orchestrator string, modelBazaarEndpoint string, isLocal bool) map[string]interface{} {
 	deploymentTargetsEndpoint := getDeploymentTargetsEndpoint(modelBazaarEndpoint, isLocal)
+
+	var orchestratorEntry map[string]interface{}
+	if orchestrator == "nomad" {
+		orchestratorEntry = map[string]interface{}{
+			"job_name":     "nomad-agent",
+			"metrics_path": "/v1/metrics?format=prometheus",
+			"file_sd_configs": []map[string][]string{
+				{"files": {"/model_bazaar/nomad-monitoring/nomad_nodes/*.yaml"}},
+			},
+			"relabel_configs": []map[string]interface{}{
+				{
+					"source_labels": []string{"__address__"},
+					"regex":         "([^:]+):.+",
+					"target_label":  "hostname",
+					"replacement":   "nomad-agent-${1}",
+				},
+			},
+		}
+	} else {
+		orchestratorEntry = map[string]interface{}{
+			"job_name": "kubernetes-nodes-cadvisor",
+			"scheme":   "https",
+			"tls_config": map[string]interface{}{
+				"ca_file": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+			},
+			"bearer_token_file": "/var/run/secrets/kubernetes.io/serviceaccount/token",
+			"kubernetes_sd_configs": []map[string]string{
+				{
+					"role": "node",
+				},
+			},
+			"relabel_configs": []map[string]interface{}{
+				{
+					"action": "labelmap",
+					"regex":  "__meta_kubernetes_node_label_(.+)",
+				},
+				{
+					"target_label": "__address__",
+					"replacement":  "kubernetes.default.svc:443",
+				},
+				{
+					"source_labels": []string{"__meta_kubernetes_node_name"},
+					"regex":         "(.+)",
+					"target_label":  "__metrics_path__",
+					"replacement":   "/api/v1/nodes/${1}/proxy/metrics/cadvisor",
+				},
+			},
+			"metric_relabel_configs": []map[string]interface{}{
+				{
+					"action":        "replace",
+					"source_labels": []string{"id"},
+					"regex":         "^/machine\\.slice/machine-rkt\\x2d([^\\]+)\\.+/([^/]+)\\.service$",
+					"target_label":  "rkt_container_name",
+					"replacement":   "${2}-${1}",
+				},
+				{
+					"action":        "replace",
+					"source_labels": []string{"id"},
+					"regex":         "^/system\\.slice/(.+)\\.service$",
+					"target_label":  "systemd_service_name",
+					"replacement":   "${1}",
+				},
+			},
+		}
+
+	}
 
 	return map[string]interface{}{
 		"global": map[string]interface{}{
 			"scrape_interval": "1s",
-			"external_labels": map[string]string{"env": "dev", "cluster": "local"},
 		},
 		"scrape_configs": []map[string]interface{}{
-			{
-				"job_name":     "nomad-agent",
-				"metrics_path": "/v1/metrics?format=prometheus",
-				"file_sd_configs": []map[string][]string{
-					{"files": {"/model_bazaar/nomad-monitoring/nomad_nodes/*.yaml"}},
-				},
-				"relabel_configs": []map[string]interface{}{
-					{
-						"source_labels": []string{"__address__"},
-						"regex":         "([^:]+):.+",
-						"target_label":  "hostname",
-						"replacement":   "nomad-agent-${1}",
-					},
-				},
-			},
+			orchestratorEntry,
 			{
 				"job_name":        "deployment-jobs",
 				"metrics_path":    "/metrics",
@@ -215,34 +268,176 @@ func prometheusConfig(modelBazaarEndpoint string, isLocal bool) map[string]inter
 	}
 }
 
-func countTargets(storage storage.Storage) (int, error) {
-	count := 0
-	for _, nodeType := range []string{"server.yaml", "client.yaml"} {
-		nodeFile := filepath.Join("nomad-monitoring", "nomad_nodes", nodeType)
-
-		exists, err := storage.Exists(nodeFile)
-		if err != nil {
-			return -1, fmt.Errorf("error counting targets while checking if %v exists: %w", nodeFile, err)
-		}
-
-		if exists {
-			file, err := storage.Read(nodeFile)
-			if err != nil {
-				return -1, fmt.Errorf("error counting targets while reading %v: %w", nodeFile, err)
-			}
-			defer file.Close()
-
-			var targets []targetList
-			err = yaml.NewDecoder(file).Decode(&targets)
-			if err != nil {
-				return -1, fmt.Errorf("error counting targets while parsing %v: %w", nodeFile, err)
-			}
-
-			for _, targetList := range targets {
-				count += len(targetList.Targets)
-			}
-		}
+func createVectorConfig(storage storage.Storage) error {
+	config := map[string]interface{}{
+		// the checkpoints for different logs will be stored in this directory
+		"data_dir": "/model_bazaar/logs",
+		"sources": map[string]interface{}{
+			// fetching logs for all models
+			"training_logs": map[string]interface{}{
+				"type": "file",
+				"include": []string{
+					"/model_bazaar/logs/*/train.log",
+				},
+				"read_from": "beginning",
+			},
+			"deployment_logs": map[string]interface{}{
+				"type": "file",
+				"include": []string{
+					"/model_bazaar/logs/*/deployment.log",
+				},
+				"read_from": "beginning",
+			},
+		},
+		"transforms": map[string]interface{}{
+			"parse_logs": map[string]interface{}{
+				"type": "remap",
+				"inputs": []string{
+					"training_logs",
+					"deployment_logs",
+				},
+				"source": ". = parse_json!(.message)",
+			},
+			"filter_debug_logs": map[string]interface{}{
+				"type": "filter",
+				"inputs": []string{
+					"parse_logs",
+				},
+				"condition": ".level == \"DEBUG\"",
+			},
+			"filter_non_debug_logs": map[string]interface{}{
+				"type": "filter",
+				"inputs": []string{
+					"parse_logs",
+				},
+				"condition": ".level != \"DEBUG\"",
+			},
+		},
+		"sinks": map[string]interface{}{
+			"debug_logs": map[string]interface{}{
+				"type": "http",
+				"inputs": []string{
+					"filter_debug_logs",
+				},
+				"uri": "http://victorialogs-service/insert/jsonline?_stream_fields=model_id,service_type&_msg_field=_msg&_time_field=_time&extra_fields=retention=48h",
+				"encoding": map[string]interface{}{
+					"codec": "json",
+				},
+				"framing": map[string]interface{}{
+					"method": "newline_delimited",
+				},
+				"request": map[string]interface{}{
+					"headers": map[string]interface{}{
+						"Content-Type": "application/json",
+					},
+				},
+				"healthcheck": map[string]interface{}{
+					"enabled": false,
+				},
+			},
+			"other_logs": map[string]interface{}{
+				"type": "http",
+				"inputs": []string{
+					"filter_non_debug_logs",
+				},
+				"uri": "http://victorialogs-service/insert/jsonline?_stream_fields=model_id,service_type&_msg_field=_msg&_time_field=_time&extra_fields=retention=30d",
+				"encoding": map[string]interface{}{
+					"codec": "json",
+				},
+				"framing": map[string]interface{}{
+					"method": "newline_delimited",
+				},
+				"request": map[string]interface{}{
+					"headers": map[string]interface{}{
+						"Content-Type": "application/json",
+					},
+				},
+				"healthcheck": map[string]interface{}{
+					"enabled": false,
+				},
+			},
+		},
 	}
 
-	return count, nil
+	configFile, err := yaml.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("error creating vector config: %w", err)
+	}
+
+	err = storage.Write(
+		filepath.Join("nomad-monitoring", "vector", "vector.yaml"),
+		bytes.NewReader(configFile),
+	)
+	if err != nil {
+		return fmt.Errorf("error writing vector config: %w", err)
+	}
+
+	return nil
+}
+
+func createGrafanaProvisionings(storage storage.Storage, isLocal bool, orchestrator string, modelBazaarPrivateHost string) error {
+	// Create grafana dashboard config
+	dashboardConfig := map[string]interface{}{
+		"apiversions": "1",
+		"providers": []map[string]interface{}{
+			{
+				"name":                  "dashboards",
+				"type":                  "file",
+				"disableDeletion":       true,
+				"updateIntervalSeconds": 10,
+				"allowUiUpdates":        true,
+				"options": map[string]interface{}{
+					"foldersFromFilesStructure": true,
+					"path":                      filepath.Join(storage.Location(), "nomad-monitoring", "grafana_dashboards"),
+				},
+			},
+		},
+	}
+	configFile, err := yaml.Marshal(dashboardConfig)
+	if err != nil {
+		return fmt.Errorf("error creating grafana dashboard config: %w", err)
+	}
+
+	err = storage.Write(
+		filepath.Join("nomad-monitoring", "grafana", "provisioning", "dashboards.yaml"),
+		bytes.NewReader(configFile),
+	)
+	if err != nil {
+		return fmt.Errorf("error writing grafana dashboards config: %w", err)
+	}
+
+	// Create grafana datasource config
+	var url string
+	if isLocal && orchestrator == "nomad" {
+		url = "http://host.docker.internal/victoriametrics"
+	} else {
+		url = "http://" + modelBazaarPrivateHost + "/victoriametrics"
+	}
+	datasourceConfig := map[string]interface{}{
+		"apiVersion": 1,
+		"datasources": []map[string]interface{}{
+			{
+				"name":      "Prometheus",
+				"type":      "prometheus",
+				"url":       url,
+				"access":    "proxy",
+				"isDefault": true,
+				"editable":  false,
+			},
+		},
+	}
+	configFile, err = yaml.Marshal(datasourceConfig)
+	if err != nil {
+		return fmt.Errorf("error creating grafana datasource config: %w", err)
+	}
+
+	err = storage.Write(
+		filepath.Join("nomad-monitoring", "grafana", "provisioning", "datasources.yaml"),
+		bytes.NewReader(configFile),
+	)
+	if err != nil {
+		return fmt.Errorf("error writing grafana datasources config: %w", err)
+	}
+
+	return nil
 }

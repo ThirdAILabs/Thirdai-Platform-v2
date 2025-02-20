@@ -370,3 +370,7 @@ func (c *KubernetesClient) IngressHostname() string {
 	slog.Info("returning ingress hostname", "ingressHostname", c.ingressHostname)
 	return c.ingressHostname
 }
+
+func (c *KubernetesClient) GetName() string {
+	return "kubernetes"
+}

@@ -35,6 +35,43 @@ type DeployService struct {
 	variables Variables
 }
 
+func (service *DeployService) getDeployJob(model schema.Model, configPath string, deploymentName string, autoscaling bool, autoscalingMin int, autoscalingMax int, resources nomad.Resources) (nomad.Job, error) {
+	if model.GetVersion() == "v1" {
+		return nomad.DeployJob{
+			JobName:            model.DeployJobName(),
+			ModelId:            model.Id.String(),
+			ConfigPath:         configPath,
+			DeploymentName:     deploymentName,
+			AutoscalingEnabled: autoscaling,
+			AutoscalingMin:     autoscalingMin,
+			AutoscalingMax:     autoscalingMax,
+			Driver:             service.variables.BackendDriver,
+			Resources:          resources,
+			CloudCredentials:   service.variables.CloudCredentials,
+			JobToken:           uuid.New().String(),
+			IsKE:               model.Type == schema.KnowledgeExtraction,
+		}, nil
+	}
+
+	if model.Type == "ndb" {
+		return nomad.GoDeployJob{
+			JobName:            model.DeployJobName(),
+			ModelId:            model.Id.String(),
+			ConfigPath:         configPath,
+			DeploymentName:     deploymentName,
+			AutoscalingEnabled: autoscaling,
+			AutoscalingMin:     autoscalingMin,
+			AutoscalingMax:     autoscalingMax,
+			Driver:             service.variables.BackendDriver,
+			Resources:          resources,
+			CloudCredentials:   service.variables.CloudCredentials,
+			JobToken:           uuid.New().String(),
+		}, nil
+	}
+
+	return nil, fmt.Errorf("unsupported model type for deployment %v and version: %v", model.Type, model.GetVersion())
+}
+
 func (s *DeployService) Routes() chi.Router {
 	r := chi.NewRouter()
 

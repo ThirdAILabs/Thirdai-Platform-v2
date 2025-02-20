@@ -102,7 +102,27 @@ func (j DeployJob) TemplateName() string {
 }
 
 type GoDeployJob struct {
-	DeployJob
+	JobName string
+	ModelId string
+
+	ConfigPath     string
+	DeploymentName string
+
+	AutoscalingEnabled bool
+	AutoscalingMin     int
+	AutoscalingMax     int
+
+	Driver Driver
+
+	Resources Resources
+
+	CloudCredentials CloudCredentials
+
+	JobToken string
+}
+
+func (j GoDeployJob) GetJobName() string {
+	return j.JobName
 }
 
 func (j GoDeployJob) TemplateName() string {

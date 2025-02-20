@@ -174,8 +174,7 @@ func (j OnPremLlmGenerationJob) JobTemplatePath() string {
 }
 
 type TelemetryJob struct {
-	IsLocal     bool
-	TargetCount int
+	IsLocal bool
 
 	NomadMonitoringDir string
 

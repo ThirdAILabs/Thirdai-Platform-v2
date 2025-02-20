@@ -3,26 +3,6 @@ job "telemetry" {
   type        = "service"
   group "telemetry" {
     count = 1
-    {{/*
-      If there are more than one node in the cluster, 
-        then this constraint ensures that telemetry job always run on client node,
-
-      The issue originates from ownerships of files created by victoriametric on nfs.
-        - If server starts the job, files created is having (root, nomad_nfs) as ownership and group ownership
-        - If client starts the job, files created is having (nomad_nfs, nomad_nfs) as ownership and group ownership,
-        so, different node class is unable to restart the victoriametric task.
-      
-      Incase multiple nodes are in the cluster,
-        Assumption: There will be more client nodes than server.
-        so constrain the job to always get scheduled on client node.
-    */}}
-    {{ if and (not .IsLocal) (ne .TargetCount 1) }}
-    constraint {
-      attribute = "${node.class}"
-      value     = "web_ingress"
-      operator = "!="
-    }
-    {{ end }}
 
     network {
       port "vicky-http" {
@@ -132,14 +112,6 @@ job "telemetry" {
         sidecar = true
       }
 
-      env {
-        {{ if .IsLocal }}
-        PRIVATE_MODEL_BAZAAR_ENDPOINT = "http://host.docker.internal/"
-        {{ else }}
-        PRIVATE_MODEL_BAZAAR_ENDPOINT = "http://{{ .ModelBazaarPrivateHost }}/"
-        {{ end }}
-      }
-
       config {
         image = "timberio/vector:nightly-distroless-libc"
 
@@ -153,88 +125,6 @@ job "telemetry" {
           {{ end }}
           "local/vector-config.yaml:/etc/vector/vector.yaml"
         ]
-      }
-
-      template {
-        data = <<EOF
-# the checkpoints for different logs will be stored in this directory
-data_dir: /model_bazaar/logs
-
-sources:
-  # fetching logs for all models
-  training_logs:
-    type: file
-    include:
-      - "/model_bazaar/logs/*/train.log"
-    read_from: beginning
-
-  deployment_logs:
-    type: file
-    include:
-      - "/model_bazaar/logs/*/deployment.log"
-    read_from: beginning
-
-transforms:
-  parse_logs:
-    # loads the json line as it is. we can add more fields here if needed
-    # for example the IP address of the machine where the logs are generated
-    type: remap
-    inputs:
-      - training_logs
-      - deployment_logs
-    source: |
-      . = parse_json!(.message)
-
-  # create two different sources for debug and non-debug logs
-  filter_debug_logs:
-    type: filter
-    inputs:
-      - parse_logs
-    condition: |
-      .level == "DEBUG"
-  
-  filter_non_debug_logs:
-    type: filter
-    inputs:
-      - parse_logs
-    condition: |
-      .level != "DEBUG"
-
-sinks:
-  # two different sinks for debug and non-debug logs.
-  # the number of debug logs can be high hence, we store them for a short period
-  # retention period of debug logs is 48 hours, non debug logs are stored for 30 days
-  debug_logs:
-    type: http
-    inputs:
-      - filter_debug_logs
-    uri: "${PRIVATE_MODEL_BAZAAR_ENDPOINT}victorialogs/insert/jsonline?_stream_fields=model_id,service_type&_msg_field=_msg&_time_field=_time&extra_fields=retention=48h"
-    encoding:
-      codec: json
-    framing:
-      method: newline_delimited
-    request:
-      headers:
-        Content-Type: application/json
-    healthcheck:
-      enabled: false
-
-  other_logs:
-    type: http
-    inputs:
-      - filter_non_debug_logs
-    uri: "${PRIVATE_MODEL_BAZAAR_ENDPOINT}victorialogs/insert/jsonline?_stream_fields=model_id,service_type&_msg_field=_msg&_time_field=_time&extra_fields=retention=30d"
-    encoding:
-      codec: json
-    framing:
-      method: newline_delimited
-    request:
-      headers:
-        Content-Type: application/json
-    healthcheck:
-      enabled: false
-EOF
-        destination = "local/vector-config.yaml"
       }
 
       resources {
@@ -296,40 +186,6 @@ EOF
       resources {
         cpu    = 256
         memory = 300
-      }
-
-      template {
-        data        = <<EOF
-apiVersion: 1
-datasources:
-  - name: Prometheus
-    type: prometheus
-    access: proxy
-    {{ if .IsLocal }}
-    url: http://host.docker.internal/victoriametrics
-    {{ else }}
-    url: http://{{ .ModelBazaarPrivateHost }}/victoriametrics
-    {{ end }}
-    isDefault: true
-    editable: false
-EOF
-        destination = "/local/grafana/provisioning/datasources/datasources.yaml"
-      }
-
-      template {
-        data        = <<EOF
-apiVersion: 1
-providers:
-  - name: dashboards
-    type: file
-    disableDeletion: true
-    updateIntervalSeconds: 10
-    allowUiUpdates: true
-    options:
-      foldersFromFilesStructure: true
-      path: {{ .NomadMonitoringDir }}/grafana_dashboards
-EOF
-        destination = "/local/grafana/provisioning/dashboards/dashboards.yaml"
       }
     }
   }

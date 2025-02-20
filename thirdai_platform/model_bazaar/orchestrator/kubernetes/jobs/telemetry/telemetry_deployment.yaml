@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telemetery
+  labels:
+    app: telemeetry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: telemetery
+  template:
+    metadata:
+      labels:
+        app: telemetery
+    spec:
+      initContainers:
+        - name: victoriametrics
+          {{ with .Docker }}
+          image: "{{ .Registry }}/victoria-metrics:tags-v1.102.1-1-g76115c611f"
+          {{ end }}
+          args: ["--storageDataPath={{ .NomadMonitoringDir }}/victoriametric", 
+                "--retentionPeriod=10d",
+                "--httpListenAddr=:8428",
+                "--promscrape.config={{ .NomadMonitoringDir }}/node_discovery/prometheus.yaml",
+                "--http.pathPrefix=/victoriametrics",
+                {{ if .Orchestrator == "nomad" }}
+                "--promscrape.fileSDCheckInterval=5s",
+                {{ end }}
+                ]
+          ports: 
+            - containerPort: 8428
+          volumeMounts:
+            - name: shared-modelbazaar
+              mountPath: "/model_bazaar"
+          restartPolicy: Always
+          resources:
+            requests:
+              cpu: "256m"
+              memory: "600Mi"
+            limits:
+              cpu: "256m"
+              memory: "600Mi"
+        - name: victorialogs
+          image: "docker.io/victoriametrics/victoria-logs:latest"
+          args: ["--storageDataPath={{ .NomadMonitoringDir }}/victorialogs", 
+                "--retentionPeriod=30d",
+                "--httpListenAddr=:9428",
+                "--http.pathPrefix=/victorialogs"]
+          ports: 
+            - containerPort: 9428
+          volumeMounts:
+            - name: shared-modelbazaar
+              mountPath: "/model_bazaar"
+          restartPolicy: Always
+          resources:
+            requests:
+              cpu: "256m"
+              memory: "600Mi"
+            limits:
+              cpu: "256m"
+              memory: "600Mi"
+      containers:
+        - name: grafana
+          {{ with .Docker }}
+          image: "{{ .Registry }}/grafana:main-ubuntu"
+          {{ end }}
+          env:
+            - name: GF_LOG_LEVEL
+              value: "debug"
+            - name: GF_LOG_MODE
+              value: "console"
+            - name: GF_SECURITY_ADMIN_USER
+              value: "{{ .AdminUsername }}"
+            - name: GF_SECURITY_ADMIN_EMAIL
+              value: "{{ .AdminEmail }}"
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: "{{ .AdminPassword }}"
+            - name: GF_DATABASE_URL
+              value: "{{ .GrafanaDbUrl }}"
+            - name: GF_SERVER_ROOT_URL
+              value: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+            - name: GF_SERVER_SERVE_FROM_SUB_PATH
+              value: true
+            - name: GF_SERVER_HTTP_PORT
+              value: 3000
+            - name: GF_PATHS_PROVISIONING
+              value: "{{ .NomadMonitoringDir }}/grafana/provisioning"
+            - name: GF_PATHS_DATA
+              value: "{{ .NomadMonitoringDir }}/grafana"
+            - name: GF_SECURITY_ALLOW_EMBEDDING
+              value: true
+          ports:
+            - containerPort: 3000
+          volumeMounts:
+            - name: shared-modelbazaar
+              mountPath: "/model_bazaar"
+          resources:
+            requests:
+              cpu: "256m"
+              memory: "300Mi"
+            limits:
+              cpu: "256m"
+              memory: "300Mi"
+        - name: vector
+          image: "timberio/vector:nightly-distroless-libc"
+          args: [
+            "--config {{ .NomadMonitoringDir }}/node_discovery/vector/vector.yaml"
+          ]
+          volumeMounts:
+            - name: shared-modelbazaar
+              mountPath: "/model_bazaar"
+          resources:
+            requests:
+              cpu: "256m"
+              memory: "300Mi"
+            limits:
+              cpu: "256m"
+              memory: "300Mi"
+      imagePullSecrets:
+        - name: docker-credentials-secret
+      volumes:
+        - name: shared-modelbazaar
+          persistentVolumeClaim:
+            claimName: modelbazaar-efs-pvc

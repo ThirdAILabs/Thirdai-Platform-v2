@@ -161,7 +161,7 @@ func loadEnv() modelBazaarEnv {
 	}
 
 	if (env.DockerImageNames.PythonBackend == "" || env.DockerImageNames.GolangDeployment == "") && (env.PythonPath == "" || env.PlatformDir == "") {
-		log.Fatal("If JOBS_IMAGE_NAME env var is not specified then PYTHON_PATH and PLATFORM_DIR env vars must be provided.")
+		log.Fatal("If JOBS_IMAGE_NAME or GO_DEPLOYMENT_IMAGE_NAME env var is not specified then PYTHON_PATH and PLATFORM_DIR env vars must be provided.")
 	} else if (env.DockerImageNames.PythonBackend != "" || env.DockerImageNames.FrontEnd != "") && env.Tag == "" {
 		log.Fatal("If JOBS_IMAGE_NAME or FRONTEND_IMAGE_NAME env vars are specified then TAG must be specified as well.")
 	}

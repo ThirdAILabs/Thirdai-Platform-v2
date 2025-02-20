@@ -36,7 +36,7 @@ type DeployService struct {
 }
 
 func (service *DeployService) getDeployJob(model schema.Model, configPath string, deploymentName string, autoscaling bool, autoscalingMin int, autoscalingMax int, resources nomad.Resources) (nomad.Job, error) {
-	if model.GetVersion() == "v1" {
+	if model.GetVersion() == "v1"  || model.Type != "ndb" {
 		return nomad.DeployJob{
 			JobName:            model.DeployJobName(),
 			ModelId:            model.Id.String(),

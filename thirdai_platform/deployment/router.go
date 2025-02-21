@@ -44,7 +44,7 @@ func (m *NdbRouter) Routes() chi.Router {
 	}))
 
 	r.Group(func(r chi.Router) {
-		r.Use(m.Permissions.ModelPermissionsCheck("write"))
+		r.Use(m.Permissions.ModelPermissionsCheck(WritePermission))
 
 		r.Post("/insert", m.Insert)
 		r.Post("/delete", m.Delete)
@@ -53,7 +53,7 @@ func (m *NdbRouter) Routes() chi.Router {
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(m.Permissions.ModelPermissionsCheck("read"))
+		r.Use(m.Permissions.ModelPermissionsCheck(ReadPermission))
 
 		r.Post("/query", m.Search)
 		r.Get("/sources", m.Sources)

@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"log/slog"
 	"mime"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -217,18 +217,19 @@ func getMultipartBoundary(r *http.Request) (string, error) {
 func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r)
 	if err != nil {
+		slog.Error("auth error", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	boundary, err := getMultipartBoundary(r)
 	if err != nil {
+		slog.Error("boundary error", "error", err)
 		http.Error(w, err.Error(), GetResponseCode(err))
 		return
 	}
 
 	uploadId := uuid.New()
-
 	upload := schema.Upload{
 		Id:         uploadId,
 		UserId:     user.Id,
@@ -241,18 +242,8 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filenames := make([]string, 0)
-
 	reader := multipart.NewReader(r.Body, boundary)
-
-	saveDir := storage.UploadPath(uploadId)
-	if subDir := r.URL.Query().Get("sub_dir"); subDir != "" {
-		ok, err := regexp.MatchString(`^\w+$`, subDir)
-		if err != nil || !ok {
-			http.Error(w, "invalid value for query parameter 'sub_dir', must be alphanumeric or _ characters only", http.StatusUnprocessableEntity)
-			return
-		}
-		saveDir = filepath.Join(saveDir, subDir)
-	}
+	baseDir := storage.UploadPath(uploadId)
 
 	for {
 		part, err := reader.NextPart()
@@ -260,35 +251,84 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		if err != nil {
+			slog.Error("multipart read error", "error", err)
 			http.Error(w, fmt.Sprintf("error parsing multipart request: %v", err), http.StatusBadRequest)
 			return
 		}
 		defer part.Close()
 
 		if part.FormName() == "files" {
-			if part.FileName() == "" {
+			// Get the filename from Content-Disposition header
+			cdHeader := part.Header.Get("Content-Disposition")
+			fullPath := ""
+			
+			// Extract the full path from Content-Disposition header
+			if strings.Contains(cdHeader, "filename=\"") {
+				start := strings.Index(cdHeader, "filename=\"") + 10
+				end := strings.LastIndex(cdHeader, "\"")
+				if start > 10 && end > start {
+					fullPath = cdHeader[start:end]
+				}
+			}
+		
+			if fullPath == "" {
+				slog.Error("empty filename detected")
 				http.Error(w, "invalid filename detected in upload files: filename cannot be empty", http.StatusUnprocessableEntity)
 				return
 			}
-
-			filenames = append(filenames, part.FileName())
-
-			newFilepath := filepath.Join(saveDir, part.FileName())
+		
+			pathParts := strings.Split(fullPath, "/")
+			var newFilepath string
+		
+			// Now properly handle the full path structure
+			if len(pathParts) >= 3 && strings.HasPrefix(fullPath, "customer_comments/") {
+				// Correctly join baseDir with fullPath
+				newFilepath = filepath.Join(baseDir, fullPath)
+				slog.Info("using category structure", 
+					"category", pathParts[1],
+					"filename", pathParts[2],
+					"fullPath", fullPath)
+			} else {
+				newFilepath = filepath.Join(baseDir, "uncategorized", pathParts[len(pathParts)-1])
+				slog.Info("using default structure", 
+					"filename", pathParts[len(pathParts)-1])
+			}
+		
+			// Ensure directory exists
+			dir := filepath.Dir(newFilepath)
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				slog.Error("failed to create directory", "error", err, "dir", dir)
+				http.Error(w, "error creating directory structure", http.StatusInternalServerError)
+				return
+			}
+		
+			slog.Info("processing file",
+				"originalPath", fullPath,
+				"savePath", newFilepath)
+		
 			err := s.storage.Write(newFilepath, part)
 			if err != nil {
-				slog.Error("error saving uploaded file", "error", err)
+				slog.Error("file save error", "path", newFilepath, "error", err)
 				http.Error(w, "error saving uploaded file", http.StatusInternalServerError)
 				return
 			}
+		
+			filenames = append(filenames, fullPath)
 		}
 	}
 
+	// Store full paths in database
 	upload.Files = strings.Join(filenames, ";")
 	if err := s.db.Save(&upload).Error; err != nil {
 		slog.Error("sql error updating upload file list", "error", err)
 		http.Error(w, "error storing upload metadata", http.StatusInternalServerError)
 		return
 	}
+
+	slog.Info("upload complete", 
+		"uploadId", uploadId,
+		"totalFiles", len(filenames),
+		"structure", fmt.Sprintf("Files saved under: %s", baseDir))
 
 	utils.WriteJsonResponse(w, map[string]uuid.UUID{"upload_id": uploadId})
 }

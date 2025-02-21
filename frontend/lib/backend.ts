@@ -439,10 +439,30 @@ export async function uploadDocument(files: FileList | File): Promise<UploadResp
 
   // Add files to FormData maintaining category structure
   categoryMap.forEach((categoryFiles, category) => {
+    console.log('Processing category:', category, 'with files:', categoryFiles);
     categoryFiles.forEach((file) => {
-      formData.append('files', file, file.webkitRelativePath);
+        // Log file details before processing
+        console.log('File details:', {
+            name: file.name,
+            webkitRelativePath: file.webkitRelativePath,
+            type: file.type
+        });
+
+        // Use the full path constructed from the category
+        const fullPath = `customer_comments/${category}/${file.name}`;
+        
+        // Create a new file object with the full path
+        formData.append('files', file, fullPath);
+        
+        // Debug log the actual FormData append
+        console.log('Added to FormData with path:', fullPath);
     });
   });
+
+  // Debug log the entire FormData
+  for (const pair of formData.entries()) {
+    console.log('FormData entry:', pair[0], pair[1] instanceof File ? pair[1].name : pair[1]);
+  }
 
   try {
     const response = await axios.post<UploadResponse>(

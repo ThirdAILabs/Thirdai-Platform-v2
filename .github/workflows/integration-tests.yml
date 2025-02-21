@@ -169,6 +169,27 @@ jobs:
         echo "DOCKER_PASSWORD=none" >> $GITHUB_WORKSPACE/.env
         echo "GRAFANA_DB_URL=none" >> $GITHUB_WORKSPACE/.env
 
+    - uses: actions/checkout@v2
+      with:
+        repository: ThirdAILabs/Universe
+        token: ${{ secrets.UNIVERSE_ACCESS_KEY }}
+        path: ./Universe
+        submodules: 'recursive'
+
+    - name: build universe library
+      run: |
+        cd $GITHUB_WORKSPACE/Universe
+        bin/build.py -f THIRDAI_BUILD_LICENSE THIRDAI_CHECK_LICENSE
+    
+    - name: copy libraries for bindings
+      run: |
+        mkdir -p $GITHUB_WORKSPACE/thirdai_platform/search/ndb/lib/linux_x64
+        cp $GITHUB_WORKSPACE/Universe/build/libthirdai.a $GITHUB_WORKSPACE/thirdai_platform/search/ndb/lib/linux_x64
+        cp $GITHUB_WORKSPACE/Universe/build/deps/rocksdb/librocksdb.a $GITHUB_WORKSPACE/thirdai_platform/search/ndb/lib/linux_x64
+        cp $GITHUB_WORKSPACE/Universe/build/deps/utf8proc/libutf8proc.a $GITHUB_WORKSPACE/thirdai_platform/search/ndb/lib/linux_x64
+        cp $GITHUB_WORKSPACE/Universe/build/deps/cryptopp-cmake/cryptopp/libcryptopp.a $GITHUB_WORKSPACE/thirdai_platform/search/ndb/lib/linux_x64
+
+
     - name: Launch Backend
       run: |
         cd $GITHUB_WORKSPACE/thirdai_platform

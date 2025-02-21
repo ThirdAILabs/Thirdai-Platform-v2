@@ -49,6 +49,10 @@ var resources = []resourceDef{
 		FileSuffix:   "_hpa.yaml",
 		ResourceType: "HorizontalPodAutoscaler",
 	},
+	{
+		FileSuffix:   "_rba.yaml",
+		ResourceType: "RoleBinding",
+	},
 }
 
 func (c *KubernetesClient) processJob(doc string, ctx context.Context) error {

@@ -68,7 +68,7 @@ def get_root_absolute_path() -> Path:
     :return: Absolute path to the project root
     """
     current_path = Path(__file__).resolve()
-    while current_path.name != "ThirdAI-Platform":
+    while current_path.name != "Thirdai-Platform-v2":
         current_path = current_path.parent
 
     return current_path

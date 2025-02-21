@@ -1,4 +1,4 @@
-package nomad
+package orchestrator
 
 type Driver interface {
 	DriverType() string
@@ -49,18 +49,14 @@ type CloudCredentials struct {
 type Job interface {
 	GetJobName() string
 
-	TemplateName() string
+	JobTemplatePath() string
 }
 
 type TrainJob struct {
-	JobName string
-
-	ConfigPath string
-
-	Driver Driver
-
-	Resources Resources
-
+	JobName          string
+	ConfigPath       string
+	Driver           Driver
+	Resources        Resources
 	CloudCredentials CloudCredentials
 }
 
@@ -68,8 +64,8 @@ func (j TrainJob) GetJobName() string {
 	return j.JobName
 }
 
-func (j TrainJob) TemplateName() string {
-	return "train.hcl.tmpl"
+func (j TrainJob) JobTemplatePath() string {
+	return "train"
 }
 
 type DeployJob struct {
@@ -91,14 +87,16 @@ type DeployJob struct {
 
 	JobToken string
 	IsKE     bool
+
+	IngressHostname string
 }
 
 func (j DeployJob) GetJobName() string {
 	return j.JobName
 }
 
-func (j DeployJob) TemplateName() string {
-	return "deploy.hcl.tmpl"
+func (j DeployJob) JobTemplatePath() string {
+	return "deploy"
 }
 
 type DatagenTrainJob struct {
@@ -112,8 +110,8 @@ func (j DatagenTrainJob) GetJobName() string {
 	return j.JobName
 }
 
-func (j DatagenTrainJob) TemplateName() string {
-	return "datagen_train.hcl.tmpl"
+func (j DatagenTrainJob) JobTemplatePath() string {
+	return "datagen_train"
 }
 
 type LlmCacheJob struct {
@@ -122,14 +120,16 @@ type LlmCacheJob struct {
 	ShareDir            string
 
 	Driver Driver
+
+	IngressHostname string
 }
 
 func (j LlmCacheJob) GetJobName() string {
 	return "llm-cache"
 }
 
-func (j LlmCacheJob) TemplateName() string {
-	return "llm_cache.hcl.tmpl"
+func (j LlmCacheJob) JobTemplatePath() string {
+	return "llm_cache"
 }
 
 type LlmDispatchJob struct {
@@ -137,14 +137,16 @@ type LlmDispatchJob struct {
 	ShareDir            string
 
 	Driver Driver
+
+	IngressHostname string
 }
 
 func (j LlmDispatchJob) GetJobName() string {
 	return "llm-dispatch"
 }
 
-func (j LlmDispatchJob) TemplateName() string {
-	return "llm_dispatch.hcl.tmpl"
+func (j LlmDispatchJob) JobTemplatePath() string {
+	return "llm_dispatch"
 }
 
 type OnPremLlmGenerationJob struct {
@@ -159,14 +161,16 @@ type OnPremLlmGenerationJob struct {
 	Docker DockerEnv
 
 	Resources Resources
+
+	IngressHostname string
 }
 
 func (j OnPremLlmGenerationJob) GetJobName() string {
 	return "on-prem-llm-generation"
 }
 
-func (j OnPremLlmGenerationJob) TemplateName() string {
-	return "on_prem_llm_generation.hcl.tmpl"
+func (j OnPremLlmGenerationJob) JobTemplatePath() string {
+	return "on_prem_llm_generation"
 }
 
 type TelemetryJob struct {
@@ -183,14 +187,16 @@ type TelemetryJob struct {
 	ModelBazaarPrivateHost string
 
 	Docker DockerEnv
+
+	IngressHostname string
 }
 
 func (j TelemetryJob) GetJobName() string {
 	return "telemetry"
 }
 
-func (j TelemetryJob) TemplateName() string {
-	return "telemetry.hcl.tmpl"
+func (j TelemetryJob) JobTemplatePath() string {
+	return "telemetry"
 }
 
 type FrontendJob struct {
@@ -203,14 +209,16 @@ type FrontendJob struct {
 
 	UseSslInLogin bool
 	Driver        DockerDriver
+
+	IngressHostname string
 }
 
 func (j FrontendJob) GetJobName() string {
 	return "thirdai-platform-frontend"
 }
 
-func (j FrontendJob) TemplateName() string {
-	return "frontend.hcl.tmpl"
+func (j FrontendJob) JobTemplatePath() string {
+	return "frontend"
 }
 
 type SnapshotJob struct {
@@ -225,6 +233,6 @@ func (j SnapshotJob) GetJobName() string {
 	return "snapshot"
 }
 
-func (j SnapshotJob) TemplateName() string {
-	return "snapshot.hcl.tmpl"
+func (j SnapshotJob) JobTemplatePath() string {
+	return "snapshot"
 }

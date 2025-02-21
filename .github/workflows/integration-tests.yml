@@ -69,10 +69,10 @@ jobs:
         python -m venv ${{ github.workspace }}/venv
         source venv/bin/activate
         pip install -r thirdai_platform_py/requirements.txt
-    
+
     - name: Update openssl
       run: |
-        sudo pip install --upgrade cryptography pyopenssl
+        pip install --upgrade --force-reinstall cryptography pyopenssl
         sudo apt-get install --only-upgrade openssl
 
     - name: Install PostgreSQL client version 17.x
@@ -149,7 +149,7 @@ jobs:
         echo "AIRGAPPED=True" >> $GITHUB_WORKSPACE/.env
         echo "DATABASE_URI=postgresql://postgres:password@localhost:5432/model_bazaar" >> $GITHUB_WORKSPACE/.env
         echo "NOMAD_ENDPOINT=http://localhost:4646/" >> $GITHUB_WORKSPACE/.env
-        echo "PUBLIC_MODEL_BAZAAR_ENDPOINT=http://localhost:80/" >> $GITHUB_WORKSPACE/.env
+        echo "INGRESS_HOSTNAME=http://localhost:80/" >> $GITHUB_WORKSPACE/.env
         echo "PRIVATE_MODEL_BAZAAR_ENDPOINT=http://localhost:80/" >> $GITHUB_WORKSPACE/.env
         echo "HASHICORP_VAULT_ENDPOINT=http://127.0.0.1:8200" >> $GITHUB_WORKSPACE/.env
         echo "HASHICORP_VAULT_TOKEN=00000000-0000-0000-0000-000000000000" >> $GITHUB_WORKSPACE/.env
@@ -202,6 +202,11 @@ jobs:
         cat vault.log
         
         bash local_setup/fetch_nomad_logs.sh
+    
+    - name: Display nomad job stdout/stderr
+      if: always()
+      run: |
+        sudo find /opt/nomad/data/alloc -type f \( -name "backend.stderr.0" -o -name "backend.stdout.0" \) -exec echo "==== {} ====" \; -exec cat {} \;
 
     - name: Stop Services
       if: always()

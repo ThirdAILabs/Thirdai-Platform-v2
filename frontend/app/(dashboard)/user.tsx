@@ -40,17 +40,17 @@ export function User() {
         {/* <DropdownMenuItem>Settings</DropdownMenuItem>
         <DropdownMenuItem>Support</DropdownMenuItem> */}
         <DropdownMenuSeparator />
-        {user ? (
-          <DropdownMenuItem>
-            <form action={logout}>
-              <button type="submit">Sign Out</button>
-            </form>
-          </DropdownMenuItem>
-        ) : (
-          <DropdownMenuItem>
-            return (
-            <Link href={isKeycloakProvider ? '/login-keycloak' : '/login-email'}>Sign In</Link>
-            );
+        {user && (
+          <DropdownMenuItem asChild>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                logout();
+              }}
+              className="w-full text-left"
+            >
+              Sign Out
+            </button>
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

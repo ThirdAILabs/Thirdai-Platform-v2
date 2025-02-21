@@ -5,7 +5,8 @@ import shutil
 import time
 from collections import defaultdict
 from logging import Logger
-from typing import List
+from typing import Dict, List
+from urllib.parse import urljoin
 
 import thirdai
 from platform_common.file_handler import expand_cloud_buckets_and_directories
@@ -13,10 +14,12 @@ from platform_common.logging.logcodes import LogCode
 from platform_common.ndb.ndbv2_parser import parse_doc
 from platform_common.ndb.utils import delete_docs_and_remove_files
 from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
-from platform_common.pydantic_models.training import FileInfo, TrainConfig
+from platform_common.pydantic_models.llm_config import LLMProvider
+from platform_common.pydantic_models.training import FileInfo, FileLocation, TrainConfig
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.chunk_stores import PandasChunkStore
 from thirdai.neural_db_v2.retrievers import FinetunableRetriever
+from train_job.llm.api_clients import llm_classes
 from train_job.models.model import Model
 from train_job.reporter import Reporter
 from train_job.utils import check_disk, get_directory_size
@@ -79,6 +82,30 @@ class NeuralDBV2(Model):
                     retriever=FinetunableRetriever(self.retriever_save_path()),
                     splade=splade,
                 )
+
+        if config.generative_supervision:
+            self.llm_response_dir = self.model_dir / config.llm_config.provider.value
+            self.llm_response_dir.mkdir(parents=True, exist_ok=True)
+
+            llm_args = {
+                "track_usage_at": str(self.llm_response_dir / "usage.json"),
+            }
+
+            if config.llm_config.provider != LLMProvider.onprem:
+                llm_args["api_key"] = self.config.llm_config.api_key
+                if self.config.llm_config.base_url:
+                    llm_args["base_url"] = self.config.llm_config.base_url
+
+                if self.config.llm_config.model_name:
+                    llm_args["model_name"] = self.config.llm_config.model_name
+            else:
+                llm_args["base_url"] = urljoin(
+                    self.config.model_bazaar_endpoint, "/on-prem-llm/v1"
+                )
+                llm_args["api_key"] = "sk-no-key-required"
+                llm_args["model_name"] = "onPrem"
+
+            self.llm = llm_classes.get(self.config.llm_config.provider)(**llm_args)
 
     def retriever_save_path(self):
         return os.path.join(self.model_dir, "train_retriever")
@@ -330,13 +357,42 @@ class NeuralDBV2(Model):
             f"Listed {len(supervised_files)} supervised files in {e-s:.4f} seconds"
         )
 
-        start_time = time.time()
-
+        unsup_start = time.time()
         successfully_indexed_files = 0
         if unsupervised_files:
             check_disk(self.db, self.config.model_bazaar_dir, unsupervised_files)
             successfully_indexed_files = self.unsupervised_train(unsupervised_files)
+        unsup_end = time.time()
 
+        # Generative supervised training. Assuming that enough disk space is available for supervised training on model
+        if self.config.generative_supervision:
+            self.logger.info(f"Starting question generation for supervised training.")
+            gen_sup_start = time.time()
+            documents = self.sources()
+            path_prefix = os.path.join(self.llm_response_dir, "generated_questions")
+            os.makedirs(path_prefix, exist_ok=True)
+            for doc in documents:
+                write_at = os.path.join(path_prefix, f"{doc['source_id']}.csv")
+                self.generate_supervise_training_data(
+                    doc["source_id"],
+                    write_at=write_at,
+                )
+                supervised_files.append(
+                    FileInfo(
+                        path=write_at,
+                        location=FileLocation.nfs,
+                        options={
+                            "csv_query_column": "text",
+                            "csv_id_column": "chunk_id",
+                            "csv_id_delimiter": ":",  # random delimiter because there is only one label per query
+                        },
+                    )
+                )
+            self.logger.info(
+                f"Completed question generation for supervised training in {time.time() - gen_sup_start:.4f} seconds."
+            )
+
+        sup_start = time.time()
         successfully_trained_files = 0
         if supervised_files:
             check_disk(self.db, self.config.model_bazaar_dir, supervised_files)
@@ -347,9 +403,9 @@ class NeuralDBV2(Model):
                 msg = "The number of documents indexed and trained is 0. Marking training as failed."
                 self.logger.error(msg, code=LogCode.MODEL_TRAIN)
                 raise ValueError(msg)
-
-        train_time = time.time() - start_time
-        self.logger.debug(f"Total training time: {train_time} seconds")
+        sup_end = time.time()
+        train_time = (unsup_end - unsup_start) + (sup_end - sup_start)
+        self.logger.debug(f"Total training time: {train_time:.4f} seconds")
 
         if self.config.data.deletions:
             delete_docs_and_remove_files(
@@ -449,3 +505,101 @@ class NeuralDBV2(Model):
                 "latency": str(self.get_latency()),
             },
         )
+
+    def full_source_path(self, document: str) -> str:
+        return os.path.join(self.doc_save_path(), document)
+
+    def sources(self) -> List[Dict[str, str]]:
+        docs = self.db.documents()
+        return [
+            {
+                "source": self.full_source_path(doc["document"]),
+                "source_id": doc["doc_id"],
+                "version": doc["doc_version"],
+            }
+            for doc in docs
+        ]
+
+    def generate_supervise_training_data(
+        self,
+        doc_id: str,
+        write_at: str,
+        batch_size: int = 500,
+        questions_per_chunk: int = 2,
+    ):
+        # 1_000_000 is an absurdly high version number. Basically means "latest version".
+        chunk_ids = self.db.chunk_store.get_doc_chunks(
+            doc_id=doc_id, before_version=1_000_000
+        )
+
+        if not chunk_ids:
+            raise ValueError("No chunk found for the given doc_id")
+
+        from csv import writer
+
+        from train_job.prompt_resources.supervise_questions import (
+            OpenAIResponse,
+            system_prompt,
+            user_prompt,
+        )
+
+        handler = open(
+            write_at,
+            "w",
+        )
+        csv_writer = writer(handler)
+        csv_writer.writerow(("text", "chunk_id"))
+
+        for i in range(0, len(chunk_ids), batch_size):
+            start_time = time.time()
+
+            # Prepare prompts for these batched_chunks
+            batched_prompts = [
+                {
+                    "prompt": user_prompt[self.config.llm_config.provider].format(
+                        questions_per_chunk=questions_per_chunk, chunk_text=chunk.text
+                    ),
+                    "system_prompt": system_prompt[self.config.llm_config.provider],
+                    "metadata": {"chunk_id": chunk.chunk_id},
+                    "completion_kwargs": {"max_tokens": 1000},
+                }
+                for chunk in self.db.chunk_store.get_chunks(
+                    chunk_ids[i : i + batch_size]
+                )
+            ]
+            if self.config.llm_config.provider != LLMProvider.cohere:
+                for prompt in batched_prompts:
+                    prompt["completion_kwargs"]["response_format"] = OpenAIResponse
+
+            batched_response = self.llm.run_and_collect_results(
+                batched_prompts, parallelize=True
+            )
+
+            if self.config.llm_config.provider not in [
+                LLMProvider.cohere,
+                LLMProvider.mock,
+            ]:
+                csv_writer.writerows(
+                    [
+                        (ques, response[1]["chunk_id"])
+                        for response in batched_response
+                        for ques in response[0].questions
+                    ]
+                )
+            else:
+                csv_writer.writerows(
+                    [
+                        (ques, response[1]["chunk_id"])
+                        for response in batched_response
+                        for ques in response[0].split("\n")
+                        if ques
+                        and len(ques.split())
+                        >= 4  # Ignore questions of less than 4 words as it is possibly not a valid question.
+                    ]
+                )
+            handler.flush()
+            self.logger.info(
+                f"Generated questions for {len(batched_prompts)} chunks in {(time.time() - start_time):.4f} seconds"
+            )
+
+        handler.close()

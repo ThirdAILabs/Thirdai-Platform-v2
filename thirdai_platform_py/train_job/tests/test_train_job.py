@@ -48,7 +48,7 @@ class DummyReporter(Reporter):
 MODEL_BAZAAR_DIR = "./model_bazaar_tmp"
 
 THIRDAI_LICENSE = os.path.join(
-    os.path.dirname(__file__), "../tests/platform_test_license.json"
+    os.path.dirname(__file__), "../../tests/platform_test_license.json"
 )
 
 logger = JobLogger(
@@ -62,7 +62,7 @@ logger = JobLogger(
 
 
 def file_dir():
-    return os.path.join(os.path.dirname(__file__), "sample_docs")
+    return os.path.join(os.path.dirname(__file__), "..", "sample_docs")
 
 
 @pytest.fixture()

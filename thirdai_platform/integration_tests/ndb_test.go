@@ -305,6 +305,8 @@ func TestNdbTrainingFromBaseModel(t *testing.T) {
 			},
 		}},
 		config.JobOptions{},
+		false,
+		nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -519,5 +521,28 @@ func TestTrainErrorHandling(t *testing.T) {
 	}
 	if !strings.Contains(logs[0].Stderr, errorMsg) {
 		t.Fatal("error not found in logs")
+	}
+}
+
+func TestTrainWithGenerativeSupervision(t *testing.T) {
+	c := getClient(t)
+
+	ndb, err := c.TrainNdbWithGenerativeSupervision(
+		randomName("ndb"),
+		[]client.FileInfo{{
+			Path: "./data/articles.csv", Location: "upload",
+		}},
+		nil,
+		config.JobOptions{AllocationMemory: 1000},
+		&config.LLMConfig{Provider: "mock"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Just checking that training is completed successfully
+	err = ndb.AwaitTrain(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

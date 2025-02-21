@@ -12,7 +12,7 @@ import (
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/jobs"
 	"thirdai_platform/model_bazaar/licensing"
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/utils"
@@ -24,9 +24,9 @@ import (
 )
 
 type DeployService struct {
-	db      *gorm.DB
-	nomad   nomad.NomadClient
-	storage storage.Storage
+	db                 *gorm.DB
+	orchestratorClient orchestrator.Client
+	storage            storage.Storage
 
 	userAuth auth.IdentityProvider
 	jobAuth  *auth.JwtManager
@@ -140,14 +140,28 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 
 		attrs := model.GetAttributes()
 
-		memory := getDeploymentMemory(modelId, memory, attrs)
-		resources := nomad.Resources{
-			AllocationMhz:       2400,
-			AllocationMemory:    memory,
-			AllocationMemoryMax: 4 * memory,
+		isKE := (model.Type == schema.KnowledgeExtraction)
+
+		var resources orchestrator.Resources
+		if !isKE {
+			memory := getDeploymentMemory(modelId, memory, attrs)
+
+			resources = orchestrator.Resources{
+				AllocationCores:     2,
+				AllocationMhz:       2400,
+				AllocationMemory:    memory,
+				AllocationMemoryMax: 4 * memory,
+			}
+		} else {
+			resources = orchestrator.Resources{
+				AllocationCores:     4,
+				AllocationMhz:       9600,
+				AllocationMemory:    4000,
+				AllocationMemoryMax: 8000,
+			}
 		}
 
-		license, err := verifyLicenseForNewJob(s.nomad, s.license, resources.AllocationMhz)
+		license, err := verifyLicenseForNewJob(s.orchestratorClient, s.license, resources.AllocationMhz)
 		if err != nil {
 			return CodedError(err, GetResponseCode(err))
 		}
@@ -191,8 +205,8 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 			return CodedError(errors.New("error creating model deployment config"), http.StatusInternalServerError)
 		}
 
-		nomadErr = s.nomad.StartJob(
-			nomad.DeployJob{
+		nomadErr = s.orchestratorClient.StartJob(
+			orchestrator.DeployJob{
 				JobName:            model.DeployJobName(),
 				ModelId:            model.Id.String(),
 				ConfigPath:         configPath,
@@ -204,7 +218,8 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 				Resources:          resources,
 				CloudCredentials:   s.variables.CloudCredentials,
 				JobToken:           uuid.New().String(),
-				IsKE:               model.Type == schema.KnowledgeExtraction,
+				IsKE:               isKE,
+				IngressHostname:    s.orchestratorClient.IngressHostname(),
 			},
 		)
 		var newStatus string
@@ -232,7 +247,7 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 	}
 
 	if requiresOnPremLlm {
-		err := jobs.StartOnPremGenerationJobDefaultArgs(s.nomad, s.storage, s.variables.DockerEnv())
+		err := jobs.StartOnPremGenerationJobDefaultArgs(s.orchestratorClient, s.storage, s.variables.DockerEnv())
 		if err != nil {
 			slog.Error("error starting on-prem-generation job", "error", err)
 			return CodedError(errors.New("unable to start on prem generation job"), http.StatusInternalServerError)
@@ -320,7 +335,7 @@ func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
 			return CodedError(err, http.StatusInternalServerError)
 		}
 
-		err = s.nomad.StopJob(model.DeployJobName())
+		err = s.orchestratorClient.StopJob(model.DeployJobName())
 		if err != nil {
 			slog.Error("error stopping deployment", "error", err)
 			return CodedError(errors.New("error stopping deployment job"), http.StatusInternalServerError)
@@ -368,7 +383,7 @@ func (s *DeployService) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *DeployService) Logs(w http.ResponseWriter, r *http.Request) {
-	getLogsHandler(w, r, s.db, s.nomad, "deploy")
+	getLogsHandler(w, r, s.db, s.orchestratorClient, "deploy")
 }
 
 func (s *DeployService) JobLog(w http.ResponseWriter, r *http.Request) {

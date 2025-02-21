@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-dispatch
+  labels:
+    app: llm-dispatch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llm-dispatch
+  template:
+    metadata:
+      labels:
+        app: llm-dispatch
+    spec:
+      containers:
+        - name: backend
+          {{ with .Driver }}
+          image: "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          {{ end }}
+          command: ["python3"]
+          args:
+            - "-m"
+            - "uvicorn"
+            - "main:app"
+            - "--app-dir"
+            - "llm_dispatch_job"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "80"
+          env:
+            - name: MODEL_BAZAAR_ENDPOINT
+              value: "{{ .ModelBazaarEndpoint }}"
+            - name: MODEL_BAZAAR_DIR
+              value: "/model_bazaar"
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1000Mi"
+            limits:
+              cpu: "500m"
+              memory: "1000Mi"
+      imagePullSecrets:
+        - name: docker-credentials-secret

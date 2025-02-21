@@ -3,7 +3,7 @@ package jobs
 import (
 	"fmt"
 	"log/slog"
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
 )
 
 type FrontendJobArgs struct {
@@ -15,10 +15,10 @@ type FrontendJobArgs struct {
 	OpenaiKey                    string
 }
 
-func StartFrontendJob(client nomad.NomadClient, driver nomad.DockerDriver, args FrontendJobArgs) error {
+func StartFrontendJob(orchestratorClient orchestrator.Client, driver orchestrator.DockerDriver, args FrontendJobArgs) error {
 	slog.Info("starting frontend job")
 
-	job := nomad.FrontendJob{
+	job := orchestrator.FrontendJob{
 		OpenaiApiKey:                 args.OpenaiKey,
 		IdentityProvider:             args.IdentityProvider,
 		KeycloakServerHostname:       args.KeycloakServerHostname,
@@ -26,9 +26,10 @@ func StartFrontendJob(client nomad.NomadClient, driver nomad.DockerDriver, args 
 		MajorityCriticalServiceNodes: args.MajorityCriticalServiceNodes,
 		UseSslInLogin:                args.UseSslInLogin,
 		Driver:                       driver,
+		IngressHostname:              orchestratorClient.IngressHostname(),
 	}
 
-	err := client.StartJob(job)
+	err := orchestratorClient.StartJob(job)
 	if err != nil {
 		slog.Error("error starting frontend job", "error", err)
 		return fmt.Errorf("error starting frontend job: %w", err)

@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: telemetery
+  name: telemetry
   labels:
     app: telemetry
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: telemetery
+      app: telemetry
   template:
     metadata:
       labels:
-        app: telemetery
+        app: telemetry
     spec:
       initContainers:
         - name: victoriametrics

@@ -3,12 +3,12 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
-	"strings"
-	"os"
 	"log"
 	"log/slog"
 	"net/http"
+	"os"
+	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"

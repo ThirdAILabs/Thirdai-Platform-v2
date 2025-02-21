@@ -10,7 +10,8 @@ import (
 	"github.com/google/uuid"
 )
 
-type PermissionType string 
+type PermissionType string
+
 const (
 	ReadPermission  PermissionType = "read"
 	WritePermission PermissionType = "write"

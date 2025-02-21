@@ -162,7 +162,7 @@ func (s *NdbRouter) Insert(w http.ResponseWriter, r *http.Request) {
 
 type DeleteRequest struct {
 	DocIds            []string `json:"source_ids"`
-	KeepLatestVersion bool    `json:"keep_latest_version"`
+	KeepLatestVersion bool     `json:"keep_latest_version"`
 }
 
 func (s *NdbRouter) Delete(w http.ResponseWriter, r *http.Request) {

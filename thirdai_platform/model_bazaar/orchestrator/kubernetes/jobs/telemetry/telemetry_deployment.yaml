@@ -19,11 +19,15 @@ spec:
           {{ with .Docker }}
           image: "{{ .Registry }}/victoria-metrics:tags-v1.102.1-1-g76115c611f"
           {{ end }}
-          args: ["--storageDataPath={{ .NomadMonitoringDir }}/victoriametric", 
-                "--retentionPeriod=10d",
-                "--httpListenAddr=:8428",
-                "--promscrape.config={{ .NomadMonitoringDir }}/node_discovery/prometheus.yaml",
-                ]
+          args:
+            - "--storageDataPath"
+            - "{{ .NomadMonitoringDir }}/victoriametrics"
+            - "--retentionPeriod"
+            - "20d"
+            - "--httpListenAddr"
+            - "8428"
+            - "--promscrape.config"
+            - "{{ .NomadMonitoringDir }}/node_discovery/prometheus.yaml"
           ports: 
             - containerPort: 8428
           volumeMounts:
@@ -39,10 +43,15 @@ spec:
               memory: "600Mi"
         - name: victorialogs
           image: "docker.io/victoriametrics/victoria-logs:latest"
-          args: ["--storageDataPath={{ .NomadMonitoringDir }}/victorialogs", 
-                "--retentionPeriod=30d",
-                "--httpListenAddr=:9428",
-                "--http.pathPrefix=/victorialogs"]
+          args:
+            - "--storageDataPath"
+            - "{{ .NomadMonitoringDir }}/victorialogs"
+            - "--retentionPeriod"
+            - "30d"
+            - "--httpListenAddr"
+            - "9428"
+            - "--http.pathPrefix"
+            - "/victorialogs"
           ports: 
             - containerPort: 9428
           volumeMounts:
@@ -100,9 +109,9 @@ spec:
               memory: "300Mi"
         - name: vector
           image: "timberio/vector:nightly-distroless-libc"
-          args: [
-            "--config {{ .NomadMonitoringDir }}/node_discovery/vector/vector.yaml"
-          ]
+          args: 
+            - "--config"
+            - "{{ .NomadMonitoringDir }}/vector/vector.yaml"
           volumeMounts:
             - name: shared-modelbazaar
               mountPath: "/model_bazaar"

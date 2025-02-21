@@ -171,91 +171,110 @@ func getDeploymentTargetsEndpoint(modelBazaarEndpoint string, isLocal bool, orch
 func prometheusConfig(orchestratorName string, modelBazaarEndpoint string, isLocal bool) map[string]interface{} {
 	deploymentTargetsEndpoint := getDeploymentTargetsEndpoint(modelBazaarEndpoint, isLocal, orchestratorName)
 
-	var orchestratorEntry map[string]interface{}
+	var orchestratorEntry []map[string]interface{}
 	if orchestratorName == "nomad" {
-		orchestratorEntry = map[string]interface{}{
-			"job_name":     "nomad-agent",
-			"metrics_path": "/v1/metrics?format=prometheus",
-			"file_sd_configs": []map[string][]string{
-				{"files": {"/model_bazaar/nomad-monitoring/nomad_nodes/*.yaml"}},
-			},
-			"relabel_configs": []map[string]interface{}{
-				{
-					"source_labels": []string{"__address__"},
-					"regex":         "([^:]+):.+",
-					"target_label":  "hostname",
-					"replacement":   "nomad-agent-${1}",
+		orchestratorEntry = []map[string]interface{}{
+			{
+				"job_name":     "nomad-agent",
+				"metrics_path": "/v1/metrics?format=prometheus",
+				"file_sd_configs": []map[string][]string{
+					{"files": {"/model_bazaar/nomad-monitoring/nomad_nodes/*.yaml"}},
+				},
+				"relabel_configs": []map[string]interface{}{
+					{
+						"source_labels": []string{"__address__"},
+						"regex":         "([^:]+):.+",
+						"target_label":  "hostname",
+						"replacement":   "nomad-agent-${1}",
+					},
 				},
 			},
 		}
 	} else {
-		orchestratorEntry = map[string]interface{}{
-			"job_name": "kubernetes-nodes-cadvisor",
-			"scheme":   "https",
-			"tls_config": map[string]interface{}{
-				"ca_file": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
-			},
-			"bearer_token_file": "/var/run/secrets/kubernetes.io/serviceaccount/token",
-			"kubernetes_sd_configs": []map[string]string{
-				{
-					"role": "node",
+		orchestratorEntry = []map[string]interface{}{
+			{
+				"job_name": "kube-apiserver",
+				"kubernetes_sd_configs": []map[string]interface{}{
+					{"role": "endpoints"},
+				},
+				"scheme": "https",
+				"tls_config": map[string]interface{}{
+					"ca_file": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+				},
+				"bearer_token_file": "/var/run/secrets/kubernetes.io/serviceaccount/token",
+				"relabel_configs": []map[string]interface{}{
+					{"source_labels": []string{"__meta_kubernetes_service_name"}, "action": "keep", "regex": "kubernetes"},
 				},
 			},
-			"relabel_configs": []map[string]interface{}{
-				{
-					"action": "labelmap",
-					"regex":  "__meta_kubernetes_node_label_(.+)",
+			{
+				"job_name": "kubelet",
+				"kubernetes_sd_configs": []map[string]interface{}{
+					{"role": "node"},
 				},
-				{
-					"target_label": "__address__",
-					"replacement":  "kubernetes.default.svc:443",
+				"scheme": "https",
+				"tls_config": map[string]interface{}{
+					"ca_file": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
 				},
-				{
-					"source_labels": []string{"__meta_kubernetes_node_name"},
-					"regex":         "(.+)",
-					"target_label":  "__metrics_path__",
-					"replacement":   "/api/v1/nodes/${1}/proxy/metrics/cadvisor",
+				"bearer_token_file": "/var/run/secrets/kubernetes.io/serviceaccount/token",
+				"relabel_configs": []map[string]interface{}{
+					{"action": "labelmap", "regex": "__meta_kubernetes_node_label_(.+)"},
 				},
 			},
-			"metric_relabel_configs": []map[string]interface{}{
-				{
-					"action":        "replace",
-					"source_labels": []string{"id"},
-					"regex":         "^/machine\\.slice/machine-rkt\\x2d([^\\]+)\\.+/([^/]+)\\.service$",
-					"target_label":  "rkt_container_name",
-					"replacement":   "${2}-${1}",
+			{
+				"job_name": "kubelet-cadvisor",
+				"kubernetes_sd_configs": []map[string]interface{}{
+					{"role": "node"},
 				},
-				{
-					"action":        "replace",
-					"source_labels": []string{"id"},
-					"regex":         "^/system\\.slice/(.+)\\.service$",
-					"target_label":  "systemd_service_name",
-					"replacement":   "${1}",
+				"scheme": "https",
+				"tls_config": map[string]interface{}{
+					"ca_file": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+				},
+				"bearer_token_file": "/var/run/secrets/kubernetes.io/serviceaccount/token",
+				"metrics_path":      "/metrics/cadvisor",
+			},
+			{
+				"job_name": "kubelet-metrics",
+				"kubernetes_sd_configs": []map[string]interface{}{
+					{"role": "node"},
+				},
+				"scheme": "https",
+				"tls_config": map[string]interface{}{
+					"ca_file": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+				},
+				"bearer_token_file": "/var/run/secrets/kubernetes.io/serviceaccount/token",
+				"metrics_path":      "/metrics",
+			},
+			{
+				"job_name": "kube-state-metrics",
+				"static_configs": []map[string]interface{}{
+					{"targets": []string{"kube-state-metrics.kube-system.svc.cluster.local:8080"}},
+				},
+			},
+			{
+				"job_name": "node-exporter",
+				"static_configs": []map[string]interface{}{
+					{"targets": []string{"node-exporter.kube-system.svc.cluster.local:9100"}},
 				},
 			},
 		}
-
 	}
 
 	return map[string]interface{}{
 		"global": map[string]interface{}{
 			"scrape_interval": "1s",
 		},
-		"scrape_configs": []map[string]interface{}{
-			orchestratorEntry,
-			{
-				"job_name":        "deployment-jobs",
-				"metrics_path":    "/metrics",
-				"http_sd_configs": []map[string]string{{"url": deploymentTargetsEndpoint}},
-				"relabel_configs": []map[string]interface{}{
-					{
-						"source_labels": []string{"model_id"},
-						"target_label":  "workload",
-						"replacement":   "deployment-${1}",
-					},
+		"scrape_configs": append(orchestratorEntry, map[string]interface{}{
+			"job_name":        "deployment-jobs",
+			"metrics_path":    "/metrics",
+			"http_sd_configs": []map[string]string{{"url": deploymentTargetsEndpoint}},
+			"relabel_configs": []map[string]interface{}{
+				{
+					"source_labels": []string{"model_id"},
+					"target_label":  "workload",
+					"replacement":   "deployment-${1}",
 				},
 			},
-		},
+		}),
 	}
 }
 

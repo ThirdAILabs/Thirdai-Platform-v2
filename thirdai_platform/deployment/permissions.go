@@ -54,7 +54,7 @@ func (p *Permissions) ModelPermissionsCheck(permission_type PermissionType) func
 				return
 			}
 
-			http.Error(w, fmt.Sprintf("not authorized for %v actions on model %v", permission_type, p.ModelId), http.StatusUnauthorized)
+			http.Error(w, fmt.Sprintf("not authorized for %v actions on model %v", permission_type, p.ModelId), http.StatusForbidden)
 		}
 		return http.HandlerFunc(hfn)
 	}

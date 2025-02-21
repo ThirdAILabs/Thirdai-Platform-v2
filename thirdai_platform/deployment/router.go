@@ -97,6 +97,11 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Topk <= 0 {
+		http.Error(w, "top_k must be greater than 0", http.StatusBadRequest)
+		return
+	}
+
 	constraints := make(ndb.Constraints)
 	for key, c := range req.Constraints {
 		switch c.Op {
@@ -107,14 +112,14 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 		case "gt":
 			constraints[key] = ndb.GreaterThan(c.Value)
 		default:
-			http.Error(w, fmt.Sprintf("invalid constraint operator '%s' for key '%s'", c.Op, key), http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("invalid constraint operator '%s' for key '%s'", c.Op, key), http.StatusUnprocessableEntity)
 			return
 		}
 	}
 
 	chunks, err := s.Ndb.Query(req.Query, req.Topk, constraints)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("ndb query error: %v", err), http.StatusInternalServerError)
+		http.Error(w, "could not process query", http.StatusInternalServerError)
 		return
 	}
 
@@ -157,7 +162,7 @@ func (s *NdbRouter) Insert(w http.ResponseWriter, r *http.Request) {
 
 type DeleteRequest struct {
 	DocIds            []string `json:"source_ids"`
-	KeepLatestVersion *bool    `json:"keep_latest_version,omitempty"`
+	KeepLatestVersion bool    `json:"keep_latest_version"`
 }
 
 func (s *NdbRouter) Delete(w http.ResponseWriter, r *http.Request) {
@@ -166,10 +171,7 @@ func (s *NdbRouter) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keepLatest := false
-	if req.KeepLatestVersion != nil {
-		keepLatest = *req.KeepLatestVersion
-	}
+	keepLatest := req.KeepLatestVersion
 
 	for _, docID := range req.DocIds {
 		if err := s.Ndb.Delete(docID, keepLatest); err != nil {

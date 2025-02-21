@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"log/slog"
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -261,7 +261,7 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 			// Get the filename from Content-Disposition header
 			cdHeader := part.Header.Get("Content-Disposition")
 			fullPath := ""
-			
+
 			// Extract the full path from Content-Disposition header
 			if strings.Contains(cdHeader, "filename=\"") {
 				start := strings.Index(cdHeader, "filename=\"") + 10
@@ -270,30 +270,30 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 					fullPath = cdHeader[start:end]
 				}
 			}
-		
+
 			if fullPath == "" {
 				slog.Error("empty filename detected")
 				http.Error(w, "invalid filename detected in upload files: filename cannot be empty", http.StatusUnprocessableEntity)
 				return
 			}
-		
+
 			pathParts := strings.Split(fullPath, "/")
 			var newFilepath string
-		
+
 			// Now properly handle the full path structure
 			if len(pathParts) >= 3 && strings.HasPrefix(fullPath, "customer_comments/") {
 				// Correctly join baseDir with fullPath
 				newFilepath = filepath.Join(baseDir, fullPath)
-				slog.Info("using category structure", 
+				slog.Info("using category structure",
 					"category", pathParts[1],
 					"filename", pathParts[2],
 					"fullPath", fullPath)
 			} else {
 				newFilepath = filepath.Join(baseDir, "uncategorized", pathParts[len(pathParts)-1])
-				slog.Info("using default structure", 
+				slog.Info("using default structure",
 					"filename", pathParts[len(pathParts)-1])
 			}
-		
+
 			// Ensure directory exists
 			dir := filepath.Dir(newFilepath)
 			if err := os.MkdirAll(dir, 0755); err != nil {
@@ -301,18 +301,18 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "error creating directory structure", http.StatusInternalServerError)
 				return
 			}
-		
+
 			slog.Info("processing file",
 				"originalPath", fullPath,
 				"savePath", newFilepath)
-		
+
 			err := s.storage.Write(newFilepath, part)
 			if err != nil {
 				slog.Error("file save error", "path", newFilepath, "error", err)
 				http.Error(w, "error saving uploaded file", http.StatusInternalServerError)
 				return
 			}
-		
+
 			filenames = append(filenames, fullPath)
 		}
 	}
@@ -325,7 +325,7 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Info("upload complete", 
+	slog.Info("upload complete",
 		"uploadId", uploadId,
 		"totalFiles", len(filenames),
 		"structure", fmt.Sprintf("Files saved under: %s", baseDir))

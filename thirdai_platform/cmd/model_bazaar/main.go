@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/jobs"
@@ -71,23 +70,6 @@ type modelBazaarEnv struct {
 	GrafanaDbUri string
 
 	CloudCredentials orchestrator.CloudCredentials
-}
-
-func boolEnvVar(key string) bool {
-	value := os.Getenv(key)
-	return strings.ToLower(value) == "true"
-}
-
-func intEnvVar(key string, defaultValue int) int {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue
-	}
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		log.Fatalf("unable to parse integer from env var %v='%v': %v", key, value, err)
-	}
-	return i
 }
 
 func optionalEnv(key string) string {

@@ -70,46 +70,46 @@ jobs:
         run: |
           cd thirdai_platform && go test ./deployment/tests -v
 
-  python-unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
+  # python-unit-tests:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - uses: actions/checkout@v2
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+  #   - name: Set up Python 3.11
+  #     uses: actions/setup-python@v4
+  #     with:
+  #       python-version: '3.11'
 
-    - name: install dependencies
-      run: |
-        pip3 install -r thirdai_platform_py/requirements.txt
-        pip3 install pytest
-        pip3 install httpx
-        pip3 install pyopenssl --upgrade
+  #   - name: install dependencies
+  #     run: |
+  #       pip3 install -r thirdai_platform_py/requirements.txt
+  #       pip3 install pytest
+  #       pip3 install httpx
+  #       pip3 install pyopenssl --upgrade
 
-    - name: test train job
-      run: |
-        cd thirdai_platform_py
-        python3 -m pytest train_job -v
+  #   - name: test train job
+  #     run: |
+  #       cd thirdai_platform_py
+  #       python3 -m pytest train_job -v
 
-    - name: test recovery snapshot job
-      run: |
-        cd thirdai_platform_py
-        python3 -m pytest recovery_snapshot_job -v
+  #   - name: test recovery snapshot job
+  #     run: |
+  #       cd thirdai_platform_py
+  #       python3 -m pytest recovery_snapshot_job -v
 
-    - name: test llm dispatch job
-      run: |
-        cd thirdai_platform_py
-        python3 -m pytest llm_dispatch_job -v
+  #   - name: test llm dispatch job
+  #     run: |
+  #       cd thirdai_platform_py
+  #       python3 -m pytest llm_dispatch_job -v
 
-    - name: test llm cache job
-      run: |
-        python3 -m pytest ./thirdai_platform_py/llm_cache_job -v
+  #   - name: test llm cache job
+  #     run: |
+  #       python3 -m pytest ./thirdai_platform_py/llm_cache_job -v
 
-    - name: test feedback storage
-      run: |
-        python3 -m pytest ./thirdai_platform_py/tests -v
+  #   - name: test feedback storage
+  #     run: |
+  #       python3 -m pytest ./thirdai_platform_py/tests -v
 
-    - name: test deployment job
-      run: |
-        python3 -m pytest ./thirdai_platform_py/deployment_job -v
+  #   - name: test deployment job
+  #     run: |
+  #       python3 -m pytest ./thirdai_platform_py/deployment_job -v

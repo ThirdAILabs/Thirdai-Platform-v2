@@ -219,6 +219,12 @@ func prometheusConfig(orchestratorName string, modelBazaarEndpoint string, isLoc
 				"relabel_configs": []map[string]interface{}{
 					{"action": "labelmap", "regex": "__meta_kubernetes_node_label_(.+)"},
 				},
+				"metric_relabel_configs": []map[string]interface{}{
+					{
+						"action": "labeldrop",
+						"regex":  "(beta_kubernetes_io_.*|topology_.*|eks_amazonaws_com_.*)",
+					},
+				},
 			},
 			{
 				"job_name": "kubelet-cadvisor",

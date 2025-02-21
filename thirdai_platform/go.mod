@@ -12,7 +12,6 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/raft v1.7.2
 	github.com/joho/godotenv v1.5.1
-	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.28.0
 	golang.org/x/sys v0.29.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -58,8 +57,8 @@ require (
 )
 
 require (
-	github.com/caarlos0/env/v10 v10.0.0 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
+	github.com/caarlos0/env/v10 v10.0.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/go-resty/resty/v2 v2.7.0 // indirect
@@ -86,7 +85,6 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.24 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/segmentio/ksuid v1.0.4 // indirect

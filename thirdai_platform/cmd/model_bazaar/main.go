@@ -70,7 +70,7 @@ type modelBazaarEnv struct {
 	DatabaseUri  string
 	GrafanaDbUri string
 
-	CloudCredentials nomad.CloudCredentials
+	CloudCredentials orchestrator.CloudCredentials
 }
 
 func boolEnvVar(key string) bool {

@@ -441,21 +441,21 @@ export async function uploadDocument(files: FileList | File): Promise<UploadResp
   categoryMap.forEach((categoryFiles, category) => {
     console.log('Processing category:', category, 'with files:', categoryFiles);
     categoryFiles.forEach((file) => {
-        // Log file details before processing
-        console.log('File details:', {
-            name: file.name,
-            webkitRelativePath: file.webkitRelativePath,
-            type: file.type
-        });
+      // Log file details before processing
+      console.log('File details:', {
+        name: file.name,
+        webkitRelativePath: file.webkitRelativePath,
+        type: file.type,
+      });
 
-        // Use the full path constructed from the category
-        const fullPath = `customer_comments/${category}/${file.name}`;
-        
-        // Create a new file object with the full path
-        formData.append('files', file, fullPath);
-        
-        // Debug log the actual FormData append
-        console.log('Added to FormData with path:', fullPath);
+      // Use the full path constructed from the category
+      const fullPath = `customer_comments/${category}/${file.name}`;
+
+      // Create a new file object with the full path
+      formData.append('files', file, fullPath);
+
+      // Debug log the actual FormData append
+      console.log('Added to FormData with path:', fullPath);
     });
   });
 

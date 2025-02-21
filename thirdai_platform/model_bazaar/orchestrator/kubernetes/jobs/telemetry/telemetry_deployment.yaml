@@ -14,6 +14,7 @@ spec:
       labels:
         app: telemetry
     spec:
+      serviceAccountName: victoriametrics-sa
       initContainers:
         - name: victoriametrics
           {{ with .Docker }}

@@ -21,7 +21,7 @@ import (
 var grafanaDashboards embed.FS
 
 func copyGrafanaDashboards(storage storage.Storage) error {
-	dashboardDest := "nomad-monitoring/grafana_dashboards"
+	dashboardDest := "nomad-monitoring/grafana/grafana_dashboards"
 
 	exists, err := storage.Exists(dashboardDest)
 	if err != nil {
@@ -37,7 +37,7 @@ func copyGrafanaDashboards(storage storage.Storage) error {
 
 	// Note: This assumes a shared filesystem, we should really walk the embed.FS
 	// and copy things using the storage interface.
-	err = os.CopyFS(filepath.Join(storage.Location(), "nomad-monitoring"), grafanaDashboards)
+	err = os.CopyFS(filepath.Join(storage.Location(), "nomad-monitoring", "grafana"), grafanaDashboards)
 	if err != nil {
 		return fmt.Errorf("error copying grafana dashboards to share: %w", err)
 	}
@@ -379,7 +379,7 @@ func createGrafanaProvisionings(storage storage.Storage, isLocal bool, orchestra
 				"allowUiUpdates":        true,
 				"options": map[string]interface{}{
 					"foldersFromFilesStructure": true,
-					"path":                      filepath.Join(storage.Location(), "nomad-monitoring", "grafana_dashboards"),
+					"path":                      filepath.Join(storage.Location(), "nomad-monitoring", "grafana", "grafana_dashboards"),
 				},
 			},
 		},

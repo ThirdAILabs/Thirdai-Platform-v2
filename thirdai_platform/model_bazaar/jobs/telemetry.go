@@ -193,20 +193,6 @@ func prometheusConfig(orchestratorName string, modelBazaarEndpoint string, isLoc
 	} else {
 		orchestratorEntry = []map[string]interface{}{
 			{
-				"job_name": "kube-apiserver",
-				"kubernetes_sd_configs": []map[string]interface{}{
-					{"role": "endpoints"},
-				},
-				"scheme": "https",
-				"tls_config": map[string]interface{}{
-					"ca_file": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
-				},
-				"bearer_token_file": "/var/run/secrets/kubernetes.io/serviceaccount/token",
-				"relabel_configs": []map[string]interface{}{
-					{"source_labels": []string{"__meta_kubernetes_service_name"}, "action": "keep", "regex": "kubernetes"},
-				},
-			},
-			{
 				"job_name": "kubelet",
 				"kubernetes_sd_configs": []map[string]interface{}{
 					{"role": "node"},
@@ -216,6 +202,7 @@ func prometheusConfig(orchestratorName string, modelBazaarEndpoint string, isLoc
 					"ca_file": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
 				},
 				"bearer_token_file": "/var/run/secrets/kubernetes.io/serviceaccount/token",
+				"metrics_path":      "/metrics",
 				"relabel_configs": []map[string]interface{}{
 					{"action": "labelmap", "regex": "__meta_kubernetes_node_label_(.+)"},
 				},
@@ -237,29 +224,55 @@ func prometheusConfig(orchestratorName string, modelBazaarEndpoint string, isLoc
 				},
 				"bearer_token_file": "/var/run/secrets/kubernetes.io/serviceaccount/token",
 				"metrics_path":      "/metrics/cadvisor",
-			},
-			{
-				"job_name": "kubelet-metrics",
-				"kubernetes_sd_configs": []map[string]interface{}{
-					{"role": "node"},
+				"relabel_configs": []map[string]string{
+					{
+						"action": "labelmap",
+						"regex":  "__meta_kubernetes_node_label_(.+)",
+					},
 				},
-				"scheme": "https",
-				"tls_config": map[string]interface{}{
-					"ca_file": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+				"metric_relabel_configs": []map[string]interface{}{
+					{
+						"action": "labeldrop",
+						"regex":  "(beta_kubernetes_io_.*|topology_.*|eks_amazonaws_com_.*)",
+					},
 				},
-				"bearer_token_file": "/var/run/secrets/kubernetes.io/serviceaccount/token",
-				"metrics_path":      "/metrics",
 			},
 			{
 				"job_name": "kube-state-metrics",
-				"static_configs": []map[string]interface{}{
-					{"targets": []string{"kube-state-metrics.kube-system.svc.cluster.local:8080"}},
+				"kubernetes_sd_configs": []map[string]interface{}{
+					{"role": "service", "namespaces": map[string]interface{}{"names": []string{"kube-system"}}},
+				},
+				"relabel_configs": []map[string]interface{}{
+					{"source_labels": []string{"__meta_kubernetes_service_name"}, "action": "keep", "regex": "kube-state-metrics"},
 				},
 			},
 			{
 				"job_name": "node-exporter",
-				"static_configs": []map[string]interface{}{
-					{"targets": []string{"node-exporter-prometheus-node-exporter.kube-system.svc.cluster.local:9100"}},
+				"kubernetes_sd_configs": []map[string]interface{}{
+					{
+						"role": "endpoints",
+						"namespaces": map[string]interface{}{
+							"names": []string{"kube-system"},
+						},
+					},
+				},
+				"relabel_configs": []map[string]interface{}{
+					{
+						"source_labels": []string{"__meta_kubernetes_service_name"},
+						"regex":         "node-exporter-prometheus-node-exporter",
+						"action":        "keep",
+					},
+					{
+						"source_labels": []string{"__meta_kubernetes_endpoint_node_name"},
+						"target_label":  "node",
+						"action":        "replace",
+					},
+				},
+				"metric_relabel_configs": []map[string]interface{}{
+					{
+						"action": "labeldrop",
+						"regex":  "(beta_kubernetes_io_.*|topology_.*|eks_amazonaws_com_.*)",
+					},
 				},
 			},
 		}

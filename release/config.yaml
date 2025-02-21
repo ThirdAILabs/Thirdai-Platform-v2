@@ -40,6 +40,14 @@ azure:
         password: t53jJc//6Bypn8U7SAl46SxgiX+qH042PJBxLLHGcQ+ACRBGarrQ
         username: thirdaiplatform-push-go-images
       version: 0.0.1
+    local-dev:
+      pull_credentials:
+        password: MBe9v3dhcRf1ZiroZEkBTz1foVJPHa9hPG6FcLzYWu+ACRDGHVcp
+        username: thirdaiplatform-pull-local-dev
+      push_credentials:
+        password: 2hzclMnvtRAB+VJSYL2BDIeSHIBCgULEmxyBFwnefl+ACRBlKuUK
+        username: thirdaiplatform-push-local-dev
+      version: 0.0.1
     local_registry:
       pull_credentials:
         password: 1N7CsVddLTv4+enVywVCgjOkDkMqpv63WenU0bWihF+ACRBVBnXz

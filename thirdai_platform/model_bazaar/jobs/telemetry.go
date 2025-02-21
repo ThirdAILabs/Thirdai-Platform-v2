@@ -79,7 +79,7 @@ func StartTelemetryJob(orchestratorClient orchestrator.Client, storage storage.S
 	}
 
 	// create vector config file
-	err = createVectorConfig(storage, orchestratorClient.IngressHostname())
+	err = createVectorConfig(storage, args.ModelBazaarEndpoint)
 	if err != nil {
 		return fmt.Errorf("error creating vector config file: %w", err)
 	}

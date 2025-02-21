@@ -23,7 +23,7 @@ import (
 
 type MockPermissions struct {
 	GetModelPermissionsFunc   func(string) (services.ModelPermissions, error)
-	ModelPermissionsCheckFunc func(string) func(http.Handler) http.Handler
+	ModelPermissionsCheckFunc func(deployment.PermissionType) func(http.Handler) http.Handler
 	History                   map[string]int
 }
 
@@ -31,7 +31,7 @@ func (m *MockPermissions) GetModelPermissions(token string) (services.ModelPermi
 	return services.ModelPermissions{Read: true, Write: true}, nil // Grant all permissions
 }
 
-func (m *MockPermissions) ModelPermissionsCheck(permission_type string) func(http.Handler) http.Handler {
+func (m *MockPermissions) ModelPermissionsCheck(permission_type deployment.PermissionType) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return next
 	}

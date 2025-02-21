@@ -253,7 +253,7 @@ func prometheusConfig(orchestratorName string, modelBazaarEndpoint string, isLoc
 			{
 				"job_name": "node-exporter",
 				"static_configs": []map[string]interface{}{
-					{"targets": []string{"node-exporter.kube-system.svc.cluster.local:9100"}},
+					{"targets": []string{"node-exporter-prometheus-node-exporter.kube-system.svc.cluster.local:9100"}},
 				},
 			},
 		}

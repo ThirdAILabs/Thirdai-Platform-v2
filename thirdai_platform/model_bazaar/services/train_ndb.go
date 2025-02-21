@@ -36,7 +36,7 @@ func (opts *NdbTrainRequest) validate() error {
 	}
 
 	if opts.BaseModelId != nil && opts.ModelOptions != nil {
-		allErrors = append(allErrors, fmt.Errorf("Only model options or base model can be specified for ndb training"))
+		allErrors = append(allErrors, fmt.Errorf("only model options or base model can be specified for ndb training"))
 	}
 	if opts.ModelOptions == nil && opts.BaseModelId == nil {
 		opts.ModelOptions = new(config.NdbOptions)

@@ -5,24 +5,24 @@ import (
 	"log/slog"
 	"path/filepath"
 	"slices"
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
 	"thirdai_platform/model_bazaar/storage"
 )
 
 func StartOnPremGenerationJobDefaultArgs(
-	client nomad.NomadClient,
+	orchestratorClient orchestrator.Client,
 	storage storage.Storage,
-	docker nomad.DockerEnv,
+	docker orchestrator.DockerEnv,
 ) error {
-	return StartOnPremGenerationJob(client, storage, docker, "", true, true, -1)
+	return StartOnPremGenerationJob(orchestratorClient, storage, docker, "", true, true, -1)
 }
 
 const genaiModelsPath = "pretrained-models/genai"
 
 func StartOnPremGenerationJob(
-	client nomad.NomadClient,
+	orchestratorClient orchestrator.Client,
 	storage storage.Storage,
-	docker nomad.DockerEnv,
+	docker orchestrator.DockerEnv,
 	model string,
 	restart bool,
 	autoscaling bool,
@@ -54,7 +54,7 @@ func StartOnPremGenerationJob(
 		coresPerAllocation = 7
 	}
 
-	job := nomad.OnPremLlmGenerationJob{
+	job := orchestrator.OnPremLlmGenerationJob{
 		AutoscalingEnabled: autoscaling,
 		InitialAllocations: 1,
 		MinAllocations:     1,
@@ -62,15 +62,16 @@ func StartOnPremGenerationJob(
 		ModelDir:           filepath.Join(storage.Location(), genaiModelsPath),
 		ModelName:          model,
 		Docker:             docker,
-		Resources: nomad.Resources{
+		Resources: orchestrator.Resources{
 			AllocationMemory:    int(modelSize),
 			AllocationMemoryMax: 2 * int(modelSize),
 			AllocationCores:     coresPerAllocation,
 		},
+		IngressHostname: orchestratorClient.IngressHostname(),
 	}
 
 	if !restart {
-		exists, err := nomad.JobExists(client, job.GetJobName())
+		exists, err := orchestrator.JobExists(orchestratorClient, job.GetJobName())
 		if err != nil {
 			slog.Error("error checking if on-prem-generation job exists", "error", err)
 			return fmt.Errorf("error checking if on-prem-generation job exists: %w", err)
@@ -80,13 +81,13 @@ func StartOnPremGenerationJob(
 		}
 	}
 
-	err = nomad.StopJobIfExists(client, job.GetJobName())
+	err = orchestrator.StopJobIfExists(orchestratorClient, job.GetJobName())
 	if err != nil {
 		slog.Error("error stopping existing on-prem-generation job", "error", err)
 		return fmt.Errorf("error stopping existing on-prem-generation job: %w", err)
 	}
 
-	err = client.StartJob(job)
+	err = orchestratorClient.StartJob(job)
 	if err != nil {
 		slog.Error("error starting on-prem-generation job", "error", err)
 		return fmt.Errorf("error starting on-prem-generation job: %w", err)

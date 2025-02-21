@@ -18,7 +18,7 @@ import (
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/licensing"
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/model_bazaar/utils"
@@ -30,9 +30,9 @@ import (
 )
 
 type TrainService struct {
-	db      *gorm.DB
-	nomad   nomad.NomadClient
-	storage storage.Storage
+	db                 *gorm.DB
+	orchestratorClient orchestrator.Client
+	storage            storage.Storage
 
 	userAuth auth.IdentityProvider
 	jobAuth  *auth.JwtManager
@@ -107,7 +107,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 
 	slog.Info("starting training", "model_type", args.modelType, "model_id", model.Id, "model_name", args.modelName)
 
-	license, err := verifyLicenseForNewJob(s.nomad, s.license, args.jobOptions.CpuUsageMhz())
+	license, err := verifyLicenseForNewJob(s.orchestratorClient, s.license, args.jobOptions.CpuUsageMhz())
 	if err != nil {
 		http.Error(w, err.Error(), GetResponseCode(err))
 		return
@@ -145,11 +145,12 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 		return
 	}
 
-	job := nomad.TrainJob{
+	job := orchestrator.TrainJob{
 		JobName:    model.TrainJobName(),
 		ConfigPath: configPath,
 		Driver:     s.variables.BackendDriver,
-		Resources: nomad.Resources{
+		Resources: orchestrator.Resources{
+			AllocationCores:     2,
 			AllocationMhz:       trainConfig.JobOptions.CpuUsageMhz(),
 			AllocationMemory:    trainConfig.JobOptions.AllocationMemory,
 			AllocationMemoryMax: 60000,
@@ -168,7 +169,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 	utils.WriteJsonResponse(w, trainResponse{ModelId: model.Id})
 }
 
-func (s *TrainService) saveModelAndStartJob(model schema.Model, user schema.User, job nomad.Job) error {
+func (s *TrainService) saveModelAndStartJob(model schema.Model, user schema.User, job orchestrator.Job) error {
 	err := s.db.Transaction(func(txn *gorm.DB) error {
 		return saveModel(txn, model, user)
 	})
@@ -177,7 +178,7 @@ func (s *TrainService) saveModelAndStartJob(model schema.Model, user schema.User
 		return err
 	}
 
-	err = s.nomad.StartJob(job)
+	err = s.orchestratorClient.StartJob(job)
 	if err != nil {
 		slog.Error("error starting train job", "error", err)
 		return CodedError(errors.New("error starting train job on nomad"), http.StatusInternalServerError)
@@ -336,7 +337,7 @@ func (s *TrainService) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TrainService) Logs(w http.ResponseWriter, r *http.Request) {
-	getLogsHandler(w, r, s.db, s.nomad, "train")
+	getLogsHandler(w, r, s.db, s.orchestratorClient, "train")
 }
 
 func (s *TrainService) JobLog(w http.ResponseWriter, r *http.Request) {

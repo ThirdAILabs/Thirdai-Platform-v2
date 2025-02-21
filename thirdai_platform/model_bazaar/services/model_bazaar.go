@@ -9,7 +9,7 @@ import (
 	"slices"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/licensing"
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/model_bazaar/utils"
@@ -30,13 +30,13 @@ type ModelBazaar struct {
 	workflow  WorkflowService
 	recovery  RecoveryService
 
-	db    *gorm.DB
-	nomad nomad.NomadClient
-	stop  chan bool
+	db                 *gorm.DB
+	orchestratorClient orchestrator.Client
+	stop               chan bool
 }
 
 func NewModelBazaar(
-	db *gorm.DB, nomad nomad.NomadClient, storage storage.Storage, license *licensing.LicenseVerifier, userAuth auth.IdentityProvider, variables Variables, secret []byte,
+	db *gorm.DB, orchestratorClient orchestrator.Client, storage storage.Storage, license *licensing.LicenseVerifier, userAuth auth.IdentityProvider, variables Variables, secret []byte,
 ) ModelBazaar {
 	jobAuth := auth.NewJwtManager(slices.Concat(secret, []byte("job")))
 
@@ -44,33 +44,33 @@ func NewModelBazaar(
 		user: UserService{db: db, userAuth: userAuth},
 		team: TeamService{db: db, userAuth: userAuth},
 		model: ModelService{
-			db:                db,
-			nomad:             nomad,
-			storage:           storage,
-			userAuth:          userAuth,
-			uploadSessionAuth: auth.NewJwtManager(slices.Concat(secret, []byte("upload"))),
+			db:                 db,
+			orchestratorClient: orchestratorClient,
+			storage:            storage,
+			userAuth:           userAuth,
+			uploadSessionAuth:  auth.NewJwtManager(slices.Concat(secret, []byte("upload"))),
 		},
 		train: TrainService{
-			db:        db,
-			nomad:     nomad,
-			storage:   storage,
-			userAuth:  userAuth,
-			jobAuth:   jobAuth,
-			license:   license,
-			variables: variables,
+			db:                 db,
+			orchestratorClient: orchestratorClient,
+			storage:            storage,
+			userAuth:           userAuth,
+			jobAuth:            jobAuth,
+			license:            license,
+			variables:          variables,
 		},
 		deploy: DeployService{
-			db:        db,
-			nomad:     nomad,
-			storage:   storage,
-			userAuth:  userAuth,
-			jobAuth:   jobAuth,
-			license:   license,
-			variables: variables,
+			db:                 db,
+			orchestratorClient: orchestratorClient,
+			storage:            storage,
+			userAuth:           userAuth,
+			jobAuth:            jobAuth,
+			license:            license,
+			variables:          variables,
 		},
 		telemetry: TelemetryService{
-			nomad:     nomad,
-			variables: variables,
+			orchestratorClient: orchestratorClient,
+			variables:          variables,
 		},
 		workflow: WorkflowService{
 			db:       db,
@@ -78,15 +78,15 @@ func NewModelBazaar(
 			userAuth: userAuth,
 		},
 		recovery: RecoveryService{
-			db:        db,
-			storage:   storage,
-			nomad:     nomad,
-			userAuth:  userAuth,
-			variables: variables,
+			db:                 db,
+			storage:            storage,
+			orchestratorClient: orchestratorClient,
+			userAuth:           userAuth,
+			variables:          variables,
 		},
-		db:    db,
-		nomad: nomad,
-		stop:  make(chan bool, 1),
+		db:                 db,
+		orchestratorClient: orchestratorClient,
+		stop:               make(chan bool, 1),
 	}
 }
 
@@ -118,8 +118,8 @@ func (m *ModelBazaar) syncTrainStatus(model *schema.Model) {
 	if model.TrainStatus != schema.Starting && model.TrainStatus != schema.InProgress {
 		return
 	}
-	jobInfo, err := m.nomad.JobInfo(model.TrainJobName())
-	jobNotFound := errors.Is(err, nomad.ErrJobNotFound)
+	jobInfo, err := m.orchestratorClient.JobInfo(model.TrainJobName())
+	jobNotFound := errors.Is(err, orchestrator.ErrJobNotFound)
 
 	if err != nil && !jobNotFound {
 		slog.Error("status sync: train job info", "error", err)
@@ -141,8 +141,8 @@ func (m *ModelBazaar) syncDeployStatus(model *schema.Model) {
 		return
 	}
 
-	jobInfo, err := m.nomad.JobInfo(model.DeployJobName())
-	jobNotFound := errors.Is(err, nomad.ErrJobNotFound)
+	jobInfo, err := m.orchestratorClient.JobInfo(model.DeployJobName())
+	jobNotFound := errors.Is(err, orchestrator.ErrJobNotFound)
 
 	if err != nil && !jobNotFound {
 		slog.Error("status sync: deploy job info", "error", err)

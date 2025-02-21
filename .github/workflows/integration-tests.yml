@@ -149,7 +149,7 @@ jobs:
         echo "AIRGAPPED=True" >> $GITHUB_WORKSPACE/.env
         echo "DATABASE_URI=postgresql://postgres:password@localhost:5432/model_bazaar" >> $GITHUB_WORKSPACE/.env
         echo "NOMAD_ENDPOINT=http://localhost:4646/" >> $GITHUB_WORKSPACE/.env
-        echo "PUBLIC_MODEL_BAZAAR_ENDPOINT=http://localhost:80/" >> $GITHUB_WORKSPACE/.env
+        echo "INGRESS_HOSTNAME=http://localhost:80/" >> $GITHUB_WORKSPACE/.env
         echo "PRIVATE_MODEL_BAZAAR_ENDPOINT=http://localhost:80/" >> $GITHUB_WORKSPACE/.env
         echo "HASHICORP_VAULT_ENDPOINT=http://127.0.0.1:8200" >> $GITHUB_WORKSPACE/.env
         echo "HASHICORP_VAULT_TOKEN=00000000-0000-0000-0000-000000000000" >> $GITHUB_WORKSPACE/.env

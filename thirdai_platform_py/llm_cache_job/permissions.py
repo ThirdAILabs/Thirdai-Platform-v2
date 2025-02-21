@@ -8,6 +8,7 @@ from urllib.parse import urljoin
 import fastapi
 import jwt
 import requests
+from dateutil import parser
 from fastapi import status
 from pydantic import BaseModel
 
@@ -55,7 +56,8 @@ def now() -> datetime.datetime:
 
 def deployment_permissions(model_bazaar_endpoint: str, model_id: str, token: str):
     deployment_permissions_endpoint = urljoin(
-        model_bazaar_endpoint, f"api/deploy/permissions/{model_id}"
+        model_bazaar_endpoint,
+        f"api/v2/model/{model_id}/permissions",
     )
     response = requests.get(
         deployment_permissions_endpoint,
@@ -75,9 +77,12 @@ def deployment_permissions(model_bazaar_endpoint: str, model_id: str, token: str
             "exp": now(),
             "override": False,
         }
-    res_json = response.json()
-    permissions = res_json["data"]
-    permissions["exp"] = datetime.datetime.fromisoformat(permissions["exp"])
+    permissions = response.json()
+    try:
+        # Robust parsing using dateutil.parser
+        permissions["exp"] = parser.isoparse(permissions["exp"])
+    except ValueError as e:
+        permissions["exp"] = datetime.datetime.now()
     return permissions
 
 
@@ -120,7 +125,7 @@ class Permissions:
             pos += 1
         self.expirations = self.expirations[pos:]
 
-    def _get_permissions(self, model_id: str, token: str) -> Tuple[bool, bool, bool]:
+    def _get_permissions(self, model_id: str, token: str) -> Tuple[bool, bool]:
         """
         Retrieves permissions for a token, updating the cache if necessary.
 
@@ -145,11 +150,11 @@ class Permissions:
                 )
             )
             self.cache[token] = permissions
-            return permissions["read"], permissions["write"], permissions["override"]
+            return permissions["read"], permissions["write"]
         if self.cache[token]["exp"] <= curr_time:
-            return False, False, False
+            return False, False
         permissions = self.cache[token]
-        return permissions["read"], permissions["write"], permissions["override"]
+        return permissions["read"], permissions["write"]
 
     def verify_read_permission(
         self, model_id: str, token: str = fastapi.Depends(optional_token_bearer)

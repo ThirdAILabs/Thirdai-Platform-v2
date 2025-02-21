@@ -6,7 +6,7 @@ on:
       - main
   pull_request:
     branches:
-      - maxin
+      - main
   merge_group:
     types: [checks_requested]
   
@@ -22,7 +22,7 @@ env:
 
 jobs:
   integration-tests:
-    runs-on: ubuntu-latest-16-cores
+    runs-on: ubuntu-22.04
     services:
       postgres:
         image: postgres:latest

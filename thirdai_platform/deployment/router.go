@@ -21,7 +21,7 @@ type NdbRouter struct {
 	Config      *config.DeployConfig
 	Reporter    Reporter
 	Permissions PermissionsInterface
-	LLMProvider llm_generation.LLMProvider
+	LLM         llm_generation.LLM
 }
 
 func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, error) {
@@ -31,13 +31,13 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 		return nil, fmt.Errorf("failed to open ndb: %v", err)
 	}
 
-	var llmProvider llm_generation.LLMProvider
+	var llm llm_generation.LLM
 
 	if provider, exists := config.Options["llm_provider"]; exists {
 		// TODO api key should be passed as environment variable based on provider
 		// rather than passing it in the /generate endpoint from the frontend
 		// Same goes for model and provider
-		llmProvider, err = llm_generation.NewLLMProvider(provider, config.Options["genai_key"])
+		llm, err = llm_generation.NewLLM(llm_generation.LLMProvider(provider), config.Options["genai_key"])
 		if err != nil {
 			return nil, err
 		}
@@ -48,7 +48,7 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 		Config:      config,
 		Reporter:    reporter,
 		Permissions: &Permissions{config.ModelBazaarEndpoint, config.ModelId},
-		LLMProvider: llmProvider,
+		LLM:         llm,
 	}, nil
 }
 
@@ -316,12 +316,12 @@ func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if s.LLMProvider == nil {
+	if s.LLM == nil {
 		http.Error(w, "LLM provider not found", http.StatusInternalServerError)
 		return
 	}
 
-	if err := llm_generation.StreamResponse(s.LLMProvider, req, w, r); err != nil {
+	if err := s.LLM.StreamResponse(req, w, r); err != nil {
 		// Any error has already been sent to client, just return
 		return
 	}

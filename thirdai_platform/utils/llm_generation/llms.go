@@ -1,76 +1,95 @@
 package llm_generation
 
 import (
-	"bufio"
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/sashabaranov/go-openai"
+	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/option"
 )
 
-type OpenAILLM struct {
+type LLM interface {
+	StreamResponse(req GenerateRequest, w http.ResponseWriter, r *http.Request) error
+}
+
+type LLMProvider string
+
+const (
+	OpenAILLM LLMProvider = "openai"
+	OnPremLLM LLMProvider = "on-prem"
+)
+
+type OpenAICompliantLLM struct {
 	client *openai.Client
 }
 
-func NewOpenAILLM(apiKey string) *OpenAILLM {
-	client := openai.NewClient(apiKey)
-	return &OpenAILLM{client: client}
+func createOpenAILLMClient(apiKey string, endpoint *string) (*openai.Client, error) {
+	var client *openai.Client
+
+	if endpoint == nil {
+		client = openai.NewClient(
+			option.WithAPIKey(apiKey),
+		)
+	} else {
+		client = openai.NewClient(
+			option.WithAPIKey(apiKey),
+			option.WithBaseURL(*endpoint),
+		)
+	}
+	return client, nil
 }
 
-type OnPremLLM struct {
-	endpoint string
-	client   *http.Client
+func newOpenAILLM(apiKey string, endpoint *string) (LLM, error) {
+	client, err := createOpenAILLMClient(apiKey, endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("error creating OpenAI client: %w", err)
+	}
+	return &OpenAICompliantLLM{client: client}, nil
 }
 
-func NewOnPremLLM() (*OnPremLLM, error) {
+func newOnPremLLM() (LLM, error) {
+	// assumes that onprem llm has openai compliant api
 	model_bazaar_endpoint := os.Getenv("MODEL_BAZAAR_ENDPOINT")
 	if model_bazaar_endpoint == "" {
+		slog.Error("MODEL_BAZAAR_ENDPOINT not set")
 		return nil, fmt.Errorf("MODEL_BAZAAR_ENDPOINT not set")
 	}
 
-	baseURL, err := url.JoinPath(model_bazaar_endpoint, "on-prem-llm/v1/chat/completions")
+	baseURL, err := url.JoinPath(model_bazaar_endpoint, "v1/")
 	if err != nil {
+		slog.Error("error creating API URL: %v")
 		return nil, fmt.Errorf("error creating API URL: %w", err)
 	}
 
-	return &OnPremLLM{
-		endpoint: baseURL,
-		client:   DefaultHTTPClient(),
+	client, err := createOpenAILLMClient(
+		"", // assumes that the onprem llm requires no api key
+		&baseURL,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error creating OpenAI client: %w", err)
+	}
+
+	return &OpenAICompliantLLM{
+		client: client,
 	}, nil
 }
 
-func (l *OnPremLLM) makeRequest(method string, body []byte, headers map[string]string) (*http.Response, error) {
-	req, err := http.NewRequest(method, l.endpoint, bytes.NewBuffer(body))
-	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
+func NewLLM(provider LLMProvider, apiKey string) (LLM, error) {
+	switch provider {
+	case OpenAILLM:
+		return newOpenAILLM(apiKey, nil)
+	case OnPremLLM:
+		return newOnPremLLM()
+	default:
+		slog.Error("invalid provider", "provider", provider)
+		return nil, fmt.Errorf("invalid provider: %s", provider)
 	}
-
-	req.Header.Set("Content-Type", "application/json")
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	resp, err := l.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error making request: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
-	}
-
-	return resp, nil
 }
 
 func makePrompt(query, inputTaskPrompt string, refs []Reference) (string, string) {
@@ -107,185 +126,39 @@ func makePrompt(query, inputTaskPrompt string, refs []Reference) (string, string
 	return systemPrompt, userPrompt
 }
 
-func (l *OpenAILLM) Stream(req *GenerateRequest) (<-chan string, <-chan error) {
-	textChan := make(chan string)
-	errChan := make(chan error)
-
-	go func() {
-		defer close(textChan)
-		defer close(errChan)
-
-		systemPrompt, userPrompt := makePrompt(req.Query, req.TaskPrompt, req.References)
-
-		stream, err := l.client.CreateChatCompletionStream(
-			context.Background(),
-			openai.ChatCompletionRequest{
-				Model: req.Model,
-				Messages: []openai.ChatCompletionMessage{
-					{
-						Role:    openai.ChatMessageRoleSystem,
-						Content: systemPrompt,
-					},
-					{
-						Role:    openai.ChatMessageRoleUser,
-						Content: userPrompt,
-					},
-				},
-				Stream: true,
-			},
-		)
-		if err != nil {
-			errChan <- fmt.Errorf("error creating chat completion stream: %w", err)
-			return
-		}
-		defer stream.Close()
-
-		for {
-			response, err := stream.Recv()
-			if errors.Is(err, io.EOF) {
-				return
-			}
-			if err != nil {
-				errChan <- fmt.Errorf("error receiving from stream: %w", err)
-				return
-			}
-
-			if len(response.Choices) > 0 && response.Choices[0].Delta.Content != "" {
-				textChan <- response.Choices[0].Delta.Content
-			}
-		}
-	}()
-
-	return textChan, errChan
-}
-
-func (l *OnPremLLM) Stream(req *GenerateRequest) (<-chan string, <-chan error) {
-	textChan := make(chan string)
-	errChan := make(chan error, 1)
-
-	go func() {
-		defer close(textChan)
-		defer close(errChan)
-
-		systemPrompt, userPrompt := makePrompt(req.Query, req.TaskPrompt, req.References)
-
-		body := map[string]interface{}{
-			"messages": []map[string]string{
-				{"role": "system", "content": systemPrompt},
-				{"role": "user", "content": userPrompt},
-			},
-			"stream":    true,
-			"n_predict": 1000,
-			"model":     req.Model,
-		}
-
-		jsonBody, err := json.Marshal(body)
-		if err != nil {
-			errChan <- fmt.Errorf("error marshaling request: %w", err)
-			return
-		}
-
-		resp, err := l.makeRequest("POST", jsonBody, map[string]string{})
-		if err != nil {
-			errChan <- err
-			return
-		}
-		defer resp.Body.Close()
-
-		reader := bufio.NewReader(resp.Body)
-		for {
-			line, err := reader.ReadString('\n')
-			if err == io.EOF {
-				return
-			}
-			if err != nil {
-				errChan <- fmt.Errorf("error reading stream: %w", err)
-				return
-			}
-
-			line = strings.TrimSpace(line)
-			if !strings.HasPrefix(line, "data: ") {
-				continue
-			}
-
-			line = strings.TrimPrefix(line, "data: ")
-			if line == "[DONE]" {
-				return
-			}
-
-			var chunk map[string]interface{}
-			if err := json.Unmarshal([]byte(line), &chunk); err != nil {
-				continue
-			}
-
-			if choices, ok := chunk["choices"].([]interface{}); ok && len(choices) > 0 {
-				if choice, ok := choices[0].(map[string]interface{}); ok {
-					if delta, ok := choice["delta"].(map[string]interface{}); ok {
-						if content, ok := delta["content"].(string); ok && content != "" {
-							textChan <- content
-						}
-					}
-				}
-			}
-		}
-	}()
-
-	return textChan, errChan
-}
-
-// LLMProvider defines the interface for LLM implementations
-type LLMProvider interface {
-	// Stream generates text from the LLM in a streaming fashion
-	// Returns a channel for text chunks and a channel for errors
-	// The text channel will be closed when streaming is complete
-	// The error channel will be closed when streaming is complete or an error occurs
-	Stream(req *GenerateRequest) (<-chan string, <-chan error)
-}
-
-// This pattern helps in easily mocking the LLM provider in tests
-// NewLLMProviderFunc is the type for the provider factory function
-type NewLLMProviderFunc func(provider, apiKey string) (LLMProvider, error)
-
-var NewLLMProvider NewLLMProviderFunc = func(provider, apiKey string) (LLMProvider, error) {
-	switch strings.ToLower(provider) {
-	case "openai":
-		if apiKey == "" {
-			return nil, fmt.Errorf("API key required for OpenAI")
-		}
-		return NewOpenAILLM(apiKey), nil
-	case "on-prem":
-		return NewOnPremLLM()
-	default:
-		return nil, fmt.Errorf("unsupported provider: %s", provider)
-	}
-}
-
-func StreamResponse(llm LLMProvider, req GenerateRequest, w http.ResponseWriter, r *http.Request) error {
-	textChan, errChan := llm.Stream(&req)
+func (llm *OpenAICompliantLLM) StreamResponse(req GenerateRequest, w http.ResponseWriter, r *http.Request) error {
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	flusher, ok := w.(http.Flusher)
 	if !ok {
+		slog.Error("streaming unsupported")
 		return fmt.Errorf("streaming unsupported")
 	}
 
-	for {
-		select {
-		case text, ok := <-textChan:
-			if !ok {
-				return nil
-			}
-			fmt.Fprintf(w, "data: %s\n\n", text)
+	systemPrompt, userPrompt := makePrompt(req.Query, req.TaskPrompt, req.References)
+
+	messages := openai.F([]openai.ChatCompletionMessageParamUnion{
+		openai.SystemMessage(systemPrompt),
+		openai.UserMessage(userPrompt),
+	})
+
+	stream := llm.client.Chat.Completions.NewStreaming(
+		context.Background(),
+		openai.ChatCompletionNewParams{
+			Messages: messages,
+			Model:    openai.F(req.Model),
+		},
+	)
+	for stream.Next() {
+		evt := stream.Current()
+		if len(evt.Choices) > 0 {
+			fmt.Fprintf(w, "data: %s\n\n", evt.Choices[0].Delta.Content)
 			flusher.Flush()
-		case err, ok := <-errChan:
-			if !ok {
-				return nil
-			}
-			fmt.Fprintf(w, "event: error\ndata: %s\n\n", err.Error())
-			flusher.Flush()
-			return err
-		case <-r.Context().Done():
-			return nil
 		}
 	}
+	if err := stream.Err(); err != nil {
+		slog.Error("error streaming response: %v", slog.String("error", err.Error()))
+		return fmt.Errorf("error streaming response: %w", err)
+	}
+	return nil
 }

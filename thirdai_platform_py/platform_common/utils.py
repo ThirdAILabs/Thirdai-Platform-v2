@@ -8,7 +8,9 @@ from fastapi.responses import JSONResponse
 
 
 def model_bazaar_path():
-    return "/model_bazaar" if os.path.exists("/.dockerenv") else os.getenv("SHARE_DIR")
+    return (
+        "/opt/model_bazaar" if os.path.exists("/.dockerenv") else os.getenv("SHARE_DIR")
+    )
 
 
 def response(

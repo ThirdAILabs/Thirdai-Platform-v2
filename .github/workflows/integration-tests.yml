@@ -22,7 +22,7 @@ env:
 
 jobs:
   integration-tests:
-    runs-on: ubuntu-22.04-16-cores
+    runs-on: ubuntu-latest-cores
     services:
       postgres:
         image: postgres:latest

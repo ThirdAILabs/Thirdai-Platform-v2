@@ -25,13 +25,14 @@ metadata:
   name: telemetry-internal
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx-internal
   rules:
     - host: thirdai-internal-ingress-nginx-controller.{{ namespace }}.svc.cluster.local
       http:
         paths:
-          - path: /victoriametrics/
+          - path: /victoriametrics(/|$)(.*)
             pathType: Prefix
             backend:
               service:

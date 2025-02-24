@@ -20,8 +20,8 @@ import (
 //go:embed grafana_dashboards/*
 var grafanaDashboards embed.FS
 
-func copyGrafanaDashboards(storage storage.Storage) error {
-	dashboardDest := "nomad-monitoring/grafana/grafana_dashboards"
+func copyGrafanaDashboards(storage storage.Storage, orchestratorName string) error {
+	dashboardDest := "cluster-monitoring/grafana/grafana_dashboards"
 
 	exists, err := storage.Exists(dashboardDest)
 	if err != nil {
@@ -37,9 +37,21 @@ func copyGrafanaDashboards(storage storage.Storage) error {
 
 	// Note: This assumes a shared filesystem, we should really walk the embed.FS
 	// and copy things using the storage interface.
-	err = os.CopyFS(filepath.Join(storage.Location(), "nomad-monitoring", "grafana"), grafanaDashboards)
+	err = os.CopyFS(filepath.Join(storage.Location(), "cluster-monitoring", "grafana"), grafanaDashboards)
 	if err != nil {
 		return fmt.Errorf("error copying grafana dashboards to share: %w", err)
+	}
+
+	if orchestratorName == "nomad" {
+		err = storage.Delete(filepath.Join(dashboardDest, "kubernetes"))
+		if err != nil {
+			return fmt.Errorf("error deleting kubernetes dashboards: %w", err)
+		}
+	} else {
+		err = storage.Delete(filepath.Join(dashboardDest, "nomad"))
+		if err != nil {
+			return fmt.Errorf("error deleting nomad dashboards: %w", err)
+		}
 	}
 
 	return nil
@@ -66,7 +78,7 @@ func StartTelemetryJob(orchestratorClient orchestrator.Client, storage storage.S
 	}
 
 	// copy grafana dashboards to appropriate directory
-	err = copyGrafanaDashboards(storage)
+	err = copyGrafanaDashboards(storage, orchestratorClient.GetName())
 	if err != nil {
 		slog.Error("error initializing grafana dashboards", "error", err)
 		return fmt.Errorf("error initializing grafana dashboards: %w", err)
@@ -86,7 +98,7 @@ func StartTelemetryJob(orchestratorClient orchestrator.Client, storage storage.S
 
 	job := orchestrator.TelemetryJob{
 		IsLocal:            args.IsLocal,
-		NomadMonitoringDir: filepath.Join(storage.Location(), "nomad-monitoring"),
+		NomadMonitoringDir: filepath.Join(storage.Location(), "cluster-monitoring"),
 		AdminUsername:      args.AdminUsername,
 		AdminEmail:         args.AdminEmail,
 		AdminPassword:      args.AdminPassword,
@@ -125,7 +137,7 @@ type targetList struct {
 }
 
 func createPromFile(orchestratorName string, storage storage.Storage, modelBazaarEndpoint string, isLocal bool) error {
-	serverNodeFile := filepath.Join("nomad-monitoring", "nomad_nodes", "server.yaml")
+	serverNodeFile := filepath.Join("cluster-monitoring", "nomad_nodes", "server.yaml")
 
 	if isLocal {
 		data, err := yaml.Marshal(
@@ -150,7 +162,7 @@ func createPromFile(orchestratorName string, storage storage.Storage, modelBazaa
 	}
 
 	err = storage.Write(
-		filepath.Join("nomad-monitoring", "node_discovery", "prometheus.yaml"),
+		filepath.Join("cluster-monitoring", "node_discovery", "prometheus.yaml"),
 		bytes.NewReader(promfile),
 	)
 	if err != nil {
@@ -178,7 +190,7 @@ func prometheusConfig(orchestratorName string, modelBazaarEndpoint string, isLoc
 				"job_name":     "nomad-agent",
 				"metrics_path": "/v1/metrics?format=prometheus",
 				"file_sd_configs": []map[string][]string{
-					{"files": {"/model_bazaar/nomad-monitoring/nomad_nodes/*.yaml"}},
+					{"files": {"/model_bazaar/cluster-monitoring/nomad_nodes/*.yaml"}},
 				},
 				"relabel_configs": []map[string]interface{}{
 					{
@@ -394,7 +406,7 @@ func createVectorConfig(storage storage.Storage, modelBazaarEndpoint string) err
 	}
 
 	err = storage.Write(
-		filepath.Join("nomad-monitoring", "vector", "vector.yaml"),
+		filepath.Join("cluster-monitoring", "vector", "vector.yaml"),
 		bytes.NewReader(configFile),
 	)
 	if err != nil {
@@ -417,7 +429,7 @@ func createGrafanaProvisionings(storage storage.Storage, isLocal bool, orchestra
 				"allowUiUpdates":        true,
 				"options": map[string]interface{}{
 					"foldersFromFilesStructure": true,
-					"path":                      filepath.Join(storage.Location(), "nomad-monitoring", "grafana", "grafana_dashboards"),
+					"path":                      filepath.Join(storage.Location(), "cluster-monitoring", "grafana", "grafana_dashboards"),
 				},
 			},
 		},
@@ -428,7 +440,7 @@ func createGrafanaProvisionings(storage storage.Storage, isLocal bool, orchestra
 	}
 
 	err = storage.Write(
-		filepath.Join("nomad-monitoring", "grafana", "provisioning", "dashboards", "dashboards.yaml"),
+		filepath.Join("cluster-monitoring", "grafana", "provisioning", "dashboards", "dashboards.yaml"),
 		bytes.NewReader(configFile),
 	)
 	if err != nil {
@@ -461,7 +473,7 @@ func createGrafanaProvisionings(storage storage.Storage, isLocal bool, orchestra
 	}
 
 	err = storage.Write(
-		filepath.Join("nomad-monitoring", "grafana", "provisioning", "datasources", "datasources.yaml"),
+		filepath.Join("cluster-monitoring", "grafana", "provisioning", "datasources", "datasources.yaml"),
 		bytes.NewReader(configFile),
 	)
 	if err != nil {

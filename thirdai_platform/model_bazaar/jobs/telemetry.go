@@ -407,7 +407,7 @@ func createVectorConfig(storage storage.Storage, modelBazaarEndpoint string) err
 func createGrafanaProvisionings(storage storage.Storage, isLocal bool, orchestratorName string, modelBazaarEndpoint string) error {
 	// Create grafana dashboard config
 	dashboardConfig := map[string]interface{}{
-		"apiversions": "1",
+		"apiversion": 1,
 		"providers": []map[string]interface{}{
 			{
 				"name":                  "dashboards",

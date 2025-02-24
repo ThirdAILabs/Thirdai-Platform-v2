@@ -7,10 +7,6 @@ docker_build(
 
 k8s_yaml("dummy.yaml")
 
-default_registry(
-    'localhost:5000',
-    host_from_cluster='registry:5000'
-)
 
 local_resource(
   "update-deployments",

@@ -312,6 +312,11 @@ func main() {
 	}
 	defer auditLog.Close()
 
+	err = os.MkdirAll(filepath.Join(env.ShareDir, "jobs/"), 0777)
+	if err != nil {
+		log.Fatalf("error creating log dir: %v", err)
+	}
+
 	initLogging(logFile)
 
 	db := initDb(env.postgresDsn())

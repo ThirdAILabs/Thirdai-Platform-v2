@@ -101,6 +101,7 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 	slog.Info("starting kubernetes job", "job_name", job.GetJobName(), "template", job.JobTemplatePath())
 
 	subDir := fmt.Sprintf("jobs/%s", job.JobTemplatePath())
+	var renderedJobYAML strings.Builder
 
 	type resourceDef struct {
 		FileSuffix string
@@ -161,7 +162,6 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 				existing, err := c.clientset.AppsV1().Deployments(c.namespace).Get(ctx, deployment.Name, metav1.GetOptions{})
 				if err != nil {
 					if apierrors.IsNotFound(err) {
-						// Not found: create the deployment.
 						if _, err := c.clientset.AppsV1().Deployments(c.namespace).Create(ctx, &deployment, metav1.CreateOptions{}); err != nil {
 							slog.Error("error creating deployment resource", "error", err)
 							return fmt.Errorf("error creating deployment resource: %w", err)
@@ -274,7 +274,10 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 		}
 		rendered := buf.String()
 
-		// Process multiple docs in a single YAML file
+		// Append the rendered YAML to the accumulated builder.
+		renderedJobYAML.WriteString(rendered + "\n---\n")
+
+		// Process multiple docs in a single YAML file.
 		docs := strings.Split(rendered, "\n---\n")
 		for _, doc := range docs {
 			doc = strings.TrimSpace(doc)
@@ -293,6 +296,12 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 		if err := processTemplate(res.FileSuffix, res.Process); err != nil {
 			return err
 		}
+	}
+
+	// Write the accumulated YAML to a file in /opt/model_bazaar/jobs.
+	outputFile := filepath.Join("/opt/model_bazaar/jobs", fmt.Sprintf("%s.yaml", job.GetJobName()))
+	if err := os.WriteFile(outputFile, []byte(renderedJobYAML.String()), 0644); err != nil {
+		return fmt.Errorf("error writing job YAML file: %w", err)
 	}
 
 	slog.Info("all resources for job started successfully", "job_name", job.GetJobName())
@@ -317,6 +326,13 @@ func (c *KubernetesClient) StopJob(jobName string) error {
 	if err := c.clientset.NetworkingV1().Ingresses(c.namespace).Delete(ctx, jobName, metav1.DeleteOptions{}); err != nil {
 		slog.Error("error stopping ingress", "job_name", jobName, "error", err)
 		errs = append(errs, fmt.Sprintf("ingress: %v", err))
+	}
+
+	// Attempt to delete the job YAML file from /opt/model_bazaar/jobs.
+	outputFile := filepath.Join("/opt/model_bazaar/jobs", fmt.Sprintf("%s.yaml", jobName))
+	if err := os.Remove(outputFile); err != nil && !os.IsNotExist(err) {
+		slog.Error("error deleting job YAML file", "job_name", jobName, "error", err)
+		errs = append(errs, fmt.Sprintf("job yaml deletion: %v", err))
 	}
 
 	if len(errs) > 0 {

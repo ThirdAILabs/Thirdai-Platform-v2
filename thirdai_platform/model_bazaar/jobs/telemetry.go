@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -35,26 +36,42 @@ func copyGrafanaDashboards(storage storage.Storage, orchestratorName string) err
 		}
 	}
 
-	// Note: This assumes a shared filesystem, we should really walk the embed.FS
-	// and copy things using the storage interface.
-	err = os.CopyFS(filepath.Join(storage.Location(), "cluster-monitoring", "grafana"), grafanaDashboards)
-	if err != nil {
-		return fmt.Errorf("error copying grafana dashboards to share: %w", err)
-	}
-
-	if orchestratorName == "nomad" {
-		err = storage.Delete(filepath.Join(dashboardDest, "kubernetes"))
+	return fs.WalkDir(grafanaDashboards, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return fmt.Errorf("error deleting kubernetes dashboards: %w", err)
+			return fmt.Errorf("error walking grafana dashboards: %w", err)
 		}
-	} else {
-		err = storage.Delete(filepath.Join(dashboardDest, "nomad"))
-		if err != nil {
-			return fmt.Errorf("error deleting nomad dashboards: %w", err)
-		}
-	}
 
-	return nil
+		//skipping the root directory
+		if path == "." {
+			return nil
+		}
+
+		// Skip directories for the other orchestrator
+		if orchestratorName == "nomad" && strings.HasPrefix(path, "kubernetes") {
+			return fs.SkipDir
+		} else if orchestratorName != "nomad" && strings.HasPrefix(path, "nomad") {
+			return fs.SkipDir
+		}
+
+		destPath := filepath.Join(dashboardDest, path)
+		if d.IsDir() {
+			err := os.MkdirAll(filepath.Join(storage.Location(), destPath), 0755)
+			if err != nil {
+				return fmt.Errorf("error creating grafana dashboard directory: %w", err)
+			}
+			return nil
+		}
+		content, err := fs.ReadFile(grafanaDashboards, path)
+		if err != nil {
+			return fmt.Errorf("error reading file %s from embedded filesystem: %w", path, err)
+		}
+		contentReader := bytes.NewReader(content)
+		err = storage.Write(destPath, contentReader)
+		if err != nil {
+			return fmt.Errorf("error writing file %s to shared storage: %w", destPath, err)
+		}
+		return nil
+	})
 }
 
 type TelemetryJobArgs struct {

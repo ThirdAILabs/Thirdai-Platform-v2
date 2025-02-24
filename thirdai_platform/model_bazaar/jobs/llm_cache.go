@@ -7,7 +7,7 @@ import (
 	"thirdai_platform/model_bazaar/orchestrator"
 )
 
-func StartLlmCacheJob(orchestratorClient orchestrator.Client, license *licensing.LicenseVerifier, driver orchestrator.Driver, modelBazaarEndpoint, shareDir string) error {
+func StartLlmCacheJob(orchestratorClient orchestrator.Client, license *licensing.LicenseVerifier, driver orchestrator.Driver, modelBazaarEndpoint, shareDir, platform string) error {
 	slog.Info("starting llm-cache job")
 
 	licenseKey, err := license.Verify(0)
@@ -22,6 +22,7 @@ func StartLlmCacheJob(orchestratorClient orchestrator.Client, license *licensing
 		ShareDir:            shareDir,
 		Driver:              driver,
 		IngressHostname:     orchestratorClient.IngressHostname(),
+		Platform:            platform,
 	}
 
 	if driver.DriverType() == "local" {

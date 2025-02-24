@@ -1,0 +1,11 @@
+docker_build(
+  ref="thirdaiplatform.azurecr.io/thirdai_platform_jobs_local-dev",
+  context="/Users/pratikqpranav/ThirdAI/Thirdai-Platform-v2/thirdai_platform_py",
+  dockerfile="/Users/pratikqpranav/ThirdAI/Thirdai-Platform-v2/thirdai_platform_py/Dockerfile",
+  extra_tag=["latest"]     
+)
+
+jobYamlsOutput = str(local("find /opt/model_bazaar/jobs -maxdepth 1 -type f -name '*.yaml'", quiet=True))
+jobYamls = jobYamlsOutput.strip().split("\n")
+
+k8s_yaml(jobYamls)

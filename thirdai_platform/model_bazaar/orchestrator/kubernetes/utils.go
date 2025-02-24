@@ -237,7 +237,7 @@ func (c *KubernetesClient) processByFileSuffix(fileSuffix string, doc string, ct
 	}
 }
 
-func (c *KubernetesClient) processTemplate(fileSuffix, subDir string, job orchestrator.Job, ctx context.Context) error {
+func (c *KubernetesClient) processTemplate(fileSuffix, subDir string, job orchestrator.Job, ctx context.Context, renderedJobYAML strings.Builder) error {
 	templatePath := filepath.Join(subDir, job.JobTemplatePath()+fileSuffix)
 	slog.Info("processing template", "templatePath", templatePath, "fileSuffix", fileSuffix, "job_name", job.GetJobName(), "namespace", c.namespace)
 	content, err := fs.ReadFile(jobTemplates, templatePath)
@@ -270,6 +270,9 @@ func (c *KubernetesClient) processTemplate(fileSuffix, subDir string, job orches
 	}
 	rendered := buf.String()
 	slog.Info("template rendered", "template", templatePath)
+
+	// Append the rendered YAML to the accumulated builder.
+	renderedJobYAML.WriteString(rendered + "\n---\n")
 
 	// Process multiple docs in a single YAML file
 	decoder := yaml.NewDecoder(strings.NewReader(rendered))

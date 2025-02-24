@@ -156,6 +156,8 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 			AllocationMemoryMax: 60000,
 		},
 		CloudCredentials: s.variables.CloudCredentials,
+		ShareDir:         s.variables.ShareDir,
+		Platform:         s.variables.Platform,
 	}
 
 	err = s.saveModelAndStartJob(model, user, job)

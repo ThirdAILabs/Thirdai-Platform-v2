@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -18,6 +20,7 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"thirdai_platform/model_bazaar/orchestrator"
 )
@@ -44,12 +47,29 @@ type KubernetesClient struct {
 }
 
 func NewKubernetesClient(ingressHostname string) orchestrator.Client {
+	var config *rest.Config
+	var err error
 	slog.Info("initializing NewKubernetesClient", "ingressHostname", ingressHostname)
 
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		slog.Error("error getting in-cluster config", "error", err)
-		panic(fmt.Sprintf("error getting in-cluster config: %v", err))
+	platform := os.Getenv("PLATFORM")
+	if platform == "local" {
+		slog.Info("PLATFORM is set to 'local', using kubeconfig...")
+
+		kubeconfigPath := clientcmd.RecommendedHomeFile
+
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+		if err != nil {
+			log.Panicf("error loading kubeconfig from file (%s): %v", kubeconfigPath, err)
+		}
+		slog.Info("Using kubeconfig", "path", kubeconfigPath)
+	} else {
+
+		slog.Info("PLATFORM is not set to 'local', using in-cluster Kubernetes config...")
+
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			log.Panicf("error getting in-cluster config: %v", err)
+		}
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
@@ -58,10 +78,14 @@ func NewKubernetesClient(ingressHostname string) orchestrator.Client {
 		panic(fmt.Sprintf("error creating kubernetes clientset: %v", err))
 	}
 
-	namespace, err := getNamespace()
-	if err != nil {
-		slog.Error("error retrieving kubernetes namespace", "error", err)
-		panic(fmt.Sprintf("error retrieving kubernetes namespace: %v", err))
+	var namespace string
+	if platform == "local" {
+		namespace = "default"
+	} else {
+		namespace, err = getNamespace()
+		if err != nil {
+			log.Panicf("error retrieving kubernetes namespace: %v", err)
+		}
 	}
 
 	slog.Info("creating kubernetes client", "namespace", namespace, "ingressHostname", ingressHostname)
@@ -77,13 +101,18 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 	subDir := fmt.Sprintf("jobs/%s", job.JobTemplatePath())
 
 	ctx := context.Background()
+	var renderedJobYAML strings.Builder
 
 	for _, res := range resources {
 		slog.Info("processing resource type", "fileSuffix", res.FileSuffix, "job_name", job.GetJobName())
-		if err := c.processTemplate(res.FileSuffix, subDir, job, ctx); err != nil {
+		if err := c.processTemplate(res.FileSuffix, subDir, job, ctx, renderedJobYAML); err != nil {
 			slog.Error("error processing template", "fileSuffix", res.FileSuffix, "job_name", job.GetJobName(), "error", err)
 			return err
 		}
+	}
+	outputFile := filepath.Join("/opt/model_bazaar/jobs", fmt.Sprintf("%s.yaml", job.GetJobName()))
+	if err := os.WriteFile(outputFile, []byte(renderedJobYAML.String()), 0644); err != nil {
+		return fmt.Errorf("error writing job YAML file: %w", err)
 	}
 
 	slog.Info("all resources for job started successfully", "job_name", job.GetJobName(), "namespace", c.namespace)
@@ -146,6 +175,12 @@ func (c *KubernetesClient) StopJob(jobName string) error {
 		}
 	} else {
 		slog.Info("internal ingress deleted successfully", "ingress_name", internalIngressName)
+	}
+
+	outputFile := filepath.Join("/opt/model_bazaar/jobs", fmt.Sprintf("%s.yaml", jobName))
+	if err := os.Remove(outputFile); err != nil && !os.IsNotExist(err) {
+		slog.Error("error deleting job YAML file", "job_name", jobName, "error", err)
+		errs = append(errs, errors.New(fmt.Sprintf("job yaml deletion: %v", err)))
 	}
 
 	if len(errs) > 0 {

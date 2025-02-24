@@ -572,6 +572,8 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 		},
 		DatagenConfigPath: datagenConfigPath,
 		GenaiKey:          genaiKey,
+		Platform:          s.variables.Platform,
+		ShareDir:          s.variables.ShareDir,
 	}
 
 	return s.saveModelAndStartJob(model, user, job)

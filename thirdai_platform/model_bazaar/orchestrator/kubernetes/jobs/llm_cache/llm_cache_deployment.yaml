@@ -36,12 +36,12 @@ spec:
             - name: LICENSE_KEY
               value: "{{ .LicenseKey }}"
             - name: MODEL_BAZAAR_DIR
-              value: "/model_bazaar"
+              value: "/opt/model_bazaar"
           ports:
             - containerPort: 80
           volumeMounts:
             - name: shared-modelbazaar
-              mountPath: "/model_bazaar"
+              mountPath: "/opt/model_bazaar"
           resources:
             requests:
               cpu: "2400m"
@@ -53,6 +53,12 @@ spec:
         - name: docker-credentials-secret
       volumes:
         - name: shared-modelbazaar
+        {{- if eq .Platform "local" }}
+          hostPath:
+            path: "{{ .ShareDir }}"
+            type: Directory
+        {{- else }}
           persistentVolumeClaim:
             claimName: modelbazaar-efs-pvc
+        {{- end }}
 

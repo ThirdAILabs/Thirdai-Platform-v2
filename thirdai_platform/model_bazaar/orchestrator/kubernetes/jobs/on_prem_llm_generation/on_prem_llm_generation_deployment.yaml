@@ -22,7 +22,7 @@ spec:
           command: ["python3"]
           args:
             - "-m"
-            - "/model_bazaar/pretrained-models/{{ .ModelName }}"
+            - "/opt/model_bazaar/pretrained-models/{{ .ModelName }}"
             - "-c"
             - "8192"
             - "--host"
@@ -37,7 +37,7 @@ spec:
             - containerPort: 80
           volumeMounts:
             - name: shared-modelbazaar
-              mountPath: "/model_bazaar"
+              mountPath: "/opt/model_bazaar"
           resources:
             {{-  with .Resources }}
             requests:
@@ -51,5 +51,11 @@ spec:
         - name: docker-credentials-secret
       volumes:
         - name: shared-modelbazaar
+          {{- if eq .Platform "local" }}
+          hostPath:
+            path: "{{ .ShareDir }}"
+            type: Directory
+          {{- else }}
           persistentVolumeClaim:
             claimName: modelbazaar-efs-pvc
+          {{- end }}

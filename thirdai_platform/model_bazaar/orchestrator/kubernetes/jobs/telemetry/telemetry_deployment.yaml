@@ -27,9 +27,9 @@ spec:
             - "20d"
             - "--httpListenAddr"
             - ":8428"
-            - "--promscrape.config"
             - "--http.pathPrefix"
             - "/victoriametrics"
+            - "--promscrape.config"
             - "{{ .NomadMonitoringDir }}/node_discovery/prometheus.yaml"
           ports: 
             - containerPort: 8428

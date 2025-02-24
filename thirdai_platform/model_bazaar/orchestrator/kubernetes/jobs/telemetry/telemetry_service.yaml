@@ -6,7 +6,7 @@ metadata:
     app: victoriametrics
 spec:
   selector:
-    app: telemetery
+    app: telemetry
   ports:
     - name: http
       port: 8428
@@ -20,7 +20,7 @@ metadata:
     app: grafana
 spec:
   selector:
-    app: telemetery
+    app: telemetry
   ports:
     - name: http
       port: 3000
@@ -34,7 +34,7 @@ metadata:
     app: victorialogs
 spec:
   selector:
-    app: victoria-metrics-logs
+    app: telemetry
   ports:
     - name: http
       port: 9428

@@ -101,11 +101,14 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 	subDir := fmt.Sprintf("jobs/%s", job.JobTemplatePath())
 
 	ctx := context.Background()
+
 	var renderedJobYAML strings.Builder
+	var err error
 
 	for _, res := range resources {
 		slog.Info("processing resource type", "fileSuffix", res.FileSuffix, "job_name", job.GetJobName())
-		if err := c.processTemplate(res.FileSuffix, subDir, job, ctx, renderedJobYAML); err != nil {
+		renderedJobYAML, err = c.processTemplate(res.FileSuffix, subDir, job, ctx, renderedJobYAML)
+		if err != nil {
 			slog.Error("error processing template", "fileSuffix", res.FileSuffix, "job_name", job.GetJobName(), "error", err)
 			return err
 		}

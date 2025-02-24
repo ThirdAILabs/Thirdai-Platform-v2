@@ -53,12 +53,11 @@ spec:
         - name: docker-credentials-secret
       volumes:
         - name: shared-modelbazaar
-        {{- if eq .Platform "local" }}
-          hostPath:
-            path: "{{ .ShareDir }}"
-            type: Directory
-        {{- else }}
+          {{- if eq .Platform "local" }}
+          PersistentVolume:
+            claimName: modelbazaar-local-pv
+          {{- else }}
           persistentVolumeClaim:
             claimName: modelbazaar-efs-pvc
-        {{- end }}
+          {{- end }}
 

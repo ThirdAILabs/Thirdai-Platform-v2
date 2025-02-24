@@ -237,17 +237,18 @@ func (c *KubernetesClient) processByFileSuffix(fileSuffix string, doc string, ct
 	}
 }
 
-func (c *KubernetesClient) processTemplate(fileSuffix, subDir string, job orchestrator.Job, ctx context.Context, renderedJobYAML strings.Builder) error {
+func (c *KubernetesClient) processTemplate(fileSuffix, subDir string, job orchestrator.Job, ctx context.Context, renderedJobYAML strings.Builder) (strings.Builder, error) {
+
 	templatePath := filepath.Join(subDir, job.JobTemplatePath()+fileSuffix)
 	slog.Info("processing template", "templatePath", templatePath, "fileSuffix", fileSuffix, "job_name", job.GetJobName(), "namespace", c.namespace)
 	content, err := fs.ReadFile(jobTemplates, templatePath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			slog.Info("template file not found, skipping", "template", templatePath)
-			return nil
+			return renderedJobYAML, nil
 		}
 		slog.Error("error reading template file", "template", templatePath, "error", err)
-		return fmt.Errorf("error reading template file %s: %w", templatePath, err)
+		return renderedJobYAML, fmt.Errorf("error reading template file %s: %w", templatePath, err)
 	}
 
 	tmpl, err := template.New(job.JobTemplatePath() + fileSuffix).
@@ -259,14 +260,14 @@ func (c *KubernetesClient) processTemplate(fileSuffix, subDir string, job orches
 		Parse(string(content))
 	if err != nil {
 		slog.Error("error parsing template", "template", templatePath, "error", err)
-		return fmt.Errorf("error parsing template %s: %w", templatePath, err)
+		return renderedJobYAML, fmt.Errorf("error parsing template %s: %w", templatePath, err)
 	}
 	slog.Info("template parsed successfully", "template", templatePath)
 
 	var buf strings.Builder
 	if err := tmpl.Execute(&buf, job); err != nil {
 		slog.Error("error rendering template", "template", templatePath, "error", err)
-		return fmt.Errorf("error rendering template %s: %w", templatePath, err)
+		return renderedJobYAML, fmt.Errorf("error rendering template %s: %w", templatePath, err)
 	}
 	rendered := buf.String()
 	slog.Info("template rendered", "template", templatePath)
@@ -281,7 +282,7 @@ func (c *KubernetesClient) processTemplate(fileSuffix, subDir string, job orches
 		if err := decoder.Decode(&doc); err == io.EOF {
 			break
 		} else if err != nil {
-			return fmt.Errorf("error decoding YAML document: %w", err)
+			return renderedJobYAML, fmt.Errorf("error decoding YAML document: %w", err)
 		}
 
 		if doc == nil {
@@ -292,13 +293,13 @@ func (c *KubernetesClient) processTemplate(fileSuffix, subDir string, job orches
 
 		docBytes, err := yaml.Marshal(doc)
 		if err != nil {
-			return fmt.Errorf("error marshaling YAML document: %w", err)
+			return renderedJobYAML, fmt.Errorf("error marshaling YAML document: %w", err)
 		}
 
 		if err := c.processByFileSuffix(fileSuffix, string(docBytes), ctx); err != nil {
-			return fmt.Errorf("error submitting template %s: %w", templatePath, err)
+			return renderedJobYAML, fmt.Errorf("error submitting template %s: %w", templatePath, err)
 		}
 	}
 	slog.Info("resources created/updated successfully", "template", templatePath)
-	return nil
+	return renderedJobYAML, nil
 }

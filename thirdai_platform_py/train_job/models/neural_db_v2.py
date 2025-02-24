@@ -68,6 +68,8 @@ class NeuralDBV2(Model):
 
             self.logger.info("Creating new NDBv2 model", code=LogCode.MODEL_INIT)
             if ndb_options.on_disk:
+                self.logger.info("save_path: " + self.ndb_save_path())
+                self.logger.info("retriever_save_path: " + self.retriever_save_path())
                 self.db = ndbv2.NeuralDB(save_path=self.ndb_save_path(), splade=splade)
             else:
                 # For the in memory model we create the chunk store in memory

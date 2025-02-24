@@ -47,9 +47,8 @@ spec:
       volumes:
         - name: shared-modelbazaar
           {{- if eq .Platform "local" }}
-          hostPath:
-            path: "{{ .ShareDir }}"
-            type: Directory
+          PersistentVolumeClaim:
+            claimName: modelbazaar-local-pvc
           {{- else }}
           persistentVolumeClaim:
             claimName: modelbazaar-efs-pvc

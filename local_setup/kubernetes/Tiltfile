@@ -1,0 +1,20 @@
+docker_build(
+  ref="thirdaiplatform.azurecr.io/thirdai_platform_jobs_local-dev",
+  context="/Users/pratikqpranav/ThirdAI/Thirdai-Platform-v2/thirdai_platform_py",
+  dockerfile="/Users/pratikqpranav/ThirdAI/Thirdai-Platform-v2/thirdai_platform_py/Dockerfile",
+  extra_tag=["latest"]     
+)
+
+k8s_yaml("dummy.yaml")
+
+default_registry(
+    'localhost:5000',
+    host_from_cluster='registry:5000'
+)
+
+local_resource(
+  "update-deployments",
+  cmd="bash update-deployments.sh",
+  deps=["/Users/pratikqpranav/ThirdAI/Thirdai-Platform-v2/thirdai_platform_py"],
+  resource_deps=["dummy"]
+)

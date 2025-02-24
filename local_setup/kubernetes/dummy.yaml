@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dummy
+  labels:
+    tilt.dev/resource: ignore
+spec:
+  containers:
+    - name: dummy
+      image: thirdaiplatform.azurecr.io/thirdai_platform_jobs_local-dev:latest
+      imagePullPolicy: Always
+      command: ["sleep", "3600"]

@@ -15,9 +15,13 @@ RUN apt-get update && \
 COPY requirements.txt /app/requirements.txt
 RUN pip install -r /app/requirements.txt
 
+# Copy the local wheel from ../local_setup/files/ to the container
+COPY files/thirdai-0.9.27-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl /app/thirdai-0.9.27-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
+
+
 # Install thirdai package separately since this is the dependency that changes
 # the most often. This allows the other packages to stay cached.
-RUN python3 -m pip install thirdai[neural_db_v2]>=0.9.21
+RUN python3 -m pip install /app/thirdai-0.9.27-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl[neural_db_v2]
 RUN python3 -m pip install -U langchain-community
 
 COPY . /app

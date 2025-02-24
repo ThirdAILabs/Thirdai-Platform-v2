@@ -428,7 +428,7 @@ func createGrafanaProvisionings(storage storage.Storage, isLocal bool, orchestra
 	}
 
 	err = storage.Write(
-		filepath.Join("nomad-monitoring", "grafana", "provisioning", "dashboards.yaml"),
+		filepath.Join("nomad-monitoring", "grafana", "provisioning", "dashboards", "dashboards.yaml"),
 		bytes.NewReader(configFile),
 	)
 	if err != nil {
@@ -461,7 +461,7 @@ func createGrafanaProvisionings(storage storage.Storage, isLocal bool, orchestra
 	}
 
 	err = storage.Write(
-		filepath.Join("nomad-monitoring", "grafana", "provisioning", "datasources.yaml"),
+		filepath.Join("nomad-monitoring", "grafana", "provisioning", "datasources", "datasources.yaml"),
 		bytes.NewReader(configFile),
 	)
 	if err != nil {

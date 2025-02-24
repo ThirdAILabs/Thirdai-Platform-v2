@@ -5,12 +5,11 @@ docker_build(
   extra_tag=["latest"]     
 )
 
-k8s_yaml("dummy.yaml")
+# Use a shell command to list all YAML files in /opt/model_bazaar/jobs.
+# This is a workaround if your Tilt version does not provide glob().
+jobYamlsOutput = str(local("find /opt/model_bazaar/jobs -maxdepth 1 -type f -name '*.yaml'", quiet=True))
+jobYamls = jobYamlsOutput.strip().split("\n")
 
+# Pass the list of YAML files to k8s_yaml.
+k8s_yaml(jobYamls)
 
-local_resource(
-  "update-deployments",
-  cmd="bash update-deployments.sh",
-  deps=["/Users/pratikqpranav/ThirdAI/Thirdai-Platform-v2/thirdai_platform_py"],
-  resource_deps=["dummy"]
-)

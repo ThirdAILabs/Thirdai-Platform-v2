@@ -68,6 +68,7 @@ class NeuralDBV2(Model):
                 self.logger.debug(
                     "Check: Initializing on-disk NeuralDB", code=LogCode.MODEL_INIT
                 )
+
                 self.db = ndbv2.NeuralDB(save_path=self.ndb_save_path(), splade=splade)
                 self.logger.debug(
                     "On-disk NeuralDB initialized successfully", code=LogCode.MODEL_INIT

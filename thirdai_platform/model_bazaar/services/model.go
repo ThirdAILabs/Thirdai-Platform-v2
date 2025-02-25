@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"thirdai_platform/model_bazaar/auth"
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/utils"
@@ -27,8 +27,8 @@ import (
 type ModelService struct {
 	db *gorm.DB
 
-	nomad   nomad.NomadClient
-	storage storage.Storage
+	orchestratorClient orchestrator.Client
+	storage            storage.Storage
 
 	userAuth          auth.IdentityProvider
 	uploadSessionAuth *auth.JwtManager
@@ -114,7 +114,7 @@ type ModelInfo struct {
 	DeployStatus string     `json:"deploy_status"`
 	PublishDate  time.Time  `json:"publish_date"`
 	UserEmail    string     `json:"user_email"`
-	Username     string     `json:"Username"`
+	Username     string     `json:"username"`
 	TeamId       *uuid.UUID `json:"team_id"`
 
 	Attributes map[string]string `json:"attributes"`
@@ -137,14 +137,32 @@ func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 		attributes[attr.Key] = attr.Value
 	}
 
+	// Safely handle user information
+	var userEmail, username string
+	if model.User != nil {
+		userEmail = model.User.Email
+		username = model.User.Username
+	}
+
+	// Safely handle dependencies
 	deps := make([]ModelDependency, 0, len(model.Dependencies))
 	for _, dep := range model.Dependencies {
-		deps = append(deps, ModelDependency{
-			ModelId:   dep.DependencyId,
-			ModelName: dep.Dependency.Name,
-			Type:      dep.Dependency.Type,
-			Username:  dep.Dependency.User.Username,
-		})
+		depEntry := ModelDependency{
+			ModelId: dep.DependencyId,
+		}
+
+		// Check if Dependency exists
+		if dep.Dependency != nil {
+			depEntry.ModelName = dep.Dependency.Name
+			depEntry.Type = dep.Dependency.Type
+
+			// Check if Dependency.User exists
+			if dep.Dependency.User != nil {
+				depEntry.Username = dep.Dependency.User.Username
+			}
+		}
+
+		deps = append(deps, depEntry)
 	}
 
 	return ModelInfo{
@@ -155,8 +173,8 @@ func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 		TrainStatus:  trainStatus,
 		DeployStatus: deployStatus,
 		PublishDate:  model.PublishedDate,
-		UserEmail:    model.User.Email,
-		Username:     model.User.Username,
+		UserEmail:    userEmail,
+		Username:     username,
 		TeamId:       model.TeamId,
 		Attributes:   attributes,
 		Dependencies: deps,
@@ -568,7 +586,7 @@ func (s *ModelService) Delete(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if model.TrainStatus == schema.Starting || model.TrainStatus == schema.InProgress {
-			err = s.nomad.StopJob(model.TrainJobName())
+			err = s.orchestratorClient.StopJob(model.TrainJobName())
 			if err != nil {
 				slog.Error("error stopping train job when deleting model", "model_id", modelId, "error", err)
 				return CodedError(errors.New("error stopping model train job"), http.StatusInternalServerError)
@@ -576,7 +594,7 @@ func (s *ModelService) Delete(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if model.DeployStatus == schema.Starting || model.DeployStatus == schema.InProgress || model.DeployStatus == schema.Complete {
-			err = s.nomad.StopJob(model.DeployJobName())
+			err = s.orchestratorClient.StopJob(model.DeployJobName())
 			if err != nil {
 				slog.Error("error stopping deploy job when deleting model", "model_id", modelId, "error", err)
 				return CodedError(errors.New("error stopping model deploy job"), http.StatusInternalServerError)

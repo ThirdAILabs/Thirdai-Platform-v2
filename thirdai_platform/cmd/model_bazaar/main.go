@@ -14,7 +14,9 @@ import (
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/jobs"
 	"thirdai_platform/model_bazaar/licensing"
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
+	"thirdai_platform/model_bazaar/orchestrator/kubernetes"
+	"thirdai_platform/model_bazaar/orchestrator/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/storage"
@@ -22,17 +24,19 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 type modelBazaarEnv struct {
-	PublicModelBazaarEndpoint  string
+	IngressHostname            string
 	PrivateModelBazaarEndpoint string
 	LicensePath                string
 	NomadEndpoint              string
 	NomadToken                 string
+	Kubernetes                 string
 	ShareDir                   string
 	JwtSecret                  string
 
@@ -65,7 +69,11 @@ type modelBazaarEnv struct {
 	DatabaseUri  string
 	GrafanaDbUri string
 
-	CloudCredentials nomad.CloudCredentials
+	CloudCredentials orchestrator.CloudCredentials
+}
+
+func optionalEnv(key string) string {
+	return os.Getenv(key)
 }
 
 func loadEnvFile(envFile string) {
@@ -97,13 +105,18 @@ func loadEnv() modelBazaarEnv {
 	}
 
 	env := modelBazaarEnv{
-		PublicModelBazaarEndpoint:  requiredEnv("PUBLIC_MODEL_BAZAAR_ENDPOINT"),
+		IngressHostname:            requiredEnv("INGRESS_HOSTNAME"),
 		PrivateModelBazaarEndpoint: requiredEnv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
-		LicensePath:                requiredEnv("LICENSE_PATH"),
-		NomadEndpoint:              requiredEnv("NOMAD_ENDPOINT"),
-		NomadToken:                 requiredEnv("TASK_RUNNER_TOKEN"),
-		ShareDir:                   requiredEnv("SHARE_DIR"),
-		JwtSecret:                  requiredEnv("JWT_SECRET"),
+
+		NomadEndpoint: optionalEnv("NOMAD_ENDPOINT"),
+		NomadToken:    optionalEnv("TASK_RUNNER_TOKEN"),
+
+		LicensePath: optionalEnv("LICENSE_PATH"),
+
+		Kubernetes: optionalEnv("KUBERNETES"),
+
+		ShareDir:  requiredEnv("SHARE_DIR"),
+		JwtSecret: requiredEnv("JWT_SECRET"),
 
 		AdminUsername: requiredEnv("ADMIN_USERNAME"),
 		AdminEmail:    requiredEnv("ADMIN_MAIL"),
@@ -132,13 +145,13 @@ func loadEnv() modelBazaarEnv {
 		DatabaseUri:  requiredEnv("DATABASE_URI"),
 		GrafanaDbUri: requiredEnv("GRAFANA_DB_URL"),
 
-		CloudCredentials: nomad.CloudCredentials{
-			AwsAccessKey:       utils.OptionalEnv("AWS_ACCESS_KEY"),
-			AwsAccessSecret:    utils.OptionalEnv("AWS_ACCESS_SECRET"),
-			AwsRegionName:      utils.OptionalEnv("AWS_REGION_NAME"),
-			AzureAccountName:   utils.OptionalEnv("AZURE_ACCOUNT_NAME"),
-			AzureAccountKey:    utils.OptionalEnv("AZURE_ACCOUNT_KEY"),
-			GcpCredentialsFile: utils.OptionalEnv("GCP_CREDENTIALS_FILE"),
+		CloudCredentials: orchestrator.CloudCredentials{
+			AwsAccessKey:       optionalEnv("AWS_ACCESS_KEY"),
+			AwsAccessSecret:    optionalEnv("AWS_ACCESS_SECRET"),
+			AwsRegionName:      optionalEnv("AWS_REGION_NAME"),
+			AzureAccountName:   optionalEnv("AZURE_ACCOUNT_NAME"),
+			AzureAccountKey:    optionalEnv("AZURE_ACCOUNT_KEY"),
+			GcpCredentialsFile: optionalEnv("GCP_CREDENTIALS_FILE"),
 		},
 	}
 
@@ -150,6 +163,13 @@ func loadEnv() modelBazaarEnv {
 		log.Fatal("If JOBS_IMAGE_NAME env var is not specified then PYTHON_PATH and PLATFORM_DIR env vars must be provided.")
 	} else if (env.BackendImage != "" || env.FrontendImage != "") && env.Tag == "" {
 		log.Fatal("If JOBS_IMAGE_NAME or FRONTEND_IMAGE_NAME env vars are specified then TAG must be specified as well.")
+	}
+
+	if (env.NomadEndpoint != "" && env.Kubernetes != "") || (env.NomadEndpoint == "" && env.Kubernetes == "") {
+		log.Fatal("Must specify exactly one of NOMAD_ENDPOINT or KUBERNETES")
+	}
+	if env.NomadEndpoint != "" && env.NomadToken == "" {
+		log.Fatal("Must specify TASK_RUNNER_TOKEN when using NOMAD_ENDPOINT")
 	}
 
 	return env
@@ -165,18 +185,18 @@ func (env *modelBazaarEnv) postgresDsn() string {
 	return fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=%v", parts.Hostname(), parts.User.Username(), pwd, dbname, parts.Port())
 }
 
-func (env *modelBazaarEnv) BackendDriver() nomad.Driver {
+func (env *modelBazaarEnv) BackendDriver() orchestrator.Driver {
 	if env.BackendImage == "" {
-		return nomad.LocalDriver{
+		return orchestrator.LocalDriver{
 			PythonPath:  env.PythonPath,
 			PlatformDir: env.PlatformDir,
 		}
 	}
 
-	return nomad.DockerDriver{
+	return orchestrator.DockerDriver{
 		ImageName: env.BackendImage,
 		Tag:       env.Tag,
-		DockerEnv: nomad.DockerEnv{
+		DockerEnv: orchestrator.DockerEnv{
 			Registry:       env.DockerRegistry,
 			DockerUsername: env.DockerUsername,
 			DockerPassword: env.DockerPassword,
@@ -185,11 +205,11 @@ func (env *modelBazaarEnv) BackendDriver() nomad.Driver {
 	}
 }
 
-func (env *modelBazaarEnv) FrontendDriver() nomad.DockerDriver {
-	return nomad.DockerDriver{
+func (env *modelBazaarEnv) FrontendDriver() orchestrator.DockerDriver {
+	return orchestrator.DockerDriver{
 		ImageName: env.FrontendImage,
 		Tag:       env.Tag,
-		DockerEnv: nomad.DockerEnv{
+		DockerEnv: orchestrator.DockerEnv{
 			Registry:       env.DockerRegistry,
 			DockerUsername: env.DockerUsername,
 			DockerPassword: env.DockerPassword,
@@ -277,7 +297,13 @@ func main() {
 
 	db := initDb(env.postgresDsn())
 
-	nomadClient := nomad.NewHttpClient(env.NomadEndpoint, env.NomadToken)
+	var orchestratorClient orchestrator.Client
+
+	if env.NomadEndpoint != "" {
+		orchestratorClient = nomad.NewNomadClient(env.NomadEndpoint, env.NomadToken, env.IngressHostname)
+	} else if env.Kubernetes != "" {
+		orchestratorClient = kubernetes.NewKubernetesClient(env.IngressHostname)
+	}
 
 	licenseVerifier := licensing.NewVerifier(env.LicensePath)
 
@@ -308,7 +334,7 @@ func main() {
 				AdminUsername:         env.AdminUsername,
 				AdminEmail:            env.AdminEmail,
 				AdminPassword:         env.AdminPassword,
-				PublicHostname:        getHostname(env.PublicModelBazaarEndpoint),
+				PublicHostname:        env.IngressHostname,
 				PrivateHostname:       getHostname(env.PrivateModelBazaarEndpoint),
 				SslLogin:              env.UseSslInLogin,
 			},
@@ -334,7 +360,7 @@ func main() {
 
 	model_bazaar := services.NewModelBazaar(
 		db,
-		nomadClient,
+		orchestratorClient,
 		sharedStorage,
 		licenseVerifier,
 		identityProvider,
@@ -343,14 +369,14 @@ func main() {
 	)
 
 	if !*skipAll && !*skipCache {
-		err = jobs.StartLlmCacheJob(nomadClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
+		err = jobs.StartLlmCacheJob(orchestratorClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
 		if err != nil {
 			log.Fatalf("failed to start llm cache job: %v", err)
 		}
 	}
 
 	if !*skipAll && !*skipDispatch {
-		err = jobs.StartLlmDispatchJob(nomadClient, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
+		err = jobs.StartLlmDispatchJob(orchestratorClient, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
 		if err != nil {
 			log.Fatalf("failed to start llm dispatch job: %v", err)
 		}
@@ -366,7 +392,7 @@ func main() {
 			AdminEmail:          env.AdminEmail,
 			AdminPassword:       env.AdminPassword,
 		}
-		err = jobs.StartTelemetryJob(nomadClient, sharedStorage, telemetryArgs)
+		err = jobs.StartTelemetryJob(orchestratorClient, sharedStorage, telemetryArgs)
 		if err != nil {
 			log.Fatalf("failed to start telemetry job: %v", err)
 		}
@@ -386,7 +412,7 @@ func main() {
 			UseSslInLogin:                env.UseSslInLogin,
 			OpenaiKey:                    variables.LlmProviders["openai"],
 		}
-		err = jobs.StartFrontendJob(nomadClient, env.FrontendDriver(), frontendArgs)
+		err = jobs.StartFrontendJob(orchestratorClient, env.FrontendDriver(), frontendArgs)
 		if err != nil {
 			log.Fatalf("failed to start frontend job: %v", err)
 		}
@@ -395,6 +421,15 @@ func main() {
 	go model_bazaar.JobStatusSync(5 * time.Second)
 
 	r := chi.NewRouter()
+
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{env.IngressHostname},                       // Allow public ingress origin
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}, // Allow all HTTP methods
+		AllowedHeaders:   []string{"*"},                                       // Allow all headers
+		ExposedHeaders:   []string{"*"},                                       // Expose all headers
+		AllowCredentials: true,                                                // Allow cookies/auth headers
+		MaxAge:           300,                                                 // Cache preflight response for 5 minutes
+	}))
 	r.Mount("/api/v2", model_bazaar.Routes())
 
 	slog.Info("starting server", "port", *port)

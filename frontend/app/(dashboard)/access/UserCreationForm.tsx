@@ -20,11 +20,16 @@ const UserCreationForm: React.FC<UserCreationFormProps> = ({ onUserCreated }) =>
     try {
       const response = await addUser(formData);
       setFormData({ username: '', email: '', password: '' });
-      setSuccessMessage(response.message);
-      setErrorMessage('');
-      onUserCreated();
-      // Clear success message after 5 seconds
-      setTimeout(() => setSuccessMessage(''), 5000);
+      if (response?.user_id) {
+        setSuccessMessage('User created successfully');
+        setErrorMessage('');
+        onUserCreated();
+        // Clear success message after 5 seconds
+        setTimeout(() => setSuccessMessage(''), 5000);
+      } else {
+        setErrorMessage('Error creating user');
+        setSuccessMessage('');
+      }
     } catch (error: any) {
       setErrorMessage(error.response?.data?.message || 'Error creating user');
       setSuccessMessage('');

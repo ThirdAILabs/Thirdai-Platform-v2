@@ -1,11 +1,13 @@
-package nomad
+package orchestrator
 
 import (
 	"errors"
 	"fmt"
 )
 
-func JobExists(client NomadClient, jobName string) (bool, error) {
+var ErrJobNotFound = errors.New("job not found")
+
+func JobExists(client Client, jobName string) (bool, error) {
 	_, err := client.JobInfo(jobName)
 	if errors.Is(err, ErrJobNotFound) {
 		return false, nil
@@ -16,7 +18,7 @@ func JobExists(client NomadClient, jobName string) (bool, error) {
 	return false, err
 }
 
-func StopJobIfExists(client NomadClient, jobName string) error {
+func StopJobIfExists(client Client, jobName string) error {
 	exists, err := JobExists(client, jobName)
 	if err != nil {
 		return fmt.Errorf("error checking if job %v exists: %w", jobName, err)

@@ -32,6 +32,23 @@ interface FileResult {
   processingTime?: number;
 }
 
+interface PredictionClass {
+  class: string;
+  score: number;
+}
+
+interface PredictionResponse {
+  status: string;
+  message: string;
+  data: {
+    prediction_results: {
+      query_text: string;
+      predicted_classes: PredictionClass[];
+    };
+    time_taken: number;
+  };
+}
+
 export default function Page() {
   const { workflowName, predict, getTextFromFile } = useTextClassificationEndpoints();
   const [inputText, setInputText] = useState('');
@@ -114,7 +131,7 @@ export default function Page() {
             {
               filename: file.name,
               predictions: predictions.data.prediction_results.predicted_classes.map(
-                ([name, score]) => [name, Math.floor(score * 100)]
+                (prediction) => [prediction.class, Math.floor(prediction.score * 100)]
               ),
               processingTime,
             },
@@ -207,14 +224,14 @@ export default function Page() {
       return;
     }
     setIsLoading(true);
-    setFolderResults([]); // Clear folder results
+    setFolderResults([]);
     try {
-      const result = await predict(text);
+      const result: PredictionResponse = await predict(text);
       console.log('result', result);
       setPredictions(
-        result.data.prediction_results.predicted_classes.map(([name, score]) => [
-          name,
-          Math.floor(score * 100),
+        result.data.prediction_results.predicted_classes.map((prediction) => [
+          prediction.class,
+          Math.floor(prediction.score * 100),
         ])
       );
       setProcessingTime(result.data.time_taken);

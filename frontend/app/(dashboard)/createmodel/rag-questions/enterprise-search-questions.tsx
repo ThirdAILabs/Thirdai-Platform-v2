@@ -16,7 +16,7 @@ interface EnterpriseSearchQuestionsProps {
 enum LlmProvider {
   OpenAI = 'openai',
   OnPrem = 'on-prem',
-  SelfHosted = 'self-host',
+  SelfHosted = 'self-hosted',
   None = 'none',
 }
 
@@ -47,7 +47,7 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
 
   useEffect(() => {
     setExistingNERModels(
-      models.filter((model) => model.type === 'udt' && model.sub_type === 'token')
+      models.filter((model) => model.type === 'udt' && model.access === 'token')
     );
   }, [models]);
 
@@ -116,6 +116,7 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
         guardrail_id: grModelId || '',
         llm_provider: '',
         default_mode: 'search',
+        model_name: '',
       };
 
       if (llmType && llmType !== LlmProvider.None) {
@@ -135,12 +136,12 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
       options = Object.fromEntries(
         Object.entries(options).filter(([_, v]) => v !== undefined && v !== '')
       ) as EnterpriseSearchOptions;
-
+      options.model_name = modelName;
       const workflowResponse = await create_enterprise_search_workflow({
         workflow_name: modelName,
         options,
       });
-      console.log('Workflow created:', workflowResponse.data.model_id);
+      console.log('Workflow created:', workflowResponse.model_id);
       router.push('/');
     } catch (error) {
       console.error('Error during workflow creation:', error);

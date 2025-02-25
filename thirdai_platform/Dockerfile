@@ -29,4 +29,4 @@ ENV DOCKER_PASSWORD=$docker_password
 ENV JOBS_IMAGE_NAME=$thirdai_platform_jobs
 ENV FRONTEND_IMAGE_NAME=$thirdai_platform_frontend
 
-CMD ["./model_bazaar"]
+CMD ["./model_bazaar", "-port=80"]

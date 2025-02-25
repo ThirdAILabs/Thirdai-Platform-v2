@@ -35,11 +35,10 @@ function TextPairs({ timestamp, label1, label2, text1, text2 }: TextPairsProps) 
 
 // RecentFeedbacks component updates:
 interface RecentFeedbacksProps {
-  username: string;
-  modelName: string;
+  modelId: string | undefined;
 }
 
-export default function RecentFeedbacks({ username, modelName }: RecentFeedbacksProps) {
+export default function RecentFeedbacks({ modelId }: RecentFeedbacksProps) {
   const [recentUpvotes, setRecentUpvotes] = useState([]);
   const [recentAssociations, setRecentAssociations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,14 +46,14 @@ export default function RecentFeedbacks({ username, modelName }: RecentFeedbacks
   // Initial load when component mounts
   useEffect(() => {
     getFeedbackData();
-  }, [username, modelName]);
+  }, [modelId]);
 
   const getFeedbackData = async () => {
-    if (!username || !modelName) return;
+    if (!modelId) return;
 
     setIsLoading(true);
     try {
-      const data = await fetchFeedback(username, modelName);
+      const data = await fetchFeedback(modelId);
       console.log('recent feedback data -> ', data);
       setRecentUpvotes(data?.upvote);
       setRecentAssociations(data?.associate);

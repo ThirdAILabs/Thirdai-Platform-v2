@@ -30,8 +30,8 @@ type User = {
   id: string;
   name: string;
   email: string;
-  role: 'Member' | 'Team Admin' | 'Global Admin';
-  teams: { id: string; name: string; role: 'Member' | 'team_admin' | 'Global Admin' }[];
+  globalAdmin: boolean;
+  teams: { id: string; name: string; team_admin: boolean }[];
   ownedModels: string[];
   verified: boolean;
 };
@@ -39,7 +39,7 @@ type User = {
 const getModels = async () => {
   try {
     const response = await fetchAllModels();
-    const modelData = response.data.map(
+    const modelData = response?.map(
       (model): Model => ({
         name: model.model_name,
         type:
@@ -74,21 +74,23 @@ const getModels = async () => {
 const getUsers = async () => {
   try {
     const response = await fetchAllUsers();
+    console.log('Response from fetchAllUsers', response);
     const userData = response.data.map(
       (user): User => ({
         id: user.id,
         name: user.username,
         email: user.email,
-        role: user.global_admin ? 'Global Admin' : 'Member',
+        globalAdmin: user.admin,
         teams: user.teams.map((team) => ({
           id: team.team_id,
           name: team.team_name,
-          role: team.role,
+          team_admin: team.team_admin,
         })),
         ownedModels: [],
         verified: user.verified,
       })
     );
+    console.log('User data in apiRequest', userData);
     return userData;
   } catch (error) {
     console.error('Failed to fetch users', error);
@@ -108,7 +110,7 @@ const getTeams = async () => {
           const userTeam = user.teams.find((ut) => ut.id === team.id);
           if (userTeam) {
             members.push(user.name);
-            if (userTeam.role === 'team_admin') {
+            if (userTeam.team_admin) {
               admins.push(user.name);
             }
           }

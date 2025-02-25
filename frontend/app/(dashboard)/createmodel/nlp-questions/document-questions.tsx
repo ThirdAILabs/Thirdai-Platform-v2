@@ -18,7 +18,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import FolderIcon from '@mui/icons-material/Folder';
 import InfoIcon from '@mui/icons-material/Info';
 import { useRouter } from 'next/navigation';
-import { validateDocumentClassificationFolder, trainDocumentClassifier } from '@/lib/backend';
+import { uploadDocument, trainNLPTextModel } from '@/lib/backend';
 
 interface DocumentQuestionsProps {
   workflowNames: string[];
@@ -77,9 +77,9 @@ const DocumentQuestions = ({
       }
 
       try {
-        const validationResult = await validateDocumentClassificationFolder(files);
-        if (!validationResult.valid) {
-          setError(validationResult.message);
+        const { upload_id } = await uploadDocument(files);
+        if (!upload_id) {
+          setError('Error validating folder structure');
         }
       } catch (error) {
         const errorMessage =
@@ -174,29 +174,33 @@ const DocumentQuestions = ({
 
     try {
       // First validate the folder structure
-      const validationResult = await validateDocumentClassificationFolder(selectedFolder);
+      const { upload_id } = await uploadDocument(selectedFolder);
 
-      if (!validationResult.valid) {
-        setError(validationResult.message);
+      if (!upload_id) {
+        setError('Error validating folder structure');
         return;
       }
 
-      // Extract the categories from validation result
-      const { categories } = validationResult;
+      // Extract the categories from folder structure
+      const categories = new Set(
+        Array.from(selectedFolder!)
+          .map((file) => {
+            const parts = file.webkitRelativePath.split('/');
+            return parts.length >= 3 ? parts[1] : '';
+          })
+          .filter(Boolean)
+      );
 
-      // Determine n_target_classes based on the number of categories
-      const nTargetClasses = categories.length;
-
-      // If validation passes, proceed with training and pass nTargetClasses
-      const trainingResult = await trainDocumentClassifier({
-        modelName: modelName,
-        files: selectedFolder,
-        testSplit: 0.1,
-        nTargetClasses, // Pass as a new param
+      // If validation passes, proceed with training
+      const trainingResult = await trainNLPTextModel({
+        uploadId: upload_id,
+        model_name: modelName,
+        nTargetClasses: categories.size,
+        doc_classification: true, // Make sure this is set to true
       });
 
       setSuccess(true);
-      onCreateModel?.(trainingResult.data.model_id);
+      onCreateModel?.(trainingResult.model_id);
 
       if (!stayOnPage) {
         router.push('/');

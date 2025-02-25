@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"strings"
 	"thirdai_platform/model_bazaar/orchestrator"
@@ -22,7 +21,7 @@ import (
 var grafanaDashboards embed.FS
 
 func copyGrafanaDashboards(storage storage.Storage, orchestratorName string) error {
-	dashboardDest := "cluster-monitoring/grafana/grafana_dashboards"
+	dashboardDest := "cluster-monitoring/grafana/dashboards"
 
 	exists, err := storage.Exists(dashboardDest)
 	if err != nil {
@@ -47,18 +46,19 @@ func copyGrafanaDashboards(storage storage.Storage, orchestratorName string) err
 		}
 
 		// Skip directories for the other orchestrator
-		if orchestratorName == "nomad" && strings.HasPrefix(path, "kubernetes") {
+		if orchestratorName == "nomad" && strings.HasSuffix(path, "kubernetes") {
 			return fs.SkipDir
-		} else if orchestratorName != "nomad" && strings.HasPrefix(path, "nomad") {
+		} else if orchestratorName != "nomad" && strings.HasSuffix(path, "nomad") {
 			return fs.SkipDir
 		}
 
-		destPath := filepath.Join(dashboardDest, path)
+		relPath, err := filepath.Rel("grafana_dashboards", path)
+		if err != nil {
+			return fmt.Errorf("error getting relative path: %w", err)
+		}
+		destPath := filepath.Join(dashboardDest, relPath)
 		if d.IsDir() {
-			err := os.MkdirAll(filepath.Join(storage.Location(), destPath), 0755)
-			if err != nil {
-				return fmt.Errorf("error creating grafana dashboard directory: %w", err)
-			}
+			// directories would get created by storage.writeData
 			return nil
 		}
 		content, err := fs.ReadFile(grafanaDashboards, path)
@@ -446,7 +446,7 @@ func createGrafanaProvisionings(storage storage.Storage, isLocal bool, orchestra
 				"allowUiUpdates":        true,
 				"options": map[string]interface{}{
 					"foldersFromFilesStructure": true,
-					"path":                      filepath.Join(storage.Location(), "cluster-monitoring", "grafana", "grafana_dashboards"),
+					"path":                      filepath.Join(storage.Location(), "cluster-monitoring", "grafana", "dashboards"),
 				},
 			},
 		},

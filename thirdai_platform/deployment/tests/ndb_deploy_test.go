@@ -59,7 +59,7 @@ func (m *MockPermissions) ModelPermissionsCheck(permission_type deployment.Permi
 	}
 }
 
-func makeNdbServer(t *testing.T, modelbazaardir string) *httptest.Server {
+func makeNdbServer(t *testing.T, modelbazaardir string) (*httptest.Server, *deployment.NdbRouter) {
 	modelID := uuid.New()
 	modelDir := filepath.Join(modelbazaardir, "models", modelID.String(), "model", "model.ndb")
 
@@ -97,7 +97,7 @@ func makeNdbServer(t *testing.T, modelbazaardir string) *httptest.Server {
 	r := router.Routes()
 	testServer := httptest.NewServer(r)
 
-	return testServer
+	return testServer, &router
 }
 
 func checkHealth(t *testing.T, testServer *httptest.Server) {
@@ -294,33 +294,14 @@ func doGenerate(t *testing.T, testServer *httptest.Server, query string, referen
 	}
 }
 
-func checkLLMCache(t *testing.T, testServer *httptest.Server, query, llmRes string) {
-	body := map[string]interface{}{
-		"query": query,
-	}
-	bodyBytes, _ := json.Marshal(body)
-	resp, err := http.Post(testServer.URL+"/generation-cache", "application/json", bytes.NewReader(bodyBytes))
+func checkLLMCache(t *testing.T, cache *deployment.LLMCache, query string, reference_ids []uint64, llmRes string) {
+	result, err := cache.Query(query, reference_ids)
 	if err != nil {
-		t.Fatalf("failed to post /generation-cache: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+		t.Fatalf("failed to query cache: %v", err)
 	}
 
-	var data map[string]string
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		t.Fatalf("failed to decode /generation-cache response: %v", err)
-	}
-
-	returnedLLMRes, exists := data["result"]
-	if !exists {
-		t.Fatalf("expected 'result' key in response but not found")
-	}
-
-	if returnedLLMRes != llmRes {
-		t.Fatalf("expected response '%s', got '%s'", llmRes, returnedLLMRes)
+	if result != llmRes {
+		t.Fatalf("expected response '%s', got '%s'", llmRes, result)
 	}
 }
 
@@ -331,7 +312,7 @@ func TestBasicEndpoints(t *testing.T) {
 	}
 
 	modelbazaardir := t.TempDir()
-	testServer := makeNdbServer(t, modelbazaardir)
+	testServer, router := makeNdbServer(t, modelbazaardir)
 	defer testServer.Close()
 
 	checkSources(t, testServer, []string{"doc_id_1"})
@@ -352,7 +333,7 @@ func TestBasicEndpoints(t *testing.T) {
 	doGenerate(t, testServer, "is this a test?", []map[string]interface{}{
 		{"reference_id": 4, "text": "my name is chatgpt", "source": "doc_id_1"},
 	}, "gpt-4o-mini")
-	checkLLMCache(t, testServer, "is this a test?", "This is a test.")
+	checkLLMCache(t, router.LLMCache, "is this a test?", []uint64{4}, "This is a test.")
 }
 
 func TestSaveLoadDeployConfig(t *testing.T) {

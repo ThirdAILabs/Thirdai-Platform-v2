@@ -100,7 +100,6 @@ func (s *NdbRouter) Routes() chi.Router {
 
 		if s.LLMCache != nil {
 			r.Post("/cache-suggestions", s.CacheSuggestions)
-			r.Post("/generation-cache", s.GenerationCache)
 		}
 	})
 
@@ -339,6 +338,23 @@ func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// query the cache first
+	if s.LLMCache != nil {
+		cachedResult, err := s.FindCachedResult(req)
+		if err != nil {
+			slog.Error("cache error", "error", err)
+			return
+		}
+
+		if cachedResult != "" {
+			utils.WriteJsonResponse(w, map[string]interface{}{"result": cachedResult})
+			return
+		}
+
+		slog.Info("no cached result found, generating", "query", req.Query)
+	}
+
+	// if no cached result found, generate from scratch
 	if s.LLM == nil {
 		http.Error(w, "LLM provider not found", http.StatusInternalServerError)
 		return
@@ -392,37 +408,24 @@ func (s *NdbRouter) CacheSuggestions(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"suggestions": suggestions})
 }
 
-type CacheQuery struct {
-	Query        string   `json:"query"`
-	ReferenceIds []uint64 `json:"reference_ids"`
-}
-
-func (s *NdbRouter) GenerationCache(w http.ResponseWriter, r *http.Request) {
-	var req CacheQuery
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
-		return
-	}
-
+func (s *NdbRouter) FindCachedResult(generateRequest llm_generation.GenerateRequest) (string, error) {
 	if s.LLMCache == nil {
-		http.Error(w, "LLM cache is not initialized", http.StatusInternalServerError)
-		return
+		return "", fmt.Errorf("LLM cache is not initialized")
 	}
 
-	result, err := s.LLMCache.Query(req.Query, req.ReferenceIds)
+	referenceIds := make([]uint64, len(generateRequest.References))
+	for i, ref := range generateRequest.References {
+		referenceIds[i] = ref.Id
+	}
+
+	result, err := s.LLMCache.Query(generateRequest.Query, referenceIds)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("cache query error: %v", err), http.StatusInternalServerError)
-		return
+		return "", fmt.Errorf("cache query error: %v", err)
 	}
 
 	if result == "" {
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"message": "No cached result found",
-			"result":  result,
-		})
-		return
+		return "", fmt.Errorf("no cached result found")
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{"result": result})
+	return result, nil
 }

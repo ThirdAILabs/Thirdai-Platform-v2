@@ -40,11 +40,6 @@ func copyGrafanaDashboards(storage storage.Storage, orchestratorName string) err
 			return fmt.Errorf("error walking grafana dashboards: %w", err)
 		}
 
-		//skipping the root directory
-		if path == "." {
-			return nil
-		}
-
 		// Skip directories for the other orchestrator
 		if orchestratorName == "nomad" && strings.HasSuffix(path, "kubernetes") {
 			return fs.SkipDir
@@ -79,10 +74,9 @@ type TelemetryJobArgs struct {
 	ModelBazaarEndpoint string
 	Docker              orchestrator.DockerEnv
 	GrafanaDbUrl        string
-
-	AdminUsername string
-	AdminEmail    string
-	AdminPassword string
+	AdminUsername       string
+	AdminEmail          string
+	AdminPassword       string
 }
 
 func StartTelemetryJob(orchestratorClient orchestrator.Client, storage storage.Storage, args TelemetryJobArgs) error {
@@ -115,7 +109,7 @@ func StartTelemetryJob(orchestratorClient orchestrator.Client, storage storage.S
 
 	job := orchestrator.TelemetryJob{
 		IsLocal:            args.IsLocal,
-		NomadMonitoringDir: filepath.Join(storage.Location(), "cluster-monitoring"),
+		NomadMonitoringDir: "/model_bazaar/cluster-monitoring",
 		AdminUsername:      args.AdminUsername,
 		AdminEmail:         args.AdminEmail,
 		AdminPassword:      args.AdminPassword,

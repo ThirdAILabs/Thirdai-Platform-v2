@@ -16,7 +16,7 @@ import (
 )
 
 type LLM interface {
-	StreamResponse(req GenerateRequest, w http.ResponseWriter, r *http.Request) error
+	StreamResponse(req GenerateRequest, w http.ResponseWriter, r *http.Request) (string, error)
 }
 
 type LLMProvider string
@@ -127,13 +127,13 @@ func makePrompt(query, inputTaskPrompt string, refs []Reference) (string, string
 	return systemPrompt, userPrompt
 }
 
-func (llm *OpenAICompliantLLM) StreamResponse(req GenerateRequest, w http.ResponseWriter, r *http.Request) error {
+func (llm *OpenAICompliantLLM) StreamResponse(req GenerateRequest, w http.ResponseWriter, r *http.Request) (string, error) {
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		slog.Error("streaming unsupported")
-		return fmt.Errorf("streaming unsupported")
+		return "", fmt.Errorf("streaming unsupported")
 	}
 
 	var accumulatedResponse bytes.Buffer
@@ -162,7 +162,7 @@ func (llm *OpenAICompliantLLM) StreamResponse(req GenerateRequest, w http.Respon
 	}
 	if err := stream.Err(); err != nil {
 		slog.Error("error streaming response: %v", slog.String("error", err.Error()))
-		return fmt.Errorf("error streaming response: %w", err)
+		return "", fmt.Errorf("error streaming response: %w", err)
 	}
-	return nil
+	return accumulatedResponse.String(), nil
 }

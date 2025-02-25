@@ -351,7 +351,7 @@ func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Reques
 
 	slog.Info("started generation", "query", req.Query)
 
-	llmRes, err := llm_generation.StreamResponse(s.LLMProvider, req, w, r)
+	llmRes, err := s.LLM.StreamResponse(req, w, r)
 	if err != nil {
 		// Any error has already been sent to the client, just return
 		return
@@ -364,9 +364,11 @@ func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Reques
 		referenceIds[i] = ref.Id
 	}
 
-	err = s.LLMCache.Insert(req.Query, llmRes, referenceIds)
-	if err != nil {
-		slog.Error("failed cache insertion", "error", err)
+	if s.LLMCache != nil {
+		err = s.LLMCache.Insert(req.Query, llmRes, referenceIds)
+		if err != nil {
+			slog.Error("failed cache insertion", "error", err)
+		}
 	}
 }
 

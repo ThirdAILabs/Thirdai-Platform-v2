@@ -16,6 +16,8 @@ type LLMCache struct {
 	Threshold float64
 }
 
+const CacheScoreThreshold = 0.95
+
 func NewLLMCache(modelBazaarDir, modelId string) (*LLMCache, error) {
 	cachePath := filepath.Join(modelBazaarDir, "models", modelId, "llm_cache", "llm_cache.ndb")
 	ndb, err := ndb.New(cachePath)
@@ -23,7 +25,7 @@ func NewLLMCache(modelBazaarDir, modelId string) (*LLMCache, error) {
 		return nil, fmt.Errorf("unable to construct LLM Cache: %v", err)
 	}
 
-	return &LLMCache{Ndb: ndb, Threshold: 0.95}, nil
+	return &LLMCache{Ndb: ndb, Threshold: CacheScoreThreshold}, nil
 }
 
 func (c *LLMCache) Close() {

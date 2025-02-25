@@ -10,6 +10,7 @@ import (
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/search/ndb"
 	"thirdai_platform/utils"
+	"thirdai_platform/utils/llm_generation"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -20,6 +21,7 @@ type NdbRouter struct {
 	Config      *config.DeployConfig
 	Reporter    Reporter
 	Permissions PermissionsInterface
+	LLM         llm_generation.LLM
 }
 
 func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, error) {
@@ -28,7 +30,26 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to open ndb: %v", err)
 	}
-	return &NdbRouter{ndb, config, reporter, &Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
+
+	var llm llm_generation.LLM
+
+	if provider, exists := config.Options["llm_provider"]; exists {
+		// TODO api key should be passed as environment variable based on provider
+		// rather than passing it in the /generate endpoint from the frontend
+		// Same goes for model and provider
+		llm, err = llm_generation.NewLLM(llm_generation.LLMProvider(provider), config.Options["genai_key"])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &NdbRouter{
+		Ndb:         ndb,
+		Config:      config,
+		Reporter:    reporter,
+		Permissions: &Permissions{config.ModelBazaarEndpoint, config.ModelId},
+		LLM:         llm,
+	}, nil
 }
 
 func (r *NdbRouter) Close() {
@@ -59,6 +80,7 @@ func (m *NdbRouter) Routes() chi.Router {
 		r.Get("/sources", m.Sources)
 		// r.Post("/implicit-feedback", m.ImplicitFeedback)
 		// r.Get("/highlighted-pdf", m.HighlightedPdf)
+		r.Post("/generate", m.GenerateFromReferences)
 	})
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -288,4 +310,21 @@ func (s *NdbRouter) ImplicitFeedback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *NdbRouter) HighlightedPdf(w http.ResponseWriter, r *http.Request) {
+}
+
+func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Request) {
+	var req llm_generation.GenerateRequest
+	if !utils.ParseRequestBody(w, r, &req) {
+		return
+	}
+
+	if s.LLM == nil {
+		http.Error(w, "LLM provider not found", http.StatusInternalServerError)
+		return
+	}
+
+	if err := s.LLM.StreamResponse(req, w, r); err != nil {
+		// Any error has already been sent to client, just return
+		return
+	}
 }

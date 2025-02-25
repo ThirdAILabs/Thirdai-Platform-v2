@@ -3,6 +3,7 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -17,9 +18,31 @@ import (
 	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/search/ndb"
+	"thirdai_platform/utils/llm_generation"
+
+	"bufio"
+	"strings"
 
 	"github.com/google/uuid"
 )
+
+type MockLLM struct{}
+
+func (m *MockLLM) StreamResponse(req llm_generation.GenerateRequest, w http.ResponseWriter, r *http.Request) error {
+	w.Header().Set("Content-Type", "text/event-stream")
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+			return fmt.Errorf("streaming unsupported")
+	}
+
+	responses := []string{"This ", "is ", "a test."}
+	for _, chunk := range responses {
+			fmt.Fprintf(w, "data: %s\n\n", chunk)
+			flusher.Flush()
+	}
+
+	return nil
+}
 
 type MockPermissions struct {
 	GetModelPermissionsFunc   func(string) (services.ModelPermissions, error)
@@ -69,6 +92,7 @@ func makeNdbServer(t *testing.T, modelbazaardir string) *httptest.Server {
 
 	r := router.Routes()
 	testServer := httptest.NewServer(r)
+	router.LLM = &MockLLM{}
 
 	return testServer
 }
@@ -226,6 +250,47 @@ func doDelete(t *testing.T, testServer *httptest.Server, source_ids []string) {
 	}
 }
 
+func doGenerate(t *testing.T, testServer *httptest.Server, query string, references []map[string]interface{}, model string) {
+	body := map[string]interface{}{
+		"query":       query,
+		"task_prompt": "say your name",
+		"references":  references,
+		"model":       model,
+	}
+
+	bodyBytes, _ := json.Marshal(body)
+	resp, err := http.Post(testServer.URL+"/generate", "application/json", bytes.NewReader(bodyBytes))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+	if resp.Header.Get("Content-Type") != "text/event-stream" {
+		t.Fatalf("Expected Content-Type 'text/event-stream', got %s", resp.Header.Get("Content-Type"))
+	}
+
+	scanner := bufio.NewScanner(resp.Body)
+	var fullResponse strings.Builder
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "data: ") {
+			data := strings.TrimPrefix(line, "data: ")
+			fullResponse.WriteString(data)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("Scanner encountered an error: %v", err)
+	}
+	if fullResponse.String() != "This is a test." {
+		t.Fatalf("Expected response 'This is a test.', got %s", fullResponse.String())
+	}
+}
+
 func TestBasicEndpoints(t *testing.T) {
 	v := licensing.NewVerifier("platform_test_license.json")
 	license, err := v.LoadLicense()
@@ -255,6 +320,10 @@ func TestBasicEndpoints(t *testing.T) {
 	checkSources(t, testServer, []string{"doc_id_1", "doc_id_2"})
 	doDelete(t, testServer, []string{"doc_id_1"})
 	checkSources(t, testServer, []string{"doc_id_2"})
+
+	doGenerate(t, testServer, "is this a test?", []map[string]interface{}{
+		{"text": "my name is chatgpt", "source": "doc_id_1"},
+	}, "gpt-4o-mini")
 }
 
 func TestSaveLoadDeployConfig(t *testing.T) {

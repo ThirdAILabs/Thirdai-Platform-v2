@@ -92,9 +92,11 @@ func makeNdbServer(t *testing.T, modelbazaardir string) (*httptest.Server, *depl
 		t.Fatalf("failed to create llm cache: %v", err)
 	}
 
-	router := deployment.NdbRouter{Ndb: db, Config: &deployConfig, Permissions: &mockPermissions, LLMCache: cache, LLM: &MockLLM{}}
+	router := deployment.NdbRouter{Ndb: db, Config: &deployConfig, Permissions: &mockPermissions, LLMCache: cache}
+	router.LLM = &MockLLM{}
 
 	r := router.Routes()
+
 	testServer := httptest.NewServer(r)
 
 	return testServer, &router
@@ -334,6 +336,10 @@ func TestBasicEndpoints(t *testing.T) {
 		{"reference_id": 4, "text": "my name is chatgpt", "source": "doc_id_1"},
 	}, "gpt-4o-mini")
 	checkLLMCache(t, router.LLMCache, "is this a test?", []uint64{4}, "This is a test.")
+	// generating again to make sure that the response type from cache is also streaming in nature
+	doGenerate(t, testServer, "is this a test?", []map[string]interface{}{
+		{"reference_id": 4, "text": "my name is chatgpt", "source": "doc_id_1"},
+	}, "gpt-4o-mini")
 }
 
 func TestSaveLoadDeployConfig(t *testing.T) {

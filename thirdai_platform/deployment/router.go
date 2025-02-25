@@ -333,6 +333,7 @@ func (s *NdbRouter) HighlightedPdf(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Request) {
+	slog.Info("generating from references")
 	var req llm_generation.GenerateRequest
 	if !utils.ParseRequestBody(w, r, &req) {
 		return
@@ -343,11 +344,18 @@ func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Reques
 		cachedResult, err := s.FindCachedResult(req)
 		if err != nil {
 			slog.Error("cache error", "error", err)
-			return
 		}
 
 		if cachedResult != "" {
-			utils.WriteJsonResponse(w, map[string]interface{}{"result": cachedResult})
+			// stream response rather than returning a json response
+			w.Header().Set("Content-Type", "text/event-stream")
+			flusher, ok := w.(http.Flusher)
+			if !ok {
+				slog.Error("streaming unsupported")
+				return
+			}
+			fmt.Fprintf(w, "data: %s\n\n", cachedResult)
+			flusher.Flush()
 			return
 		}
 
@@ -356,6 +364,7 @@ func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Reques
 
 	// if no cached result found, generate from scratch
 	if s.LLM == nil {
+		slog.Error("LLM provider not found")
 		http.Error(w, "LLM provider not found", http.StatusInternalServerError)
 		return
 	}

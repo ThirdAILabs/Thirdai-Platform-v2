@@ -3,8 +3,12 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
+	"os"
+	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -56,4 +60,25 @@ func URLParamUUID(r *http.Request, key string) (uuid.UUID, error) {
 	}
 
 	return id, nil
+}
+
+func BoolEnvVar(key string) bool {
+	value := os.Getenv(key)
+	return strings.ToLower(value) == "true"
+}
+
+func IntEnvVar(key string, defaultValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	i, err := strconv.Atoi(value)
+	if err != nil {
+		log.Fatalf("unable to parse integer from env var %v='%v': %v", key, value, err)
+	}
+	return i
+}
+
+func OptionalEnv(key string) string {
+	return os.Getenv(key)
 }

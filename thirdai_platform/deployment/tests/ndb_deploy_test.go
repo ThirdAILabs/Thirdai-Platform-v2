@@ -14,7 +14,6 @@ import (
 
 	"thirdai_platform/deployment"
 	"thirdai_platform/model_bazaar/config"
-	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/search/ndb"
@@ -28,20 +27,20 @@ import (
 
 type MockLLM struct{}
 
-func (m *MockLLM) StreamResponse(req llm_generation.GenerateRequest, w http.ResponseWriter, r *http.Request) error {
+func (m *MockLLM) StreamResponse(req llm_generation.GenerateRequest, w http.ResponseWriter, r *http.Request) (string, error) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-			return fmt.Errorf("streaming unsupported")
+		return "", fmt.Errorf("streaming unsupported")
 	}
 
 	responses := []string{"This ", "is ", "a test."}
 	for _, chunk := range responses {
-			fmt.Fprintf(w, "data: %s\n\n", chunk)
-			flusher.Flush()
+		fmt.Fprintf(w, "data: %s\n\n", chunk)
+		flusher.Flush()
 	}
 
-	return nil
+	return "This is a test.", nil
 }
 
 type MockPermissions struct {
@@ -60,7 +59,7 @@ func (m *MockPermissions) ModelPermissionsCheck(permission_type deployment.Permi
 	}
 }
 
-func makeNdbServer(t *testing.T, modelbazaardir string) *httptest.Server {
+func makeNdbServer(t *testing.T, modelbazaardir string) (*httptest.Server, *deployment.NdbRouter) {
 	modelID := uuid.New()
 	modelDir := filepath.Join(modelbazaardir, "models", modelID.String(), "model", "model.ndb")
 
@@ -88,13 +87,19 @@ func makeNdbServer(t *testing.T, modelbazaardir string) *httptest.Server {
 
 	mockPermissions := MockPermissions{}
 
-	router := deployment.NdbRouter{Ndb: db, Config: &deployConfig, Permissions: &mockPermissions}
+	cache, err := deployment.NewLLMCache(modelbazaardir, modelID.String())
+	if err != nil {
+		t.Fatalf("failed to create llm cache: %v", err)
+	}
 
-	r := router.Routes()
-	testServer := httptest.NewServer(r)
+	router := deployment.NdbRouter{Ndb: db, Config: &deployConfig, Permissions: &mockPermissions, LLMCache: cache}
 	router.LLM = &MockLLM{}
 
-	return testServer
+	r := router.Routes()
+
+	testServer := httptest.NewServer(r)
+
+	return testServer, &router
 }
 
 func checkHealth(t *testing.T, testServer *httptest.Server) {
@@ -291,19 +296,25 @@ func doGenerate(t *testing.T, testServer *httptest.Server, query string, referen
 	}
 }
 
-func TestBasicEndpoints(t *testing.T) {
-	v := licensing.NewVerifier("platform_test_license.json")
-	license, err := v.LoadLicense()
+func checkLLMCache(t *testing.T, cache *deployment.LLMCache, query string, reference_ids []uint64, llmRes string) {
+	result, err := cache.Query(query, reference_ids)
 	if err != nil {
-		t.Fatalf("license load error: %v", err)
+		t.Fatalf("failed to query cache: %v", err)
 	}
-	err = licensing.ActivateThirdAILicense(license.License.BoltLicenseKey)
+
+	if result != llmRes {
+		t.Fatalf("expected response '%s', got '%s'", llmRes, result)
+	}
+}
+
+func TestBasicEndpoints(t *testing.T) {
+	err := verifyTestLicense()
 	if err != nil {
-		t.Fatalf("license check error: %v", err)
+		t.Fatalf("license error: %v", err)
 	}
 
 	modelbazaardir := t.TempDir()
-	testServer := makeNdbServer(t, modelbazaardir)
+	testServer, router := makeNdbServer(t, modelbazaardir)
 	defer testServer.Close()
 
 	checkSources(t, testServer, []string{"doc_id_1"})
@@ -322,7 +333,12 @@ func TestBasicEndpoints(t *testing.T) {
 	checkSources(t, testServer, []string{"doc_id_2"})
 
 	doGenerate(t, testServer, "is this a test?", []map[string]interface{}{
-		{"text": "my name is chatgpt", "source": "doc_id_1"},
+		{"reference_id": 4, "text": "my name is chatgpt", "source": "doc_id_1"},
+	}, "gpt-4o-mini")
+	checkLLMCache(t, router.LLMCache, "is this a test?", []uint64{4}, "This is a test.")
+	// generating again to make sure that the response type from cache is also streaming in nature
+	doGenerate(t, testServer, "is this a test?", []map[string]interface{}{
+		{"reference_id": 4, "text": "my name is chatgpt", "source": "doc_id_1"},
 	}, "gpt-4o-mini")
 }
 

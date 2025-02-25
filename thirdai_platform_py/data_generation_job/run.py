@@ -30,6 +30,7 @@ def main():
     """
 
     config: DatagenConfig = load_config()
+    print(f"{config = }", flush=True)
 
     log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
     setup_logger(log_dir=log_dir, log_prefix="data_generation")
@@ -86,7 +87,7 @@ def main():
         logger.info(
             f"Token data generation initialized with args: {task_opts} and common_patterns: {common_patterns}"
         )
-
+        print(f"{dataset_config = }", flush=True)
         udt_options = {
             "udt_sub_type": "token",
             "source_column": dataset_config["input_feature"],

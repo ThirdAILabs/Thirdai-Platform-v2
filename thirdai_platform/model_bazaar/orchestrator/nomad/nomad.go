@@ -13,62 +13,32 @@ import (
 	"net/url"
 	"strings"
 	"text/template"
+	"thirdai_platform/model_bazaar/orchestrator"
 )
 
-// This will load the given templates into the embed FS so that they are bunddled
+// This will load the given templates into the embed FS so that they are bundled
 // into the compiled binary.
 
 //go:embed jobs/*
 var jobTemplates embed.FS
 
-type JobInfo struct {
-	Name   string
-	Status string
+type NomadClient struct {
+	addr            string
+	token           string
+	templates       *template.Template
+	ingressHostname string
 }
 
-type JobLog struct {
-	Stdout string `json:"stdout"`
-	Stderr string `json:"stderr"`
+func NomadTemplatePath(jobPath string) string {
+	return jobPath + ".hcl.tmpl"
 }
 
-type ServiceAllocation struct {
-	Address string
-	AllocID string
-	NodeID  string
-	Port    int
-}
-
-type ServiceInfo struct {
-	Name        string
-	Allocations []ServiceAllocation
-}
-
-type NomadClient interface {
-	StartJob(job Job) error
-
-	StopJob(jobName string) error
-
-	JobInfo(jobName string) (JobInfo, error)
-
-	JobLogs(jobName string) ([]JobLog, error)
-
-	ListServices() ([]ServiceInfo, error)
-
-	TotalCpuUsage() (int, error)
-}
-
-type NomadHttpClient struct {
-	addr      string
-	token     string
-	templates *template.Template
-}
-
-func NewHttpClient(addr string, token string) NomadClient {
+func NewNomadClient(addr string, token string, ingressHostname string) orchestrator.Client {
 	funcs := template.FuncMap{
-		"isLocal": func(d Driver) bool {
+		"isLocal": func(d orchestrator.Driver) bool {
 			return d.DriverType() == "local"
 		},
-		"isDocker": func(d Driver) bool {
+		"isDocker": func(d orchestrator.Driver) bool {
 			return d.DriverType() == "docker"
 		},
 		"replaceHyphen": func(s string) string {
@@ -86,12 +56,12 @@ func NewHttpClient(addr string, token string) NomadClient {
 		slog.Info("found job template: " + t.Name())
 	}
 
-	return &NomadHttpClient{addr: addr, token: token, templates: tmpl}
+	return &NomadClient{addr: addr, token: token, templates: tmpl, ingressHostname: ingressHostname}
 }
 
 var errNomadReturnedNotFound = errors.New("nomad returned status 404")
 
-func (c *NomadHttpClient) request(method, endpoint string, body io.Reader, result interface{}) error {
+func (c *NomadClient) request(method, endpoint string, body io.Reader, result interface{}) error {
 	fullEndpoint, err := url.JoinPath(c.addr, endpoint)
 	if err != nil {
 		return fmt.Errorf("error formatting url for nomad endpoint %v: %w", endpoint, err)
@@ -131,21 +101,21 @@ func (c *NomadHttpClient) request(method, endpoint string, body io.Reader, resul
 	return nil
 }
 
-func (c *NomadHttpClient) get(endpoint string, result interface{}) error {
+func (c *NomadClient) get(endpoint string, result interface{}) error {
 	return c.request("GET", endpoint, nil, result)
 }
 
-func (c *NomadHttpClient) post(endpoint string, body io.Reader, result interface{}) error {
+func (c *NomadClient) post(endpoint string, body io.Reader, result interface{}) error {
 	return c.request("POST", endpoint, body, result)
 }
 
-func (c *NomadHttpClient) delete(endpoint string) error {
+func (c *NomadClient) delete(endpoint string) error {
 	return c.request("DELETE", endpoint, nil, nil)
 }
 
-func (c *NomadHttpClient) parseJob(job Job) (interface{}, error) {
+func (c *NomadClient) parseJob(job orchestrator.Job) (interface{}, error) {
 	content := strings.Builder{}
-	err := c.templates.ExecuteTemplate(&content, job.TemplateName(), job)
+	err := c.templates.ExecuteTemplate(&content, NomadTemplatePath(job.JobTemplatePath()), job)
 	if err != nil {
 		return nil, fmt.Errorf("error rendering template: %v", err)
 	}
@@ -167,7 +137,7 @@ func (c *NomadHttpClient) parseJob(job Job) (interface{}, error) {
 	return jobDef, nil
 }
 
-func (c *NomadHttpClient) submitJob(jobDef interface{}) error {
+func (c *NomadClient) submitJob(jobDef interface{}) error {
 	body := &bytes.Buffer{}
 	err := json.NewEncoder(body).Encode(map[string]interface{}{"Job": jobDef})
 	if err != nil {
@@ -182,27 +152,29 @@ func (c *NomadHttpClient) submitJob(jobDef interface{}) error {
 	return nil
 }
 
-func (c *NomadHttpClient) StartJob(job Job) error {
-	slog.Info("starting nomad job", "job_name", job.GetJobName(), "template", job.TemplateName())
+func (c *NomadClient) StartJob(job orchestrator.Job) error {
+
+	nomadTemplatePath := NomadTemplatePath(job.JobTemplatePath())
+	slog.Info("starting nomad job", "job_name", job.GetJobName(), "template", nomadTemplatePath)
 
 	jobDef, err := c.parseJob(job)
 	if err != nil {
-		slog.Error("error parsing nomad job", "job_name", job.GetJobName(), "template", job.TemplateName(), "error", err)
+		slog.Error("error parsing nomad job", "job_name", job.GetJobName(), "template", nomadTemplatePath, "error", err)
 		return fmt.Errorf("error starting nomad job: %w", err)
 	}
 
 	err = c.submitJob(jobDef)
 	if err != nil {
-		slog.Error("error submitting nomad job", "job_name", job.GetJobName(), "template", job.TemplateName(), "error", err)
+		slog.Error("error submitting nomad job", "job_name", job.GetJobName(), "template", nomadTemplatePath, "error", err)
 		return fmt.Errorf("error starting nomad job: %w", err)
 	}
 
-	slog.Info("nomad job started successfully", "job_name", job.GetJobName(), "template", job.TemplateName())
+	slog.Info("nomad job started successfully", "job_name", job.GetJobName(), "template", nomadTemplatePath)
 
 	return nil
 }
 
-func (c *NomadHttpClient) StopJob(jobName string) error {
+func (c *NomadClient) StopJob(jobName string) error {
 	slog.Info("stopping nomad job", "job_name", jobName)
 
 	err := c.delete(fmt.Sprintf("v1/job/%v", jobName))
@@ -216,19 +188,17 @@ func (c *NomadHttpClient) StopJob(jobName string) error {
 	return nil
 }
 
-var ErrJobNotFound = errors.New("nomad job not found")
-
-func (c *NomadHttpClient) JobInfo(jobName string) (JobInfo, error) {
+func (c *NomadClient) JobInfo(jobName string) (orchestrator.JobInfo, error) {
 	slog.Debug("retrieving nomad job info", "job_name", jobName)
 
-	var info JobInfo
+	var info orchestrator.JobInfo
 	err := c.get(fmt.Sprintf("v1/job/%v", jobName), &info)
 	if err != nil {
 		if errors.Is(err, errNomadReturnedNotFound) {
-			return JobInfo{}, ErrJobNotFound
+			return orchestrator.JobInfo{}, orchestrator.ErrJobNotFound
 		}
 		slog.Error("error getting nomad job info", "job_name", jobName, "error", err)
-		return JobInfo{}, fmt.Errorf("error getting info for nomad job %v: %w", jobName, err)
+		return orchestrator.JobInfo{}, fmt.Errorf("error getting info for nomad job %v: %w", jobName, err)
 	}
 
 	slog.Debug("nomad job info retrieved successfully", "job_name", jobName)
@@ -240,7 +210,7 @@ type jobAllocation struct {
 	ID string
 }
 
-func (c *NomadHttpClient) jobAllocations(jobName string) ([]string, error) {
+func (c *NomadClient) jobAllocations(jobName string) ([]string, error) {
 	var allocations []jobAllocation
 	err := c.get(fmt.Sprintf("v1/job/%v/allocations", jobName), &allocations)
 	if err != nil {
@@ -255,7 +225,7 @@ func (c *NomadHttpClient) jobAllocations(jobName string) ([]string, error) {
 	return allocIds, nil
 }
 
-func (c *NomadHttpClient) getLogs(allocId string, logType string) (string, error) {
+func (c *NomadClient) getLogs(allocId string, logType string) (string, error) {
 	url, err := url.JoinPath(c.addr, fmt.Sprintf("v1/client/fs/logs/%v", allocId))
 	if err != nil {
 		return "", fmt.Errorf("error formatting allocation logs url: %w", err)
@@ -294,7 +264,7 @@ func (c *NomadHttpClient) getLogs(allocId string, logType string) (string, error
 	return string(content), err
 }
 
-func (c *NomadHttpClient) JobLogs(jobName string) ([]JobLog, error) {
+func (c *NomadClient) JobLogs(jobName string) ([]orchestrator.JobLog, error) {
 	slog.Info("retrieving nomad job logs", "job_name", jobName)
 
 	allocations, err := c.jobAllocations(jobName)
@@ -303,7 +273,7 @@ func (c *NomadHttpClient) JobLogs(jobName string) ([]JobLog, error) {
 		return nil, fmt.Errorf("error listing allcoations for job %v: %w", jobName, err)
 	}
 
-	logs := make([]JobLog, 0)
+	logs := make([]orchestrator.JobLog, 0)
 
 	for _, alloc := range allocations {
 		stdoutLogs, err := c.getLogs(alloc, "stdout")
@@ -317,7 +287,7 @@ func (c *NomadHttpClient) JobLogs(jobName string) ([]JobLog, error) {
 			return nil, fmt.Errorf("error getting logs from stderr for job %v: %w", jobName, err)
 		}
 
-		logs = append(logs, JobLog{Stdout: stdoutLogs, Stderr: stderrLogs})
+		logs = append(logs, orchestrator.JobLog{Stdout: stdoutLogs, Stderr: stderrLogs})
 	}
 
 	slog.Info("nomad job logs retrieved successfully", "job_name", jobName)
@@ -332,7 +302,7 @@ type serviceResponse struct {
 	}
 }
 
-func (c *NomadHttpClient) listAllServices() ([]string, error) {
+func (c *NomadClient) listAllServices() ([]string, error) {
 	var namespaces []serviceResponse
 	err := c.get("v1/services", &namespaces)
 	if err != nil {
@@ -349,24 +319,24 @@ func (c *NomadHttpClient) listAllServices() ([]string, error) {
 	return services, nil
 }
 
-func (c *NomadHttpClient) getServiceAllocations(service string) (ServiceInfo, error) {
-	var allocations []ServiceAllocation
+func (c *NomadClient) getServiceAllocations(service string) (orchestrator.ServiceInfo, error) {
+	var allocations []orchestrator.ServiceAllocation
 	err := c.get(fmt.Sprintf("v1/service/%v", service), &allocations)
 	if err != nil {
-		return ServiceInfo{}, nil
+		return orchestrator.ServiceInfo{}, nil
 	}
 
-	return ServiceInfo{Name: service, Allocations: allocations}, nil
+	return orchestrator.ServiceInfo{Name: service, Allocations: allocations}, nil
 }
 
-func (c *NomadHttpClient) ListServices() ([]ServiceInfo, error) {
+func (c *NomadClient) ListServices() ([]orchestrator.ServiceInfo, error) {
 	serviceNames, err := c.listAllServices()
 	if err != nil {
 		slog.Error("error listing nomad services", "error", err)
 		return nil, fmt.Errorf("error listing nomad services: %w", err)
 	}
 
-	serviceInfos := make([]ServiceInfo, 0, len(serviceNames))
+	serviceInfos := make([]orchestrator.ServiceInfo, 0, len(serviceNames))
 	for _, service := range serviceNames {
 		info, err := c.getServiceAllocations(service)
 		if err != nil {
@@ -390,7 +360,7 @@ type nomadAllocation struct {
 	}
 }
 
-func (c *NomadHttpClient) TotalCpuUsage() (int, error) {
+func (c *NomadClient) TotalCpuUsage() (int, error) {
 	slog.Info("getting nomad total cpu usage")
 
 	var allocations []nomadAllocation
@@ -412,4 +382,8 @@ func (c *NomadHttpClient) TotalCpuUsage() (int, error) {
 	slog.Info("got nomad total cpu usage successfully", "total_cpu_usage", totalUsage)
 
 	return totalUsage, nil
+}
+
+func (c *NomadClient) IngressHostname() string {
+	return c.ingressHostname
 }

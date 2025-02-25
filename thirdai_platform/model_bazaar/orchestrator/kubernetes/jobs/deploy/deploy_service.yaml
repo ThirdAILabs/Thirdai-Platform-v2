@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ .JobName }}"
+spec:
+  selector:
+    app: "{{ .JobName }}"
+  ports:
+    - name: "http"
+      port: 80
+      targetPort: 80

@@ -442,7 +442,9 @@ class NDBModel(Model):
 
                 llm_chat_interface = llm_providers.get(provider)
 
-                key = kwargs.get("key") or self.config.options.get("genai_key", None)
+                key = kwargs.get("key") or self.config.options.get(
+                    "genai_key", "random-key"
+                )  # openai.OpenAIError: The api_key client option must be set either by passing api_key to the client or by setting the OPENAI_API_KEY environment variable
 
                 # Remove 'key' from kwargs if present
                 kwargs.pop("key", None)

@@ -3,6 +3,7 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -26,25 +27,25 @@ import (
 
 type MockLLM struct{}
 
-func (m *MockLLM) Stream(req *llm_generation.GenerateRequest) (<-chan string, <-chan error) {
-	textChan := make(chan string)
-	errChan := make(chan error)
+func (m *MockLLM) StreamResponse(req llm_generation.GenerateRequest, w http.ResponseWriter, r *http.Request) error {
+	w.Header().Set("Content-Type", "text/event-stream")
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+			return fmt.Errorf("streaming unsupported")
+	}
 
-	go func() {
-		defer close(textChan)
-		defer close(errChan)
+	responses := []string{"This ", "is ", "a test."}
+	for _, chunk := range responses {
+			fmt.Fprintf(w, "data: %s\n\n", chunk)
+			flusher.Flush()
+	}
 
-		textChan <- "This "
-		textChan <- "is "
-		textChan <- "a test."
-	}()
-
-	return textChan, errChan
+	return nil
 }
 
 type MockPermissions struct {
 	GetModelPermissionsFunc   func(string) (services.ModelPermissions, error)
-	ModelPermissionsCheckFunc func(string) func(http.Handler) http.Handler
+	ModelPermissionsCheckFunc func(deployment.PermissionType) func(http.Handler) http.Handler
 	History                   map[string]int
 }
 
@@ -52,7 +53,7 @@ func (m *MockPermissions) GetModelPermissions(token string) (services.ModelPermi
 	return services.ModelPermissions{Read: true, Write: true}, nil // Grant all permissions
 }
 
-func (m *MockPermissions) ModelPermissionsCheck(permission_type string) func(http.Handler) http.Handler {
+func (m *MockPermissions) ModelPermissionsCheck(permission_type deployment.PermissionType) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return next
 	}
@@ -95,7 +96,7 @@ func makeNdbServer(t *testing.T, modelbazaardir string) *httptest.Server {
 
 	r := router.Routes()
 	testServer := httptest.NewServer(r)
-	router.LLMProvider = &MockLLM{}
+	router.LLM = &MockLLM{}
 
 	return testServer
 }

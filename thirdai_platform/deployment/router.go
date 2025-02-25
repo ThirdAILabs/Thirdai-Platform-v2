@@ -24,7 +24,7 @@ type NdbRouter struct {
 	Reporter    Reporter
 	Permissions PermissionsInterface
 	LLMCache    *LLMCache
-	LLMProvider llm_generation.LLMProvider
+	LLM         llm_generation.LLM
 }
 
 func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, error) {
@@ -35,13 +35,18 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 	}
 
 	var llmCache *LLMCache
-	var llmProvider llm_generation.LLMProvider
+	var llm llm_generation.LLM
 
 	if provider, exists := config.Options["llm_provider"]; exists {
 		// TODO api key should be passed as environment variable based on provider
 		// rather than passing it in the /generate endpoint from the frontend
 		// Same goes for model and provider
-		llmProvider, err = llm_generation.NewLLMProvider(provider, config.Options["genai_key"])
+		llm, err = llm_generation.NewLLM(llm_generation.LLMProvider(provider), config.Options["genai_key"])
+		if err != nil {
+			return nil, err
+		}
+
+		llmCache, err = NewLLMCache(config.ModelBazaarDir, config.ModelId.String())
 		if err != nil {
 			return nil, err
 		}
@@ -58,7 +63,7 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 		Reporter:    reporter,
 		Permissions: &Permissions{config.ModelBazaarEndpoint, config.ModelId},
 		LLMCache:    llmCache,
-		LLMProvider: llmProvider,
+		LLM:         llm,
 	}, nil
 }
 
@@ -78,7 +83,7 @@ func (s *NdbRouter) Routes() chi.Router {
 	}))
 
 	r.Group(func(r chi.Router) {
-		r.Use(s.Permissions.ModelPermissionsCheck("write"))
+		r.Use(m.Permissions.ModelPermissionsCheck(WritePermission))
 
 		r.Post("/insert", s.Insert)
 		r.Post("/delete", s.Delete)
@@ -87,7 +92,7 @@ func (s *NdbRouter) Routes() chi.Router {
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(s.Permissions.ModelPermissionsCheck("read"))
+		r.Use(m.Permissions.ModelPermissionsCheck(ReadPermission))
 
 		r.Post("/query", s.Search)
 		r.Get("/sources", s.Sources)
@@ -140,6 +145,11 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Topk <= 0 {
+		http.Error(w, "top_k must be greater than 0", http.StatusBadRequest)
+		return
+	}
+
 	constraints := make(ndb.Constraints)
 	for key, c := range req.Constraints {
 		switch c.Op {
@@ -150,14 +160,14 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 		case "gt":
 			constraints[key] = ndb.GreaterThan(c.Value)
 		default:
-			http.Error(w, fmt.Sprintf("invalid constraint operator '%s' for key '%s'", c.Op, key), http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("invalid constraint operator '%s' for key '%s'", c.Op, key), http.StatusUnprocessableEntity)
 			return
 		}
 	}
 
 	chunks, err := s.Ndb.Query(req.Query, req.Topk, constraints)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("ndb query error: %v", err), http.StatusInternalServerError)
+		http.Error(w, "could not process query", http.StatusInternalServerError)
 		return
 	}
 
@@ -200,7 +210,7 @@ func (s *NdbRouter) Insert(w http.ResponseWriter, r *http.Request) {
 
 type DeleteRequest struct {
 	DocIds            []string `json:"source_ids"`
-	KeepLatestVersion *bool    `json:"keep_latest_version,omitempty"`
+	KeepLatestVersion bool     `json:"keep_latest_version"`
 }
 
 func (s *NdbRouter) Delete(w http.ResponseWriter, r *http.Request) {
@@ -209,10 +219,7 @@ func (s *NdbRouter) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keepLatest := false
-	if req.KeepLatestVersion != nil {
-		keepLatest = *req.KeepLatestVersion
-	}
+	keepLatest := req.KeepLatestVersion
 
 	for _, docID := range req.DocIds {
 		if err := s.Ndb.Delete(docID, keepLatest); err != nil {
@@ -337,7 +344,7 @@ func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if s.LLMProvider == nil {
+	if s.LLM == nil {
 		http.Error(w, "LLM provider not found", http.StatusInternalServerError)
 		return
 	}

@@ -1,7 +1,8 @@
 package tests
 
 import (
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
+	"thirdai_platform/model_bazaar/orchestrator/nomad"
 )
 
 type NomadStub struct {
@@ -12,8 +13,8 @@ func newNomadStub() *NomadStub {
 	return &NomadStub{activeJobs: make(map[string]string)}
 }
 
-func (c *NomadStub) StartJob(job nomad.Job) error {
-	c.activeJobs[job.GetJobName()] = job.TemplateName()
+func (c *NomadStub) StartJob(job orchestrator.Job) error {
+	c.activeJobs[job.GetJobName()] = nomad.NomadTemplatePath(job.JobTemplatePath())
 	return nil
 }
 
@@ -22,19 +23,19 @@ func (c *NomadStub) StopJob(jobName string) error {
 	return nil
 }
 
-func (c *NomadStub) JobInfo(jobName string) (nomad.JobInfo, error) {
+func (c *NomadStub) JobInfo(jobName string) (orchestrator.JobInfo, error) {
 	if _, active := c.activeJobs[jobName]; active {
-		return nomad.JobInfo{Name: jobName, Status: "running"}, nil
+		return orchestrator.JobInfo{Name: jobName, Status: "running"}, nil
 	}
-	return nomad.JobInfo{Name: jobName, Status: "dead"}, nil
+	return orchestrator.JobInfo{Name: jobName, Status: "dead"}, nil
 }
 
-func (c *NomadStub) JobLogs(jobName string) ([]nomad.JobLog, error) {
-	return []nomad.JobLog{}, nil
+func (c *NomadStub) JobLogs(jobName string) ([]orchestrator.JobLog, error) {
+	return []orchestrator.JobLog{}, nil
 }
 
-func (c *NomadStub) ListServices() ([]nomad.ServiceInfo, error) {
-	return []nomad.ServiceInfo{}, nil
+func (c *NomadStub) ListServices() ([]orchestrator.ServiceInfo, error) {
+	return []orchestrator.ServiceInfo{}, nil
 }
 
 func (c *NomadStub) TotalCpuUsage() (int, error) {
@@ -43,4 +44,8 @@ func (c *NomadStub) TotalCpuUsage() (int, error) {
 
 func (c *NomadStub) Clear() {
 	c.activeJobs = map[string]string{}
+}
+
+func (c *NomadStub) IngressHostname() string {
+	return "ingress.hostname"
 }

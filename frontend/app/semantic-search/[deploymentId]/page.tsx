@@ -193,9 +193,9 @@ function App() {
         console.log('details', details);
 
         // Set the workflow name
-        setWorkflowName(details.data.model_name);
+        setWorkflowName(details.model_name);
 
-        const data = details.data;
+        const data = details;
 
         let serviceUrl: string;
         let ragUrl: string | undefined; // Initialize as undefined

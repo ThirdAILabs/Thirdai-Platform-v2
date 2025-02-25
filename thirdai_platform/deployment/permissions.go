@@ -10,10 +10,17 @@ import (
 	"github.com/google/uuid"
 )
 
+type PermissionType string
+
+const (
+	ReadPermission  PermissionType = "read"
+	WritePermission PermissionType = "write"
+)
+
 // Use an interface so we can mock it for unit tests
 type PermissionsInterface interface {
 	GetModelPermissions(token string) (services.ModelPermissions, error)
-	ModelPermissionsCheck(permissionType string) func(http.Handler) http.Handler
+	ModelPermissionsCheck(permissionType PermissionType) func(http.Handler) http.Handler
 }
 
 type Permissions struct {
@@ -26,7 +33,7 @@ func (p *Permissions) GetModelPermissions(token string) (services.ModelPermissio
 	return client.GetPermissions()
 }
 
-func (p *Permissions) ModelPermissionsCheck(permission_type string) func(http.Handler) http.Handler {
+func (p *Permissions) ModelPermissionsCheck(permission_type PermissionType) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
 			token := jwtauth.TokenFromHeader(r)
@@ -41,14 +48,14 @@ func (p *Permissions) ModelPermissionsCheck(permission_type string) func(http.Ha
 				return
 			}
 
-			hasPermission := (permission_type == "read" && modelPermissions.Read) || (permission_type == "write" && modelPermissions.Write)
+			hasPermission := (permission_type == ReadPermission && modelPermissions.Read) || (permission_type == WritePermission && modelPermissions.Write)
 
 			if hasPermission {
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			http.Error(w, fmt.Sprintf("not authorized for %v actions on model %v", permission_type, p.ModelId), http.StatusUnauthorized)
+			http.Error(w, fmt.Sprintf("not authorized for %v actions on model %v", permission_type, p.ModelId), http.StatusForbidden)
 		}
 		return http.HandlerFunc(hfn)
 	}

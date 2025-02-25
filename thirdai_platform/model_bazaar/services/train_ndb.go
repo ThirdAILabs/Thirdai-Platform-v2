@@ -19,11 +19,13 @@ import (
 )
 
 type NdbTrainRequest struct {
-	ModelName    string             `json:"model_name"`
-	BaseModelId  *uuid.UUID         `json:"base_model_id"`
-	ModelOptions *config.NdbOptions `json:"model_options"`
-	Data         config.NDBData     `json:"data"`
-	JobOptions   config.JobOptions  `json:"job_options"`
+	ModelName             string             `json:"model_name"`
+	BaseModelId           *uuid.UUID         `json:"base_model_id"`
+	ModelOptions          *config.NdbOptions `json:"model_options"`
+	Data                  config.NDBData     `json:"data"`
+	JobOptions            config.JobOptions  `json:"job_options"`
+	LLMConfig             *config.LLMConfig  `json:"llm_config"`
+	GenerativeSupervision bool               `json:"generative_supervision"`
 }
 
 func (opts *NdbTrainRequest) validate() error {
@@ -34,7 +36,7 @@ func (opts *NdbTrainRequest) validate() error {
 	}
 
 	if opts.BaseModelId != nil && opts.ModelOptions != nil {
-		allErrors = append(allErrors, fmt.Errorf("Only model options or base model can be specified for ndb training"))
+		allErrors = append(allErrors, fmt.Errorf("only model options or base model can be specified for ndb training"))
 	}
 	if opts.ModelOptions == nil && opts.BaseModelId == nil {
 		opts.ModelOptions = new(config.NdbOptions)
@@ -45,6 +47,13 @@ func (opts *NdbTrainRequest) validate() error {
 	}
 	allErrors = append(allErrors, opts.Data.Validate())
 	allErrors = append(allErrors, opts.JobOptions.Validate())
+
+	if opts.GenerativeSupervision && opts.LLMConfig == nil {
+		allErrors = append(allErrors, fmt.Errorf("llm_config must be specified for generative supervision"))
+	}
+	if opts.LLMConfig != nil {
+		allErrors = append(allErrors, opts.LLMConfig.Validate())
+	}
 
 	return errors.Join(allErrors...)
 }
@@ -77,12 +86,14 @@ func (s *TrainService) TrainNdb(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.basicTraining(w, r, basicTrainArgs{
-		modelName:    options.ModelName,
-		modelType:    schema.NdbModel,
-		baseModelId:  options.BaseModelId,
-		modelOptions: options.ModelOptions,
-		data:         options.Data,
-		jobOptions:   options.JobOptions,
+		modelName:             options.ModelName,
+		modelType:             schema.NdbModel,
+		baseModelId:           options.BaseModelId,
+		modelOptions:          options.ModelOptions,
+		data:                  options.Data,
+		jobOptions:            options.JobOptions,
+		llmConfig:             options.LLMConfig,
+		generativeSupervision: options.GenerativeSupervision,
 	})
 }
 
@@ -201,13 +212,14 @@ func (s *TrainService) NdbRetrain(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.basicTraining(w, r, basicTrainArgs{
-		modelName:    options.ModelName,
-		modelType:    schema.NdbModel,
-		baseModelId:  &options.BaseModelId,
-		modelOptions: nil,
-		data:         data,
-		jobOptions:   options.JobOptions,
-		retraining:   true,
+		modelName:             options.ModelName,
+		modelType:             schema.NdbModel,
+		baseModelId:           &options.BaseModelId,
+		modelOptions:          nil,
+		data:                  data,
+		jobOptions:            options.JobOptions,
+		retraining:            true,
+		generativeSupervision: false,
 	})
 
 	slog.Info("started ndb retraining succesfully", "base_model_id", options.BaseModelId, "model_name", options.ModelName)

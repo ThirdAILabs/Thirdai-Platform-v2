@@ -11,6 +11,7 @@ import (
 	"strings"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/orchestrator"
+	"thirdai_platform/model_bazaar/orchestrator/kubernetes"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/model_bazaar/utils"
 

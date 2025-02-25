@@ -142,7 +142,7 @@
           "x": 0,
           "y": 0
         },
-        "id": 10,
+        "id": 11,
         "options": {
           "cellHeight": "sm",
           "footer": {
@@ -153,7 +153,7 @@
             ],
             "show": false
           },
-          "frameIndex": 63,
+          "frameIndex": 1,
           "showHeader": true,
           "sortBy": []
         },
@@ -165,7 +165,7 @@
               "uid": "PBFA97CFB590B2093"
             },
             "editorMode": "code",
-            "expr": "kube_pod_status_phase{namespace=\"thirdai-platform\"}",
+            "expr": "label_replace(\n  max by (pod, phase, container, node, pod_ip) (\n    kube_pod_status_phase{namespace=\"thirdai-platform\"} \n    * on(pod, namespace) \n    group_right(phase) \n    (\n      kube_pod_info{node=\"$node\", namespace=\"thirdai-platform\"} \n      * on(pod, namespace) \n      group_left(container) \n      kube_pod_container_info\n    )\n  ) == 1,\n  \"status\", \"$1\", \"phase\", \"(.*)\"\n)\n",
             "hide": false,
             "instant": false,
             "legendFormat": "__auto",
@@ -178,14 +178,7 @@
           {
             "id": "labelsToFields",
             "options": {
-              "keepLabels": [
-                "pod",
-                "phase",
-                "uid",
-                "namespace"
-              ],
-              "mode": "rows",
-              "valueLabel": "pod"
+              "mode": "rows"
             }
           }
         ],
@@ -679,6 +672,6 @@
     "timezone": "browser",
     "title": "Nodes",
     "uid": "eee0dw51906wwc",
-    "version": 5,
+    "version": 7,
     "weekStart": ""
   }

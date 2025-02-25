@@ -50,11 +50,6 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 		if err != nil {
 			return nil, err
 		}
-
-		llmCache, err = NewLLMCache(config.ModelBazaarDir, config.ModelId.String())
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	return &NdbRouter{
@@ -83,7 +78,7 @@ func (s *NdbRouter) Routes() chi.Router {
 	}))
 
 	r.Group(func(r chi.Router) {
-		r.Use(m.Permissions.ModelPermissionsCheck(WritePermission))
+		r.Use(s.Permissions.ModelPermissionsCheck(WritePermission))
 
 		r.Post("/insert", s.Insert)
 		r.Post("/delete", s.Delete)
@@ -92,14 +87,14 @@ func (s *NdbRouter) Routes() chi.Router {
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(m.Permissions.ModelPermissionsCheck(ReadPermission))
+		r.Use(s.Permissions.ModelPermissionsCheck(ReadPermission))
 
 		r.Post("/query", s.Search)
 		r.Get("/sources", s.Sources)
 		// r.Post("/implicit-feedback", s.ImplicitFeedback)
 		// r.Get("/highlighted-pdf", s.HighlightedPdf)
 
-		if s.LLMProvider != nil {
+		if s.LLM != nil {
 			r.Post("/generate", s.GenerateFromReferences)
 		}
 

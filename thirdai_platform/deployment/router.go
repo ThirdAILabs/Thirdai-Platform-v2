@@ -414,7 +414,11 @@ func (s *NdbRouter) CacheSuggestions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{"suggestions": suggestions})
+	err = json.NewEncoder(w).Encode(map[string]interface{}{"suggestions": suggestions})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("cache suggestions error: %v", err), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *NdbRouter) FindCachedResult(generateRequest llm_generation.GenerateRequest) (string, error) {

@@ -157,6 +157,7 @@ func (llm *OpenAICompliantLLM) StreamResponse(req GenerateRequest, w http.Respon
 		if len(evt.Choices) > 0 {
 			fmt.Fprintf(w, "data: %s\n\n", evt.Choices[0].Delta.Content)
 			flusher.Flush()
+			accumulatedResponse.WriteString(evt.Choices[0].Delta.Content)
 		}
 	}
 	if err := stream.Err(); err != nil {

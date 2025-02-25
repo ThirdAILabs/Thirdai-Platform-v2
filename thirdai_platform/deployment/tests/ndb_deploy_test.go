@@ -27,20 +27,20 @@ import (
 
 type MockLLM struct{}
 
-func (m *MockLLM) StreamResponse(req llm_generation.GenerateRequest, w http.ResponseWriter, r *http.Request) error {
+func (m *MockLLM) StreamResponse(req llm_generation.GenerateRequest, w http.ResponseWriter, r *http.Request) (string, error) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-			return fmt.Errorf("streaming unsupported")
+		return "", fmt.Errorf("streaming unsupported")
 	}
 
 	responses := []string{"This ", "is ", "a test."}
 	for _, chunk := range responses {
-			fmt.Fprintf(w, "data: %s\n\n", chunk)
-			flusher.Flush()
+		fmt.Fprintf(w, "data: %s\n\n", chunk)
+		flusher.Flush()
 	}
 
-	return nil
+	return "This is a test.", nil
 }
 
 type MockPermissions struct {
@@ -92,11 +92,10 @@ func makeNdbServer(t *testing.T, modelbazaardir string) *httptest.Server {
 		t.Fatalf("failed to create llm cache: %v", err)
 	}
 
-	router := deployment.NdbRouter{Ndb: db, Config: &deployConfig, Permissions: &mockPermissions, LLMCache: cache, LLMProvider: &MockLLM{}}
+	router := deployment.NdbRouter{Ndb: db, Config: &deployConfig, Permissions: &mockPermissions, LLMCache: cache, LLM: &MockLLM{}}
 
 	r := router.Routes()
 	testServer := httptest.NewServer(r)
-	router.LLM = &MockLLM{}
 
 	return testServer
 }

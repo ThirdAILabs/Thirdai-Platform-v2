@@ -34,7 +34,7 @@ spec:
             - name: MODEL_BAZAAR_ENDPOINT
               value: "{{ .ModelBazaarEndpoint }}"
             - name: MODEL_BAZAAR_DIR
-              value: "/opt/model_bazaar"
+              value: "/model_bazaar"
           ports:
             - containerPort: 80
           resources:

@@ -22,7 +22,7 @@ spec:
           command: ["python3"]
           args:
             - "-m"
-            - "/opt/model_bazaar/pretrained-models/{{ .ModelName }}"
+            - "/model_bazaar/pretrained-models/{{ .ModelName }}"
             - "-c"
             - "8192"
             - "--host"
@@ -37,7 +37,7 @@ spec:
             - containerPort: 80
           volumeMounts:
             - name: shared-modelbazaar
-              mountPath: "/opt/model_bazaar"
+              mountPath: "/model_bazaar"
           resources:
             {{-  with .Resources }}
             requests:

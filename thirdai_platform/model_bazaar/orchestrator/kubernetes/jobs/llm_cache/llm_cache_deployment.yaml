@@ -36,12 +36,12 @@ spec:
             - name: LICENSE_KEY
               value: "{{ .LicenseKey }}"
             - name: MODEL_BAZAAR_DIR
-              value: "/opt/model_bazaar"
+              value: "/model_bazaar"
           ports:
             - containerPort: 80
           volumeMounts:
             - name: shared-modelbazaar
-              mountPath: "/opt/model_bazaar"
+              mountPath: "/model_bazaar"
           resources:
             requests:
               cpu: "2400m"

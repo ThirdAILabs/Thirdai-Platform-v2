@@ -15,18 +15,12 @@ WORKDIR /app
 
 COPY --from=build-stage /app/bin/* .
 
-ARG tag
-ARG docker_registry
-ARG docker_username
-ARG docker_password
-ARG thirdai_platform_jobs
-ARG thirdai_platform_frontend
 
-ENV TAG=$tag
-ENV DOCKER_REGISTRY=$docker_registry
-ENV DOCKER_USERNAME=$docker_username
-ENV DOCKER_PASSWORD=$docker_password
-ENV JOBS_IMAGE_NAME=$thirdai_platform_jobs
-ENV FRONTEND_IMAGE_NAME=$thirdai_platform_frontend
+ENV TAG="latest"
+ENV DOCKER_REGISTRY="thirdaiplatform.azurecr.io"
+ENV DOCKER_USERNAME="thirdaiplatform-pull-local-dev"
+ENV DOCKER_PASSWORD="MBe9v3dhcRf1ZiroZEkBTz1foVJPHa9hPG6FcLzYWu+ACRDGHVcp"
+ENV JOBS_IMAGE_NAME="thirdai_platform_jobs_local-dev"
+ENV FRONTEND_IMAGE_NAME=""
 
 CMD ["./model_bazaar", "-port=80"]

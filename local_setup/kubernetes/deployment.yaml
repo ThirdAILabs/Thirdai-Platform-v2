@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: modelbazaar
+spec:
+  selector:
+    matchLabels:
+      app: modelbazaar
+  template:
+    metadata:
+      labels:
+        app: modelbazaar
+    spec:
+      # Since this is running on Minikube, you can enable host-level access:
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
+      imagePullSecrets:
+        - name: docker-credentials-secret
+      containers:
+        - name: modelbazaar
+          image: "thirdaiplatform.azurecr.io/thirdai_platform_local-dev:latest"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: DATABASE_URI
+              value: "postgresql://postgres:newpassword@host.minikube.internal:5432/model_bazaar"
+            - name: PRIVATE_MODEL_BAZAAR_ENDPOINT
+              value: "http://localhost/"
+            - name: PUBLIC_MODEL_BAZAAR_ENDPOINT
+              value: "localhost"
+            - name: LICENSE_PATH
+              value: "/opt/model_bazaar/jobs/ndb_enterprise_license.json"
+            - name: GENAI_KEY
+              value: "<GEN-AI>"
+            - name: SHARE_DIR
+              value: "/model_bazaar"
+            - name: JWT_SECRET
+              value: "CsnCr3lebs9eJQ"
+            - name: SENGRID_KEY
+              value: "sendgrid-key"
+            - name: PLATFORM
+              value: "local"
+            - name: ADMIN_USERNAME
+              value: "pratik"
+            - name: ADMIN_MAIL
+              value: "pratik@thirdai.com"
+            - name: ADMIN_PASSWORD
+              value: "Password@1"
+            - name: KEYCLOAK_SERVER_URL
+              value: "http://localhost:8180/"
+            - name: IDENTITY_PROVIDER
+              value: "postgres"
+            - name: GRAFANA_DB_URL
+              value: "postgres://postgres:password@host.docker.internal:5432/grafana"
+            - name: INGRESS_HOSTNAME
+              value: "localhost"
+            - name: KUBERNETES
+              value: "True"
+            - name: DOCKER_USERNAME
+              value: "thirdaiplatform.azurecr.io/thirdaiplatform-pull-local-dev"
+            - name: DOCKER_PASSWORD
+              value: "MBe9v3dhcRf1ZiroZEkBTz1foVJPHa9hPG6FcLzYWu+ACRDGHVcp"
+            - name: DOCKER_REGISTRY
+              value: "thirdaiplatform.azurecr.io"
+            - name: TAG
+              value: "latest"
+            - name: JOBS_IMAGE_NAME
+              value: "thirdai_platform_jobs_local-dev"
+            - name: FRONTEND_IMAGE_NAME
+              value: ""
+          readinessProbe:
+            httpGet:
+              path: /api/v2/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1000Mi"
+            limits:
+              cpu: "1"
+              memory: "1500Mi"
+          volumeMounts:
+            - name: shared-modelbazaar
+              mountPath: /model_bazaar
+            - name: jobs-volume
+              mountPath: /opt/model_bazaar/jobs
+          securityContext:
+            privileged: true # Run in privileged mode
+            runAsUser: 0 # Run as root
+            allowPrivilegeEscalation: true
+            capabilities:
+              add: ["ALL"] # Grant all Linux capabilities
+      volumes:
+        - name: shared-modelbazaar
+          persistentVolumeClaim:
+            claimName: modelbazaar-local-pvc
+        - name: jobs-volume
+          hostPath:
+            path: /opt/model_bazaar/jobs
+            type: DirectoryOrCreate

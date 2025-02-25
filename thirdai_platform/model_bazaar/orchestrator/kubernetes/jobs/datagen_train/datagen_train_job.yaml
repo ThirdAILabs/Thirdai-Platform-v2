@@ -31,7 +31,7 @@ spec:
             {{- end }}
           volumeMounts:
             - name: shared-modelbazaar
-              mountPath: /opt/model_bazaar
+              mountPath: /model_bazaar
 
       containers:
         - name: backend
@@ -69,7 +69,7 @@ spec:
             {{- end }}
           volumeMounts:
             - name: shared-modelbazaar
-              mountPath: /opt/model_bazaar
+              mountPath: /model_bazaar
       imagePullSecrets:
         - name: docker-credentials-secret
       volumes:

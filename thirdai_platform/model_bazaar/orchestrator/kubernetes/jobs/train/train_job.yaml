@@ -32,7 +32,7 @@ spec:
             value: "{{ .GcpCredentialsFile }}"
           {{- end }}
           - name: HF_HOME
-            value: "/opt/model_bazaar/pretrained-models"
+            value: "/model_bazaar/pretrained-models"
         resources:
           requests:
             cpu: "{{ .Resources.AllocationCores }}"
@@ -41,7 +41,7 @@ spec:
             memory: "{{ .Resources.AllocationMemoryMax }}Mi"
         volumeMounts:
           - name: shared-modelbazaar
-            mountPath: "/opt/model_bazaar"
+            mountPath: "/model_bazaar"
       imagePullSecrets:
         - name: docker-credentials-secret
       volumes:

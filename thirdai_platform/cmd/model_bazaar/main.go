@@ -314,7 +314,7 @@ func main() {
 
 	err = os.MkdirAll(filepath.Join(env.ShareDir, "jobs/"), 0777)
 	if err != nil {
-		log.Fatalf("error creating log dir: %v", err)
+		log.Fatalf("error creating job dir: %v", err)
 	}
 
 	initLogging(logFile)

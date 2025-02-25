@@ -20,7 +20,6 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 
 	"thirdai_platform/model_bazaar/orchestrator"
 )
@@ -52,24 +51,12 @@ func NewKubernetesClient(ingressHostname string) orchestrator.Client {
 	slog.Info("initializing NewKubernetesClient", "ingressHostname", ingressHostname)
 
 	platform := os.Getenv("PLATFORM")
-	if platform == "local" {
-		slog.Info("PLATFORM is set to 'local', using kubeconfig...")
 
-		kubeconfigPath := clientcmd.RecommendedHomeFile
+	slog.Info("PLATFORM is not set to 'local', using in-cluster Kubernetes config...")
 
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-		if err != nil {
-			log.Panicf("error loading kubeconfig from file (%s): %v", kubeconfigPath, err)
-		}
-		slog.Info("Using kubeconfig", "path", kubeconfigPath)
-	} else {
-
-		slog.Info("PLATFORM is not set to 'local', using in-cluster Kubernetes config...")
-
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			log.Panicf("error getting in-cluster config: %v", err)
-		}
+	config, err = rest.InClusterConfig()
+	if err != nil {
+		log.Panicf("error getting in-cluster config: %v", err)
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)

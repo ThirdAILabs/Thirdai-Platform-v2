@@ -59,7 +59,7 @@ spec:
               memory: "{{ .Resources.AllocationMemoryMax }}Mi"
           volumeMounts:
             - name: shared-modelbazaar
-              mountPath: "/opt/model_bazaar"
+              mountPath: "/model_bazaar"
           {{- end }}
 
           {{- if .IsKE }}

@@ -10,7 +10,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain # Keeps the volume after PVC deletion
   storageClassName: "" # Disable storage class
   hostPath:
-    path: /opt/model_bazaar # Local host path
+    path: /model_bazaar # Local host path
 
 ---
 apiVersion: v1

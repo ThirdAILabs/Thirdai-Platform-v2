@@ -55,12 +55,51 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
     return () => clearInterval(intervalId);
   }, []);
 
-  const filteredWorkflows = workflows.filter(
-    (workflow) =>
-      workflow.model_name.toLowerCase().includes(searchStr.toLowerCase()) && workflow.type !== 'ndb'
+  // Filter workflows based on search string
+  const searchFilteredWorkflows = workflows.filter((workflow) =>
+    workflow.model_name.toLowerCase().includes(searchStr.toLowerCase())
   );
-  const totalWorkflows = filteredWorkflows.length;
-  const displayedWorkflows = filteredWorkflows.slice(offset, offset + modelsPerPage);
+
+  // Create a map of all dependencies and their parent IDs
+  const dependencyToParentMap = new Map<string, string[]>();
+  searchFilteredWorkflows.forEach((workflow) => {
+    if (workflow.dependencies && workflow.dependencies.length > 0) {
+      workflow.dependencies.forEach((dependency) => {
+        // Get existing parents or create new array
+        const parents = dependencyToParentMap.get(dependency.model_id) || [];
+        parents.push(workflow.model_id);
+        dependencyToParentMap.set(dependency.model_id, parents);
+      });
+    }
+  });
+
+  // Function to check if a model has a parent that exists and matches search criteria
+  const hasVisibleParent = (modelId: string) => {
+    const parentIds = dependencyToParentMap.get(modelId) || [];
+    return parentIds.some((parentId) => {
+      const parent = searchFilteredWorkflows.find((wf) => wf.model_id === parentId);
+      return parent && parent.type !== 'ndb';
+    });
+  };
+
+  // Get workflows to display at top level:
+  // 1. All non-dependency workflows
+  // 2. Dependency workflows that don't have a visible parent
+  const getDisplayableWorkflows = () => {
+    return searchFilteredWorkflows.filter((workflow) => {
+      // If it's not an ndb type, always display
+      if (workflow.type !== 'ndb') {
+        return true;
+      }
+
+      // For ndb type, only display as top-level if it doesn't have a visible parent
+      return !hasVisibleParent(workflow.model_id);
+    });
+  };
+
+  const displayableWorkflows = getDisplayableWorkflows();
+  const totalWorkflows = displayableWorkflows.length;
+  const displayedWorkflows = displayableWorkflows.slice(offset, offset + modelsPerPage);
 
   return (
     <Card>
@@ -88,7 +127,7 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
                 key={workflow.model_id}
                 workflow={workflow}
                 Workflows={workflows}
-                allowActions={true}
+                allowActions={workflow.type !== 'ndb' || !hasVisibleParent(workflow.model_id)}
                 level={0}
               />
             ))}

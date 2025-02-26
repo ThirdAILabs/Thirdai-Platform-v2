@@ -393,14 +393,14 @@ func main() {
 		[]byte(env.JwtSecret),
 	)
 
-	if !*skipAll && !*skipCache {
+	if env.Platform != "local" && !*skipAll && !*skipCache {
 		err = jobs.StartLlmCacheJob(orchestratorClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir, env.Platform)
 		if err != nil {
 			log.Fatalf("failed to start llm cache job: %v", err)
 		}
 	}
 
-	if !*skipAll && !*skipDispatch {
+	if env.Platform != "local" && !*skipAll && !*skipDispatch {
 		err = jobs.StartLlmDispatchJob(orchestratorClient, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
 		if err != nil {
 			log.Fatalf("failed to start llm dispatch job: %v", err)
@@ -423,7 +423,7 @@ func main() {
 		}
 	}
 
-	if env.FrontendImage != "" {
+	if env.Platform != "local" && env.FrontendImage != "" {
 		keycloakUrl, err := url.Parse(env.KeycloakServerUrl)
 		if err != nil {
 			log.Fatalf("unable to parse keycloak url: %v", err)

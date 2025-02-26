@@ -17,3 +17,13 @@ spec:
                 name: modelbazaar
                 port:
                   number: 8000
+    - host: host.minikube.internal
+      http:
+        paths:
+          - path: /api/
+            pathType: Prefix
+            backend:
+              service:
+                name: modelbazaar
+                port:
+                  number: 8000

@@ -53,7 +53,7 @@ spec:
             - name: DATABASE_URI
               value: "postgresql://postgres:newpassword@host.minikube.internal:5432/model_bazaar"
             - name: PRIVATE_MODEL_BAZAAR_ENDPOINT
-              value: "http://localhost/"
+              value: "http://host.minikube.internal/"
             - name: PUBLIC_MODEL_BAZAAR_ENDPOINT
               value: "localhost"
             - name: LICENSE_PATH

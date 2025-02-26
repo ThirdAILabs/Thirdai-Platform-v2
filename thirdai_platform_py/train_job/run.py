@@ -54,10 +54,6 @@ def load_config():
     parser.add_argument("--config", type=str, required=True)
     args = parser.parse_args()
 
-    print("⏳ Sleeping for 1800 seconds (1 hour)...")
-    time.sleep(1800)
-    print("⏰ Woke up after 1 hour.")
-
     with open(args.config) as file:
         config = TrainConfig.model_validate_json(file.read())
 

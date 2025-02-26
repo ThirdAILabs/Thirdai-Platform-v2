@@ -114,6 +114,9 @@ job "telemetry" {
 
       config {
         image = "timberio/vector:nightly-distroless-libc"
+        args = [
+          "--config={{ .NomadMonitoringDir }}/vector/vector.yaml"
+        ]
 
         {{ if not .IsLocal }}
         group_add = ["4646"]
@@ -123,7 +126,6 @@ job "telemetry" {
           {{ with .Docker }}
           "{{ .ShareDir }}:/model_bazaar",
           {{ end }}
-          "local/vector-config.yaml:/etc/vector/vector.yaml"
         ]
       }
 

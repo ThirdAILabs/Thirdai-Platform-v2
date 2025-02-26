@@ -35,7 +35,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: victoriametrics-service
+                name: telemetry-service
                 port:
                   number: 8428
           - path: /victorialogs/

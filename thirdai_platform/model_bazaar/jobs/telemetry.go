@@ -41,7 +41,7 @@ func copyGrafanaDashboards(storage storage.Storage, orchestratorName string) err
 		}
 
 		// Skip directories for the other orchestrator
-		if orchestratorName == "nomad" && strings.HasSuffix(path, "kubernetes") {
+		if orchestratorName != "kubernetes" && strings.HasSuffix(path, "kubernetes") {
 			return fs.SkipDir
 		} else if orchestratorName != "nomad" && strings.HasSuffix(path, "nomad") {
 			return fs.SkipDir
@@ -60,8 +60,7 @@ func copyGrafanaDashboards(storage storage.Storage, orchestratorName string) err
 		if err != nil {
 			return fmt.Errorf("error reading file %s from embedded filesystem: %w", path, err)
 		}
-		contentReader := bytes.NewReader(content)
-		err = storage.Write(destPath, contentReader)
+		err = storage.Write(destPath, bytes.NewReader(content))
 		if err != nil {
 			return fmt.Errorf("error writing file %s to shared storage: %w", destPath, err)
 		}
@@ -108,14 +107,14 @@ func StartTelemetryJob(orchestratorClient orchestrator.Client, storage storage.S
 	}
 
 	job := orchestrator.TelemetryJob{
-		IsLocal:            args.IsLocal,
-		NomadMonitoringDir: "/model_bazaar/cluster-monitoring",
-		AdminUsername:      args.AdminUsername,
-		AdminEmail:         args.AdminEmail,
-		AdminPassword:      args.AdminPassword,
-		GrafanaDbUrl:       args.GrafanaDbUrl,
-		Docker:             args.Docker,
-		IngressHostname:    orchestratorClient.IngressHostname(),
+		IsLocal:              args.IsLocal,
+		ClusterMonitoringDir: filepath.Join(storage.Location(), "cluster-monitoring"),
+		AdminUsername:        args.AdminUsername,
+		AdminEmail:           args.AdminEmail,
+		AdminPassword:        args.AdminPassword,
+		GrafanaDbUrl:         args.GrafanaDbUrl,
+		Docker:               args.Docker,
+		IngressHostname:      orchestratorClient.IngressHostname(),
 	}
 
 	if args.IsLocal {

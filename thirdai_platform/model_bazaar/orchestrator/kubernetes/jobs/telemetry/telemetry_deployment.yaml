@@ -22,7 +22,7 @@ spec:
           {{ end }}
           args:
             - "--storageDataPath"
-            - "{{ .NomadMonitoringDir }}/victoriametrics"
+            - "{{ .ClusterMonitoringDir }}/victoriametrics"
             - "--retentionPeriod"
             - "20d"
             - "--httpListenAddr"
@@ -30,7 +30,7 @@ spec:
             - "--http.pathPrefix"
             - "/victoriametrics"
             - "--promscrape.config"
-            - "{{ .NomadMonitoringDir }}/node_discovery/prometheus.yaml"
+            - "{{ .ClusterMonitoringDir }}/node_discovery/prometheus.yaml"
           ports: 
             - containerPort: 8428
           volumeMounts:
@@ -48,7 +48,7 @@ spec:
           image: "docker.io/victoriametrics/victoria-logs:latest"
           args:
             - "--storageDataPath"
-            - "{{ .NomadMonitoringDir }}/victorialogs"
+            - "{{ .ClusterMonitoringDir }}/victorialogs"
             - "--retentionPeriod"
             - "30d"
             - "--httpListenAddr"
@@ -93,9 +93,9 @@ spec:
             - name: GF_SERVER_HTTP_PORT
               value: 3000
             - name: GF_PATHS_PROVISIONING
-              value: "{{ .NomadMonitoringDir }}/grafana/provisioning"
+              value: "{{ .ClusterMonitoringDir }}/grafana/provisioning"
             - name: GF_PATHS_DATA
-              value: "{{ .NomadMonitoringDir }}/grafana"
+              value: "{{ .ClusterMonitoringDir }}/grafana"
             - name: GF_SECURITY_ALLOW_EMBEDDING
               value: "true"
           ports:
@@ -114,7 +114,7 @@ spec:
           image: "timberio/vector:nightly-distroless-libc"
           args: 
             - "--config"
-            - "{{ .NomadMonitoringDir }}/vector/vector.yaml"
+            - "{{ .ClusterMonitoringDir }}/vector/vector.yaml"
           volumeMounts:
             - name: shared-modelbazaar
               mountPath: "/model_bazaar"

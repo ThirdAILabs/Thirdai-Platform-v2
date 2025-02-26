@@ -44,10 +44,10 @@ job "telemetry" {
         
         ports = ["vicky-http"]
         args = [
-          "--storageDataPath={{ .NomadMonitoringDir }}/victoriametric",
+          "--storageDataPath={{ .ClusterMonitoringDir }}/victoriametric",
           "--retentionPeriod=10d",
           "--httpListenAddr=:${NOMAD_PORT_vicky_http}",
-          "--promscrape.config={{ .NomadMonitoringDir }}/node_discovery/prometheus.yaml",
+          "--promscrape.config={{ .ClusterMonitoringDir }}/node_discovery/prometheus.yaml",
           "--http.pathPrefix=/victoriametrics",
           "--promscrape.fileSDCheckInterval=5s"
         ]
@@ -84,7 +84,7 @@ job "telemetry" {
         image = "docker.io/victoriametrics/victoria-logs:latest"
         ports = ["vicky-logs-http"]
         args = [
-          "--storageDataPath={{ .NomadMonitoringDir }}/victorialogs",
+          "--storageDataPath={{ .ClusterMonitoringDir }}/victorialogs",
           "--retentionPeriod=30d",
           "--httpListenAddr=:${NOMAD_PORT_vicky_logs_http}",
           "--http.pathPrefix=/victorialogs"
@@ -115,7 +115,7 @@ job "telemetry" {
       config {
         image = "timberio/vector:nightly-distroless-libc"
         args = [
-          "--config={{ .NomadMonitoringDir }}/vector/vector.yaml"
+          "--config={{ .ClusterMonitoringDir }}/vector/vector.yaml"
         ]
 
         {{ if not .IsLocal }}
@@ -154,7 +154,7 @@ job "telemetry" {
         GF_SERVER_SERVE_FROM_SUB_PATH = "true"
         GF_SERVER_HTTP_PORT   = "${NOMAD_PORT_http}"
         GF_PATHS_PROVISIONING = "/local/grafana/provisioning"
-        GF_PATHS_DATA = "{{ .NomadMonitoringDir }}/grafana"
+        GF_PATHS_DATA = "{{ .ClusterMonitoringDir }}/grafana"
         GF_SECURITY_ALLOW_EMBEDDING=true
       }
 

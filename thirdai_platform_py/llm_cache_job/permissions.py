@@ -11,7 +11,6 @@ import requests
 from dateutil import parser
 from fastapi import status
 from pydantic import BaseModel
-from dateutil import parser
 
 CREDENTIALS_EXCEPTION = fastapi.HTTPException(
     status_code=fastapi.status.HTTP_401_UNAUTHORIZED,

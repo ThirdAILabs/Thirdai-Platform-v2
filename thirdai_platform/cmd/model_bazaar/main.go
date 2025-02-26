@@ -324,7 +324,15 @@ func main() {
 
 	licenseVerifier := licensing.NewVerifier(env.LicensePath)
 
-	sharedStorage := storage.NewSharedDisk(env.ShareDir)
+	var modelBazaarPath string
+
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		modelBazaarPath = "/model_bazaar"
+	} else {
+		modelBazaarPath = env.ShareDir
+	}
+
+	sharedStorage := storage.NewSharedDisk(modelBazaarPath)
 
 	variables := services.Variables{
 		BackendDriver: env.BackendDriver(),

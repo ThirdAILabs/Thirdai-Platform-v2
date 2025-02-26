@@ -1,10 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: frontend-service
+  name: modelbazaar
+  labels:
+    app: modelbazaar
 spec:
-  type: ExternalName
-  externalName: host.minikube.internal
+  selector:
+    app: modelbazaar
   ports:
-    - port: 3000
-      targetPort: 3000
+    - name: http
+      port: 8000
+      targetPort: 8000

@@ -1,3 +1,28 @@
+---
+# Step 1: Create a Service Account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: modelbazaar-sa
+  namespace: default
+
+---
+# Step 2: Grant Full Access with ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: modelbazaar-cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: modelbazaar-sa
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Step 3: Deploy ModelBazaar with the Service Account
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -11,7 +36,7 @@ spec:
       labels:
         app: modelbazaar
     spec:
-      # Since this is running on Minikube, you can enable host-level access:
+      serviceAccountName: modelbazaar-sa # Assign ServiceAccount here
       hostNetwork: true
       hostPID: true
       hostIPC: true
@@ -70,7 +95,7 @@ spec:
             - name: JOBS_IMAGE_NAME
               value: "thirdai_platform_jobs_local-dev"
             - name: FRONTEND_IMAGE_NAME
-              value: ""
+              value: "frontend_local-dev"
           readinessProbe:
             httpGet:
               path: /api/v2/health
@@ -90,11 +115,11 @@ spec:
             - name: jobs-volume
               mountPath: /opt/model_bazaar/jobs
           securityContext:
-            privileged: true # Run in privileged mode
-            runAsUser: 0 # Run as root
+            privileged: true
+            runAsUser: 0
             allowPrivilegeEscalation: true
             capabilities:
-              add: ["ALL"] # Grant all Linux capabilities
+              add: ["ALL"]
       volumes:
         - name: shared-modelbazaar
           persistentVolumeClaim:

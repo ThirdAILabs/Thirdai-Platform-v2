@@ -145,15 +145,27 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 		return
 	}
 
+	cpuCores := 1
+	if s.variables.Platform != "local" {
+		cpuCores = 2
+	}
+
+	allocationMemory := trainConfig.JobOptions.AllocationMemory
+	allocationMemoryMax := 60000
+	if s.variables.Platform == "local" {
+		allocationMemory = 1000
+		allocationMemoryMax = 1000
+	}
+
 	job := orchestrator.TrainJob{
 		JobName:    model.TrainJobName(),
 		ConfigPath: configPath,
 		Driver:     s.variables.BackendDriver,
 		Resources: orchestrator.Resources{
-			AllocationCores:     2,
+			AllocationCores:     cpuCores,
 			AllocationMhz:       trainConfig.JobOptions.CpuUsageMhz(),
-			AllocationMemory:    trainConfig.JobOptions.AllocationMemory,
-			AllocationMemoryMax: 60000,
+			AllocationMemory:    allocationMemory,
+			AllocationMemoryMax: allocationMemoryMax,
 		},
 		CloudCredentials: s.variables.CloudCredentials,
 		ShareDir:         s.variables.ShareDir,

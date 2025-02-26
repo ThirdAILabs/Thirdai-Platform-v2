@@ -35,10 +35,10 @@ spec:
             value: "/model_bazaar/pretrained-models"
         resources:
           requests:
-            cpu: "{{ .Resources.AllocationCores }}"
-            memory: "{{ .Resources.AllocationMemory }}Mi"
+            cpu: "1"
+            memory: "500Mi"
           limits:
-            memory: "{{ .Resources.AllocationMemoryMax }}Mi"
+            memory: "500Mi"
         volumeMounts:
           - name: shared-modelbazaar
             mountPath: "/model_bazaar"

@@ -5,7 +5,6 @@ metadata:
   labels:
     app: thirdai-platform-frontend
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: thirdai-platform-frontend
@@ -46,10 +45,10 @@ spec:
           resources:
             requests:
               cpu: "500m"
-              memory: "1500Mi"
+              memory: "500Mi"
             limits:
               cpu: "500m"
-              memory: "4000Mi"
+              memory: "500Mi"
           readinessProbe:
             tcpSocket:
               port: 3000

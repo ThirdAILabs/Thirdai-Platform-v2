@@ -23,4 +23,4 @@ ENV DOCKER_PASSWORD="MBe9v3dhcRf1ZiroZEkBTz1foVJPHa9hPG6FcLzYWu+ACRDGHVcp"
 ENV JOBS_IMAGE_NAME="thirdai_platform_jobs_local-dev"
 ENV FRONTEND_IMAGE_NAME=""
 
-CMD ["./model_bazaar", "-port=80"]
+CMD ["./model_bazaar", "-port=8000"]

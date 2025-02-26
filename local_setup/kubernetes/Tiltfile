@@ -12,6 +12,12 @@ docker_build(
     extra_tag=["latest"],
 )
 
+docker_build(
+    ref="thirdaiplatform.azurecr.io/frontend_local-dev",
+    context="/Users/pratikqpranav/ThirdAI/Thirdai-Platform-v2/frontend",
+    dockerfile="/Users/pratikqpranav/ThirdAI/Thirdai-Platform-v2/frontend/Dockerfile",
+    extra_tag=["latest"],
+)
 
 k8s_yaml("deployment.yaml")
 

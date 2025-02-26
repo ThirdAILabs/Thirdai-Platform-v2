@@ -44,11 +44,11 @@ spec:
               mountPath: "/model_bazaar"
           resources:
             requests:
-              cpu: "2400m"
-              memory: "5000Mi"
+              cpu: {{ if eq .Platform "local" }} "500m" {{ else }} "2400m" {{ end }}
+              memory: {{ if eq .Platform "local" }} "500Mi" {{ else }} "5000Mi" {{ end }}
             limits:
-              cpu: "2400m"
-              memory: "5000Mi"
+              cpu: {{ if eq .Platform "local" }} "500m" {{ else }} "2400m" {{ end }}
+              memory: {{ if eq .Platform "local" }} "500Mi" {{ else }} "5000Mi" {{ end }}
       imagePullSecrets:
         - name: docker-credentials-secret
       volumes:

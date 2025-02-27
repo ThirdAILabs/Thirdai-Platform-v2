@@ -22,10 +22,10 @@ ARG thirdai_platform_jobs
 ARG thirdai_platform_frontend
 
 
-ENV TAG $tag
-ENV DOCKER_REGISTRY $docker_registry
-ENV DOCKER_USERNAME $docker_username
-ENV DOCKER_PASSWORD $docker_password
+ENV TAG=$tag
+ENV DOCKER_REGISTRY=$docker_registry
+ENV DOCKER_USERNAME=$docker_username
+ENV DOCKER_PASSWORD=$docker_password
 ENV JOBS_IMAGE_NAME=$thirdai_platform_jobs
 ENV FRONTEND_IMAGE_NAME=$thirdai_platform_frontend
 

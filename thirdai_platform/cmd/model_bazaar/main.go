@@ -423,7 +423,7 @@ func main() {
 		}
 	}
 
-	if env.Platform != "local" && env.FrontendImage != "" {
+	if env.FrontendImage != "" {
 		keycloakUrl, err := url.Parse(env.KeycloakServerUrl)
 		if err != nil {
 			log.Fatalf("unable to parse keycloak url: %v", err)

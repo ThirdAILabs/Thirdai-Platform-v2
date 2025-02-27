@@ -44,7 +44,7 @@ class AzureProvider(CloudProviderInterface):
             dockerfile=dockerfile_path,
             tag=tag,
             rm=True,
-            platform="linux/x86_64",
+            platform="linux/arm64",
             nocache=nocache,
             buildargs=buildargs,
         )

@@ -44,10 +44,10 @@ spec:
               value: "{{ .NextAuthSecret }}"
           resources:
             requests:
-              cpu: "1000m"
+              cpu: "1"
               memory: "2500Mi"
             limits:
-              cpu: "1000m"
+              cpu: "1"
               memory: "4000Mi"
           readinessProbe:
             tcpSocket:

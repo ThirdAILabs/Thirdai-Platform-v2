@@ -10,24 +10,25 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install -y postgresql-client-17
 
-# Install dependencies before copying the directory so python dependencies are 
-# cached even when there are changes in the directory.
-COPY requirements.txt /app/requirements.txt
-RUN pip install -r /app/requirements.txt
 
 # Define build argument to toggle between local and PyPI versions of thirdai
-ARG USE_LOCAL_WHEEL=false
+ARG use_local_wheel=true
 
 # Copy the local wheel only if using local setup
 COPY files/thirdai-0.9.27-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl /app/thirdai-0.9.27-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
 
 # TODO(pratik): Add actions to build arm wheels and push to PyPI
 # Install thirdai package based on the argument
-RUN if [ "$USE_LOCAL_WHEEL" = "true" ]; then \
+RUN if [ "$use_local_wheel" = "true" ]; then \
     python3 -m pip install /app/thirdai-0.9.27-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl[neural_db_v2]; \
     else \
     python3 -m pip install "thirdai[neural_db_v2]>=0.9.21"; \
     fi
+
+# Install dependencies before copying the directory so python dependencies are 
+# cached even when there are changes in the directory.
+COPY requirements.txt /app/requirements.txt
+RUN pip install -r /app/requirements.txt
 
 # Ensure latest version of langchain-community is installed
 RUN python3 -m pip install -U langchain-community

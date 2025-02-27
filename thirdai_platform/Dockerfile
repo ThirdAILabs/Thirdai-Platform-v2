@@ -13,8 +13,6 @@ COPY . .
 RUN mkdir -p bin
 RUN CGO_ENABLED=1 GOOS=linux go build -o bin/model_bazaar -v ./cmd/model_bazaar/main.go 
 
-RUN ldd bin/model_bazaar
-
 # Per https://docs.docker.com/guides/golang/build-images/#multi-stage-builds
 FROM gcr.io/distroless/base-debian11 AS build-release-stage
 WORKDIR /app

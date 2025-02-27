@@ -1,0 +1,144 @@
+# Number of replicas for the deployment
+replicaCount: 1
+
+# Image settings for the container
+image:
+  repository: thirdaiplatform.azurecr.io/thirdai_platform_local-dev
+  tag: latest
+  pullPolicy: Always
+  # Example for pull secrets (if needed)
+  pullSecrets:
+    - name: docker-credentials-secret
+
+# Service account and RBAC settings
+serviceAccount:
+  name: modelbazaar-sa
+
+rbac:
+  clusterRoleBindingName: modelbazaar-cluster-admin
+
+# Host settings for the Pod (booleans)
+hostNetwork: true
+hostPID: true
+hostIPC: true
+
+# Environment variables for the container
+env:
+  - name: DATABASE_URI
+    value: "postgresql://postgres:newpassword@host.minikube.internal:5432/model_bazaar"
+  - name: PRIVATE_MODEL_BAZAAR_ENDPOINT
+    value: "http://host.minikube.internal/"
+  - name: PUBLIC_MODEL_BAZAAR_ENDPOINT
+    value: "localhost"
+  - name: LICENSE_PATH
+    value: "/opt/model_bazaar/jobs/ndb_enterprise_license.json"
+  - name: GENAI_KEY
+    value: "<GEN-AI>"
+  - name: SHARE_DIR
+    value: "/model_bazaar"
+  - name: JWT_SECRET
+    value: "CsnCr3lebs9eJQ"
+  - name: SENGRID_KEY
+    value: "sendgrid-key"
+  - name: PLATFORM
+    value: "local"
+  - name: ADMIN_USERNAME
+    value: "pratik"
+  - name: ADMIN_MAIL
+    value: "pratik@thirdai.com"
+  - name: ADMIN_PASSWORD
+    value: "Password@1"
+  - name: KEYCLOAK_SERVER_URL
+    value: "http://localhost:8180/"
+  - name: IDENTITY_PROVIDER
+    value: "postgres"
+  - name: GRAFANA_DB_URL
+    value: "postgres://postgres:password@host.docker.internal:5432/grafana"
+  - name: INGRESS_HOSTNAME
+    value: "localhost"
+  - name: KUBERNETES
+    value: "True"
+  - name: DOCKER_USERNAME
+    value: "thirdaiplatform.azurecr.io/thirdaiplatform-pull-local-dev"
+  - name: DOCKER_PASSWORD
+    value: "MBe9v3dhcRf1ZiroZEkBTz1foVJPHa9hPG6FcLzYWu+ACRDGHVcp"
+  - name: DOCKER_REGISTRY
+    value: "thirdaiplatform.azurecr.io"
+  - name: TAG
+    value: "latest"
+  - name: JOBS_IMAGE_NAME
+    value: "thirdai_platform_jobs_local-dev"
+  - name: FRONTEND_IMAGE_NAME
+    value: "frontend_local-dev"
+
+# Readiness probe settings
+readinessProbe:
+  path: /api/v2/health
+  port: 80
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+# Resources for the container
+resources:
+  requests:
+    cpu: "1"
+    memory: "1000Mi"
+  limits:
+    cpu: "1"
+    memory: "1500Mi"
+
+# Volume mounts for the container
+volumeMounts:
+  - name: shared-modelbazaar
+    mountPath: /model_bazaar
+  - name: jobs-volume
+    mountPath: /opt/model_bazaar/jobs
+
+# Security context for the container
+securityContext:
+  privileged: true
+  runAsUser: 0
+  allowPrivilegeEscalation: true
+  capabilities:
+    add:
+      - "ALL"
+
+# Volumes definition (used in the Deployment)
+volumes:
+  - name: shared-modelbazaar
+    persistentVolumeClaim:
+      claimName: modelbazaar-local-pvc
+  - name: jobs-volume
+    hostPath:
+      path: /opt/model_bazaar/jobs
+      type: DirectoryOrCreate
+
+# Ingress settings
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+  hosts:
+    - host: localhost
+      paths:
+        - path: /api/
+          pathType: Prefix
+    - host: host.minikube.internal
+      paths:
+        - path: /api/
+          pathType: Prefix
+
+# PVC and PV settings
+persistence:
+  pv:
+    name: modelbazaar-local-pv
+    storage: 1Gi
+    path: /model_bazaar
+  pvc:
+    name: modelbazaar-local-pvc
+
+# Service settings
+service:
+  name: modelbazaar
+  port: 80

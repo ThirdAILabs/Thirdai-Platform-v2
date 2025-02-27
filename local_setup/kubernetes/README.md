@@ -4,8 +4,8 @@ This guide provides step-by-step instructions to set up Minikube, configure Dock
 
 ## Prerequisites
 
-- Installed [Minikube](https://minikube.sigs.k8s.io/docs/start/)
-- Installed [kubectl](https://kubernetes.io/docs/tasks/tools/)
+- Install Minikube
+- Install kubectl
 - Docker installed and running
 - Sufficient system permissions for mounting directories
 
@@ -36,7 +36,7 @@ kubectl create secret docker-registry docker-credentials-secret \
 Mount the local directory `/opt/model_bazaar/jobs/` to Minikube:
 
 ```sh
-minikube mount /opt/model_bazaar/jobs/:/opt/model_bazaar/jobs/
+minikube mount /opt/model_bazaar/jobs/:/model_bazaar/jobs/
 ```
 
 ### 4. Enable Ingress in Minikube

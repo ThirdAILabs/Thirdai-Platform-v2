@@ -3,7 +3,6 @@ kind: Deployment
 metadata:
   name: modelbazaar
 spec:
-  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       app: modelbazaar
@@ -12,12 +11,12 @@ spec:
       labels:
         app: modelbazaar
     spec:
-      serviceAccountName: {{ .Values.serviceAccount.name }}
-      hostNetwork: {{ .Values.hostNetwork }}
-      hostPID: {{ .Values.hostPID }}
-      hostIPC: {{ .Values.hostIPC }}
+      serviceAccountName: modelbazaar-sa
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
       imagePullSecrets:
-{{- toYaml .Values.image.pullSecrets | indent 8 }}
+        - name: docker-credentials-secret
       containers:
         - name: modelbazaar
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -44,25 +43,21 @@ spec:
               cpu: "{{ .Values.resources.limits.cpu }}"
               memory: "{{ .Values.resources.limits.memory }}"
           volumeMounts:
-{{- range .Values.volumeMounts }}
-            - name: {{ .name }}
-              mountPath: {{ .mountPath }}
-{{- end }}
+            - name: shared-modelbazaar
+              mountPath: /model_bazaar
+            - name: jobs-volume
+              mountPath: /opt/model_bazaar/jobs
           securityContext:
-            privileged: {{ .Values.securityContext.privileged }}
-            runAsUser: {{ .Values.securityContext.runAsUser }}
-            allowPrivilegeEscalation: {{ .Values.securityContext.allowPrivilegeEscalation }}
+            privileged: true
+            runAsUser: 0
+            allowPrivilegeEscalation: true
             capabilities:
-              add: {{ toYaml .Values.securityContext.capabilities.add | nindent 16 }}
+              add: ["ALL"]
       volumes:
-{{- range .Values.volumes }}
-        - name: {{ .name }}
-          {{- if .persistentVolumeClaim }}
+        - name: shared-modelbazaar
           persistentVolumeClaim:
-            claimName: {{ .persistentVolumeClaim.claimName }}
-          {{- else if .hostPath }}
+            claimName: modelbazaar-local-pvc
+        - name: jobs-volume
           hostPath:
-            path: {{ .hostPath.path }}
-            type: {{ .hostPath.type }}
-          {{- end }}
-{{- end }}
+            path: /opt/model_bazaar/jobs
+            type: DirectoryOrCreate

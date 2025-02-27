@@ -1,7 +1,3 @@
-# Number of replicas for the deployment
-replicaCount: 1
-
-# Image settings for the container
 image:
   repository: thirdaiplatform.azurecr.io/thirdai_platform_local-dev
   tag: latest
@@ -9,18 +5,6 @@ image:
   # Example for pull secrets (if needed)
   pullSecrets:
     - name: docker-credentials-secret
-
-# Service account and RBAC settings
-serviceAccount:
-  name: modelbazaar-sa
-
-rbac:
-  clusterRoleBindingName: modelbazaar-cluster-admin
-
-# Host settings for the Pod (booleans)
-hostNetwork: true
-hostPID: true
-hostIPC: true
 
 # Environment variables for the container
 env:
@@ -87,58 +71,3 @@ resources:
     cpu: "1"
     memory: "1500Mi"
 
-# Volume mounts for the container
-volumeMounts:
-  - name: shared-modelbazaar
-    mountPath: /model_bazaar
-  - name: jobs-volume
-    mountPath: /opt/model_bazaar/jobs
-
-# Security context for the container
-securityContext:
-  privileged: true
-  runAsUser: 0
-  allowPrivilegeEscalation: true
-  capabilities:
-    add:
-      - "ALL"
-
-# Volumes definition (used in the Deployment)
-volumes:
-  - name: shared-modelbazaar
-    persistentVolumeClaim:
-      claimName: modelbazaar-local-pvc
-  - name: jobs-volume
-    hostPath:
-      path: /opt/model_bazaar/jobs
-      type: DirectoryOrCreate
-
-# Ingress settings
-ingress:
-  enabled: true
-  ingressClassName: nginx
-  annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
-  hosts:
-    - host: localhost
-      paths:
-        - path: /api/
-          pathType: Prefix
-    - host: host.minikube.internal
-      paths:
-        - path: /api/
-          pathType: Prefix
-
-# PVC and PV settings
-persistence:
-  pv:
-    name: modelbazaar-local-pv
-    storage: 1Gi
-    path: /model_bazaar
-  pvc:
-    name: modelbazaar-local-pvc
-
-# Service settings
-service:
-  name: modelbazaar
-  port: 80

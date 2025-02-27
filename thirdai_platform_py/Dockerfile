@@ -12,7 +12,7 @@ RUN apt-get update && \
 
 
 # Define build argument to toggle between local and PyPI versions of thirdai
-ARG use_local_wheel=true
+ARG use_local_wheel=false
 
 # Copy the local wheel only if using local setup
 COPY files/thirdai-0.9.27-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl /app/thirdai-0.9.27-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl

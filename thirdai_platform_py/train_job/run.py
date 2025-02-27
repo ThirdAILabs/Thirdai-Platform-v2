@@ -46,18 +46,13 @@ def get_model(config: TrainConfig, reporter: Reporter, logger: JobLogger):
     raise ValueError(message)
 
 
-import time
-
-
 def load_config():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
     args = parser.parse_args()
 
     with open(args.config) as file:
-        config = TrainConfig.model_validate_json(file.read())
-
-    return config
+        return TrainConfig.model_validate_json(file.read())
 
 
 def main():

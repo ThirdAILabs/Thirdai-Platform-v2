@@ -38,11 +38,20 @@ spec:
           ports:
             - containerPort: 80
           resources:
+            {{- if eq .Platform "local" }}
             requests:
               cpu: "200m"
               memory: "500Mi"
             limits:
               cpu: "200m"
               memory: "500Mi"
+            {{- else }}
+            requests:
+              cpu: "500m"
+              memory: "1000Mi"
+            limits:
+              cpu: "500m"
+              memory: "1000Mi"
+            {{- end }}
       imagePullSecrets:
         - name: docker-credentials-secret

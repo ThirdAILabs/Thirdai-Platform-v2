@@ -33,12 +33,21 @@ spec:
           {{- end }}
           - name: HF_HOME
             value: "/model_bazaar/pretrained-models"
-        resources:
-          requests:
-            cpu: "1"
-            memory: "1000Mi"
-          limits:
-            memory: "1000Mi"
+              resources:
+                requests:
+                  {{- if eq .Platform "local" }}
+                  cpu: "1"
+                  memory: "1000Mi"
+                  {{- else }}
+                  cpu: "{{ .Resources.AllocationCores }}"
+                  memory: "{{ .Resources.AllocationMemory }}Mi"
+                  {{- end }}
+                limits:
+                  {{- if eq .Platform "local" }}
+                  memory: "1000Mi"
+                  {{- else }}
+                  memory: "{{ .Resources.AllocationMemoryMax }}Mi"
+                  {{- end }}
         volumeMounts:
           - name: shared-modelbazaar
             mountPath: "/model_bazaar"

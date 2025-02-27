@@ -33,9 +33,6 @@ except ImportError as e:
 
 
 def load_config():
-    import time
-
-    time.sleep(1800)
     with open(os.getenv("CONFIG_PATH")) as file:
         return DeploymentConfig.model_validate_json(file.read())
 

@@ -100,7 +100,9 @@ func (c *KubernetesClient) StartJob(job orchestrator.Job) error {
 			return err
 		}
 	}
-	outputFile := filepath.Join("/opt/model_bazaar/jobs", fmt.Sprintf("%s.yaml", job.GetJobName()))
+	shareDir := os.Getenv("SHARE_DIR")
+
+	outputFile := filepath.Join(shareDir, "jobs", fmt.Sprintf("%s.yaml", job.GetJobName()))
 	if err := os.WriteFile(outputFile, []byte(renderedJobYAML.String()), 0644); err != nil {
 		return fmt.Errorf("error writing job YAML file: %w", err)
 	}
@@ -166,11 +168,11 @@ func (c *KubernetesClient) StopJob(jobName string) error {
 	} else {
 		slog.Info("internal ingress deleted successfully", "ingress_name", internalIngressName)
 	}
-
-	outputFile := filepath.Join("/opt/model_bazaar/jobs", fmt.Sprintf("%s.yaml", jobName))
+	shareDir := os.Getenv("SHARE_DIR")
+	outputFile := filepath.Join(shareDir, "jobs", fmt.Sprintf("%s.yaml", jobName))
 	if err := os.Remove(outputFile); err != nil && !os.IsNotExist(err) {
 		slog.Error("error deleting job YAML file", "job_name", jobName, "error", err)
-		errs = append(errs, errors.New(fmt.Sprintf("job yaml deletion: %v", err)))
+		errs = append(errs, fmt.Errorf("job yaml deletion: %v", err))
 	}
 
 	if len(errs) > 0 {

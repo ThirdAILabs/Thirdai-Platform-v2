@@ -52,11 +52,19 @@ spec:
           ports:
             - containerPort: 80
           resources:
+            {{- if eq .Platform "local" }}
             requests:
               cpu: "1"
               memory: "1000Mi"
             limits:
               memory: "1000Mi"
+            {{- else }}
+            requests:
+              cpu: "{{ .Resources.AllocationCores }}"
+              memory: "{{ .Resources.AllocationMemory }}Mi"
+            limits:
+              memory: "{{ .Resources.AllocationMemoryMax }}Mi"
+            {{- end }}
           volumeMounts:
             - name: shared-modelbazaar
               mountPath: "/model_bazaar"

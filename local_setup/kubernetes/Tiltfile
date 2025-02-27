@@ -1,3 +1,13 @@
+
+yaml = helm(
+  'helm-local',
+  name='platform-local',
+  namespace='default',
+  values=['helm-local/values.yaml'],
+)
+k8s_yaml(yaml)
+
+
 docker_build(
   ref="thirdaiplatform.azurecr.io/thirdai_platform_jobs_local-dev",
   context="/Users/pratikqpranav/ThirdAI/Thirdai-Platform-v2/thirdai_platform_py",
@@ -28,11 +38,7 @@ docker_build(
   dockerfile="/Users/pratikqpranav/ThirdAI/Thirdai-Platform-v2/frontend/Dockerfile",
   extra_tag=["thirdaiplatform.azurecr.io/frontend_local-dev:latest"],     
 )
+jobYamlsOutput = str(local("find /opt/model_bazaar/jobs -maxdepth 1 -type f -name '*.yaml'", quiet=True))
+jobYamls = jobYamlsOutput.strip().split("\n")
 
-k8s_yaml("deployment.yaml")
-k8s_yaml("/opt/model_bazaar/jobs/thirdai-platform-frontend.yaml")
-
-# jobYamlsOutput = str(local("find /opt/model_bazaar/jobs -maxdepth 1 -type f -name '*.yaml'", quiet=True))
-# jobYamls = jobYamlsOutput.strip().split("\n")
-
-# k8s_yaml(jobYamls)
+k8s_yaml(jobYamls)

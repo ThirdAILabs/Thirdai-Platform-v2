@@ -52,7 +52,7 @@ spec:
       volumes:
         - name: shared-modelbazaar
           {{- if eq .Platform "local" }}
-          PersistentVolume:
+          persistentVolumeClaim:
             claimName: modelbazaar-local-pvc
           {{- else }}
           persistentVolumeClaim:

@@ -2,11 +2,9 @@ image:
   repository: thirdaiplatform.azurecr.io/thirdai_platform_local-dev
   tag: latest
   pullPolicy: Always
-  # Example for pull secrets (if needed)
   pullSecrets:
     - name: docker-credentials-secret
 
-# Environment variables for the container
 env:
   - name: DATABASE_URI
     value: "postgresql://postgres:newpassword@host.minikube.internal:5432/model_bazaar"
@@ -15,7 +13,7 @@ env:
   - name: PUBLIC_MODEL_BAZAAR_ENDPOINT
     value: "localhost"
   - name: LICENSE_PATH
-    value: "/opt/model_bazaar/jobs/ndb_enterprise_license.json"
+    value: "/model_bazaar/jobs/ndb_enterprise_license.json"
   - name: GENAI_KEY
     value: "<GEN-AI>"
   - name: SHARE_DIR
@@ -41,7 +39,7 @@ env:
   - name: INGRESS_HOSTNAME
     value: "localhost"
   - name: KUBERNETES
-    value: "True"
+    value: True
   - name: DOCKER_USERNAME
     value: "thirdaiplatform.azurecr.io/thirdaiplatform-pull-local-dev"
   - name: DOCKER_PASSWORD
@@ -55,14 +53,12 @@ env:
   - name: FRONTEND_IMAGE_NAME
     value: "frontend_local-dev"
 
-# Readiness probe settings
 readinessProbe:
   path: /api/v2/health
-  port: 80
+  port: 8000
   initialDelaySeconds: 5
   periodSeconds: 10
 
-# Resources for the container
 resources:
   requests:
     cpu: "1"

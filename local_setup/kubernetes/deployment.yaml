@@ -47,7 +47,7 @@ spec:
           image: "thirdaiplatform.azurecr.io/thirdai_platform_local-dev:latest"
           imagePullPolicy: Always
           ports:
-            - containerPort: 8000
+            - containerPort: 80
               name: http
           env:
             - name: DATABASE_URI

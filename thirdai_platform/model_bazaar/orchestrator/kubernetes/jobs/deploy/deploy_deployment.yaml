@@ -18,7 +18,11 @@ spec:
           {{- if not .IsKE }}
         - name: backend
           image: "{{ .Driver.Registry }}/{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
+          {{- if eq .Platform "local" }}
           imagePullPolicy: Always
+          {{- else }}
+          imagePullPolicy: IfNotPresent
+          {{- end }}
           command: ["python3"]
           args:
             - "-m"

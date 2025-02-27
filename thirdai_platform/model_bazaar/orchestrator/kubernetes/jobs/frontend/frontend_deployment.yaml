@@ -44,8 +44,8 @@ spec:
               value: "{{ .NextAuthSecret }}"
           resources:
             requests:
-              cpu: "500m"
-              memory: "2000Mi"
+              cpu: "1000m"
+              memory: "2500Mi"
             limits:
               cpu: "500m"
               memory: "4000Mi"

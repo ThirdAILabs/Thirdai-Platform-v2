@@ -224,6 +224,7 @@ type FrontendJob struct {
 	Driver        DockerDriver
 
 	IngressHostname string
+	Platform        string
 }
 
 func (j FrontendJob) GetJobName() string {

@@ -436,6 +436,7 @@ func main() {
 			MajorityCriticalServiceNodes: env.MajorityCriticalServiceNodes,
 			UseSslInLogin:                env.UseSslInLogin,
 			OpenaiKey:                    variables.LlmProviders["openai"],
+			Platform:                     env.Platform,
 		}
 		err = jobs.StartFrontendJob(orchestratorClient, env.FrontendDriver(), frontendArgs)
 		if err != nil {

@@ -18,8 +18,10 @@ docker_build(
       "tag": "latest",
       "docker_registry": "thirdaiplatform.azurecr.io",
       "docker_username": "thirdaiplatform-pull-local-dev",
-      "docker_password": "MBe9v3dhcRf1ZiroZEkBTz1foVJPHa9hPG6FcLzYWu+ACRDGHVcp",}
+      "docker_password": "MBe9v3dhcRf1ZiroZEkBTz1foVJPHa9hPG6FcLzYWu+ACRDGHVcp"},
+  pull=True,
 )
+
 
 docker_build(
   ref="thirdaiplatform.azurecr.io/thirdai_platform_local-dev",
@@ -33,7 +35,8 @@ docker_build(
       "docker_password": "MBe9v3dhcRf1ZiroZEkBTz1foVJPHa9hPG6FcLzYWu+ACRDGHVcp",
       "job_image_name": "thirdai_platform_jobs_local-dev",
       "frontend_image_name": "frontend_local-dev",
-  }
+  },
+  pull=True
 )
 
 
@@ -41,9 +44,15 @@ docker_build(
   ref="thirdaiplatform.azurecr.io/frontend_local-dev",
   context="../../frontend",
   dockerfile="../../frontend/Dockerfile",
-  extra_tag=["thirdaiplatform.azurecr.io/frontend_local-dev:latest"],     
+  extra_tag=["thirdaiplatform.azurecr.io/frontend_local-dev:latest"],
+  pull=True,
+  build_args={"PLATFORM": "local"}  # Set PLATFORM to "docker" by default
 )
+
 jobYamlsOutput = str(local("find /opt/model_bazaar/jobs -maxdepth 1 -type f -name '*.yaml'", quiet=True))
 jobYamls = jobYamlsOutput.strip().split("\n")
 
-k8s_yaml(jobYamls)
+if jobYamls and jobYamls[0]:
+    k8s_yaml(jobYamls)
+else:
+    print("No job YAML files found.")

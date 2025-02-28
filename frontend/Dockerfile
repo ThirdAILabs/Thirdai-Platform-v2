@@ -15,4 +15,7 @@ FROM base
 COPY --from=prod-deps /app/node_modules /app/node_modules
 COPY . .
 
-CMD [ "sh", "-c", "corepack prepare pnpm@10.0.0 --activate && pnpm run build && pnpm start" ]
+ARG PLATFORM=docker
+ENV PLATFORM=$PLATFORM
+
+CMD ["sh", "-c", "if [ \"$PLATFORM\" = \"local\" ]; then corepack prepare pnpm@10.0.0 --activate && pnpm run dev -p 3000; else corepack prepare pnpm@10.0.0 --activate && pnpm run build && pnpm start; fi"]

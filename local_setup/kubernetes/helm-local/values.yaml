@@ -62,7 +62,7 @@ readinessProbe:
 resources:
   requests:
     cpu: "1"
-    memory: "1000Mi"
+    memory: "1500Mi"
   limits:
     cpu: "1"
     memory: "1500Mi"

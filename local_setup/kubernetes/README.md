@@ -6,6 +6,7 @@ This guide provides step-by-step instructions to set up Minikube, configure Dock
 
 - Install Minikube
 - Install kubectl
+- Install Tilt
 - Docker installed and running
 - Sufficient system permissions for mounting directories
 

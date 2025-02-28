@@ -134,7 +134,7 @@ export function WorkFlow({
         window.open(`${'/doc-classification'}/${workflow.model_id}`, '_blank');
         break;
       }
-      case 'knowledge-extraction': {
+      case 'ke': {
         window.open(`/knowledge-extraction/${workflow.model_id}`, '_blank');
         break;
       }
@@ -227,7 +227,7 @@ export function WorkFlow({
       } else {
         setDeployType('Enterprise Search & Summarizer');
       }
-    } else if (workflow.type === 'knowledge-extraction') {
+    } else if (workflow.type === 'ke') {
       setDeployType('Knowledge Extraction');
     } else if (workflow.type === 'nlp-doc') {
       setDeployType('Document Classification');
@@ -407,8 +407,7 @@ export function WorkFlow({
             variant="contained"
             style={{ width: '100px' }}
             disabled={
-              (deployStatus !== DeployStatus.Active && deployStatus !== DeployStatus.Inactive) ||
-              (deployStatus === DeployStatus.Active && workflow.type === 'knowledge-extraction')
+              (deployStatus !== DeployStatus.Active && deployStatus !== DeployStatus.Inactive)
             }
           >
             {getButtonValue(deployStatus)}

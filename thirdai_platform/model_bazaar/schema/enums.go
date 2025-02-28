@@ -55,7 +55,7 @@ const (
 	NlpTextModel        = "nlp-text"
 	NlpDocModel         = "nlp-doc"
 	EnterpriseSearch    = "enterprise-search"
-	KnowledgeExtraction = "knowledge-extraction"
+	KnowledgeExtraction = "ke"
 	UploadInProgress    = "uploading"
 )
 

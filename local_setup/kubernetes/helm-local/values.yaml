@@ -10,7 +10,7 @@ env:
     value: "postgresql://postgres:newpassword@host.minikube.internal:5432/model_bazaar"
   - name: PRIVATE_MODEL_BAZAAR_ENDPOINT
     value: "http://host.minikube.internal/"
-  - name: PUBLIC_MODEL_BAZAAR_ENDPOINT
+  - name: INGRESS_HOSTNAME
     value: "localhost"
   - name: LICENSE_PATH
     value: "/model_bazaar/jobs/ndb_enterprise_license.json"

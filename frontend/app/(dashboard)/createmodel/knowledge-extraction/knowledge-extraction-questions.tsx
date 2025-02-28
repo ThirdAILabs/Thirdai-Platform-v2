@@ -48,10 +48,15 @@ const KnowledgeExtractionQuestions: React.FC<KnowledgeExtractionQuestionsProps> 
   const handleSubmit = async () => {
     setIsLoading(true);
     try {
+      // Check if we have a valid LLM provider
+      if (!llmType) {
+        throw new Error("Please select an LLM provider");
+      }
+  
       const params = {
         model_name: modelName,
-        questions: questions.map((q) => ({ question: q })),
-        llm_provider: llmType?.toLowerCase() || '',
+        questions: questions.map((q) => ({ question: q, keywords: [] })),
+        llm_provider: llmType.toLowerCase(), // Keep as lowercase to match the interface
         advanced_indexing: true,
         rerank: true,
         generate_answers: true,
@@ -167,7 +172,7 @@ const KnowledgeExtractionQuestions: React.FC<KnowledgeExtractionQuestionsProps> 
     const validations = [
       !isLoading,
       !!modelName,
-      !!llmType,
+      !!llmType, // This ensures LLM type is selected
       questions.every((question) => !!question.trim()),
     ];
 

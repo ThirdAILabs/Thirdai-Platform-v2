@@ -26,6 +26,7 @@ class AzureProvider(CloudProviderInterface):
         tag: str,
         nocache: bool,
         buildargs: Dict[str, str],
+        platform: str = "linux/x86_64",
     ) -> str:
         """
         Build a Docker image from the specified path with the given tag.
@@ -44,7 +45,7 @@ class AzureProvider(CloudProviderInterface):
             dockerfile=dockerfile_path,
             tag=tag,
             rm=True,
-            platform="linux/arm64",
+            platform=platform,
             nocache=nocache,
             buildargs=buildargs,
         )

@@ -15,6 +15,7 @@ class CloudProviderInterface:
         tag: str,
         nocache: bool,
         buildargs: Dict[str, str],
+        platform: str = "linux/x86_64",
     ) -> str:
         raise NotImplementedError
 

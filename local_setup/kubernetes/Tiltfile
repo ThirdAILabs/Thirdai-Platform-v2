@@ -46,7 +46,7 @@ docker_build(
   dockerfile="../../frontend/Dockerfile",
   extra_tag=["thirdaiplatform.azurecr.io/frontend_local-dev:latest"],
   pull=True,
-  build_args={"PLATFORM": "local"}  # Set PLATFORM to "docker" by default
+  build_args={"PLATFORM": "local"}
 )
 
 jobYamlsOutput = str(local("find /opt/model_bazaar/jobs -maxdepth 1 -type f -name '*.yaml'", quiet=True))

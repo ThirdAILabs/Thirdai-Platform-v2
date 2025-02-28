@@ -57,10 +57,25 @@ Run the following command in a separate terminal to expose services:
 minikube tunnel
 ```
 
-## Run Tilt
+## To Start the Application
 
-Start your local development environment with Tilt:
+### Using Tilt with automated docker building
+
+Start your local development environment with Tilt(in folder local_setup/kubernetes):
 
 ```bash
 tilt up
 ```
+
+### Using push.py for Local Development
+
+1. Run the script to build and push images:
+
+```bash
+python push.py --platform "linux/arm64"
+```
+
+This will:
+- Build Docker images locally
+- Push them to your local registry
+

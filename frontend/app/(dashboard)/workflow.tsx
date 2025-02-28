@@ -134,6 +134,10 @@ export function WorkFlow({
         window.open(`${'/doc-classification'}/${workflow.model_id}`, '_blank');
         break;
       }
+      case 'knowledge-extraction': {
+        window.open(`/knowledge-extraction/${workflow.model_id}`, '_blank');
+        break;
+      }
       default:
         throw new Error(`Invalid workflow type ${workflow.type}`);
         break;

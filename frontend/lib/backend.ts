@@ -1072,14 +1072,6 @@ export async function fetchWorkflows(): Promise<Workflow[]> {
   }
 }
 
-interface ValidateWorkflowResponse {
-  status: string;
-  message: string;
-  data: {
-    models: { id: string; name: string }[];
-  };
-}
-
 function createModelIdentifier(username: string, model_name: string): string {
   return `${username}/${model_name}`;
 }
@@ -2640,4 +2632,229 @@ export async function trainNLPTextModel(params: {
     }
     throw new Error('Failed to train NLP model');
   }
+}
+
+// Knowledge extraction use case
+
+interface KnowledgeExtractionQuestion {
+  question: string;
+  keywords?: string[];
+}
+
+interface KnowledgeExtractionParams {
+  model_name: string;
+  questions: KnowledgeExtractionQuestion[];
+  llm_provider: string;
+  advanced_indexing?: boolean;
+  rerank?: boolean;
+  generate_answers?: boolean;
+}
+
+export function create_knowledge_extraction(params: KnowledgeExtractionParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/v2/workflow/knowledge-extraction`, params)
+      .then((res) => resolve(res.data))
+      .catch((err) => {
+        reject(
+          new Error(err.response?.data?.detail || 'Failed to create knowledge extraction model')
+        );
+      });
+  });
+}
+
+export interface Question {
+  question_id: string;
+  question_text: string;
+  keywords: string[];
+}
+interface Reference {
+  text: string;
+  source: string;
+}
+
+export interface QuestionResult {
+  question_id: string;
+  question: string;
+  answer: string;
+  references: Reference[];
+}
+
+interface ReportContent {
+  report_id: string;
+  results: QuestionResult[];
+}
+
+interface Document {
+  name: string;
+  path: string;
+  location: string;
+}
+
+export interface Report {
+  report_id: string;
+  status: 'complete' | 'pending' | 'failed' | 'queued' | 'in_progress';
+  submitted_at: string;
+  updated_at: string;
+  content?: ReportContent;
+  documents: Document[];
+}
+
+interface ReportStatus {
+  data: {
+    report_id: string;
+    status: string;
+    submitted_at: string;
+    updated_at: string;
+  }[];
+  status: string;
+  message: string;
+}
+
+export function useKnowledgeExtractionEndpoints(workflowId: string | null) {
+  const accessToken = getAccessToken();
+  const deploymentUrl = workflowId ? `${deploymentBaseUrl}/${workflowId}` : undefined;
+
+  const listReports = async (): Promise<ReportStatus['data']> => {
+    if (!deploymentUrl) throw new Error('Knowledge extraction deployment URL not set');
+    const response = await axios.get<ReportStatus>(`${deploymentUrl}/reports`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    return response.data.data;
+  };
+
+  const createReport = async (files: File[]): Promise<string> => {
+    if (!deploymentUrl) throw new Error('Knowledge extraction deployment URL not set');
+
+    const formData = new FormData();
+    const documents = files.map((file) => ({
+      name: file.name,
+      path: file.name,
+      location: 'local',
+    }));
+    formData.append('documents', JSON.stringify({ documents }));
+    files.forEach((file) => formData.append('files', file));
+
+    try {
+      const accessToken = getAccessToken();
+      const response = await axios.post(`${deploymentUrl}/report/create`, formData, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data.data.report_id;
+    } catch (error) {
+      console.error('Error creating report:', error);
+      throw new Error('Failed to create report');
+    }
+  };
+
+  const getReport = async (reportId: string): Promise<Report> => {
+    if (!deploymentUrl) throw new Error('Knowledge extraction deployment URL not set');
+    try {
+      const accessToken = getAccessToken();
+      const response = await axios.get<{ data: Report }>(`${deploymentUrl}/report/${reportId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error getting report:', error);
+      throw new Error('Failed to get report');
+    }
+  };
+
+  const deleteReport = async (reportId: string): Promise<void> => {
+    if (!deploymentUrl) throw new Error('Knowledge extraction deployment URL not set');
+    try {
+      const accessToken = getAccessToken();
+      await axios.delete(`${deploymentUrl}/report/${reportId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+    } catch (error) {
+      console.error('Error deleting report:', error);
+      throw new Error('Failed to delete report');
+    }
+  };
+
+  const addQuestion = async (question: string, keywords?: string[]): Promise<string> => {
+    if (!deploymentUrl) throw new Error('Knowledge extraction deployment URL not set');
+    try {
+      const accessToken = getAccessToken();
+      const response = await axios.post(`${deploymentUrl}/questions`, null, {
+        params: { question, keywords },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data.data.question_id;
+    } catch (error) {
+      console.error('Error adding question:', error);
+      throw new Error('Failed to add question');
+    }
+  };
+
+  const getQuestions = async (): Promise<Question[]> => {
+    if (!deploymentUrl) throw new Error('Knowledge extraction deployment URL not set');
+    try {
+      const accessToken = getAccessToken();
+      const response = await axios.get<{
+        status: string;
+        message: string;
+        data: Question[];
+      }>(`${deploymentUrl}/questions`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error getting questions:', error);
+      throw new Error('Failed to get questions');
+    }
+  };
+
+  const deleteQuestion = async (questionId: string): Promise<void> => {
+    if (!deploymentUrl) throw new Error('Knowledge extraction deployment URL not set');
+    try {
+      const accessToken = getAccessToken();
+      await axios.delete(`${deploymentUrl}/questions/${questionId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+    } catch (error) {
+      console.error('Error deleting question:', error);
+      throw new Error('Failed to delete question');
+    }
+  };
+
+  const editQuestion = async (
+    questionId: string,
+    newQuestion: string,
+    keywords?: string[]
+  ): Promise<void> => {
+    await deleteQuestion(questionId);
+    await addQuestion(newQuestion, keywords);
+  };
+
+  return {
+    listReports,
+    createReport,
+    getReport,
+    deleteReport,
+    addQuestion,
+    getQuestions,
+    deleteQuestion,
+    editQuestion,
+  };
 }

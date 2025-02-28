@@ -454,6 +454,24 @@ export function WorkFlow({
                   </DropdownMenuItem>
                 )}
 
+                {/* New option for undeploying failed deployments */}
+                {deployStatus === DeployStatus.Failed && (
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      try {
+                        const response = await stop_workflow(workflow.model_id);
+                        console.log('Failed workflow undeployed successfully:', response);
+                        setDeployStatus(DeployStatus.Inactive);
+                      } catch (error) {
+                        console.error('Error undeploying failed workflow:', error);
+                        alert('Error undeploying workflow:' + error);
+                      }
+                    }}
+                  >
+                    <button type="button">Undeploy</button>
+                  </DropdownMenuItem>
+                )}
+
                 {(modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
                   <DropdownMenuItem
                     onClick={async () => {

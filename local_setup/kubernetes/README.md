@@ -35,6 +35,7 @@ kubectl create secret docker-registry docker-credentials-secret \
 ### 3. Mount Local Directory to Minikube
 
 Mount the local directory `/opt/model_bazaar/jobs/` to Minikube:
+Create the following directory `/opt/model_bazaar/jobs` locally, with 777 permission for the users.
 
 ```sh
 minikube mount /opt/model_bazaar/jobs/:/model_bazaar/jobs/

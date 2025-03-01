@@ -26,9 +26,9 @@ Create a Kubernetes secret for Azure Container Registry authentication:
 
 ```sh
 kubectl create secret docker-registry docker-credentials-secret \
-  --docker-server=thirdaiplatform.azurecr.io \
-  --docker-username=thirdaiplatform-pull-local-dev \
-  --docker-password='MBe9v3dhcRf1ZiroZEkBTz1foVJPHa9hPG6FcLzYWu+ACRDGHVcp' \
+  --docker-server=<DOCKER_SERVER> \
+  --docker-username=<DOCKER_USERNAME> \
+  --docker-password=<DOCKER_PASSWORD> \
   -n default --dry-run=client -o yaml | kubectl apply -f -
 ```
 
@@ -72,7 +72,7 @@ tilt up
 1. Run the script to build and push images:
 
 ```bash
-python push.py --platform "linux/arm64"
+python push.py --branch <branch-name> --version <version> --platform "linux/arm64"
 ```
 
 This will:

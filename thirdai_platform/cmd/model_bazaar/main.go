@@ -39,7 +39,7 @@ type modelBazaarEnv struct {
 	Kubernetes                 string
 	ShareDir                   string
 	JwtSecret                  string
-	Platform                   string
+	IsLocal                    bool `default:"false"`
 
 	AdminUsername string
 	AdminEmail    string
@@ -135,7 +135,7 @@ func loadEnv() modelBazaarEnv {
 
 		ShareDir:  requiredEnv("SHARE_DIR"),
 		JwtSecret: requiredEnv("JWT_SECRET"),
-		Platform:  requiredEnv("PLATFORM"),
+		IsLocal:   optionalEnv("IS_LOCAL") == "true",
 
 		AdminUsername: requiredEnv("ADMIN_USERNAME"),
 		AdminEmail:    requiredEnv("ADMIN_MAIL"),
@@ -344,7 +344,7 @@ func main() {
 		ModelBazaarEndpoint: env.PrivateModelBazaarEndpoint,
 		CloudCredentials:    env.CloudCredentials,
 		LlmProviders:        env.llmProviders(),
-		Platform:            env.Platform,
+		IsLocal:             env.IsLocal,
 	}
 
 	var identityProvider auth.IdentityProvider
@@ -393,14 +393,14 @@ func main() {
 		[]byte(env.JwtSecret),
 	)
 
-	if env.Platform != "local" && !*skipAll && !*skipCache {
-		err = jobs.StartLlmCacheJob(orchestratorClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir, env.Platform)
+	if !env.IsLocal && !*skipAll && !*skipCache {
+		err = jobs.StartLlmCacheJob(orchestratorClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir, env.IsLocal)
 		if err != nil {
 			log.Fatalf("failed to start llm cache job: %v", err)
 		}
 	}
 
-	if env.Platform != "local" && !*skipAll && !*skipDispatch {
+	if !env.IsLocal && !*skipAll && !*skipDispatch {
 		err = jobs.StartLlmDispatchJob(orchestratorClient, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
 		if err != nil {
 			log.Fatalf("failed to start llm dispatch job: %v", err)
@@ -436,7 +436,7 @@ func main() {
 			MajorityCriticalServiceNodes: env.MajorityCriticalServiceNodes,
 			UseSslInLogin:                env.UseSslInLogin,
 			OpenaiKey:                    variables.LlmProviders["openai"],
-			Platform:                     env.Platform,
+			IsLocal:                      env.IsLocal,
 		}
 		err = jobs.StartFrontendJob(orchestratorClient, env.FrontendDriver(), frontendArgs)
 		if err != nil {

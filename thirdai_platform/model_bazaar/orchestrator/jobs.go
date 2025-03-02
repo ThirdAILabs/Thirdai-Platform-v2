@@ -59,7 +59,7 @@ type TrainJob struct {
 	Resources        Resources
 	CloudCredentials CloudCredentials
 
-	Platform string
+	IsLocal bool
 }
 
 func (j TrainJob) GetJobName() string {
@@ -92,7 +92,7 @@ type DeployJob struct {
 
 	IngressHostname string
 
-	Platform string
+	IsLocal bool
 }
 
 func (j DeployJob) GetJobName() string {
@@ -109,7 +109,7 @@ type DatagenTrainJob struct {
 	DatagenConfigPath string
 	GenaiKey          string
 
-	Platform string
+	IsLocal bool
 }
 
 func (j DatagenTrainJob) GetJobName() string {
@@ -128,7 +128,7 @@ type LlmCacheJob struct {
 	Driver Driver
 
 	IngressHostname string
-	Platform        string
+	IsLocal         bool
 }
 
 func (j LlmCacheJob) GetJobName() string {
@@ -146,7 +146,7 @@ type LlmDispatchJob struct {
 	Driver Driver
 
 	IngressHostname string
-	Platform        string
+	IsLocal         bool
 }
 
 func (j LlmDispatchJob) GetJobName() string {
@@ -171,7 +171,7 @@ type OnPremLlmGenerationJob struct {
 	Resources Resources
 
 	IngressHostname string
-	Platform        string
+	IsLocal         bool
 }
 
 func (j OnPremLlmGenerationJob) GetJobName() string {
@@ -220,7 +220,7 @@ type FrontendJob struct {
 	Driver        DockerDriver
 
 	IngressHostname string
-	Platform        string
+	IsLocal         bool
 }
 
 func (j FrontendJob) GetJobName() string {

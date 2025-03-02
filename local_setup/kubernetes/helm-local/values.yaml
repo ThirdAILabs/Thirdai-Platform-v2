@@ -22,8 +22,8 @@ env:
     value: "CsnCr3lebs9eJQ"
   - name: SENGRID_KEY
     value: "sendgrid-key"
-  - name: PLATFORM
-    value: "local"
+  - name: IS_LOCAL
+    value: True
   - name: ADMIN_USERNAME
     value: "pratik"
   - name: ADMIN_MAIL
@@ -39,7 +39,7 @@ env:
   - name: INGRESS_HOSTNAME
     value: "localhost"
   - name: KUBERNETES
-    value: True
+    value: "true"
   - name: DOCKER_USERNAME
     value: "thirdaiplatform.azurecr.io/thirdaiplatform-pull-local-dev"
   - name: DOCKER_PASSWORD
@@ -56,14 +56,14 @@ env:
 readinessProbe:
   path: /api/v2/health
   port: 8000
-  initialDelaySeconds: 5
-  periodSeconds: 10
+  initialDelaySeconds: 60
+  periodSeconds: 30
 
 resources:
   requests:
     cpu: "1"
     memory: "1500Mi"
   limits:
-    cpu: "1"
-    memory: "1500Mi"
+    cpu: "4"
+    memory: "4000Mi"
 

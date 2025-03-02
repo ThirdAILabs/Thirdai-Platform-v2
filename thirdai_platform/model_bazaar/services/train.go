@@ -146,13 +146,13 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 	}
 
 	cpuCores := 1
-	if s.variables.Platform != "local" {
+	if s.variables.IsLocal {
 		cpuCores = 2
 	}
 
 	allocationMemory := trainConfig.JobOptions.AllocationMemory
 	allocationMemoryMax := 60000
-	if s.variables.Platform == "local" {
+	if s.variables.IsLocal {
 		allocationMemory = 1000
 		allocationMemoryMax = 1000
 	}
@@ -168,8 +168,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 			AllocationMemoryMax: allocationMemoryMax,
 		},
 		CloudCredentials: s.variables.CloudCredentials,
-		ShareDir:         s.variables.ShareDir,
-		Platform:         s.variables.Platform,
+		IsLocal:          s.variables.IsLocal,
 	}
 
 	err = s.saveModelAndStartJob(model, user, job)

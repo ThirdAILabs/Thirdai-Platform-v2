@@ -50,7 +50,7 @@ func NewKubernetesClient(ingressHostname string) orchestrator.Client {
 	var err error
 	slog.Info("initializing NewKubernetesClient", "ingressHostname", ingressHostname)
 
-	platform := os.Getenv("PLATFORM")
+	isLocal := os.Getenv("BackendImage") == ""
 
 	slog.Info("PLATFORM is not set to 'local', using in-cluster Kubernetes config...")
 
@@ -66,7 +66,7 @@ func NewKubernetesClient(ingressHostname string) orchestrator.Client {
 	}
 
 	var namespace string
-	if platform == "local" {
+	if isLocal {
 		namespace = "default"
 	} else {
 		namespace, err = getNamespace()

@@ -558,13 +558,13 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 	model := newModel(trainConfig.ModelId, modelName, trainConfig.ModelType, trainConfig.BaseModelId, user.Id)
 
 	cpuCores := 1
-	if s.variables.Platform != "local" {
+	if s.variables.IsLocal {
 		cpuCores = 2
 	}
 
 	allocationMemory := trainConfig.JobOptions.AllocationMemory
 	allocationMemoryMax := 60000
-	if s.variables.Platform == "local" {
+	if s.variables.IsLocal {
 		allocationMemory = 1000
 		allocationMemoryMax = 1000
 	}
@@ -584,8 +584,7 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 		},
 		DatagenConfigPath: datagenConfigPath,
 		GenaiKey:          genaiKey,
-		Platform:          s.variables.Platform,
-		ShareDir:          s.variables.ShareDir,
+		IsLocal:           s.variables.IsLocal,
 	}
 
 	return s.saveModelAndStartJob(model, user, job)

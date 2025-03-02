@@ -18,7 +18,7 @@ spec:
           {{- if not .IsKE }}
         - name: backend
           image: "{{ .Driver.Registry }}/{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
-          {{- if eq .Platform "local" }}
+          {{- if .IsLocal }}
           imagePullPolicy: Always
           {{- else }}
           imagePullPolicy: IfNotPresent
@@ -56,7 +56,7 @@ spec:
           ports:
             - containerPort: 80
           resources:
-            {{- if eq .Platform "local" }}
+            {{- if .IsLocal }}
             requests:
               cpu: "1"
               memory: "1000Mi"
@@ -114,7 +114,7 @@ spec:
         - name: docker-credentials-secret
       volumes:
         - name: shared-modelbazaar
-          {{- if eq .Platform "local" }}
+          {{- if .IsLocal }}
           persistentVolumeClaim:
             claimName: modelbazaar-local-pvc
           {{- else }}

@@ -51,7 +51,7 @@ spec:
         - name: docker-credentials-secret
       volumes:
         - name: shared-modelbazaar
-          {{- if eq .Platform "local" }}
+          {{- if .IsLocal }}
           persistentVolumeClaim:
             claimName: modelbazaar-local-pvc
           {{- else }}

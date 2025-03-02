@@ -59,7 +59,6 @@ type TrainJob struct {
 	Resources        Resources
 	CloudCredentials CloudCredentials
 
-	ShareDir string
 	Platform string
 }
 
@@ -93,7 +92,6 @@ type DeployJob struct {
 
 	IngressHostname string
 
-	ShareDir string
 	Platform string
 }
 
@@ -112,7 +110,6 @@ type DatagenTrainJob struct {
 	GenaiKey          string
 
 	Platform string
-	ShareDir string
 }
 
 func (j DatagenTrainJob) GetJobName() string {
@@ -174,7 +171,6 @@ type OnPremLlmGenerationJob struct {
 	Resources Resources
 
 	IngressHostname string
-	ShareDir        string
 	Platform        string
 }
 

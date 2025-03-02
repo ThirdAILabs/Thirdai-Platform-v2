@@ -248,7 +248,7 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 	}
 
 	if requiresOnPremLlm {
-		err := jobs.StartOnPremGenerationJobDefaultArgs(s.orchestratorClient, s.storage, s.variables.DockerEnv(), s.variables.ShareDir, s.variables.Platform)
+		err := jobs.StartOnPremGenerationJobDefaultArgs(s.orchestratorClient, s.storage, s.variables.DockerEnv(), s.variables.Platform)
 		if err != nil {
 			slog.Error("error starting on-prem-generation job", "error", err)
 			return CodedError(errors.New("unable to start on prem generation job"), http.StatusInternalServerError)

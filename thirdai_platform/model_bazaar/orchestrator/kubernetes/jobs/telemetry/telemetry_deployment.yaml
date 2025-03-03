@@ -34,7 +34,7 @@ spec:
           ports: 
             - containerPort: 8428
           volumeMounts:
-            - name: shared-modelbazaar
+            - name: model-bazaar
               mountPath: "/model_bazaar"
           resources:
             requests:
@@ -57,7 +57,7 @@ spec:
           ports: 
             - containerPort: 9428
           volumeMounts:
-            - name: shared-modelbazaar
+            - name: model-bazaar
               mountPath: "/model_bazaar"
           resources:
             requests:
@@ -98,7 +98,7 @@ spec:
           ports:
             - containerPort: 3000
           volumeMounts:
-            - name: shared-modelbazaar
+            - name: model-bazaar
               mountPath: "/model_bazaar"
           resources:
             requests:
@@ -113,7 +113,7 @@ spec:
             - "--config"
             - "{{ .ClusterMonitoringDir }}/vector/vector.yaml"
           volumeMounts:
-            - name: shared-modelbazaar
+            - name: model-bazaar
               mountPath: "/model_bazaar"
           resources:
             requests:
@@ -125,6 +125,6 @@ spec:
       imagePullSecrets:
         - name: docker-credentials-secret
       volumes:
-        - name: shared-modelbazaar
+        - name: model-bazaar
           persistentVolumeClaim:
-            claimName: modelbazaar-efs-pvc
+            claimName: model-bazaar-pvc

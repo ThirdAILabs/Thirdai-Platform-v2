@@ -149,7 +149,7 @@ type targetList struct {
 func createPromFile(orchestratorName string, storage storage.Storage, modelBazaarEndpoint string, isLocal bool) error {
 	serverNodeFile := filepath.Join("cluster-monitoring", "nomad_nodes", "server.yaml")
 
-	if isLocal {
+	if isLocal && orchestratorName == "nomad" {
 		data, err := yaml.Marshal(
 			[]targetList{{
 				Targets: []string{"host.docker.internal:4646"},

@@ -13,7 +13,7 @@ env:
   - name: INGRESS_HOSTNAME
     value: "localhost"
   - name: LICENSE_PATH
-    value: "/model_bazaar/jobs/ndb_enterprise_license.json"
+    value: "/model_bazaar/ndb_enterprise_license.json"
   - name: GENAI_KEY
     value: "<GEN-AI>"
   - name: SHARE_DIR

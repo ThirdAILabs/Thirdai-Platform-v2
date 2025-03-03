@@ -7,6 +7,7 @@ This guide provides step-by-step instructions to set up Minikube, configure Dock
 - Install Minikube
 - Install kubectl
 - Install Tilt
+- Install Helm
 - Docker installed and running
 - Sufficient system permissions for mounting directories
 
@@ -40,6 +41,8 @@ Create the following directory `/opt/model_bazaar/jobs` locally, with 777 permis
 ```sh
 minikube mount /opt/model_bazaar/jobs/:/model_bazaar/jobs/
 ```
+
+Add ndb_license to /opt/model_bazaar
 
 ### 4. Enable Ingress in Minikube
 

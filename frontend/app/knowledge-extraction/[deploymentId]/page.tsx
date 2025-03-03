@@ -18,7 +18,7 @@ interface ResultsViewProps {
 
 interface QuestionItemProps {
   question: Question;
-  onEdit: (id: string, text: string) => Promise<void>;
+  onEdit: (id: string, text: string, keywords: string[]) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
 
@@ -52,6 +52,8 @@ const ResultsView: React.FC<ResultsViewProps> = ({ report, onClose }) => {
 const QuestionItem: React.FC<QuestionItemProps> = ({ question, onEdit, onDelete }) => {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editText, setEditText] = useState<string>(question.question_text);
+  const [editKeywords, setEditKeywords] = useState<string[]>([...question.keywords]);
+  const [newKeyword, setNewKeyword] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -59,6 +61,24 @@ const QuestionItem: React.FC<QuestionItemProps> = ({ question, onEdit, onDelete 
       inputRef.current.focus();
     }
   }, [isEditing]);
+
+  const handleAddKeyword = () => {
+    if (newKeyword.trim() && !editKeywords.includes(newKeyword.trim())) {
+      setEditKeywords([...editKeywords, newKeyword.trim()]);
+      setNewKeyword('');
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddKeyword();
+    }
+  };
+
+  const handleRemoveKeyword = (keyword: string) => {
+    setEditKeywords(editKeywords.filter(k => k !== keyword));
+  };
 
   return (
     <div className="group bg-white rounded-lg border p-4 hover:border-blue-200 transition-all">
@@ -70,10 +90,42 @@ const QuestionItem: React.FC<QuestionItemProps> = ({ question, onEdit, onDelete 
             onChange={(e: ChangeEvent<HTMLInputElement>) => setEditText(e.target.value)}
             className="w-full"
           />
+          
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-2">Keywords</p>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {editKeywords.map((keyword, idx) => (
+                <Badge 
+                  key={idx} 
+                  variant="secondary"
+                  className="flex items-center gap-1 px-2 py-1"
+                >
+                  {keyword}
+                  <button 
+                    className="ml-1 text-xs hover:text-red-500"
+                    onClick={() => handleRemoveKeyword(keyword)}
+                  >
+                    ×
+                  </button>
+                </Badge>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={newKeyword}
+                onChange={(e) => setNewKeyword(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Add keyword"
+                className="flex-grow text-sm"
+              />
+              <Button size="sm" onClick={handleAddKeyword}>Add</Button>
+            </div>
+          </div>
+          
           <div className="flex justify-end gap-2">
             <Button
               onClick={async () => {
-                await onEdit(question.question_id, editText);
+                await onEdit(question.question_id, editText, editKeywords);
                 setIsEditing(false);
               }}
               variant="default"
@@ -84,6 +136,7 @@ const QuestionItem: React.FC<QuestionItemProps> = ({ question, onEdit, onDelete 
             <Button
               onClick={() => {
                 setEditText(question.question_text);
+                setEditKeywords([...question.keywords]);
                 setIsEditing(false);
               }}
               variant="outline"
@@ -94,16 +147,28 @@ const QuestionItem: React.FC<QuestionItemProps> = ({ question, onEdit, onDelete 
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between">
-          <p className="flex-grow">{question.question_text}</p>
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-            <Button onClick={() => setIsEditing(true)} variant="ghost" size="sm">
-              Edit
-            </Button>
-            <Button onClick={() => onDelete(question.question_id)} variant="destructive" size="sm">
-              Delete
-            </Button>
+        <div>
+          <div className="flex items-center justify-between">
+            <p className="flex-grow">{question.question_text}</p>
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+              <Button onClick={() => setIsEditing(true)} variant="ghost" size="sm">
+                Edit
+              </Button>
+              <Button onClick={() => onDelete(question.question_id)} variant="destructive" size="sm">
+                Delete
+              </Button>
+            </div>
           </div>
+          
+          {question.keywords && question.keywords.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {question.keywords.map((keyword, idx) => (
+                <Badge key={idx} variant="outline" className="text-xs bg-blue-50">
+                  {keyword}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -119,6 +184,8 @@ const Page: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [newQuestionText, setNewQuestionText] = useState<string>('');
+  const [newQuestionKeywords, setNewQuestionKeywords] = useState<string[]>([]);
+  const [currentKeyword, setCurrentKeyword] = useState<string>('');
 
   const params = useParams();
   const workflowId = params?.deploymentId as string;
@@ -217,21 +284,36 @@ const Page: React.FC = () => {
     }
   };
 
+  const handleAddKeyword = () => {
+    if (currentKeyword.trim() && !newQuestionKeywords.includes(currentKeyword.trim())) {
+      setNewQuestionKeywords([...newQuestionKeywords, currentKeyword.trim()]);
+      setCurrentKeyword('');
+    }
+  };
+
+  const handleKeywordKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddKeyword();
+    }
+  };
+
   const handleQuestionAdd = async (): Promise<void> => {
     if (!newQuestionText.trim()) return;
     try {
-      await addQuestion(newQuestionText.trim());
+      await addQuestion(newQuestionText.trim(), newQuestionKeywords);
       const updatedQuestions = await getQuestions();
       setQuestions(updatedQuestions);
       setNewQuestionText('');
+      setNewQuestionKeywords([]);
     } catch (error) {
       console.error('Error adding question:', error);
     }
   };
 
-  const handleQuestionEdit = async (id: string, text: string): Promise<void> => {
+  const handleQuestionEdit = async (id: string, text: string, keywords: string[]): Promise<void> => {
     try {
-      await editQuestion(id, text);
+      await editQuestion(id, text, keywords);
       const updatedQuestions = await getQuestions();
       setQuestions(updatedQuestions);
     } catch (error) {
@@ -255,6 +337,10 @@ const Page: React.FC = () => {
     } catch (error) {
       console.error('Error deleting report:', error);
     }
+  };
+
+  const handleRemoveKeyword = (keyword: string) => {
+    setNewQuestionKeywords(newQuestionKeywords.filter(k => k !== keyword));
   };
 
   return (
@@ -359,18 +445,52 @@ const Page: React.FC = () => {
             <Card>
               <CardHeader>
                 <h2 className="text-xl font-semibold">Manage Questions</h2>
-                <div className="flex gap-2 max-w-2xl">
+                <div className="max-w-2xl space-y-4">
                   <Input
                     value={newQuestionText}
                     onChange={(e: ChangeEvent<HTMLInputElement>) =>
                       setNewQuestionText(e.target.value)
                     }
                     placeholder="Enter new question..."
-                    className="flex-grow"
+                    className="w-full"
                   />
-                  <Button onClick={handleQuestionAdd} disabled={!newQuestionText.trim()}>
-                    Add Question
-                  </Button>
+                  
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Keywords (optional)</p>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {newQuestionKeywords.map((keyword, idx) => (
+                        <Badge 
+                          key={idx} 
+                          variant="secondary"
+                          className="flex items-center gap-1 px-2 py-1"
+                        >
+                          {keyword}
+                          <button 
+                            className="ml-1 text-xs hover:text-red-500"
+                            onClick={() => handleRemoveKeyword(keyword)}
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        value={currentKeyword}
+                        onChange={(e) => setCurrentKeyword(e.target.value)}
+                        onKeyPress={handleKeywordKeyPress}
+                        placeholder="Add keyword"
+                        className="flex-grow"
+                      />
+                      <Button onClick={handleAddKeyword}>Add Keyword</Button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end">
+                    <Button onClick={handleQuestionAdd} disabled={!newQuestionText.trim()}>
+                      Add Question
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>

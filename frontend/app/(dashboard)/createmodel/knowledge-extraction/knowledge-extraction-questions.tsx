@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Button, TextField, Typography, Stepper, Step, StepLabel, Box } from '@mui/material';
+import { Button, TextField, Typography, Stepper, Step, StepLabel, Box, Chip, IconButton } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { CardDescription } from '@/components/ui/card';
 import { create_knowledge_extraction } from '@/lib/backend';
+import AddIcon from '@mui/icons-material/Add';
 
 interface KnowledgeExtractionQuestionsProps {
   workflowNames: string[];
@@ -14,15 +15,22 @@ enum LlmProvider {
   SelfHosted = 'self-hosted',
 }
 
+// Define an interface for question and keywords
+interface QuestionWithKeywords {
+  question: string;
+  keywords: string[];
+}
+
 const KnowledgeExtractionQuestions: React.FC<KnowledgeExtractionQuestionsProps> = ({
   workflowNames,
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [modelName, setModelName] = useState('');
-  const [questions, setQuestions] = useState<string[]>(['']);
+  const [questions, setQuestions] = useState<QuestionWithKeywords[]>([{ question: '', keywords: [] }]);
   const [llmType, setLlmType] = useState<LlmProvider | null>(null);
   const [warningMessage, setWarningMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [currentKeyword, setCurrentKeyword] = useState('');
   const router = useRouter();
 
   const validateAppName = (name: string): string => {
@@ -36,12 +44,45 @@ const KnowledgeExtractionQuestions: React.FC<KnowledgeExtractionQuestionsProps> 
   };
 
   const handleAddQuestion = () => {
-    setQuestions([...questions, '']);
+    setQuestions([...questions, { question: '', keywords: [] }]);
   };
 
   const handleQuestionChange = (index: number, value: string) => {
     const newQuestions = [...questions];
-    newQuestions[index] = value;
+    newQuestions[index].question = value;
+    setQuestions(newQuestions);
+  };
+
+  const handleKeywordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setCurrentKeyword(event.target.value);
+  };
+
+  const handleAddKeyword = (index: number) => {
+    if (currentKeyword.trim()) {
+      const newQuestions = [...questions];
+      if (!newQuestions[index].keywords.includes(currentKeyword.trim())) {
+        newQuestions[index].keywords.push(currentKeyword.trim());
+        setQuestions(newQuestions);
+      }
+      setCurrentKeyword('');
+    }
+  };
+
+  const handleKeywordKeyPress = (event: React.KeyboardEvent, index: number) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleAddKeyword(index);
+    }
+  };
+
+  const handleDeleteKeyword = (questionIndex: number, keywordIndex: number) => {
+    const newQuestions = [...questions];
+    newQuestions[questionIndex].keywords.splice(keywordIndex, 1);
+    setQuestions(newQuestions);
+  };
+
+  const handleDeleteQuestion = (index: number) => {
+    const newQuestions = questions.filter((_, i) => i !== index);
     setQuestions(newQuestions);
   };
 
@@ -55,7 +96,7 @@ const KnowledgeExtractionQuestions: React.FC<KnowledgeExtractionQuestionsProps> 
   
       const params = {
         model_name: modelName,
-        questions: questions.map((q) => ({ question: q, keywords: [] })),
+        questions: questions,
         llm_provider: llmType.toLowerCase(), // Keep as lowercase to match the interface
         advanced_indexing: true,
         rerank: true,
@@ -97,30 +138,61 @@ const KnowledgeExtractionQuestions: React.FC<KnowledgeExtractionQuestionsProps> 
       title: 'Questions',
       content: (
         <div className="mt-5">
-          <CardDescription>Define questions to extract answers from documents</CardDescription>
-          {questions.map((question, index) => (
-            <div key={index} className="flex gap-4 mt-4">
-              <TextField
-                className="text-md flex-grow"
-                value={question}
-                onChange={(e) => handleQuestionChange(index, e.target.value)}
-                placeholder={`Question ${index + 1}`}
-              />
-              {questions.length > 1 && (
-                <Button
-                  variant="outlined"
-                  color="error"
-                  onClick={() => {
-                    const newQuestions = questions.filter((_, i) => i !== index);
-                    setQuestions(newQuestions);
-                  }}
-                >
-                  Delete
-                </Button>
-              )}
+          <CardDescription>Define questions and relevant keywords to extract answers from documents</CardDescription>
+          {questions.map((questionItem, index) => (
+            <div key={index} className="mt-6 p-4 border rounded-md">
+              <div className="flex gap-4">
+                <TextField
+                  className="text-md flex-grow"
+                  value={questionItem.question}
+                  onChange={(e) => handleQuestionChange(index, e.target.value)}
+                  placeholder={`Question ${index + 1}`}
+                  fullWidth
+                />
+                {questions.length > 1 && (
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={() => handleDeleteQuestion(index)}
+                  >
+                    Delete
+                  </Button>
+                )}
+              </div>
+              
+              <div className="mt-3">
+                <Typography variant="subtitle2" className="mb-2">Keywords (optional)</Typography>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {questionItem.keywords.map((keyword, keywordIndex) => (
+                    <Chip
+                      key={keywordIndex}
+                      label={keyword}
+                      onDelete={() => handleDeleteKeyword(index, keywordIndex)}
+                      size="small"
+                    />
+                  ))}
+                </div>
+                <div className="flex gap-2 items-center">
+                  <TextField
+                    size="small"
+                    value={currentKeyword}
+                    onChange={handleKeywordChange}
+                    onKeyPress={(e) => handleKeywordKeyPress(e, index)}
+                    placeholder="Add keyword"
+                    className="flex-grow"
+                  />
+                  <IconButton 
+                    color="primary" 
+                    onClick={() => handleAddKeyword(index)}
+                    size="small"
+                  >
+                    <AddIcon />
+                  </IconButton>
+                </div>
+              </div>
             </div>
           ))}
-          <Button onClick={handleAddQuestion} className="mt-4">
+          <Button onClick={handleAddQuestion} className="mt-4" startIcon={<AddIcon />}>
             Add Question
           </Button>
         </div>
@@ -173,7 +245,7 @@ const KnowledgeExtractionQuestions: React.FC<KnowledgeExtractionQuestionsProps> 
       !isLoading,
       !!modelName,
       !!llmType, // This ensures LLM type is selected
-      questions.every((question) => !!question.trim()),
+      questions.every((questionItem) => !!questionItem.question.trim()),
     ];
 
     return validations.every(Boolean);

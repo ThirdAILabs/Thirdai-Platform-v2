@@ -387,3 +387,7 @@ func (c *NomadClient) TotalCpuUsage() (int, error) {
 func (c *NomadClient) IngressHostname() string {
 	return c.ingressHostname
 }
+
+func (c *NomadClient) GetName() string {
+	return "nomad"
+}

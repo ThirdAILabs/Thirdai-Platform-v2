@@ -49,3 +49,7 @@ func (c *NomadStub) Clear() {
 func (c *NomadStub) IngressHostname() string {
 	return "ingress.hostname"
 }
+
+func (c *NomadStub) GetName() string {
+	return "nomadstub"
+}

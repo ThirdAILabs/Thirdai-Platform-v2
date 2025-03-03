@@ -139,10 +139,10 @@ type KnowledgeExtractionRequest struct {
 	ModelName string             `json:"model_name"`
 	Questions []QuestionKeywords `json:"questions"`
 
-	LlmProvider      string      `json:"llm_provider"`
-	AdvancedIndexing *bool 		 `json:"advanced_indexing"`
-	Rerank           *bool 		 `json:"rerank"`
-	GenerateAnswers  *bool 		 `json:"generate_answers"`
+	LlmProvider      string `json:"llm_provider"`
+	AdvancedIndexing *bool  `json:"advanced_indexing"`
+	Rerank           *bool  `json:"rerank"`
+	GenerateAnswers  *bool  `json:"generate_answers"`
 }
 
 func (r *KnowledgeExtractionRequest) validate() error {

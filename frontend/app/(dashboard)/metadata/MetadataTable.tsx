@@ -20,6 +20,7 @@ import {
   getWorkflowDetails,
   deploymentBaseUrl,
   getSources,
+  Source,
 } from '@/lib/backend';
 import { useSearchParams } from 'next/navigation';
 
@@ -45,6 +46,7 @@ const MetadataTable: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deploymentUrl, setDeploymentUrl] = useState<string>('');
+  const [rawSources, setRawSources] = useState<Source[]>([]);
 
   useEffect(() => {
     const fetchMetadata = async () => {
@@ -53,6 +55,7 @@ const MetadataTable: React.FC = () => {
       try {
         // First get the workflow details to get the dependencies
         const workflowDetails = await getWorkflowDetails(workflowId);
+        console.log('Workflow details:', workflowDetails);
 
         if (workflowDetails.type !== 'enterprise-search') {
           throw new Error('This workflow is not an enterprise-search type');
@@ -64,12 +67,14 @@ const MetadataTable: React.FC = () => {
           throw new Error('No dependency model found');
         }
         const deploymentUrl = `${deploymentBaseUrl}/${firstDependency.model_id}`;
-        setDeploymentUrl(deploymentUrl); // Add this line
+        setDeploymentUrl(deploymentUrl);
         console.log('Deployment URL:', deploymentUrl);
 
         // Fetch sources
         const sources = await getSources(deploymentUrl);
-        console.log('Sources:', sources);
+        console.log('Sources retrieved:', sources);
+
+        setRawSources(sources);
 
         if (sources.length === 0) {
           throw new Error('No sources found for this model');
@@ -79,32 +84,76 @@ const MetadataTable: React.FC = () => {
         const documentsData = await Promise.all(
           sources.map(async (source) => {
             try {
-              const metadataResponse = await getDocumentMetadata(deploymentUrl, source.source_id);
+              console.log(`Processing source: ${source.source_id} - ${source.source}`);
 
               // Extract filename from the full path
-              const fileName = source.source.split('/').pop() || source.source;
+              const pathParts = source.source.split('/');
+              const fileName = pathParts[pathParts.length - 1] || source.source;
 
-              // Transform the metadata into our document format
-              const metadataEntries = Object.entries(metadataResponse.data).map(([key, value]) => ({
-                attribute_name: key,
-                value: value,
-              }));
-
-              return {
+              // Create a default document object with empty metadata
+              const documentObj: DocumentMetadata = {
                 document_id: source.source_id,
                 document_name: fileName,
-                metadata_attributes: metadataEntries,
+                metadata_attributes: [],
               };
-            } catch (err) {
-              console.error(`Error fetching metadata for source ${source.source_id}:`, err);
-              return null;
+
+              try {
+                // Attempt to fetch metadata
+                const metadataResponse = await getDocumentMetadata(deploymentUrl, source.source_id);
+                console.log(`Metadata for ${fileName}:`, metadataResponse);
+
+                // Check if we have metadata
+                if (metadataResponse && metadataResponse.data) {
+                  // Transform the metadata into our document format
+                  documentObj.metadata_attributes = Object.entries(metadataResponse.data).map(
+                    ([key, value]) => ({
+                      attribute_name: key,
+                      value: value,
+                    })
+                  );
+                } else {
+                  // No metadata available, but not an error
+                  documentObj.metadata_attributes = [
+                    { attribute_name: 'Info', value: 'No metadata available for this document' },
+                  ];
+                }
+              } catch (err) {
+                // Type-safe error handling
+                const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+                console.warn(`Error fetching metadata: ${errorMessage}`);
+
+                // Handle specific error cases
+                if (errorMessage.includes('404')) {
+                  documentObj.metadata_attributes = [
+                    { attribute_name: 'Info', value: 'No metadata found for this document' },
+                  ];
+                } else if (errorMessage.includes('401') || errorMessage.includes('403')) {
+                  documentObj.metadata_attributes = [
+                    { attribute_name: 'Error', value: 'Permission denied accessing metadata' },
+                  ];
+                } else {
+                  documentObj.metadata_attributes = [
+                    { attribute_name: 'Error', value: errorMessage || 'Failed to fetch metadata' },
+                  ];
+                }
+              }
+
+              return documentObj;
+            } catch (sourceErr) {
+              console.error(`Error processing source ${source.source_id}:`, sourceErr);
+              return {
+                document_id: source.source_id,
+                document_name: source.source.split('/').pop() || 'Unknown document',
+                metadata_attributes: [
+                  { attribute_name: 'Error', value: 'Error processing document' },
+                ],
+              };
             }
           })
         );
 
-        // Filter out any failed metadata fetches and set the documents
-        const validDocuments = documentsData.filter((doc): doc is DocumentMetadata => doc !== null);
-        setDocuments(validDocuments);
+        console.log('All documents data:', documentsData);
+        setDocuments(documentsData);
       } catch (err) {
         console.error('Error fetching metadata:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch metadata');
@@ -164,34 +213,48 @@ const MetadataTable: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {documents.map((doc) => (
-              <TableRow key={doc.document_id}>
-                <TableCell component="th" scope="row">
-                  {doc.document_name}
-                </TableCell>
-                <TableCell>
-                  <ul className="list-disc pl-5">
-                    {doc.metadata_attributes.map((attr, index) => (
-                      <li key={index}>
-                        <Typography variant="body2" component="span" fontWeight="bold">
-                          {attr.attribute_name}:
-                        </Typography>{' '}
-                        {attr.value}
-                      </li>
-                    ))}
-                  </ul>
-                </TableCell>
-                <TableCell align="center">
-                  <IconButton
-                    color="primary"
-                    aria-label={`edit metadata for ${doc.document_name}`}
-                    onClick={() => handleEdit(doc)}
-                  >
-                    <EditIcon />
-                  </IconButton>
+            {documents.length > 0 ? (
+              documents.map((doc) => (
+                <TableRow key={doc.document_id}>
+                  <TableCell component="th" scope="row">
+                    {doc.document_name}
+                  </TableCell>
+                  <TableCell>
+                    {doc.metadata_attributes.length > 0 ? (
+                      <ul className="list-disc pl-5">
+                        {doc.metadata_attributes.map((attr, index) => (
+                          <li key={index}>
+                            <Typography variant="body2" component="span" fontWeight="bold">
+                              {attr.attribute_name}:
+                            </Typography>{' '}
+                            {attr.value}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No metadata attributes found
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell align="center">
+                    <IconButton
+                      color="primary"
+                      aria-label={`edit metadata for ${doc.document_name}`}
+                      onClick={() => handleEdit(doc)}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={3} align="center">
+                  <Typography variant="body1">No documents found</Typography>
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </TableContainer>

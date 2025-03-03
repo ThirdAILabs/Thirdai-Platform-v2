@@ -2650,6 +2650,7 @@ export interface DocumentMetadataResponse {
   };
 }
 
+// Improved getDocumentMetadata function with better error handling
 export async function getDocumentMetadata(
   deploymentUrl: string,
   sourceId: string
@@ -2657,22 +2658,64 @@ export async function getDocumentMetadata(
   const accessToken = getAccessToken();
 
   return new Promise((resolve, reject) => {
+    console.log(`Requesting metadata for source_id: ${sourceId}`);
+    console.log(`URL: ${deploymentUrl}/doc_metadata with param source_id=${sourceId}`);
+
     axios
-      .get<DocumentMetadataResponse>(`${deploymentUrl}/doc_metadata?source_id=${sourceId}`, {
+      .get<DocumentMetadataResponse>(`${deploymentUrl}/doc_metadata`, {
+        params: {
+          source_id: sourceId,
+        },
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
       })
       .then((res) => {
+        console.log(`Metadata response for ${sourceId}:`, res.data);
         resolve(res.data);
       })
       .catch((err) => {
-        console.error('Error fetching document metadata:', err);
-        reject(new Error('Failed to fetch document metadata'));
+        console.error(`Error fetching document metadata for ${sourceId}:`, err);
+
+        // More detailed error logging
+        // Type the error for axios
+        if (axios.isAxiosError(err)) {
+          if (err.response) {
+            // The request was made and the server responded with a status code
+            // that falls out of the range of 2xx
+            console.error(`Status: ${err.response.status}`);
+            console.error(`Data:`, err.response.data);
+            console.error(`Headers:`, err.response.headers);
+
+            // Pass more specific error message based on status code
+            if (err.response.status === 404) {
+              reject(new Error(`Metadata not found for document (404)`));
+            } else if (err.response.status === 401 || err.response.status === 403) {
+              reject(new Error(`Authentication error accessing metadata (${err.response.status})`));
+            } else {
+              reject(
+                new Error(
+                  `Server error: ${err.response.status} - ${err.response.data?.message || 'Unknown error'}`
+                )
+              );
+            }
+          } else if (err.request) {
+            // The request was made but no response was received
+            console.error('No response received:', err.request);
+            reject(new Error('No response received from server'));
+          } else {
+            // Something happened in setting up the request that triggered an Error
+            console.error('Error setting up request:', err.message);
+            reject(new Error(`Request setup error: ${err.message}`));
+          }
+        } else {
+          // Not an axios error
+          console.error('Unknown error:', err);
+          reject(new Error('Unknown error occurred'));
+        }
       });
   });
 }
-
 
 export interface Source {
   source: string;

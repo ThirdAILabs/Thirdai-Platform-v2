@@ -473,7 +473,7 @@ func createGrafanaProvisionings(storage storage.Storage, isLocal bool, orchestra
 				"url":       url,
 				"access":    "proxy",
 				"isDefault": true,
-				"editable":  true,
+				"editable":  false,
 			},
 		},
 	}

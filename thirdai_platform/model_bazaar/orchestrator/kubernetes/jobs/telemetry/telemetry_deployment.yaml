@@ -15,6 +15,16 @@ spec:
         app: telemetry
     spec:
       serviceAccountName: modelbazaar-sa
+      initContainers:
+        - name: init-permissions
+          image: busybox
+          command:
+            - sh
+            - -c
+            - chown -R 472:472 /model_bazaar/cluster-monitoring/grafana
+          volumeMounts:
+            - name: model-bazaar
+              mountPath: "/model_bazaar"
       containers:
         - name: victoriametrics
           {{ with .Docker }}

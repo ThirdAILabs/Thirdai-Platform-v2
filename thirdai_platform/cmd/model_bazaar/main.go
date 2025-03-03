@@ -151,9 +151,9 @@ func loadEnv() modelBazaarEnv {
 
 		MajorityCriticalServiceNodes: intEnvVar("MAJORITY_CRITICAL_SERVICE_NODES", 1),
 
-		DockerRegistry: requiredEnv("DOCKER_REGISTRY"),
-		DockerUsername: requiredEnv("DOCKER_USERNAME"),
-		DockerPassword: requiredEnv("DOCKER_PASSWORD"),
+		DockerRegistry: optionalEnv("DOCKER_REGISTRY"),
+		DockerUsername: optionalEnv("DOCKER_USERNAME"),
+		DockerPassword: optionalEnv("DOCKER_PASSWORD"),
 		Tag:            optionalEnv("TAG"),
 		BackendImage:   optionalEnv("JOBS_IMAGE_NAME"),
 		FrontendImage:  optionalEnv("FRONTEND_IMAGE_NAME"),
@@ -189,6 +189,10 @@ func loadEnv() modelBazaarEnv {
 	}
 	if env.NomadEndpoint != "" && env.NomadToken == "" {
 		log.Fatal("Must specify TASK_RUNNER_TOKEN when using NOMAD_ENDPOINT")
+	}
+
+	if !env.IsLocal && (env.DockerPassword == "" || env.DockerUsername == "" || env.DockerRegistry == "") {
+		log.Fatal("When not running locally, must specify DOCKER_REGISTRY, DOCKER_USERNAME, and DOCKER_PASSWORD")
 	}
 
 	return env
@@ -312,9 +316,11 @@ func main() {
 	}
 	defer auditLog.Close()
 
-	err = os.MkdirAll(filepath.Join(env.ShareDir, "jobs/"), 0777)
-	if err != nil {
-		log.Fatalf("error creating job dir: %v", err)
+	if _, err := os.Stat(filepath.Join(env.ShareDir, "jobs/")); os.IsNotExist(err) {
+		err = os.MkdirAll(filepath.Join(env.ShareDir, "jobs/"), 0777)
+		if err != nil {
+			log.Fatalf("error creating job directory: %v", err)
+		}
 	}
 
 	initLogging(logFile)

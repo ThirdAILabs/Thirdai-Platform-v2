@@ -1,54 +1,47 @@
+docker_build(
+  ref="thirdai_platform_jobs",
+  context="../../thirdai_platform_py",
+  dockerfile="../../thirdai_platform_py/Dockerfile",
+  extra_tag=["thirdai_platform_jobs:latest"],
+  build_args={
+      "use_local_wheel": "true",
+      "tag": "latest",
+  },
+  pull=True,
+)
 
-yaml = helm(
+docker_build(
+  ref="thirdai_platform",
+  context="../../thirdai_platform",
+  dockerfile="../../thirdai_platform/Dockerfile",
+  extra_tag=["thirdai_platform:latest"],
+  build_args={
+      "tag": "latest",
+      "job_image_name": "thirdai_platform_jobs",
+      "frontend_image_name": "frontend",
+  },
+  pull=True,
+)
+
+docker_build(
+  ref="frontend",
+  context="../../frontend",
+  dockerfile="../../frontend/Dockerfile",
+  extra_tag=["frontend:latest"],
+  pull=True,
+  build_args={"PLATFORM": "local"},
+)
+
+# Load the Helm chart but mark it as manual.
+helm_yaml = helm(
   'helm-local',
   name='platform-local',
   namespace='default',
   values=['helm-local/values.yaml'],
 )
-k8s_yaml(yaml)
+k8s_yaml(helm_yaml)
 
-
-docker_build(
-  ref="thirdaiplatform.azurecr.io/thirdai_platform_jobs_local-dev",
-  context="../../thirdai_platform_py",
-  dockerfile="../../thirdai_platform_py/Dockerfile",
-  extra_tag=["thirdaiplatform.azurecr.io/thirdai_platform_jobs_local-dev:latest"],     
-  build_args={
-      "use_local_wheel": "true",
-      "tag": "latest",
-      "docker_registry": "thirdaiplatform.azurecr.io",
-      "docker_username": "thirdaiplatform-pull-local-dev",
-      "docker_password": "MBe9v3dhcRf1ZiroZEkBTz1foVJPHa9hPG6FcLzYWu+ACRDGHVcp"},
-  pull=True,
-)
-
-
-docker_build(
-  ref="thirdaiplatform.azurecr.io/thirdai_platform_local-dev",
-  context="../../thirdai_platform",
-  dockerfile="../../thirdai_platform/Dockerfile",
-  extra_tag=["thirdaiplatform.azurecr.io/thirdai_platform_local-dev:latest"],     
-  build_args={
-      "tag": "latest",
-      "docker_registry": "thirdaiplatform.azurecr.io",
-      "docker_username": "thirdaiplatform-pull-local-dev",
-      "docker_password": "MBe9v3dhcRf1ZiroZEkBTz1foVJPHa9hPG6FcLzYWu+ACRDGHVcp",
-      "job_image_name": "thirdai_platform_jobs_local-dev",
-      "frontend_image_name": "frontend_local-dev",
-  },
-  pull=True
-)
-
-
-docker_build(
-  ref="thirdaiplatform.azurecr.io/frontend_local-dev",
-  context="../../frontend",
-  dockerfile="../../frontend/Dockerfile",
-  extra_tag=["thirdaiplatform.azurecr.io/frontend_local-dev:latest"],
-  pull=True,
-  build_args={"PLATFORM": "local"}
-)
-
+# Other resources (e.g. jobs) can remain unchanged.
 jobYamlsOutput = str(local("find /opt/model_bazaar/jobs -maxdepth 1 -type f -name '*.yaml'", quiet=True))
 jobYamls = jobYamlsOutput.strip().split("\n")
 
@@ -56,7 +49,6 @@ if jobYamls and jobYamls[0]:
     k8s_yaml(jobYamls)
     for job in jobYamls:
         job_name = job.split("/")[-1].replace(".yaml", "")
-        
         k8s_resource(
             workload=job_name,
             trigger_mode=TRIGGER_MODE_MANUAL

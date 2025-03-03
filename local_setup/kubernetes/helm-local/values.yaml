@@ -1,5 +1,5 @@
 image:
-  repository: thirdaiplatform.azurecr.io/thirdai_platform_local-dev
+  repository: thirdai_platform
   tag: latest
   pullPolicy: Always
   pullSecrets:
@@ -13,7 +13,7 @@ env:
   - name: INGRESS_HOSTNAME
     value: "localhost"
   - name: LICENSE_PATH
-    value: "/model_bazaar/ndb_enterprise_license.json"
+    value: "/model_bazaar/jobs/ndb_enterprise_license.json"
   - name: GENAI_KEY
     value: "<GEN-AI>"
   - name: SHARE_DIR
@@ -41,17 +41,17 @@ env:
   - name: KUBERNETES
     value: "true"
   - name: DOCKER_USERNAME
-    value: "thirdaiplatform.azurecr.io/thirdaiplatform-pull-local-dev"
+    value: ""
   - name: DOCKER_PASSWORD
-    value: "MBe9v3dhcRf1ZiroZEkBTz1foVJPHa9hPG6FcLzYWu+ACRDGHVcp"
+    value: ""
   - name: DOCKER_REGISTRY
-    value: "thirdaiplatform.azurecr.io"
+    value: ""
   - name: TAG
     value: "latest"
   - name: JOBS_IMAGE_NAME
-    value: "thirdai_platform_jobs_local-dev"
+    value: "thirdai_platform_jobs"
   - name: FRONTEND_IMAGE_NAME
-    value: "frontend_local-dev"
+    value: "frontend"
 
 readinessProbe:
   path: /api/v2/health

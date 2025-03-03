@@ -42,7 +42,7 @@ Create the following directory `/opt/model_bazaar/jobs` locally, with 777 permis
 minikube mount /opt/model_bazaar/jobs/:/model_bazaar/jobs/
 ```
 
-Add ndb_license to /opt/model_bazaar
+Add ndb_license to /opt/model_bazaar/jobs
 
 ### 4. Enable Ingress in Minikube
 

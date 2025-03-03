@@ -17,7 +17,7 @@ spec:
       containers:
           {{- if not .IsKE }}
         - name: backend
-          image: "{{ .Driver.Registry }}/{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
+          image: "{{- if .Driver.Registry }}{{ .Driver.Registry }}/{{- end }}{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
           {{- if .IsLocal }}
           imagePullPolicy: Always
           {{- else }}
@@ -76,7 +76,7 @@ spec:
 
           {{- if .IsKE }}
         - name: knowledge-extraction-worker
-          image: "{{ .Driver.Registry }}/{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
+          image: "{{- if .Driver.Registry }}{{ .Driver.Registry }}/{{- end }}{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
           imagePullPolicy: IfNotPresent
           command: ["python3"]
           args:

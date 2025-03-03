@@ -12,7 +12,11 @@ spec:
       restartPolicy: Never
       containers:
       - name: backend
+        {{- if .Driver.Registry }}
         image: "{{ .Driver.Registry }}/{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
+        {{- else }}
+        image: "{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
+        {{- end }}
         {{- if .IsLocal }}
         imagePullPolicy: Always
         {{- else }}

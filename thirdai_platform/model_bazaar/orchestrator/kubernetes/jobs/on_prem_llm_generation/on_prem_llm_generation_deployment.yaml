@@ -17,7 +17,7 @@ spec:
       containers:
         - name: backend
           {{ with .Docker }}
-          image: "{{ .Registry }}/llama.cpp:server"
+          image: {{ if .Registry }}"{{ .Registry }}/llama.cpp:server"{{ else }}"llama.cpp:server"{{ end }}
           {{ end }}
           command: ["python3"]
           args:

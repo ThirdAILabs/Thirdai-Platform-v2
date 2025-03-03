@@ -9,8 +9,7 @@ spec:
       restartPolicy: Never
       initContainers:
         - name: datagen
-          {{- with .Driver }}
-          image: "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          image: "{{ if .Registry }}{{ .Registry }}/{{ end }}{{ .ImageName }}:{{ .Tag }}"
           {{- end }}
           command: ["python3"]
           args:

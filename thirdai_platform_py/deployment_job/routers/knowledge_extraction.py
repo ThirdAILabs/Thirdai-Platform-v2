@@ -44,6 +44,9 @@ class UpdateReportRequest(BaseModel):
     attempt: int
     msg: Optional[str] = (None,)
 
+class QuestionCreate(BaseModel):
+    question: str
+    keywords: Optional[List[str]] = None
 
 class KnowledgeExtractionRouter:
     def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
@@ -270,36 +273,35 @@ class KnowledgeExtractionRouter:
 
     def add_question(
         self,
-        question: str,
-        keywords: Optional[List[str]] = None,
+        question_data: QuestionCreate,
         _=Depends(Permissions.verify_permission("write")),
     ):
         try:
             with self.get_session() as session:
                 duplicate_questions = (
                     session.query(Question)
-                    .filter(Question.question_text.ilike(question))
+                    .filter(Question.question_text.ilike(question_data.question))
                     .count
                 )()
                 if duplicate_questions > 0:
                     return response(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        message=f"Question '{question}' is a duplicate of an existing question.",
+                        message=f"Question '{question_data.question}' is a duplicate of an existing question.",
                     )
 
                 new_question = Question(
                     id=str(uuid.uuid4()),
-                    question_text=question,
+                    question_text=question_data.question,
                 )
                 session.add(new_question)
                 session.commit()
                 session.refresh(new_question)
 
-                if keywords:
+                if question_data.keywords:
                     new_keyword = Keyword(
                         id=str(uuid.uuid4()),
                         question_id=new_question.id,
-                        keyword_text=" ".join(keywords),
+                        keyword_text=" ".join(question_data.keywords),
                     )
                     session.add(new_keyword)
 

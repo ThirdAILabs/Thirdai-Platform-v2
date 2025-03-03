@@ -2792,12 +2792,12 @@ export function useKnowledgeExtractionEndpoints(workflowId: string | null) {
       const accessToken = getAccessToken();
       // Change to send as application/json with a request body instead of query params
       const response = await axios.post(
-        `${deploymentUrl}/questions`, 
+        `${deploymentUrl}/questions`,
         { question, keywords }, // Send as request body
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
           },
         }
       );

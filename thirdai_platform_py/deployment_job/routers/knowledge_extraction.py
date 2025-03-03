@@ -44,9 +44,11 @@ class UpdateReportRequest(BaseModel):
     attempt: int
     msg: Optional[str] = (None,)
 
+
 class QuestionCreate(BaseModel):
     question: str
     keywords: Optional[List[str]] = None
+
 
 class KnowledgeExtractionRouter:
     def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):

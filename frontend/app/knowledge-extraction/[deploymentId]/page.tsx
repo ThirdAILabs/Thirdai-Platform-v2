@@ -77,7 +77,7 @@ const QuestionItem: React.FC<QuestionItemProps> = ({ question, onEdit, onDelete 
   };
 
   const handleRemoveKeyword = (keyword: string) => {
-    setEditKeywords(editKeywords.filter(k => k !== keyword));
+    setEditKeywords(editKeywords.filter((k) => k !== keyword));
   };
 
   return (
@@ -90,18 +90,14 @@ const QuestionItem: React.FC<QuestionItemProps> = ({ question, onEdit, onDelete 
             onChange={(e: ChangeEvent<HTMLInputElement>) => setEditText(e.target.value)}
             className="w-full"
           />
-          
+
           <div>
             <p className="text-sm font-medium text-gray-700 mb-2">Keywords</p>
             <div className="flex flex-wrap gap-2 mb-2">
               {editKeywords.map((keyword, idx) => (
-                <Badge 
-                  key={idx} 
-                  variant="secondary"
-                  className="flex items-center gap-1 px-2 py-1"
-                >
+                <Badge key={idx} variant="secondary" className="flex items-center gap-1 px-2 py-1">
                   {keyword}
-                  <button 
+                  <button
                     className="ml-1 text-xs hover:text-red-500"
                     onClick={() => handleRemoveKeyword(keyword)}
                   >
@@ -118,10 +114,12 @@ const QuestionItem: React.FC<QuestionItemProps> = ({ question, onEdit, onDelete 
                 placeholder="Add keyword"
                 className="flex-grow text-sm"
               />
-              <Button size="sm" onClick={handleAddKeyword}>Add</Button>
+              <Button size="sm" onClick={handleAddKeyword}>
+                Add
+              </Button>
             </div>
           </div>
-          
+
           <div className="flex justify-end gap-2">
             <Button
               onClick={async () => {
@@ -154,12 +152,16 @@ const QuestionItem: React.FC<QuestionItemProps> = ({ question, onEdit, onDelete 
               <Button onClick={() => setIsEditing(true)} variant="ghost" size="sm">
                 Edit
               </Button>
-              <Button onClick={() => onDelete(question.question_id)} variant="destructive" size="sm">
+              <Button
+                onClick={() => onDelete(question.question_id)}
+                variant="destructive"
+                size="sm"
+              >
                 Delete
               </Button>
             </div>
           </div>
-          
+
           {question.keywords && question.keywords.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {question.keywords.map((keyword, idx) => (
@@ -311,7 +313,11 @@ const Page: React.FC = () => {
     }
   };
 
-  const handleQuestionEdit = async (id: string, text: string, keywords: string[]): Promise<void> => {
+  const handleQuestionEdit = async (
+    id: string,
+    text: string,
+    keywords: string[]
+  ): Promise<void> => {
     try {
       await editQuestion(id, text, keywords);
       const updatedQuestions = await getQuestions();
@@ -340,7 +346,7 @@ const Page: React.FC = () => {
   };
 
   const handleRemoveKeyword = (keyword: string) => {
-    setNewQuestionKeywords(newQuestionKeywords.filter(k => k !== keyword));
+    setNewQuestionKeywords(newQuestionKeywords.filter((k) => k !== keyword));
   };
 
   return (
@@ -454,18 +460,18 @@ const Page: React.FC = () => {
                     placeholder="Enter new question..."
                     className="w-full"
                   />
-                  
+
                   <div>
                     <p className="text-sm font-medium text-gray-700 mb-2">Keywords (optional)</p>
                     <div className="flex flex-wrap gap-2 mb-2">
                       {newQuestionKeywords.map((keyword, idx) => (
-                        <Badge 
-                          key={idx} 
+                        <Badge
+                          key={idx}
                           variant="secondary"
                           className="flex items-center gap-1 px-2 py-1"
                         >
                           {keyword}
-                          <button 
+                          <button
                             className="ml-1 text-xs hover:text-red-500"
                             onClick={() => handleRemoveKeyword(keyword)}
                           >
@@ -485,7 +491,7 @@ const Page: React.FC = () => {
                       <Button onClick={handleAddKeyword}>Add Keyword</Button>
                     </div>
                   </div>
-                  
+
                   <div className="flex justify-end">
                     <Button onClick={handleQuestionAdd} disabled={!newQuestionText.trim()}>
                       Add Question

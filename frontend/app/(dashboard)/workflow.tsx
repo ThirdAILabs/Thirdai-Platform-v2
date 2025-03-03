@@ -407,7 +407,7 @@ export function WorkFlow({
             variant="contained"
             style={{ width: '100px' }}
             disabled={
-              (deployStatus !== DeployStatus.Active && deployStatus !== DeployStatus.Inactive)
+              deployStatus !== DeployStatus.Active && deployStatus !== DeployStatus.Inactive
             }
           >
             {getButtonValue(deployStatus)}

@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
-import { Button, TextField, Typography, Stepper, Step, StepLabel, Box, Chip, IconButton } from '@mui/material';
+import {
+  Button,
+  TextField,
+  Typography,
+  Stepper,
+  Step,
+  StepLabel,
+  Box,
+  Chip,
+  IconButton,
+} from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { CardDescription } from '@/components/ui/card';
 import { create_knowledge_extraction } from '@/lib/backend';
@@ -26,7 +36,9 @@ const KnowledgeExtractionQuestions: React.FC<KnowledgeExtractionQuestionsProps> 
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [modelName, setModelName] = useState('');
-  const [questions, setQuestions] = useState<QuestionWithKeywords[]>([{ question: '', keywords: [] }]);
+  const [questions, setQuestions] = useState<QuestionWithKeywords[]>([
+    { question: '', keywords: [] },
+  ]);
   const [llmType, setLlmType] = useState<LlmProvider | null>(null);
   const [warningMessage, setWarningMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -91,9 +103,9 @@ const KnowledgeExtractionQuestions: React.FC<KnowledgeExtractionQuestionsProps> 
     try {
       // Check if we have a valid LLM provider
       if (!llmType) {
-        throw new Error("Please select an LLM provider");
+        throw new Error('Please select an LLM provider');
       }
-  
+
       const params = {
         model_name: modelName,
         questions: questions,
@@ -138,7 +150,9 @@ const KnowledgeExtractionQuestions: React.FC<KnowledgeExtractionQuestionsProps> 
       title: 'Questions',
       content: (
         <div className="mt-5">
-          <CardDescription>Define questions and relevant keywords to extract answers from documents</CardDescription>
+          <CardDescription>
+            Define questions and relevant keywords to extract answers from documents
+          </CardDescription>
           {questions.map((questionItem, index) => (
             <div key={index} className="mt-6 p-4 border rounded-md">
               <div className="flex gap-4">
@@ -159,9 +173,11 @@ const KnowledgeExtractionQuestions: React.FC<KnowledgeExtractionQuestionsProps> 
                   </Button>
                 )}
               </div>
-              
+
               <div className="mt-3">
-                <Typography variant="subtitle2" className="mb-2">Keywords (optional)</Typography>
+                <Typography variant="subtitle2" className="mb-2">
+                  Keywords (optional)
+                </Typography>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {questionItem.keywords.map((keyword, keywordIndex) => (
                     <Chip
@@ -181,11 +197,7 @@ const KnowledgeExtractionQuestions: React.FC<KnowledgeExtractionQuestionsProps> 
                     placeholder="Add keyword"
                     className="flex-grow"
                   />
-                  <IconButton 
-                    color="primary" 
-                    onClick={() => handleAddKeyword(index)}
-                    size="small"
-                  >
+                  <IconButton color="primary" onClick={() => handleAddKeyword(index)} size="small">
                     <AddIcon />
                   </IconButton>
                 </div>

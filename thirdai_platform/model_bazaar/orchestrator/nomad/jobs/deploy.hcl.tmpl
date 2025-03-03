@@ -202,14 +202,14 @@ EOF
         GCP_CREDENTIALS_FILE = "{{ .GcpCredentialsFile }}"
         {{ end }}
         JOB_TOKEN = "{{ .JobToken }}"
-        {{ with $worker_cores := 4 }}
+        {{ with $worker_cores := 1 }}
         WORKER_CORES = "{{ $worker_cores }}"
       }
 
       resources {
         cores = {{ $worker_cores }}
-        memory = 4000 
-        memory_max = 8000
+        memory = 2000 
+        memory_max = 4000
       }
       {{ end }}
     }

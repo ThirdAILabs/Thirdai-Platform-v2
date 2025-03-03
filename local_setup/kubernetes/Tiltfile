@@ -54,5 +54,14 @@ jobYamls = jobYamlsOutput.strip().split("\n")
 
 if jobYamls and jobYamls[0]:
     k8s_yaml(jobYamls)
+    for job in jobYamls:
+        job_name = job.split("/")[-1].replace(".yaml", "")
+        
+        k8s_resource(
+            workload=job_name,
+            trigger_mode=TRIGGER_MODE_MANUAL
+        )
 else:
     print("No job YAML files found.")
+
+watch_file("/opt/model_bazaar/jobs")

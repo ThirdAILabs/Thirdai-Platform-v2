@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/schema"
-	"thirdai_platform/model_bazaar/utils"
+	"thirdai_platform/utils"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"

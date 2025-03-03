@@ -1,9 +1,9 @@
 http:
   routers:
-    modelbazaar-http:
+    model-bazaar-http:
       rule: "(PathPrefix(`/api`) && !PathPrefix(`/api/auth`))"
       priority: 10
-      service: "modelbazaar-service"
+      service: "model-bazaar-service"
       middlewares:
         - "limit-request-body-size"
 
@@ -13,7 +13,7 @@ http:
       service: "frontend-service"
 
   services:
-    modelbazaar-service:
+    model-bazaar-service:
       loadBalancer:
         servers:
           - url: "http://localhost:8000"

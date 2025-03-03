@@ -13,7 +13,7 @@ import (
 	"thirdai_platform/model_bazaar/orchestrator"
 	"thirdai_platform/model_bazaar/orchestrator/kubernetes"
 	"thirdai_platform/model_bazaar/storage"
-	"thirdai_platform/model_bazaar/utils"
+	"thirdai_platform/utils"
 
 	"github.com/go-chi/chi/v5"
 	"gorm.io/driver/postgres"

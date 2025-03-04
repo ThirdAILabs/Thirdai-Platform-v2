@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"thirdai_platform/model_bazaar/schema"
-	"thirdai_platform/model_bazaar/utils"
+	"thirdai_platform/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -133,7 +133,7 @@ func modelPermissionToString(perm modelPermission) string {
 	case NoPermission:
 		return "None"
 	case ReadPermission:
-		return "'Read"
+		return "Read"
 	case WritePermission:
 		return "Write"
 	case OwnerPermission:

@@ -36,7 +36,7 @@ spec:
           ports:
             - containerPort: 80
           volumeMounts:
-            - name: shared-modelbazaar
+            - name: model-bazaar
               mountPath: "/model_bazaar"
           resources:
             {{-  with .Resources }}
@@ -50,11 +50,11 @@ spec:
       imagePullSecrets:
         - name: docker-credentials-secret
       volumes:
-        - name: shared-modelbazaar
+        - name: model-bazaar
           {{- if .IsLocal }}
           persistentVolumeClaim:
             claimName: modelbazaar-local-pvc
           {{- else }}
           persistentVolumeClaim:
-            claimName: modelbazaar-efs-pvc
+            claimName: model-bazaar-pvc
           {{- end }}

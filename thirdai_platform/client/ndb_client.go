@@ -155,7 +155,7 @@ func (c *NdbClient) Retrain(newModelName string) (*NdbClient, error) {
 
 	return &NdbClient{
 		ModelClient{
-			baseClient: c.baseClient,
+			BaseClient: c.BaseClient,
 			modelId:    res.ModelId,
 		},
 	}, nil
@@ -181,7 +181,7 @@ func (c *NdbClient) Save(newModelName string) (*NdbClient, error) {
 
 	return &NdbClient{
 		ModelClient{
-			baseClient: c.baseClient,
+			BaseClient: c.BaseClient,
 			modelId:    res.Data.NewModelId,
 		},
 	}, nil
@@ -199,7 +199,7 @@ func (c *NdbClient) GetSignedUrl(source, provider string) (string, error) {
 
 func (c *NdbClient) ClientForDeployment(name string) *NdbClient {
 	return &NdbClient{ModelClient{
-		baseClient:     c.baseClient,
+		BaseClient:     c.BaseClient,
 		modelId:        c.modelId,
 		deploymentName: &name,
 	}}

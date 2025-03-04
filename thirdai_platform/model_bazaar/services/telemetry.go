@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"thirdai_platform/model_bazaar/orchestrator"
-	"thirdai_platform/model_bazaar/utils"
+	"thirdai_platform/utils"
 
 	"github.com/go-chi/chi/v5"
 )

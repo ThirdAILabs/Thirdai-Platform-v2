@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/jobs"
@@ -21,6 +20,7 @@ import (
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/storage"
+	"thirdai_platform/utils"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -71,23 +71,6 @@ type modelBazaarEnv struct {
 	GrafanaDbUri string
 
 	CloudCredentials orchestrator.CloudCredentials
-}
-
-func boolEnvVar(key string) bool {
-	value := os.Getenv(key)
-	return strings.ToLower(value) == "true"
-}
-
-func intEnvVar(key string, defaultValue int) int {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue
-	}
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		log.Fatalf("unable to parse integer from env var %v='%v': %v", key, value, err)
-	}
-	return i
 }
 
 func optionalEnv(key string) string {
@@ -141,25 +124,25 @@ func loadEnv() modelBazaarEnv {
 		AdminEmail:    requiredEnv("ADMIN_MAIL"),
 		AdminPassword: requiredEnv("ADMIN_PASSWORD"),
 
-		GenAiKey: optionalEnv("GENAI_KEY"),
+		GenAiKey: utils.OptionalEnv("GENAI_KEY"),
 
 		IdentityProvider:      requiredEnv("IDENTITY_PROVIDER"),
-		KeycloakServerUrl:     optionalEnv("KEYCLOAK_SERVER_URL"),
-		UseSslInLogin:         boolEnvVar("USE_SSL_IN_LOGIN"),
-		KeycloakAdminUsername: optionalEnv("KEYCLOAK_ADMIN_USER"),
-		keycloakAdminPassword: optionalEnv("KEYCLOAK_ADMIN_PASSWORD"),
+		KeycloakServerUrl:     utils.OptionalEnv("KEYCLOAK_SERVER_URL"),
+		UseSslInLogin:         utils.BoolEnvVar("USE_SSL_IN_LOGIN"),
+		KeycloakAdminUsername: utils.OptionalEnv("KEYCLOAK_ADMIN_USER"),
+		keycloakAdminPassword: utils.OptionalEnv("KEYCLOAK_ADMIN_PASSWORD"),
 
-		MajorityCriticalServiceNodes: intEnvVar("MAJORITY_CRITICAL_SERVICE_NODES", 1),
+		MajorityCriticalServiceNodes: utils.IntEnvVar("MAJORITY_CRITICAL_SERVICE_NODES", 1),
 
 		DockerRegistry: optionalEnv("DOCKER_REGISTRY"),
 		DockerUsername: optionalEnv("DOCKER_USERNAME"),
 		DockerPassword: optionalEnv("DOCKER_PASSWORD"),
-		Tag:            optionalEnv("TAG"),
-		BackendImage:   optionalEnv("JOBS_IMAGE_NAME"),
-		FrontendImage:  optionalEnv("FRONTEND_IMAGE_NAME"),
+		Tag:            utils.OptionalEnv("TAG"),
+		BackendImage:   utils.OptionalEnv("JOBS_IMAGE_NAME"),
+		FrontendImage:  utils.OptionalEnv("FRONTEND_IMAGE_NAME"),
 
-		PythonPath:  optionalEnv("PYTHON_PATH"),
-		PlatformDir: optionalEnv("PLATFORM_DIR"),
+		PythonPath:  utils.OptionalEnv("PYTHON_PATH"),
+		PlatformDir: utils.OptionalEnv("PLATFORM_DIR"),
 
 		DatabaseUri:  requiredEnv("DATABASE_URI"),
 		GrafanaDbUri: requiredEnv("GRAFANA_DB_URL"),
@@ -337,7 +320,15 @@ func main() {
 
 	licenseVerifier := licensing.NewVerifier(env.LicensePath)
 
-	sharedStorage := storage.NewSharedDisk(env.ShareDir)
+	var modelBazaarPath string
+
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		modelBazaarPath = "/model_bazaar"
+	} else {
+		modelBazaarPath = env.ShareDir
+	}
+
+	sharedStorage := storage.NewSharedDisk(modelBazaarPath)
 
 	variables := services.Variables{
 		BackendDriver: env.BackendDriver(),

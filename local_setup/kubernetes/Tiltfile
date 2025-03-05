@@ -1,3 +1,4 @@
+# Define Docker builds with auto trigger so they start building immediately.
 docker_build(
   ref="thirdai_platform_jobs",
   context="../../thirdai_platform_py",

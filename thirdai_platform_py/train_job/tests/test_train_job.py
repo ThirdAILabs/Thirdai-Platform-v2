@@ -388,7 +388,6 @@ def test_udt_token_train_with_balancing(dummy_ner_file):
     assert df["tags"][0] == "O"
     assert df["user_provided"][0] == False
 
-
 def test_autotune_metadata():
     verify_license.verify_and_activate(THIRDAI_LICENSE)
 
@@ -405,6 +404,8 @@ def test_autotune_metadata():
         model_bazaar_endpoint="",
         model_id="ndb_123",
         data_id="data_123",
+        job_auth_token="",
+        model_type="ndb",
         # model_options=NDBOptions(),
         model_options=NDBOptions(
             autopopulate_doc_metadata_fields=[

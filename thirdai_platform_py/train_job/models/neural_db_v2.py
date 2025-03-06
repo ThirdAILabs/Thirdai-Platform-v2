@@ -7,7 +7,6 @@ from collections import defaultdict
 from logging import Logger
 from typing import Dict, List
 from urllib.parse import urljoin
-from typing import Dict, List
 
 import openai
 import thirdai
@@ -16,13 +15,13 @@ from platform_common.logging.logcodes import LogCode
 from platform_common.ndb.ndbv2_parser import parse_doc
 from platform_common.ndb.utils import delete_docs_and_remove_files
 from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
+from platform_common.pydantic_models.llm_config import LLMProvider
 from platform_common.pydantic_models.training import (
     AutopopulateMetadataInfo,
     FileInfo,
+    FileLocation,
     TrainConfig,
 )
-from platform_common.pydantic_models.llm_config import LLMProvider
-from platform_common.pydantic_models.training import FileInfo, FileLocation, TrainConfig
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.chunk_stores import PandasChunkStore
 from thirdai.neural_db_v2.retrievers import FinetunableRetriever
@@ -42,17 +41,20 @@ class NeuralDBV2(Model):
         print(f"Config dict: {config.__dict__}", flush=True)
         print(f"Model options type: {type(config.model_options)}", flush=True)
         print(f"Model options content: {config.model_options}", flush=True)
-        
+
         # Try to extract metadata directly from the raw dict
-        if hasattr(config, '_raw_config') and isinstance(config._raw_config, dict):
+        if hasattr(config, "_raw_config") and isinstance(config._raw_config, dict):
             print("Raw config found, checking for metadata", flush=True)
-            model_options = config._raw_config.get('model_options', {})
-            metadata_fields = model_options.get('autopopulate_doc_metadata_fields')
+            model_options = config._raw_config.get("model_options", {})
+            metadata_fields = model_options.get("autopopulate_doc_metadata_fields")
             if metadata_fields:
-                print(f"Found metadata fields in raw config: {metadata_fields}", flush=True)
-        
+                print(
+                    f"Found metadata fields in raw config: {metadata_fields}",
+                    flush=True,
+                )
+
         print("=====================================", flush=True)
-    
+
         if self.config.base_model_id:
             base_model_path = os.path.join(
                 self.config.model_bazaar_dir,
@@ -173,21 +175,27 @@ class NeuralDBV2(Model):
         tmp_dir: str,
         autopopulated_metadata_fields: List[AutopopulateMetadataInfo],
     ) -> Dict[str, str]:
-        print(f"========== DEBUG: AUTOTUNE METADATA for {doc.path} ==========", flush=True)
+        print(
+            f"========== DEBUG: AUTOTUNE METADATA for {doc.path} ==========", flush=True
+        )
         print(f"Document: {doc}", flush=True)
         print(f"Document attributes: {dir(doc)}", flush=True)
         print(f"Document type: {type(doc)}", flush=True)
-        print(f"Metadata fields to extract: {[f.attribute_name for f in autopopulated_metadata_fields]}", flush=True)
+        print(
+            f"Metadata fields to extract: {[f.attribute_name for f in autopopulated_metadata_fields]}",
+            flush=True,
+        )
         print(f"doc_save_dir: {doc_save_dir}", flush=True)
         print(f"tmp_dir: {tmp_dir}", flush=True)
-    
-    
+
         doc_object = parse_doc(doc, doc_save_dir, tmp_dir)
         print(f"Parsed doc object type: {type(doc_object)}", flush=True)
         chunks = list(doc_object.chunks()[0].text)
         print(f"Got {len(chunks)} chunks from document", flush=True)
-        print(f"First chunk sample: {chunks[0][:100] if chunks else 'No chunks'}", flush=True)
-
+        print(
+            f"First chunk sample: {chunks[0][:100] if chunks else 'No chunks'}",
+            flush=True,
+        )
 
         metadatafields_str = ""
         example_str = ""
@@ -197,7 +205,9 @@ class NeuralDBV2(Model):
             metadatafields_str += f" * '{attribute_name}': '{description}'\n"
             example_str += f"{attribute_name}: value\n"
 
-        print(f"Metadata fields formatted for prompt: \n{metadatafields_str}", flush=True)
+        print(
+            f"Metadata fields formatted for prompt: \n{metadatafields_str}", flush=True
+        )
 
         prompt = f"""
 Here is a list of fields with a name and a description. 
@@ -209,7 +219,9 @@ Here is an example:
 {example_str}
         """
 
-        print(f"Generated prompt for GPT:\n{prompt[:500]}...", flush=True)  # Print just first 500 chars of prompt
+        print(
+            f"Generated prompt for GPT:\n{prompt[:500]}...", flush=True
+        )  # Print just first 500 chars of prompt
 
         response = self.ask_gpt(prompt)
 
@@ -221,28 +233,30 @@ Here is an example:
             line = line.strip()
             if not line:
                 continue
-                
+
             print(f"Processing line: '{line}'", flush=True)
             output = line.split(":", 1)  # Split on first colon only
             if len(output) != 2:
                 print(f"Skipping line due to invalid format: '{line}'", flush=True)
                 continue
-            
+
             key = output[0].strip()
             value = output[1].strip().lower()
             print(f"Extracted key-value: '{key}' = '{value}'", flush=True)
             new_metadata[key] = value
-                    
+
         print(f"Final parsed metadata: {new_metadata}", flush=True)
         print("========== END AUTOTUNE METADATA ==========", flush=True)
         return new_metadata
-
 
     def unsupervised_train(self, files: List[FileInfo], batch_size=500):
         self.logger.debug("Starting unsupervised training.")
 
         # Debug print files count and batch size
-        print(f"Starting unsupervised training with {len(files)} files and batch_size={batch_size}", flush=True)
+        print(
+            f"Starting unsupervised training with {len(files)} files and batch_size={batch_size}",
+            flush=True,
+        )
 
         n_jobs = max(1, min(os.cpu_count() - 6, 20))
 
@@ -253,21 +267,33 @@ Here is an example:
 
         docs_indexed = 0
         successfully_indexed_files = 0
-        
+
         # Debug print metadata configuration
         print("========== DEBUG: METADATA CONFIGURATION ==========", flush=True)
-        autopopulated_metadata_fields = self.config.model_options.autopopulate_doc_metadata_fields
-        print(f"Metadata fields from config: {autopopulated_metadata_fields}", flush=True)
+        autopopulated_metadata_fields = (
+            self.config.model_options.autopopulate_doc_metadata_fields
+        )
+        print(
+            f"Metadata fields from config: {autopopulated_metadata_fields}", flush=True
+        )
         if autopopulated_metadata_fields:
-            print(f"First metadata field: {autopopulated_metadata_fields[0].attribute_name} - {autopopulated_metadata_fields[0].description}", flush=True)
+            print(
+                f"First metadata field: {autopopulated_metadata_fields[0].attribute_name} - {autopopulated_metadata_fields[0].description}",
+                flush=True,
+            )
         print("==================================================", flush=True)
 
         # Process metadata extraction first
         if autopopulated_metadata_fields:
-            print(f"Found autopopulate_doc_metadata_fields with {len(autopopulated_metadata_fields)} fields", flush=True)
+            print(
+                f"Found autopopulate_doc_metadata_fields with {len(autopopulated_metadata_fields)} fields",
+                flush=True,
+            )
             for field in autopopulated_metadata_fields:
-                print(f"  Field: {field.attribute_name} - {field.description}", flush=True)
-                
+                print(
+                    f"  Field: {field.attribute_name} - {field.description}", flush=True
+                )
+
             for i in range(len(files)):
                 print(f"Processing file {i}/{len(files)}: {files[i].path}", flush=True)
                 try:
@@ -275,14 +301,21 @@ Here is an example:
                     print(f"  File info: {files[i]}", flush=True)
                     print(f"  File type: {type(files[i])}", flush=True)
                     print(f"  File attributes: {dir(files[i])}", flush=True)
-                    
+
                     files[i].metadata = self.autotune_metadata(
                         files[i], doc_save_dir, tmp_dir, autopopulated_metadata_fields
                     )
-                    print(f"Generated metadata for file {files[i].path}: {files[i].metadata}", flush=True)
+                    print(
+                        f"Generated metadata for file {files[i].path}: {files[i].metadata}",
+                        flush=True,
+                    )
                 except Exception as e:
-                    print(f"ERROR generating metadata for file {files[i].path}: {e}", flush=True)
+                    print(
+                        f"ERROR generating metadata for file {files[i].path}: {e}",
+                        flush=True,
+                    )
                     import traceback
+
                     print(traceback.format_exc(), flush=True)
 
         # Now proceed with normal training
@@ -323,57 +356,107 @@ Here is an example:
                         docs.append(doc)
 
                 index_start = time.perf_counter()
-                print(f"========== DEBUG: INSERTING DOCS INTO DB ==========", flush=True)
+                print(
+                    f"========== DEBUG: INSERTING DOCS INTO DB ==========", flush=True
+                )
                 print(f"Inserting {len(docs)} docs into DB", flush=True)
-                # Print a sample of original file metadata 
-                for j, file_info in enumerate(batches[i][:3]):  # Print first 3 files only
-                    print(f"File {j} metadata: {getattr(file_info, 'metadata', {})}", flush=True)
-                
+                # Print a sample of original file metadata
+                for j, file_info in enumerate(
+                    batches[i][:3]
+                ):  # Print first 3 files only
+                    print(
+                        f"File {j} metadata: {getattr(file_info, 'metadata', {})}",
+                        flush=True,
+                    )
+
                 # Standard insert
                 inserted_docs = self.db.insert(docs)
                 index_end = time.perf_counter()
-                print(f"Inserted {len(inserted_docs)} docs in {index_end - index_start:.3f}s", flush=True)
+                print(
+                    f"Inserted {len(inserted_docs)} docs in {index_end - index_start:.3f}s",
+                    flush=True,
+                )
                 print("========== END INSERTING DOCS INTO DB ==========", flush=True)
 
                 # After insertion, update metadata for newly inserted documents
                 if autopopulated_metadata_fields:
-                    print(f"========== DEBUG: UPDATING METADATA AFTER INSERTION ==========", flush=True)
-                    print(f"Processing metadata updates for {len(inserted_docs)} inserted documents", flush=True)
-                    
+                    print(
+                        f"========== DEBUG: UPDATING METADATA AFTER INSERTION ==========",
+                        flush=True,
+                    )
+                    print(
+                        f"Processing metadata updates for {len(inserted_docs)} inserted documents",
+                        flush=True,
+                    )
+
                     # Map batches[i] index to file_info for easy lookup
                     batch_files = batches[i]
-                    
+
                     # Update metadata for each newly inserted document
                     for idx, doc_meta in enumerate(inserted_docs):
                         try:
                             # Get source_id from the inserted doc metadata
                             source_id = doc_meta.doc_id
-                            print(f"Processing metadata update for doc {source_id} (idx={idx})", flush=True)
-                            
+                            print(
+                                f"Processing metadata update for doc {source_id} (idx={idx})",
+                                flush=True,
+                            )
+
                             # Get the corresponding file_info from the batch
                             if idx < len(docs) and idx < len(batch_files):
                                 file_info = batch_files[idx]
-                                print(f"  Corresponding file: {file_info.path}", flush=True)
-                                
+                                print(
+                                    f"  Corresponding file: {file_info.path}",
+                                    flush=True,
+                                )
+
                                 # Update metadata if we have it
-                                if hasattr(file_info, 'metadata') and file_info.metadata:
-                                    print(f"  Updating metadata: {file_info.metadata}", flush=True)
+                                if (
+                                    hasattr(file_info, "metadata")
+                                    and file_info.metadata
+                                ):
+                                    print(
+                                        f"  Updating metadata: {file_info.metadata}",
+                                        flush=True,
+                                    )
                                     try:
-                                        self.db.chunk_store.update_metadata(source_id, file_info.metadata)
-                                        print(f"  Successfully updated metadata for {source_id}", flush=True)
+                                        self.db.chunk_store.update_metadata(
+                                            source_id, file_info.metadata
+                                        )
+                                        print(
+                                            f"  Successfully updated metadata for {source_id}",
+                                            flush=True,
+                                        )
                                     except Exception as e:
-                                        print(f"  ERROR updating metadata for doc {source_id}: {e}", flush=True)
+                                        print(
+                                            f"  ERROR updating metadata for doc {source_id}: {e}",
+                                            flush=True,
+                                        )
                                         import traceback
+
                                         print(traceback.format_exc(), flush=True)
                                 else:
-                                    print(f"  No metadata to update for file {file_info.path}", flush=True)
+                                    print(
+                                        f"  No metadata to update for file {file_info.path}",
+                                        flush=True,
+                                    )
                             else:
-                                print(f"  No corresponding file found for idx={idx}", flush=True)
+                                print(
+                                    f"  No corresponding file found for idx={idx}",
+                                    flush=True,
+                                )
                         except Exception as e:
-                            print(f"ERROR processing metadata update for idx={idx}: {e}", flush=True)
+                            print(
+                                f"ERROR processing metadata update for idx={idx}: {e}",
+                                flush=True,
+                            )
                             import traceback
+
                             print(traceback.format_exc(), flush=True)
-                    print("========== END UPDATING METADATA AFTER INSERTION ==========", flush=True)
+                    print(
+                        "========== END UPDATING METADATA AFTER INSERTION ==========",
+                        flush=True,
+                    )
 
                 docs_indexed += len(curr_batch)
                 successfully_indexed_files += len(docs)
@@ -393,19 +476,19 @@ Here is an example:
             f"Completed unsupervised training total_docs={docs_indexed} total_chunks={total_chunks}.",
             code=LogCode.MODEL_INSERT,
         )
-        
+
         # Check if any documents were created with metadata
         print("Checking for documents with metadata:", flush=True)
         try:
             # Get all documents from the database
             db_docs = self.db.documents()
             print(f"Found {len(db_docs)} documents in database", flush=True)
-            
+
             # Check first few documents for metadata
             for doc in db_docs[:3]:  # Check first 3 docs only
                 doc_id = doc["doc_id"]
                 print(f"Checking metadata for doc {doc_id}", flush=True)
-                
+
                 try:
                     # Get chunks for this document
                     chunks = self.db.chunk_store.get_chunks(
@@ -413,14 +496,20 @@ Here is an example:
                             doc_id, before_version=float("inf")
                         )
                     )
-                    
+
                     if chunks:
                         # Check first chunk for metadata
                         first_chunk = chunks[0]
-                        if hasattr(first_chunk, 'metadata'):
-                            print(f"Metadata for doc {doc_id}: {first_chunk.metadata}", flush=True)
+                        if hasattr(first_chunk, "metadata"):
+                            print(
+                                f"Metadata for doc {doc_id}: {first_chunk.metadata}",
+                                flush=True,
+                            )
                         else:
-                            print(f"No metadata attribute found for doc {doc_id}", flush=True)
+                            print(
+                                f"No metadata attribute found for doc {doc_id}",
+                                flush=True,
+                            )
                             print(f"Chunk attributes: {dir(first_chunk)}", flush=True)
                     else:
                         print(f"No chunks found for doc {doc_id}", flush=True)
@@ -571,8 +660,11 @@ Here is an example:
         # Debug print to see metadata fields configuration
         print("========== DEBUG: TRAINING CONFIGURATION ==========", flush=True)
         print(f"Model Options: {self.config.model_options}", flush=True)
-        if hasattr(self.config.model_options, 'autopopulate_doc_metadata_fields'):
-            print(f"Metadata Fields Config: {self.config.model_options.autopopulate_doc_metadata_fields}", flush=True)
+        if hasattr(self.config.model_options, "autopopulate_doc_metadata_fields"):
+            print(
+                f"Metadata Fields Config: {self.config.model_options.autopopulate_doc_metadata_fields}",
+                flush=True,
+            )
         print("==================================================", flush=True)
 
         s = time.perf_counter()

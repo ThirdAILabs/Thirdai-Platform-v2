@@ -388,6 +388,7 @@ def test_udt_token_train_with_balancing(dummy_ner_file):
     assert df["tags"][0] == "O"
     assert df["user_provided"][0] == False
 
+
 def test_autotune_metadata():
     verify_license.verify_and_activate(THIRDAI_LICENSE)
 

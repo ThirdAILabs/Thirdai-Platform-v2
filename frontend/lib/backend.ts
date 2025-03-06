@@ -307,7 +307,7 @@ export async function train_ndb({ name, formData }: TrainNdbParams): Promise<any
   if (modelOptionsStr && typeof modelOptionsStr === 'string') {
     try {
       modelOptions = JSON.parse(modelOptionsStr);
-      
+
       // IMPORTANT: Instead of setting autopopulate_doc_metadata_fields directly,
       // we need to include it as a raw JSON property
       if (modelOptions.autopopulate_doc_metadata_fields) {

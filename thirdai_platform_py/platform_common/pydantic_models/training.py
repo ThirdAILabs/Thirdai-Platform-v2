@@ -119,9 +119,11 @@ class FileInfo(BaseModel):
 
         return bucket_name, key
 
+
 class AutopopulateMetadataInfo(BaseModel):
     attribute_name: str
     description: str
+
 
 class NDBOptions(BaseModel):
     model_type: Literal[ModelType.NDB] = ModelType.NDB

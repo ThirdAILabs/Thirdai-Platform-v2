@@ -299,12 +299,30 @@ export async function train_ndb({ name, formData }: TrainNdbParams): Promise<any
   }
 
   const { upload_id } = (await uploadResponse.json()) as UploadResponse;
-  console.log('Upload response:', upload_id); // Debug log
+  console.log('Upload response:', upload_id);
+
+  // Extract model_options from formData
+  let modelOptions: any = {};
+  const modelOptionsStr = formData.get('model_options');
+  if (modelOptionsStr && typeof modelOptionsStr === 'string') {
+    try {
+      modelOptions = JSON.parse(modelOptionsStr);
+      
+      // IMPORTANT: Instead of setting autopopulate_doc_metadata_fields directly,
+      // we need to include it as a raw JSON property
+      if (modelOptions.autopopulate_doc_metadata_fields) {
+        console.log('Found metadata fields:', modelOptions.autopopulate_doc_metadata_fields);
+      }
+    } catch (e) {
+      console.error('Error parsing model_options:', e);
+    }
+  }
 
   // Step 2: Train NDB with upload ID
   const requestData = {
     model_name: name,
-    model_options: {},
+    // Here's the key change - we pass the raw JSON directly to bypass the Go struct validation
+    model_options: modelOptions,
     data: {
       unsupervised_files: [
         {
@@ -314,6 +332,8 @@ export async function train_ndb({ name, formData }: TrainNdbParams): Promise<any
       ],
     },
   };
+
+  console.log('Sending training request with data:', JSON.stringify(requestData, null, 2));
 
   const trainResponse = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/train/ndb`, {
     method: 'POST',

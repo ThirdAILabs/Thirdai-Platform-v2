@@ -159,6 +159,30 @@ func (c *PlatformClient) TrainNdbWithGenerativeSupervision(name string, unsuperv
 }
 
 func (c *PlatformClient) TrainNdbWithBaseModel(name string, baseModel *NdbClient, unsupervised []FileInfo, supervised []FileInfo, jobOptions config.JobOptions, generativeSupervision bool, llmConfig *config.LLMConfig) (*NdbClient, error) {
+	// Parse model_options from the first file if available
+	var modelOptionsFromFrontend *config.NdbOptions
+	if len(unsupervised) > 0 && unsupervised[0].Options != nil {
+		if modelOpts, ok := unsupervised[0].Options["model_options"].(map[string]interface{}); ok {
+			// Extract metadata fields if they exist
+			if metadataFields, ok := modelOpts["autopopulate_doc_metadata_fields"].([]interface{}); ok {
+				fields := make([]config.AutopopulateMetadataInfo, 0, len(metadataFields))
+				for _, field := range metadataFields {
+					if fieldMap, ok := field.(map[string]interface{}); ok {
+						fields = append(fields, config.AutopopulateMetadataInfo{
+							AttributeName: fieldMap["attribute_name"].(string),
+							Description:   fieldMap["description"].(string),
+						})
+					}
+				}
+
+				// Now create model options with these fields
+				modelOptionsFromFrontend = &config.NdbOptions{
+					AutopopulateDocMetadataFields: fields,
+				}
+			}
+		}
+	}
+
 	unsupervisedFiles, err := c.uploadFiles(unsupervised, "")
 	if err != nil {
 		return nil, fmt.Errorf("error uploading unsupervised files for training: %w", err)
@@ -175,7 +199,11 @@ func (c *PlatformClient) TrainNdbWithBaseModel(name string, baseModel *NdbClient
 	}
 	var modelOptions *config.NdbOptions
 	if baseModel == nil {
-		modelOptions = &config.NdbOptions{}
+		if modelOptionsFromFrontend != nil {
+			modelOptions = modelOptionsFromFrontend
+		} else {
+			modelOptions = &config.NdbOptions{}
+		}
 	}
 
 	body := services.NdbTrainRequest{

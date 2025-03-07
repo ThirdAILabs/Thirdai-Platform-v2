@@ -13,10 +13,41 @@ import (
 	"thirdai_platform/search/ndb"
 	"thirdai_platform/utils"
 	"thirdai_platform/utils/llm_generation"
+	"thirdai_platform/utils/logging"
+
+	slogmulti "github.com/samber/slog-multi"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+var (
+	topKSelectionsToTrack = 5
+	queryMetric           = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_query", Help: "NDB Queries"})
+	upvoteMetric          = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_upvote", Help: "NDB Upvotes"})
+	associateMetric       = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_associate", Help: "NDB Associations"})
+	insertMetric          = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_insert", Help: "NDB Inserts"})
+	deleteMetric          = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_delete", Help: "NDB Deletes"})
+
+	implicitFeedbackMetric = promauto.NewSummary(prometheus.SummaryOpts{Name: "ndb_implicit_feedback", Help: "NDB Implicit Feedback"})
+
+	// Add counters for tracking top-k selections
+	ndbTopKSelections = make([]prometheus.Counter, topKSelectionsToTrack)
+)
+
+func init() {
+	// inserting values in an init function to make sure prometheus metrics are initialized whenever router is imported
+	for i := 0; i < topKSelectionsToTrack; i++ {
+		ndbTopKSelections[i] = promauto.NewCounter(prometheus.CounterOpts{
+			Name: fmt.Sprintf("ndb_result_%d_selections", i+1),
+			Help: fmt.Sprintf("Number of selections of result %d by user.", i+1),
+		})
+	}
+}
 
 type NdbRouter struct {
 	Ndb         ndb.NeuralDB
@@ -27,10 +58,29 @@ type NdbRouter struct {
 	LLM         llm_generation.LLM
 }
 
+func InitLogging(logFile *os.File, config *config.DeployConfig) {
+	// victoria logs option transform keys like msg and time into victoria log keys _msg and _time
+	var jsonHandler slog.Handler = slog.NewJSONHandler(logFile, logging.GetVictoriaLogsOptions(true))
+
+	// add default values to add to json logs
+	// these fields will be used for filtering logs
+	jsonHandler = jsonHandler.WithAttrs([]slog.Attr{
+		slog.String("service_type", "deployment"),
+		slog.String("model_id", config.ModelId.String()),
+		slog.String("user_id", config.UserId.String()),
+		slog.String("model_type", config.ModelType),
+	})
+	textHandler := slog.NewTextHandler(os.Stderr, nil)
+
+	logger := slog.New(slogmulti.Fanout(jsonHandler, textHandler))
+	slog.SetDefault(logger)
+}
+
 func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, error) {
 	ndbPath := filepath.Join(config.ModelBazaarDir, "models", config.ModelId.String(), "model", "model.ndb")
 	ndb, err := ndb.New(ndbPath)
 	if err != nil {
+		slog.Error("failed to open ndb", "error", err, "code", logging.MODEL_INIT)
 		return nil, fmt.Errorf("failed to open ndb: %v", err)
 	}
 
@@ -107,6 +157,8 @@ func (s *NdbRouter) Routes() chi.Router {
 		utils.WriteSuccess(w)
 	})
 
+	r.Handle("/metrics", promhttp.Handler())
+
 	return r
 }
 
@@ -134,6 +186,10 @@ type SearchResults struct {
 }
 
 func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
+	// log time taken for serving the request
+	timer := prometheus.NewTimer(queryMetric)
+	defer timer.ObserveDuration()
+
 	var req SearchRequest
 	if !utils.ParseRequestBody(w, r, &req) {
 		return
@@ -154,6 +210,7 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 		case "gt":
 			constraints[key] = ndb.GreaterThan(c.Value)
 		default:
+			slog.Error("invalid constraint operator", "operator", c.Op, "key", key, "code", logging.MODEL_SEARCH)
 			http.Error(w, fmt.Sprintf("invalid constraint operator '%s' for key '%s'", c.Op, key), http.StatusUnprocessableEntity)
 			return
 		}
@@ -161,6 +218,7 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 
 	chunks, err := s.Ndb.Query(req.Query, req.Topk, constraints)
 	if err != nil {
+		slog.Error("ndb query error", "error", err, "code", logging.MODEL_SEARCH)
 		http.Error(w, "could not process query", http.StatusInternalServerError)
 		return
 	}
@@ -176,6 +234,7 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJsonResponse(w, &results)
+	slog.Debug("searched ndb", "query", req.Query, "top_k", req.Topk, "code", logging.MODEL_SEARCH)
 }
 
 type InsertRequest struct {
@@ -189,17 +248,22 @@ type InsertRequest struct {
 // TODO how to do insert from files that already have been uploaded?
 // do we need go bindings for documents or to parse them with a service beforehand?
 func (s *NdbRouter) Insert(w http.ResponseWriter, r *http.Request) {
+	timer := prometheus.NewTimer(insertMetric)
+	defer timer.ObserveDuration()
+
 	var req InsertRequest
 	if !utils.ParseRequestBody(w, r, &req) {
 		return
 	}
 
 	if err := s.Ndb.Insert(req.Document, req.DocId, req.Chunks, req.Metadata, req.Version); err != nil {
+		slog.Error("insert error", "error", err, "code", logging.MODEL_INSERT)
 		http.Error(w, fmt.Sprintf("insert error: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	utils.WriteSuccess(w)
+	slog.Info("inserted document", "doc_id", req.DocId, "code", logging.MODEL_INSERT)
 }
 
 type DeleteRequest struct {
@@ -208,6 +272,9 @@ type DeleteRequest struct {
 }
 
 func (s *NdbRouter) Delete(w http.ResponseWriter, r *http.Request) {
+	timer := prometheus.NewTimer(deleteMetric)
+	defer timer.ObserveDuration()
+
 	var req DeleteRequest
 	if !utils.ParseRequestBody(w, r, &req) {
 		return
@@ -217,12 +284,14 @@ func (s *NdbRouter) Delete(w http.ResponseWriter, r *http.Request) {
 
 	for _, docID := range req.DocIds {
 		if err := s.Ndb.Delete(docID, keepLatest); err != nil {
+			slog.Error("delete error", "error", err, "doc_id", docID, "code", logging.MODEL_DELETE)
 			http.Error(w, fmt.Sprintf("delete error for doc '%s': %v", docID, err), http.StatusInternalServerError)
 			return
 		}
 	}
 
 	utils.WriteSuccess(w)
+	slog.Info("deleted documents", "doc_ids", req.DocIds, "code", logging.MODEL_DELETE)
 }
 
 type UpvoteInputSingle struct {
@@ -236,6 +305,9 @@ type UpvoteInput struct {
 }
 
 func (s *NdbRouter) Upvote(w http.ResponseWriter, r *http.Request) {
+	timer := prometheus.NewTimer(upvoteMetric)
+	defer timer.ObserveDuration()
+
 	var req UpvoteInput
 	if !utils.ParseRequestBody(w, r, &req) {
 		return
@@ -249,11 +321,13 @@ func (s *NdbRouter) Upvote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.Ndb.Finetune(queries, labels); err != nil {
+		slog.Error("upvote error", "error", err, "code", logging.MODEL_RLHF)
 		http.Error(w, fmt.Sprintf("upvote error: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	utils.WriteSuccess(w)
+	slog.Debug("upvoted document", "text_id_pairs", req.TextIdPairs, "code", logging.MODEL_RLHF)
 }
 
 type AssociateInputSingle struct {
@@ -267,6 +341,9 @@ type AssociateInput struct {
 }
 
 func (s *NdbRouter) Associate(w http.ResponseWriter, r *http.Request) {
+	timer := prometheus.NewTimer(associateMetric)
+	defer timer.ObserveDuration()
+
 	var req AssociateInput
 	if !utils.ParseRequestBody(w, r, &req) {
 		return
@@ -285,11 +362,13 @@ func (s *NdbRouter) Associate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.Ndb.Associate(sources, targets, strength); err != nil {
+		slog.Error("associate error", "error", err, "code", logging.MODEL_RLHF)
 		http.Error(w, fmt.Sprintf("associate error: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	utils.WriteSuccess(w)
+	slog.Debug("associated text pairs", "code", logging.MODEL_RLHF)
 }
 
 type Source struct {
@@ -306,6 +385,7 @@ type Sources struct {
 func (s *NdbRouter) Sources(w http.ResponseWriter, r *http.Request) {
 	srcs, err := s.Ndb.Sources()
 	if err != nil {
+		slog.Error("sources error", "error", err, "code", logging.MODEL_INFO)
 		http.Error(w, fmt.Sprintf("sources error: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -324,9 +404,39 @@ func (s *NdbRouter) Sources(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJsonResponse(w, results)
+	slog.Debug("retrieved sources", "sources", results.Sources, "code", logging.MODEL_INFO)
+}
+
+type ImplicitFeedback struct {
+	QueryText     string `json:"query_text"`
+	ReferenceId   int    `json:"reference_id"`
+	EventDesc     string `json:"event_desc"`
+	ReferenceRank int    `json:"reference_rank"`
 }
 
 func (s *NdbRouter) ImplicitFeedback(w http.ResponseWriter, r *http.Request) {
+	timer := prometheus.NewTimer(implicitFeedbackMetric)
+	defer timer.ObserveDuration()
+
+	var req ImplicitFeedback
+	if !utils.ParseRequestBody(w, r, &req) {
+		return
+	}
+
+	var queries = ([]string{req.QueryText})
+	var labels = []uint64{uint64(req.ReferenceId)}
+
+	if err := s.Ndb.Finetune(queries, labels); err != nil {
+		slog.Error("implicit feedback error", "error", err, "code", logging.MODEL_RLHF)
+		http.Error(w, fmt.Sprintf("implicit feedback error: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Increment the counter for the rank of the selected result
+	if req.ReferenceRank > 0 && req.ReferenceRank <= topKSelectionsToTrack {
+		ndbTopKSelections[req.ReferenceRank-1].Inc()
+	}
+	slog.Debug("implicit feedback received", "query_text", req.QueryText, "reference_id", req.ReferenceId, "event_desc", req.EventDesc, "reference_rank", req.ReferenceRank, "code", logging.MODEL_RLHF)
 }
 
 func (s *NdbRouter) HighlightedPdf(w http.ResponseWriter, r *http.Request) {

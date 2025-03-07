@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"log/slog"
 	"net/http"
@@ -16,6 +15,7 @@ import (
 	"thirdai_platform/deployment"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/licensing"
+
 	"time"
 
 	"github.com/caarlos0/env/v10"
@@ -52,12 +52,6 @@ func loadEnv() (*DeploymentEnv, error) {
 	return cfg, nil
 }
 
-func initLogging(logFile *os.File) {
-	log.SetFlags(log.Lshortfile | log.Ltime | log.Ldate)
-	log.SetOutput(io.MultiWriter(logFile, os.Stderr))
-	slog.Info("logging initialized", "log_file", logFile.Name())
-}
-
 // The reason we have a separate runApp function is because the defer calls don't
 // run if we exit with log.Fatalf, so instead we return an err here and fail outside
 func runApp() error {
@@ -92,7 +86,7 @@ func runApp() error {
 	}
 	defer logFile.Close()
 
-	initLogging(logFile)
+	deployment.InitLogging(logFile, config)
 
 	ndbrouter, err := deployment.NewNdbRouter(config, reporter)
 	if err != nil {

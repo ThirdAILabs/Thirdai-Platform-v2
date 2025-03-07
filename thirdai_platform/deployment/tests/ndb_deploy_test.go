@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -59,9 +58,9 @@ func (m *MockPermissions) ModelPermissionsCheck(permission_type deployment.Permi
 	}
 }
 
-func makeNdbServer(t *testing.T, modelbazaardir string) (*httptest.Server, *deployment.NdbRouter) {
-	modelID := uuid.New()
-	modelDir := filepath.Join(modelbazaardir, "models", modelID.String(), "model", "model.ndb")
+func makeNdbServer(t *testing.T, config *config.DeployConfig) (*httptest.Server, *deployment.NdbRouter) {
+	modelID := config.ModelId
+	modelDir := filepath.Join(config.ModelBazaarDir, "models", modelID.String(), "model", "model.ndb")
 
 	db, err := ndb.New(modelDir)
 	if err != nil {
@@ -78,23 +77,14 @@ func makeNdbServer(t *testing.T, modelbazaardir string) (*httptest.Server, *depl
 		t.Fatalf("failed to insert into NDB: %v", err)
 	}
 
-	slog.Info("NDB initialized successfully")
-
-	deployConfig := config.DeployConfig{
-		ModelId:        modelID,
-		ModelBazaarDir: modelbazaardir,
-	}
-
 	mockPermissions := MockPermissions{}
-
-	cache, err := deployment.NewLLMCache(modelbazaardir, modelID.String())
+	cache, err := deployment.NewLLMCache(config.ModelBazaarDir, modelID.String())
 	if err != nil {
 		t.Fatalf("failed to create llm cache: %v", err)
 	}
 
-	router := deployment.NdbRouter{Ndb: db, Config: &deployConfig, Permissions: &mockPermissions, LLMCache: cache}
+	router := deployment.NdbRouter{Ndb: db, Config: config, Permissions: &mockPermissions, LLMCache: cache}
 	router.LLM = &MockLLM{}
-
 	r := router.Routes()
 
 	testServer := httptest.NewServer(r)
@@ -313,8 +303,12 @@ func TestBasicEndpoints(t *testing.T) {
 		t.Fatalf("license error: %v", err)
 	}
 
-	modelbazaardir := t.TempDir()
-	testServer, router := makeNdbServer(t, modelbazaardir)
+	config := &config.DeployConfig{
+		ModelId:             uuid.New(),
+		ModelBazaarDir:      t.TempDir(),
+		ModelBazaarEndpoint: "http://localhost:8080",
+	}
+	testServer, router := makeNdbServer(t, config)
 	defer testServer.Close()
 
 	checkSources(t, testServer, []string{"doc_id_1"})

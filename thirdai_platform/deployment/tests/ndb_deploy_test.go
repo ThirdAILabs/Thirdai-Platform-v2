@@ -78,9 +78,13 @@ func makeNdbServer(t *testing.T, config *config.DeployConfig) (*httptest.Server,
 	}
 
 	mockPermissions := MockPermissions{}
+	cache, err := deployment.NewLLMCache(config.ModelBazaarDir, modelID.String())
+	if err != nil {
+		t.Fatalf("failed to create llm cache: %v", err)
+	}
 
-	router := deployment.NdbRouter{Ndb: db, Config: config, Permissions: &mockPermissions}
-
+	router := deployment.NdbRouter{Ndb: db, Config: config, Permissions: &mockPermissions, LLMCache: cache}
+	router.LLM = &MockLLM{}
 	r := router.Routes()
 
 	testServer := httptest.NewServer(r)

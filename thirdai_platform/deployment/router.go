@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
@@ -11,6 +12,7 @@ import (
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/search/ndb"
 	"thirdai_platform/utils"
+	"thirdai_platform/utils/llm_generation"
 	"thirdai_platform/utils/logging"
 
 	slogmulti "github.com/samber/slog-multi"
@@ -52,6 +54,8 @@ type NdbRouter struct {
 	Config      *config.DeployConfig
 	Reporter    Reporter
 	Permissions PermissionsInterface
+	LLMCache    *LLMCache
+	LLM         llm_generation.LLM
 }
 
 func InitLogging(logFile *os.File, config *config.DeployConfig) {
@@ -80,15 +84,45 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 		return nil, fmt.Errorf("failed to open ndb: %v", err)
 	}
 
+	var llmCache *LLMCache
+	var llm llm_generation.LLM
+
+	if provider, exists := config.Options["llm_provider"]; exists {
+		// TODO api key should be passed as environment variable based on provider
+		// rather than passing it in the /generate endpoint from the frontend
+		// Same goes for model and provider
+		llm, err = llm_generation.NewLLM(llm_generation.LLMProvider(provider), config.Options["genai_key"])
+		if err != nil {
+			return nil, err
+		}
+
+		llmCache, err = NewLLMCache(config.ModelBazaarDir, config.ModelId.String())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &NdbRouter{
+		Ndb:         ndb,
+		Config:      config,
+		Reporter:    reporter,
+		Permissions: &Permissions{config.ModelBazaarEndpoint, config.ModelId},
+		LLMCache:    llmCache,
+		LLM:         llm,
+	}, nil
+
 	slog.Info("opened ndb", "path", ndbPath, "code", logging.MODEL_INIT)
 	return &NdbRouter{ndb, config, reporter, &Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
 }
 
-func (r *NdbRouter) Close() {
-	r.Ndb.Free()
+func (s *NdbRouter) Close() {
+	s.Ndb.Free()
+	if s.LLMCache != nil {
+		s.LLMCache.Close()
+	}
 }
 
-func (m *NdbRouter) Routes() chi.Router {
+func (s *NdbRouter) Routes() chi.Router {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Recoverer)
@@ -97,21 +131,29 @@ func (m *NdbRouter) Routes() chi.Router {
 	}))
 
 	r.Group(func(r chi.Router) {
-		r.Use(m.Permissions.ModelPermissionsCheck("write"))
+		r.Use(s.Permissions.ModelPermissionsCheck(WritePermission))
 
-		r.Post("/insert", m.Insert)
-		r.Post("/delete", m.Delete)
-		r.Post("/upvote", m.Upvote)
-		r.Post("/associate", m.Associate)
+		r.Post("/insert", s.Insert)
+		r.Post("/delete", s.Delete)
+		r.Post("/upvote", s.Upvote)
+		r.Post("/associate", s.Associate)
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(m.Permissions.ModelPermissionsCheck("read"))
+		r.Use(s.Permissions.ModelPermissionsCheck(ReadPermission))
 
-		r.Post("/query", m.Search)
-		r.Get("/sources", m.Sources)
-		// r.Post("/implicit-feedback", m.ImplicitFeedback)
-		// r.Get("/highlighted-pdf", m.HighlightedPdf)
+		r.Post("/query", s.Search)
+		r.Get("/sources", s.Sources)
+		// r.Post("/implicit-feedback", s.ImplicitFeedback)
+		// r.Get("/highlighted-pdf", s.HighlightedPdf)
+
+		if s.LLM != nil {
+			r.Post("/generate", s.GenerateFromReferences)
+		}
+
+		if s.LLMCache != nil {
+			r.Post("/cache-suggestions", s.CacheSuggestions)
+		}
 	})
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -156,6 +198,11 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Topk <= 0 {
+		http.Error(w, "top_k must be greater than 0", http.StatusBadRequest)
+		return
+	}
+
 	constraints := make(ndb.Constraints)
 	for key, c := range req.Constraints {
 		switch c.Op {
@@ -167,7 +214,7 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 			constraints[key] = ndb.GreaterThan(c.Value)
 		default:
 			slog.Error("invalid constraint operator", "operator", c.Op, "key", key, "code", logging.MODEL_SEARCH)
-			http.Error(w, fmt.Sprintf("invalid constraint operator '%s' for key '%s'", c.Op, key), http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("invalid constraint operator '%s' for key '%s'", c.Op, key), http.StatusUnprocessableEntity)
 			return
 		}
 	}
@@ -175,7 +222,7 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 	chunks, err := s.Ndb.Query(req.Query, req.Topk, constraints)
 	if err != nil {
 		slog.Error("ndb query error", "error", err, "code", logging.MODEL_SEARCH)
-		http.Error(w, fmt.Sprintf("ndb query error: %v", err), http.StatusInternalServerError)
+		http.Error(w, "could not process query", http.StatusInternalServerError)
 		return
 	}
 
@@ -224,7 +271,7 @@ func (s *NdbRouter) Insert(w http.ResponseWriter, r *http.Request) {
 
 type DeleteRequest struct {
 	DocIds            []string `json:"source_ids"`
-	KeepLatestVersion *bool    `json:"keep_latest_version,omitempty"`
+	KeepLatestVersion bool     `json:"keep_latest_version"`
 }
 
 func (s *NdbRouter) Delete(w http.ResponseWriter, r *http.Request) {
@@ -236,10 +283,7 @@ func (s *NdbRouter) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keepLatest := false
-	if req.KeepLatestVersion != nil {
-		keepLatest = *req.KeepLatestVersion
-	}
+	keepLatest := req.KeepLatestVersion
 
 	for _, docID := range req.DocIds {
 		if err := s.Ndb.Delete(docID, keepLatest); err != nil {
@@ -399,4 +443,115 @@ func (s *NdbRouter) ImplicitFeedback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *NdbRouter) HighlightedPdf(w http.ResponseWriter, r *http.Request) {
+}
+
+func (s *NdbRouter) GenerateFromReferences(w http.ResponseWriter, r *http.Request) {
+	slog.Info("generating from references")
+	var req llm_generation.GenerateRequest
+	if !utils.ParseRequestBody(w, r, &req) {
+		return
+	}
+
+	// query the cache first
+	if s.LLMCache != nil {
+		cachedResult, err := s.FindCachedResult(req)
+		if err != nil {
+			slog.Error("cache error", "error", err)
+		}
+
+		if cachedResult != "" {
+			// stream response rather than returning a json response
+			w.Header().Set("Content-Type", "text/event-stream")
+			flusher, ok := w.(http.Flusher)
+			if !ok {
+				slog.Error("streaming unsupported")
+				return
+			}
+			fmt.Fprintf(w, "data: %s\n\n", cachedResult)
+			flusher.Flush()
+			return
+		}
+
+		slog.Info("no cached result found, generating", "query", req.Query)
+	}
+
+	// if no cached result found, generate from scratch
+	if s.LLM == nil {
+		slog.Error("LLM provider not found")
+		http.Error(w, "LLM provider not found", http.StatusInternalServerError)
+		return
+	}
+
+	slog.Info("started generation", "query", req.Query)
+
+	llmRes, err := s.LLM.StreamResponse(req, w, r)
+	if err != nil {
+		// Any error has already been sent to the client, just return
+		return
+	}
+
+	slog.Info("completed generation", "query", req.Query, "llmRes", llmRes)
+
+	referenceIds := make([]uint64, len(req.References))
+	for i, ref := range req.References {
+		referenceIds[i] = ref.Id
+	}
+
+	if s.LLMCache != nil {
+		err = s.LLMCache.Insert(req.Query, llmRes, referenceIds)
+		if err != nil {
+			slog.Error("failed cache insertion", "error", err)
+		}
+	}
+}
+
+type CacheSuggestionsQuery struct {
+	Query string `json:"query"`
+}
+
+func (s *NdbRouter) CacheSuggestions(w http.ResponseWriter, r *http.Request) {
+	var req CacheSuggestionsQuery
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("request parsing error: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if s.LLMCache == nil {
+		http.Error(w, "LLM cache is not initialized", http.StatusInternalServerError)
+		return
+	}
+
+	suggestions, err := s.LLMCache.Suggestions(req.Query)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("cache suggestions error: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	err = json.NewEncoder(w).Encode(map[string]interface{}{"suggestions": suggestions})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("cache suggestions error: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *NdbRouter) FindCachedResult(generateRequest llm_generation.GenerateRequest) (string, error) {
+	if s.LLMCache == nil {
+		return "", fmt.Errorf("LLM cache is not initialized")
+	}
+
+	referenceIds := make([]uint64, len(generateRequest.References))
+	for i, ref := range generateRequest.References {
+		referenceIds[i] = ref.Id
+	}
+
+	result, err := s.LLMCache.Query(generateRequest.Query, referenceIds)
+	if err != nil {
+		return "", fmt.Errorf("cache query error: %v", err)
+	}
+
+	if result == "" {
+		return "", fmt.Errorf("no cached result found")
+	}
+
+	return result, nil
 }

@@ -80,22 +80,24 @@ export function WorkFlow({
   const toggleCollapseIcon = () => {
     setIsCollapsed(!isCollapsed);
   };
+
   useEffect(() => {
+    async function getModelsData() {
+      const modelData = await getModels();
+      const tempModelOwner: { [key: string]: string } = {}; // TypeScript object to store name as key and owner as value
+      if (modelData) {
+        for (let index = 0; index < modelData.length; index++) {
+          const name = modelData[index].name;
+          const owner = modelData[index].owner;
+          tempModelOwner[name] = owner;
+        }
+      }
+      setModelOwner(tempModelOwner);
+    }
+
     getModelsData();
   }, []);
 
-  async function getModelsData() {
-    const modelData = await getModels();
-    const tempModelOwner: { [key: string]: string } = {}; // TypeScript object to store name as key and owner as value
-    if (modelData) {
-      for (let index = 0; index < modelData.length; index++) {
-        const name = modelData[index].name;
-        const owner = modelData[index].owner;
-        tempModelOwner[name] = owner;
-      }
-    }
-    setModelOwner(tempModelOwner);
-  }
   function goToEndpoint() {
     switch (workflow.type) {
       case 'enterprise-search': {
@@ -120,23 +122,16 @@ export function WorkFlow({
         window.open(newUrl, '_blank');
         break;
       }
-      case 'udt': {
-        let prefix;
-        switch (workflow.sub_type) {
-          case 'token':
-            prefix = '/token-classification';
-            break;
-          case 'document':
-            prefix = '/doc-classification';
-            break;
-          case 'text':
-            prefix = '/text-classification';
-            break;
-          default:
-            prefix = '/text-classification';
-            break;
-        }
-        window.open(`${prefix}/${workflow.model_id}`, '_blank');
+      case 'nlp-token': {
+        window.open(`${'/token-classification'}/${workflow.model_id}`, '_blank');
+        break;
+      }
+      case 'nlp-text': {
+        window.open(`${'/text-classification'}/${workflow.model_id}`, '_blank');
+        break;
+      }
+      case 'nlp-doc': {
+        window.open(`${'/doc-classification'}/${workflow.model_id}`, '_blank');
         break;
       }
       default:
@@ -179,7 +174,7 @@ export function WorkFlow({
       setDeployStatus(DeployStatus.Starting);
       try {
         const autoscalingEnabled = mode === DeployMode.Production;
-        await start_workflow(workflow.username, workflow.model_name, autoscalingEnabled);
+        await start_workflow(workflow.model_id, autoscalingEnabled);
       } catch (e) {
         console.error('Failed to start workflow.', e);
       }
@@ -218,18 +213,20 @@ export function WorkFlow({
       } else {
         setDeployType('Enterprise Search');
       }
-    } else if (workflow.type === 'udt') {
-      if (workflow.sub_type === 'document') {
-        setDeployType('Document Classification');
-      } else if (workflow.sub_type === 'token') {
-        setDeployType('Text Extraction');
-      } else if (workflow.sub_type === 'text') {
-        setDeployType('Text Classification');
-      }
+    } else if (workflow.type === 'nlp-token') {
+      setDeployType('Text Extraction');
+    } else if (workflow.type === 'nlp-text') {
+      setDeployType('Text Classification');
     } else if (workflow.type === 'enterprise-search') {
-      setDeployType('Enterprise Search & Summarizer');
+      if (workflow.attributes.default_mode === 'chat') {
+        setDeployType('Chatbot');
+      } else {
+        setDeployType('Enterprise Search & Summarizer');
+      }
     } else if (workflow.type === 'knowledge-extraction') {
       setDeployType('Knowledge Extraction');
+    } else if (workflow.type === 'nlp-doc') {
+      setDeployType('Document Classification');
     }
   }, [workflow.type]);
 
@@ -260,44 +257,37 @@ export function WorkFlow({
   useEffect(() => {
     const fetchStatuses = async () => {
       try {
-        if (workflow.username && workflow.model_name) {
-          const modelIdentifier = `${workflow.username}/${workflow.model_name}`;
+        if (workflow.model_id) {
           const [trainStatus, deployStatus] = await Promise.all([
-            getTrainingStatus(modelIdentifier),
-            getDeployStatus(modelIdentifier),
+            getTrainingStatus(workflow.model_id),
+            getDeployStatus(workflow.model_id),
           ]);
 
           // Check training status
-          if (
-            trainStatus.data.train_status === 'failed' &&
-            (trainStatus.data.errors?.length > 0 || trainStatus.data.messages?.length > 0)
-          ) {
+          if (trainStatus.status === 'failed' && trainStatus.errors?.length > 0) {
             setError({
               type: 'training',
-              messages: [...(trainStatus.data.errors || []), ...(trainStatus.data.messages || [])],
+              messages: trainStatus.errors,
             });
           } else {
             setError(null);
           }
 
           // Check warnings separately
-          if (trainStatus.data.warnings?.length > 0) {
+          if (trainStatus.warnings?.length > 0) {
             setWarning({
               type: 'training',
-              messages: trainStatus.data.warnings,
+              messages: trainStatus.warnings,
             });
           } else {
             setWarning(null);
           }
 
           // Check deployment
-          if (
-            deployStatus.data.deploy_status === 'failed' &&
-            deployStatus.data.messages?.length > 0
-          ) {
+          if (deployStatus.status === 'failed' && deployStatus.errors?.length > 0) {
             setError({
               type: 'deployment',
-              messages: deployStatus.data.messages,
+              messages: deployStatus.errors,
             });
           }
         }
@@ -364,7 +354,8 @@ export function WorkFlow({
       setTimeout(() => document.body.removeChild(errorToast), 2000);
     }
   };
-
+  // Parse IST date string and convert to local date
+  const formattedDate = workflow.publish_date.split(' ')[0];
   return (
     <>
       <TableRow>
@@ -399,11 +390,12 @@ export function WorkFlow({
         </TableCell>
         <TableCell className="hidden md:table-cell text-center font-medium">{deployType}</TableCell>
         <TableCell className="hidden md:table-cell text-center font-medium">
-          {new Date(workflow.publish_date).toLocaleDateString('en-US', {
+          {/* {new Date(workflow.publish_date).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
-          })}
+          })} */}
+          {formattedDate}
         </TableCell>
         <TableCell className="hidden md:table-cell text-center font-medium">
           <Button
@@ -444,10 +436,7 @@ export function WorkFlow({
                   <DropdownMenuItem
                     onClick={async () => {
                       try {
-                        const response = await stop_workflow(
-                          workflow.username,
-                          workflow.model_name
-                        );
+                        const response = await stop_workflow(workflow.model_id);
                         console.log('Workflow undeployed successfully:', response);
                         // Optionally, update the UI state to reflect the undeployment
                         setDeployStatus(DeployStatus.Inactive);
@@ -461,15 +450,30 @@ export function WorkFlow({
                   </DropdownMenuItem>
                 )}
 
+                {/* New option for undeploying failed deployments */}
+                {deployStatus === DeployStatus.Failed && (
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      try {
+                        const response = await stop_workflow(workflow.model_id);
+                        console.log('Failed workflow undeployed successfully:', response);
+                        setDeployStatus(DeployStatus.Inactive);
+                      } catch (error) {
+                        console.error('Error undeploying failed workflow:', error);
+                        alert('Error undeploying workflow:' + error);
+                      }
+                    }}
+                  >
+                    <button type="button">Undeploy</button>
+                  </DropdownMenuItem>
+                )}
+
                 {(modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
                   <DropdownMenuItem
                     onClick={async () => {
                       if (window.confirm('Are you sure you want to delete this workflow?')) {
                         try {
-                          const response = await delete_workflow(
-                            workflow.username,
-                            workflow.model_name
-                          );
+                          const response = await delete_workflow(workflow.model_id);
                           console.log('Workflow deleted successfully:', response);
                         } catch (error) {
                           console.error('Error deleting workflow:', error);
@@ -495,7 +499,7 @@ export function WorkFlow({
                     </Link>
                   )}
 
-                {workflow.type === 'udt' && (
+                {(workflow.type === 'nlp-token' || workflow.type === 'nlp-text') && (
                   <Link
                     href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
                   >

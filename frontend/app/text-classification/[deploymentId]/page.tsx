@@ -96,9 +96,9 @@ export default function Page() {
       const result = await predict(text);
       console.log('result', result);
       setPredictions(
-        result.data.prediction_results.predicted_classes.map(([name, score]) => [
-          name,
-          Math.floor(score * 100),
+        result.data.prediction_results.predicted_classes.map((predClass) => [
+          predClass.class,
+          Math.floor(predClass.score * 100),
         ])
       );
       setProcessingTime(result.data.time_taken);

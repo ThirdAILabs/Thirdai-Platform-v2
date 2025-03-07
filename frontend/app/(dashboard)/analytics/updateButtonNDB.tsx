@@ -27,11 +27,9 @@ export default function UpdateButton({ modelName }: UpdateButtonProps) {
 
   // Extract parameters from URL
   const workflowId = params.get('id');
-  const username = params.get('username');
   const old_model_id = params.get('old_model_id');
-
   const handleUpdate = async () => {
-    if (!workflowId || !username || !modelName || !old_model_id) {
+    if (!workflowId || !modelName || !old_model_id) {
       setError('Missing required parameters');
       return;
     }
@@ -39,8 +37,6 @@ export default function UpdateButton({ modelName }: UpdateButtonProps) {
     setLoading(true);
     setError(null);
     setSuccess(false);
-
-    const base_model_identifier = `${username}/${modelName}`;
     const timestamp = generateTimestamp();
     const new_model_name = `${modelName}_${timestamp}`;
 
@@ -51,12 +47,12 @@ export default function UpdateButton({ modelName }: UpdateButtonProps) {
 
     try {
       // Stop the existing workflow
-      await stop_workflow(username, modelName);
+      await stop_workflow(workflowId);
 
       // Initiate retraining with new model name
       const retrainParams = {
         model_name: new_model_name,
-        base_model_identifier: base_model_identifier,
+        base_model_id: old_model_id,
         job_options: job_options,
       };
       await retrain_ndb(retrainParams);

@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/licensing"
-	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/orchestrator"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
 	"thirdai_platform/utils"
@@ -330,7 +330,7 @@ func jobLogHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job stri
 	utils.WriteSuccess(w)
 }
 
-func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad.NomadClient, job string) {
+func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c orchestrator.Client, job string) {
 	modelId, err := utils.URLParamUUID(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -384,8 +384,8 @@ func saveConfig(modelId uuid.UUID, jobType string, config interface{}, store sto
 	return filepath.Join(store.Location(), configPath), nil
 }
 
-func verifyLicenseForNewJob(nomad nomad.NomadClient, license *licensing.LicenseVerifier, jobCpuUsage int) (string, error) {
-	currentCpuUsage, err := nomad.TotalCpuUsage()
+func verifyLicenseForNewJob(orchestratorClient orchestrator.Client, license *licensing.LicenseVerifier, jobCpuUsage int) (string, error) {
+	currentCpuUsage, err := orchestratorClient.TotalCpuUsage()
 	if err != nil {
 		return "", CodedError(errors.New("unable to get cpu usage from nomad"), http.StatusInternalServerError)
 	}

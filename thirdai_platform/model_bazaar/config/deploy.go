@@ -1,10 +1,10 @@
 package config
 
 import (
-    "os"
-    "fmt"
-    "encoding/json"
-    "github.com/google/uuid"
+	"encoding/json"
+	"fmt"
+	"github.com/google/uuid"
+	"os"
 )
 
 type DeployConfig struct {
@@ -21,16 +21,16 @@ type DeployConfig struct {
 }
 
 func LoadDeployConfig(configPath string) (*DeployConfig, error) {
-    configData, err := os.ReadFile(configPath)
-    if err != nil {
-        return nil, fmt.Errorf("error reading config file: %w", err)
-    }
+	configData, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading config file: %w", err)
+	}
 
-    var config DeployConfig
-    err = json.Unmarshal(configData, &config)
-    if err != nil {
-        return nil, fmt.Errorf("error decoding config file: %w", err)
-    }
+	var config DeployConfig
+	err = json.Unmarshal(configData, &config)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding config file: %w", err)
+	}
 
-    return &config, nil
+	return &config, nil
 }

@@ -14,7 +14,8 @@ import {
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import { trainTokenClassifierWithCSV, validateTokenClassifierCSV } from '@/lib/backend';
+import { trainTokenClassifierWithCSV, validateCSV, uploadDocument } from '@/lib/backend';
+import { set } from 'lodash';
 
 interface CSVUploadProps {
   modelName: string;
@@ -65,7 +66,7 @@ const CSVUpload = ({ modelName, onSuccess, onError, workflowNames = [] }: CSVUpl
   const [warningMessage, setWarningMessage] = useState('');
   const [detectedLabels, setDetectedLabels] = useState<string[]>([]);
   const [showConfirmation, setShowConfirmation] = useState(false);
-
+  const [UploadId, setUploadId] = useState<string>('');
   const validateModelName = (name: string) => {
     if (workflowNames.includes(name)) {
       setWarningMessage('A model with this name already exists. Please choose a different name.');
@@ -111,24 +112,30 @@ const CSVUpload = ({ modelName, onSuccess, onError, workflowNames = [] }: CSVUpl
     setIsValidating(true);
 
     try {
-      const validationResult = await validateTokenClassifierCSV(file);
+      const { upload_id } = await uploadDocument(file);
 
-      if (!validationResult.valid) {
-        setError(validationResult.message);
+      if (!upload_id) {
+        setError('Error uploading file');
         setSelectedFile(null);
         return;
       }
 
-      if (validationResult.labels && validationResult.labels.length > 0) {
-        setDetectedLabels(validationResult.labels);
+      setUploadId(upload_id); //set the upload id to the state
+
+      const type = 'token';
+      const { labels } = await validateCSV({ upload_id, type });
+      if (labels && labels?.length > 0) {
+        setDetectedLabels(labels);
         setShowConfirmation(true);
       } else {
         setError('No valid token types found in the file');
         setSelectedFile(null);
+        setUploadId('');
       }
     } catch (error) {
       setError('Error validating file format');
       setSelectedFile(null);
+      setUploadId('');
     } finally {
       setIsValidating(false);
     }
@@ -157,16 +164,27 @@ const CSVUpload = ({ modelName, onSuccess, onError, workflowNames = [] }: CSVUpl
     try {
       const response = await trainTokenClassifierWithCSV({
         model_name: modelName,
-        file: selectedFile,
-        labels: detectedLabels,
-        test_split: 0.1,
+        model_options: {
+          target_labels: detectedLabels,
+          source_column: 'source',
+          target_column: 'target',
+          default_tag: 'O',
+        },
+        data: {
+          supervised_files: [
+            {
+              path: UploadId,
+              location: 'upload',
+            },
+          ],
+        },
       });
 
-      if (response.status === 'success') {
+      if (response?.model_id) {
         setSuccess(true);
         onSuccess?.();
       } else {
-        throw new Error(response.message || 'Failed to train model');
+        throw new Error('Failed to train model');
       }
     } catch (error) {
       const errorMessage =

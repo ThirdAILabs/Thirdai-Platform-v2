@@ -83,15 +83,13 @@ export default function Models() {
   // Function to handle model deletion
   const handleDeleteModel = async (index: number) => {
     const model = models[index];
-    const model_identifier = `${model.owner}/${model.name}`;
-
     try {
       const isConfirmed = window.confirm(
         `Are you sure you want to delete the model "${model.name}"?`
       );
       if (!isConfirmed) return;
 
-      await deleteModel(model_identifier);
+      await deleteModel(model.modelId);
       await getModelsData();
     } catch (error) {
       console.error('Failed to delete model', error);
@@ -113,7 +111,7 @@ export default function Models() {
         let value = false;
         if (user?.teams && model.type === 'Protected Model') {
           for (let itr = 0; itr < user?.teams.length; itr++) {
-            if (user?.teams[itr].team_id === model.team && user.teams[itr].role === 'team_admin') {
+            if (user?.teams[itr].team_id === model.team && user.teams[itr].team_admin) {
               value = true;
               break;
             }

@@ -68,7 +68,7 @@ class ClassificationModel(Model):
         self.temp_train_dir = tempfile.mkdtemp()
         train_files = get_local_file_infos(train_files, self.temp_train_dir)
         train_files = [file.path for file in train_files]
-
+        self.logger.info(f"Train files: {train_files}", code=LogCode.MODEL_TRAIN)
         self.logger.debug(f"Found {len(train_files)} train files")
 
         test_files = expand_cloud_buckets_and_directories(self.config.data.test_files)
@@ -76,7 +76,7 @@ class ClassificationModel(Model):
         self.temp_test_dir = tempfile.mkdtemp()
         test_files = get_local_file_infos(test_files, self.temp_test_dir)
         test_files = [file.path for file in test_files]
-
+        self.logger.info(f"Test files: {test_files}", code=LogCode.MODEL_TRAIN)
         self.logger.debug(f"Found {len(test_files)} test files")
 
         test_split = self.train_options.test_split

@@ -684,7 +684,6 @@ export class ModelService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...this.authHeader(),
         },
         body: JSON.stringify(args),
         signal: signal,
@@ -820,10 +819,11 @@ export class ModelService {
     }
   }
 
-  setChat(provider: string): Promise<any> {
+  setChat(provider: string, key?: string): Promise<any> {
     const url = new URL(this.url + '/update-chat-settings');
     const settings = {
       provider,
+      key,
     };
 
     return fetch(url, {

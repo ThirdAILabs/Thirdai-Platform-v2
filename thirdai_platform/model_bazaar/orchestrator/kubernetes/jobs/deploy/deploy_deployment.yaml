@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ .JobName }}"
+  labels:
+    app: "{{ .JobName }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "{{ .JobName }}"
+  template:
+    metadata:
+      labels:
+        app: "{{ .JobName }}"
+    spec:
+      containers:
+          {{- if not .IsKE }}
+        - name: backend
+          image: "{{ .Driver.Registry }}/{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
+          imagePullPolicy: IfNotPresent
+          command: ["python3"]
+          args:
+            - "-m"
+            - "uvicorn"
+            - "main:app"
+            - "--app-dir"
+            - "deployment_job"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "80"
+          env:
+            - name: CONFIG_PATH
+              value: "{{ .ConfigPath }}"
+            - name: JOB_TOKEN
+              value: "{{ .JobToken }}"
+              {{- with .CloudCredentials }}
+            - name: AWS_ACCESS_KEY
+              value: "{{ .AwsAccessKey }}"
+            - name: AWS_ACCESS_SECRET
+              value: "{{ .AwsAccessSecret }}"
+            - name: AWS_REGION_NAME
+              value: "{{ .AwsRegionName }}"
+            - name: AZURE_ACCOUNT_NAME
+              value: "{{ .AzureAccountName }}"
+            - name: AZURE_ACCOUNT_KEY
+              value: "{{ .AzureAccountKey }}"
+            - name: GCP_CREDENTIALS_FILE
+              value: "{{ .GcpCredentialsFile }}"
+              {{- end }}
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "{{ .Resources.AllocationCores }}"
+              memory: "{{ .Resources.AllocationMemory }}Mi"
+            limits:
+              memory: "{{ .Resources.AllocationMemoryMax }}Mi"
+          volumeMounts:
+            - name: model-bazaar
+              mountPath: "/model_bazaar"
+          {{- end }}
+
+          {{- if .IsKE }}
+        - name: knowledge-extraction-worker
+          image: "{{ .Driver.Registry }}/{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
+          imagePullPolicy: IfNotPresent
+          command: ["python3"]
+          args:
+            - "-m"
+            - "deployment_job.workers.knowledge_extraction"
+          env:
+            - name: CONFIG_PATH
+              value: "{{ .ConfigPath }}"
+            - name: JOB_TOKEN
+              value: "{{ .JobToken }}"
+              {{- with .CloudCredentials }}
+            - name: AWS_ACCESS_KEY
+              value: "{{ .AwsAccessKey }}"
+            - name: AWS_ACCESS_SECRET
+              value: "{{ .AwsAccessSecret }}"
+            - name: AWS_REGION_NAME
+              value: "{{ .AwsRegionName }}"
+            - name: AZURE_ACCOUNT_NAME
+              value: "{{ .AzureAccountName }}"
+            - name: AZURE_ACCOUNT_KEY
+              value: "{{ .AzureAccountKey }}"
+            - name: GCP_CREDENTIALS_FILE
+              value: "{{ .GcpCredentialsFile }}"
+              {{- end }}
+            - name: WORKER_CORES
+              value: "4"
+          resources:
+            requests:
+              cpu: "{{ .Resources.AllocationCores }}"
+              memory: "{{ .Resources.AllocationMemory }}Mi"
+            limits:
+              memory: "{{ .Resources.AllocationMemoryMax }}Mi"
+          {{- end }}
+      imagePullSecrets:
+        - name: docker-credentials-secret
+      volumes:
+        - name: model-bazaar
+          persistentVolumeClaim:
+            claimName: model-bazaar-pvc

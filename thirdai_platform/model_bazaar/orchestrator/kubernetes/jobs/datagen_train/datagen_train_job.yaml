@@ -1,0 +1,78 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ .JobName }}"
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: datagen
+          {{- with .Driver }}
+          image: "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          {{- end }}
+          command: ["python3"]
+          args:
+            - "-m"
+            - "data_generation_job.run"
+            - "--config"
+            - "{{ .DatagenConfigPath }}"
+          env:
+            - name: GENAI_KEY
+              value: "{{ .GenaiKey }}"
+          resources:
+            {{-  with .Resources }}
+            requests:
+              cpu: "{{ .AllocationCores }}"
+              memory: "{{ .AllocationMemory }}Mi"
+            limits:
+              memory: "{{ .AllocationMemoryMax }}Mi"
+            {{- end }}
+          volumeMounts:
+            - name: model-bazaar
+              mountPath: /model_bazaar
+
+      containers:
+        - name: backend
+          {{- with .Driver }}
+          image: "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          {{- end }}
+          command: ["python3"]
+          args:
+            - "-m"
+            - "train_job.run"
+            - "--config"
+            - "{{ .ConfigPath }}"
+          env:
+              {{- with .CloudCredentials }}
+            - name: AWS_ACCESS_KEY
+              value: "{{ .AwsAccessKey }}"
+            - name: AWS_ACCESS_SECRET
+              value: "{{ .AwsAccessSecret }}"
+            - name: AWS_REGION_NAME
+              value: "{{ .AwsRegionName }}"
+            - name: AZURE_ACCOUNT_NAME
+              value: "{{ .AzureAccountName }}"
+            - name: AZURE_ACCOUNT_KEY
+              value: "{{ .AzureAccountKey }}"
+            - name: GCP_CREDENTIALS_FILE
+              value: "{{ .GcpCredentialsFile }}"
+              {{- end }}
+          resources:
+            {{-  with .Resources }}
+            requests:
+              cpu: "{{ .AllocationCores }}"
+              memory: "{{ .AllocationMemory }}Mi"
+            limits:
+              memory: "{{ .AllocationMemoryMax }}Mi"
+            {{- end }}
+          volumeMounts:
+            - name: model-bazaar
+              mountPath: /model_bazaar
+      imagePullSecrets:
+        - name: docker-credentials-secret
+      volumes:
+        - name: model-bazaar
+          persistentVolumeClaim:
+            claimName: model-bazaar-pvc

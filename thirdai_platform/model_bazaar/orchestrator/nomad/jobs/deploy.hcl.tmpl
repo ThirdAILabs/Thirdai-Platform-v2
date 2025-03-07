@@ -1,0 +1,219 @@
+job "{{ .JobName }}" {
+  datacenters = ["dc1"]
+
+  type = "service"
+
+  # Autoscaling enabled
+  group "deployment" {
+    count = 1
+
+    {{ if not .IsKE }}
+    scaling {
+      enabled = {{ .AutoscalingEnabled }}
+      min = {{ .AutoscalingMin }}
+      max = {{ .AutoscalingMax }}
+      policy {
+        cooldown = "1m"
+        evaluation_interval = "30s"
+        check "avg_cpu" {
+          source = "nomad-apm"
+          query = "avg_cpu-allocated"
+          query_window = "1m"
+          strategy "target-value" {
+            target = 70
+          }
+        }
+      }
+    }
+    {{ end }}
+
+    network {
+      port "{{ .ModelId }}-http" {
+        {{ if isDocker .Driver }}
+          to = 80
+        {{ end }}
+      }
+    }
+
+    service {
+      name = "{{ .JobName }}"
+      port = "{{ .ModelId }}-http"
+      provider = "nomad"
+
+      tags = [
+        "traefik.enable=true",
+        "traefik.http.routers.{{ .ModelId }}-http.middlewares={{ .ModelId }}-stripprefix",
+        {{ if ne .DeploymentName "" }}
+        "traefik.http.routers.{{ .ModelId }}-http.rule=(PathPrefix(`/{{ .ModelId }}/`) || PathPrefix(`/{{ .DeploymentName }}/`))",
+        "traefik.http.middlewares.{{ .ModelId }}-stripprefix.stripprefix.prefixes=/{{ .ModelId }},/{{ .DeploymentName }}",
+        {{ else }}
+        "traefik.http.routers.{{ .ModelId }}-http.rule=PathPrefix(`/{{ .ModelId }}/`)",
+        "traefik.http.middlewares.{{ .ModelId }}-stripprefix.stripprefix.prefixes=/{{ .ModelId }}",
+        {{ end }}
+        "traefik.http.routers.{{ .ModelId }}-http.priority=10",
+        "traefik.http.services.deployment-{{ .ModelId }}.loadbalancer.healthcheck.path=/health",
+        "traefik.http.services.deployment-{{ .ModelId }}.loadbalancer.healthcheck.interval=10s",
+        "traefik.http.services.deployment-{{ .ModelId }}.loadbalancer.healthcheck.timeout=3s",
+        "traefik.http.services.deployment-{{ .ModelId }}.loadbalancer.healthcheck.scheme=http",
+      ]
+    }
+
+    task "backend" {
+      {{ if isLocal .Driver }}
+        driver = "raw_exec"
+      {{ else if isDocker .Driver }}  
+        driver = "docker"
+        kill_timeout = "15s"
+
+      template {
+        destination = "${NOMAD_SECRETS_DIR}/env.vars"
+        env         = true
+        change_mode = "restart"
+        data        = <<EOF
+{{ `{{- with nomadVar "nomad/jobs" -}}
+TASK_RUNNER_TOKEN = {{ .task_runner_token }}
+{{- end -}}` }}
+EOF
+      }
+
+      {{ end }}
+
+      env {
+        CONFIG_PATH = "{{ .ConfigPath }}"
+        {{ with .CloudCredentials }}
+        AWS_ACCESS_KEY = "{{ .AwsAccessKey }}"
+        AWS_ACCESS_SECRET = "{{ .AwsAccessSecret }}"
+        AWS_REGION_NAME = "{{ .AwsRegionName }}"
+        AZURE_ACCOUNT_NAME = "{{ .AzureAccountName }}"
+        AZURE_ACCOUNT_KEY = "{{ .AzureAccountKey }}"
+        GCP_CREDENTIALS_FILE = "{{ .GcpCredentialsFile }}"
+        {{ end }}
+        JOB_TOKEN = "{{ .JobToken }}"
+      }
+
+      config {
+        {{ if isDocker .Driver }} 
+          {{ with .Driver }}
+          image = "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          {{ end }}
+          image_pull_timeout = "15m"
+          ports = ["{{ .ModelId }}-http"]
+          group_add = ["4646"]
+          {{ with .Driver }}
+          auth {
+            username = "{{ .DockerUsername }}"
+            password = "{{ .DockerPassword }}"
+            server_address = "{{ .Registry }}"
+          }
+          volumes = [
+            "{{ .ShareDir }}:/model_bazaar",
+            "/opt/thirdai_platform:/thirdai_platform"
+          ]
+          {{ end }}
+          command = "python3"
+          args    = ["-m", "uvicorn", "main:app", "--app-dir", "deployment_job", "--host", "0.0.0.0", "--port", "80"]
+        {{ else if isLocal .Driver }}
+          command = "/bin/sh"
+          args    = ["-c", "cd {{ with .Driver }}{{ .PlatformDir }} && {{ .PythonPath }}{{ end }} -m uvicorn main:app --app-dir deployment_job --host 0.0.0.0 --port ${NOMAD_PORT_{{ replaceHyphen .ModelId }}_http}"]
+        {{ end }}
+      }
+
+      resources {
+        {{ with .Resources }}
+        cpu = {{ .AllocationMhz }}
+        memory = {{ .AllocationMemory }}
+        memory_max = {{ .AllocationMemoryMax }}
+        {{ end }}
+      }
+    }
+  }
+
+
+  {{ if .IsKE }}
+
+  group "knowledge-extraction" {
+    scaling {
+      enabled = "{{ .AutoscalingEnabled }}"
+      min = {{ .AutoscalingMin }}
+      max = {{ .AutoscalingMax }}
+      policy {
+        cooldown = "1m"
+        evaluation_interval = "30s"
+        check "avg_cpu" {
+          source = "nomad-apm"
+          query = "avg_cpu-allocated"
+          query_window = "1m"
+          strategy "target-value" {
+            target = 70
+          }
+        }
+      }
+    }
+
+    task "knowledge-extraction-worker" {
+      {{ if isLocal .Driver }}
+        driver = "raw_exec"
+      {{ else if isDocker .Driver }}  
+        driver = "docker"
+      {{ end }}
+
+      template {
+        destination = "${NOMAD_SECRETS_DIR}/env.vars"
+        env         = true
+        data        = <<EOF
+{{ `{{ range nomadService "` }}{{ .JobName }}{{ `" }}
+JOB_ENDPOINT = {{ .Address }}:{{ .Port }}
+{{- end -}}` }}
+EOF
+      }
+
+      config {
+        {{ if isDocker .Driver }}  
+          {{ with .Driver }}
+          image = "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          image_pull_timeout = "15m"
+          auth {
+            username = "{{ .DockerUsername }}"
+            password = "{{ .DockerPassword }}"
+            server_address = "{{ .Registry }}"
+          }
+          volumes = [
+            "{{ .ShareDir }}:/model_bazaar"
+          ]
+          command = "python3"
+          args    = ["-m", "deployment_job.workers.knowledge_extraction"]
+          {{ end }}
+        {{ else if isLocal .Driver }}
+          {{ with .Driver }}
+          command = "/bin/sh"
+          args    = ["-c", "cd {{ .PlatformDir }} && {{ .PythonPath }} -m deployment_job.workers.knowledge_extraction"]
+          {{ end }}
+        {{ end }}
+      }
+
+      env {
+        CONFIG_PATH = "{{ .ConfigPath }}"
+        {{ with .CloudCredentials }}
+        AWS_ACCESS_KEY = "{{ .AwsAccessKey }}"
+        AWS_ACCESS_SECRET = "{{ .AwsAccessSecret }}"
+        AWS_REGION_NAME = "{{ .AwsRegionName }}"
+        AZURE_ACCOUNT_NAME = "{{ .AzureAccountName }}"
+        AZURE_ACCOUNT_KEY = "{{ .AzureAccountKey }}"
+        GCP_CREDENTIALS_FILE = "{{ .GcpCredentialsFile }}"
+        {{ end }}
+        JOB_TOKEN = "{{ .JobToken }}"
+        {{ with $worker_cores := 4 }}
+        WORKER_CORES = "{{ $worker_cores }}"
+      }
+
+      resources {
+        cores = {{ $worker_cores }}
+        memory = 4000 
+        memory_max = 8000
+      }
+      {{ end }}
+    }
+  }
+
+  {{ end }}
+}

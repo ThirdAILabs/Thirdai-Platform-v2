@@ -483,6 +483,7 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
             "test_samples": self.test_sentences_generated,
         }
         save_dict(self.config_file_location, **dataset_config)
+        print(f"{dataset_config = }", flush=True)
 
         return dataset_config
 

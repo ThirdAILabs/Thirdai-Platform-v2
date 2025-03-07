@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: telemetry-service
+  labels:
+    app: telemetry
+spec:
+  selector:
+    app: telemetry
+  ports:
+    - name: victoriametrics
+      port: 8428
+      targetPort: 8428
+    - name: grafana
+      port: 3000
+      targetPort: 3000
+    - name: victorialogs
+      port: 9428
+      targetPort: 9428

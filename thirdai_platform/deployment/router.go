@@ -110,9 +110,6 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 		LLMCache:    llmCache,
 		LLM:         llm,
 	}, nil
-
-	slog.Info("opened ndb", "path", ndbPath, "code", logging.MODEL_INIT)
-	return &NdbRouter{ndb, config, reporter, &Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
 }
 
 func (s *NdbRouter) Close() {

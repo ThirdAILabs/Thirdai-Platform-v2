@@ -81,7 +81,7 @@ func TestLogging(t *testing.T) {
 	}
 
 	deployment.InitLogging(logFile, config)
-	testServer := makeNdbServer(t, config)
+	testServer, _ := makeNdbServer(t, config)
 	defer testServer.Close()
 
 	// Test insert logging

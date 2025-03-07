@@ -13,6 +13,8 @@ import (
 	"thirdai_platform/utils"
 	"thirdai_platform/utils/logging"
 
+	slogmulti "github.com/samber/slog-multi"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
@@ -52,6 +54,24 @@ type NdbRouter struct {
 	Permissions PermissionsInterface
 }
 
+func InitLogging(logFile *os.File, config *config.DeployConfig) {
+	// victoria logs option transform keys like msg and time into victoria log keys _msg and _time
+	var jsonHandler slog.Handler = slog.NewJSONHandler(logFile, logging.GetVictoriaLogsOptions(true))
+
+	// add default values to add to json logs
+	// these fields will be used for filtering logs
+	jsonHandler = jsonHandler.WithAttrs([]slog.Attr{
+		slog.String("service_type", "deployment"),
+		slog.String("model_id", config.ModelId.String()),
+		slog.String("user_id", config.UserId.String()),
+		slog.String("model_type", config.ModelType),
+	})
+	textHandler := slog.NewTextHandler(os.Stderr, nil)
+
+	logger := slog.New(slogmulti.Fanout(jsonHandler, textHandler))
+	slog.SetDefault(logger)
+}
+
 func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, error) {
 	ndbPath := filepath.Join(config.ModelBazaarDir, "models", config.ModelId.String(), "model", "model.ndb")
 	ndb, err := ndb.New(ndbPath)
@@ -60,6 +80,7 @@ func NewNdbRouter(config *config.DeployConfig, reporter Reporter) (*NdbRouter, e
 		return nil, fmt.Errorf("failed to open ndb: %v", err)
 	}
 
+	slog.Info("opened ndb", "path", ndbPath, "code", logging.MODEL_INIT)
 	return &NdbRouter{ndb, config, reporter, &Permissions{config.ModelBazaarEndpoint, config.ModelId}}, nil
 }
 
@@ -169,6 +190,7 @@ func (s *NdbRouter) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJsonResponse(w, &results)
+	slog.Debug("searched ndb", "query", req.Query, "top_k", req.Topk, "code", logging.MODEL_SEARCH)
 }
 
 type InsertRequest struct {
@@ -264,7 +286,7 @@ func (s *NdbRouter) Upvote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteSuccess(w)
-	slog.Debug("upvoted text pairs", "text_id_pairs", req.TextIdPairs, "code", logging.MODEL_RLHF)
+	slog.Debug("upvoted document", "text_id_pairs", req.TextIdPairs, "code", logging.MODEL_RLHF)
 }
 
 type AssociateInputSingle struct {
@@ -305,7 +327,7 @@ func (s *NdbRouter) Associate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteSuccess(w)
-	slog.Debug("associated text pairs", "text_pairs", req.TextPairs, "code", logging.MODEL_RLHF)
+	slog.Debug("associated text pairs", "code", logging.MODEL_RLHF)
 }
 
 type Source struct {

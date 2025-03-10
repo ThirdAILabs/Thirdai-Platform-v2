@@ -557,21 +557,34 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 
 	model := newModel(trainConfig.ModelId, modelName, trainConfig.ModelType, trainConfig.BaseModelId, user.Id)
 
+	cpuCores := 1
+	if s.variables.IsLocal {
+		cpuCores = 2
+	}
+
+	allocationMemory := trainConfig.JobOptions.AllocationMemory
+	allocationMemoryMax := 60000
+	if s.variables.IsLocal {
+		allocationMemory = 1000
+		allocationMemoryMax = 1000
+	}
+
 	job := orchestrator.DatagenTrainJob{
 		TrainJob: orchestrator.TrainJob{
 			JobName:    model.TrainJobName(),
 			ConfigPath: trainConfigPath,
 			Driver:     s.variables.BackendDriver,
 			Resources: orchestrator.Resources{
-				AllocationCores:     2,
+				AllocationCores:     cpuCores,
 				AllocationMhz:       trainConfig.JobOptions.CpuUsageMhz(),
-				AllocationMemory:    trainConfig.JobOptions.AllocationMemory,
-				AllocationMemoryMax: 60000,
+				AllocationMemory:    allocationMemory,
+				AllocationMemoryMax: allocationMemoryMax,
 			},
 			CloudCredentials: s.variables.CloudCredentials,
 		},
 		DatagenConfigPath: datagenConfigPath,
 		GenaiKey:          genaiKey,
+		IsLocal:           s.variables.IsLocal,
 	}
 
 	return s.saveModelAndStartJob(model, user, job)

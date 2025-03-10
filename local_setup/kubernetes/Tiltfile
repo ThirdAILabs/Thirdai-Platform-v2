@@ -1,0 +1,60 @@
+# Define Docker builds with auto trigger so they start building immediately.
+docker_build(
+  ref="thirdai_platform_jobs",
+  context="../../thirdai_platform_py",
+  dockerfile="../../thirdai_platform_py/Dockerfile",
+  extra_tag=["thirdai_platform_jobs:latest"],
+  build_args={
+      "use_local_wheel": "true",
+      "tag": "latest",
+  },
+  pull=True,
+)
+
+docker_build(
+  ref="thirdai_platform",
+  context="../../thirdai_platform",
+  dockerfile="../../thirdai_platform/Dockerfile",
+  extra_tag=["thirdai_platform:latest"],
+  build_args={
+      "tag": "latest",
+      "job_image_name": "thirdai_platform_jobs",
+      "frontend_image_name": "frontend",
+  },
+  pull=True,
+)
+
+docker_build(
+  ref="frontend",
+  context="../../frontend",
+  dockerfile="../../frontend/Dockerfile",
+  extra_tag=["frontend:latest"],
+  pull=True,
+  build_args={"PLATFORM": "local"},
+)
+
+# Load the Helm chart but mark it as manual.
+helm_yaml = helm(
+  'helm-local',
+  name='platform-local',
+  namespace='default',
+  values=['helm-local/values.yaml'],
+)
+k8s_yaml(helm_yaml)
+
+# Other resources (e.g. jobs) can remain unchanged.
+jobYamlsOutput = str(local("find /opt/model_bazaar/jobs -maxdepth 1 -type f -name '*.yaml'", quiet=True))
+jobYamls = jobYamlsOutput.strip().split("\n")
+
+if jobYamls and jobYamls[0]:
+    k8s_yaml(jobYamls)
+    for job in jobYamls:
+        job_name = job.split("/")[-1].replace(".yaml", "")
+        k8s_resource(
+            workload=job_name,
+            trigger_mode=TRIGGER_MODE_MANUAL
+        )
+else:
+    print("No job YAML files found.")
+
+watch_file("/opt/model_bazaar/jobs")

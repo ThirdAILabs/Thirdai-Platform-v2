@@ -17,7 +17,7 @@ spec:
       containers:
         - name: backend
           {{ with .Driver }}
-          image: "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          image: "{{ if .Registry }}{{ .Registry }}/{{ end }}{{ .ImageName }}:{{ .Tag }}"
           {{ end }}
           command: ["python3"]
           args:
@@ -44,15 +44,20 @@ spec:
               mountPath: "/model_bazaar"
           resources:
             requests:
-              cpu: "2400m"
-              memory: "5000Mi"
+              cpu: {{- if .IsLocal }} "500m" {{ else }} "2400m" {{ end }}
+              memory: {{- if .IsLocal }} "500Mi" {{ else }} "5000Mi" {{ end }}
             limits:
-              cpu: "2400m"
-              memory: "5000Mi"
+              cpu: {{- if .IsLocal }} "500m" {{ else }} "2400m" {{ end }}
+              memory: {{- if .IsLocal }} "500Mi" {{ else }} "5000Mi" {{ end }}
       imagePullSecrets:
         - name: docker-credentials-secret
       volumes:
         - name: model-bazaar
+          {{- if .IsLocal }}
+          persistentVolumeClaim:
+            claimName: modelbazaar-local-pvc
+          {{- else }}
           persistentVolumeClaim:
             claimName: model-bazaar-pvc
+          {{- end }}
 

@@ -1,0 +1,69 @@
+image:
+  repository: thirdai_platform
+  tag: latest
+  pullPolicy: Always
+  pullSecrets:
+    - name: docker-credentials-secret
+
+env:
+  - name: DATABASE_URI
+    value: "postgresql://postgres:newpassword@host.minikube.internal:5432/model_bazaar"
+  - name: PRIVATE_MODEL_BAZAAR_ENDPOINT
+    value: "http://host.minikube.internal/"
+  - name: INGRESS_HOSTNAME
+    value: "localhost"
+  - name: LICENSE_PATH
+    value: "/model_bazaar/jobs/ndb_enterprise_license.json"
+  - name: GENAI_KEY
+    value: "<GEN-AI>"
+  - name: SHARE_DIR
+    value: "/model_bazaar"
+  - name: JWT_SECRET
+    value: "CsnCr3lebs9eJQ"
+  - name: SENGRID_KEY
+    value: "sendgrid-key"
+  - name: IS_LOCAL
+    value: True
+  - name: ADMIN_USERNAME
+    value: "pratik"
+  - name: ADMIN_MAIL
+    value: "pratik@thirdai.com"
+  - name: ADMIN_PASSWORD
+    value: "Password@1"
+  - name: KEYCLOAK_SERVER_URL
+    value: "http://localhost:8180/"
+  - name: IDENTITY_PROVIDER
+    value: "postgres"
+  - name: GRAFANA_DB_URL
+    value: "postgres://postgres:password@host.docker.internal:5432/grafana"
+  - name: INGRESS_HOSTNAME
+    value: "localhost"
+  - name: KUBERNETES
+    value: "true"
+  - name: DOCKER_USERNAME
+    value: ""
+  - name: DOCKER_PASSWORD
+    value: ""
+  - name: DOCKER_REGISTRY
+    value: ""
+  - name: TAG
+    value: "latest"
+  - name: JOBS_IMAGE_NAME
+    value: "thirdai_platform_jobs"
+  - name: FRONTEND_IMAGE_NAME
+    value: "frontend"
+
+readinessProbe:
+  path: /api/v2/health
+  port: 8000
+  initialDelaySeconds: 60
+  periodSeconds: 30
+
+resources:
+  requests:
+    cpu: "1"
+    memory: "1500Mi"
+  limits:
+    cpu: "1"
+    memory: "1500Mi"
+

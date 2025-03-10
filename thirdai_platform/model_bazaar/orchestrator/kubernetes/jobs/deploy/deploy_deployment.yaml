@@ -17,8 +17,12 @@ spec:
       containers:
           {{- if not .IsKE }}
         - name: backend
-          image: "{{ .Driver.Registry }}/{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
+          image: "{{- if .Driver.Registry }}{{ .Driver.Registry }}/{{- end }}{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
+          {{- if .IsLocal }}
+          imagePullPolicy: Always
+          {{- else }}
           imagePullPolicy: IfNotPresent
+          {{- end }}
           command: ["python3"]
           args:
             - "-m"
@@ -52,11 +56,19 @@ spec:
           ports:
             - containerPort: 80
           resources:
+            {{- if .IsLocal }}
+            requests:
+              cpu: "1"
+              memory: "1000Mi"
+            limits:
+              memory: "1000Mi"
+            {{- else }}
             requests:
               cpu: "{{ .Resources.AllocationCores }}"
               memory: "{{ .Resources.AllocationMemory }}Mi"
             limits:
               memory: "{{ .Resources.AllocationMemoryMax }}Mi"
+            {{- end }}
           volumeMounts:
             - name: model-bazaar
               mountPath: "/model_bazaar"
@@ -64,7 +76,7 @@ spec:
 
           {{- if .IsKE }}
         - name: knowledge-extraction-worker
-          image: "{{ .Driver.Registry }}/{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
+          image: "{{- if .Driver.Registry }}{{ .Driver.Registry }}/{{- end }}{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
           imagePullPolicy: IfNotPresent
           command: ["python3"]
           args:
@@ -102,5 +114,10 @@ spec:
         - name: docker-credentials-secret
       volumes:
         - name: model-bazaar
+          {{- if .IsLocal }}
+          persistentVolumeClaim:
+            claimName: modelbazaar-local-pvc
+          {{- else }}
           persistentVolumeClaim:
             claimName: model-bazaar-pvc
+          {{- end }}

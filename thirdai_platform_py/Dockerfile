@@ -10,22 +10,33 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install -y postgresql-client-17
 
+
+# Define build argument to toggle between local and PyPI versions of thirdai
+ARG use_local_wheel=false
+
+# Copy the local wheel only if using local setup
+COPY files/thirdai-0.9.27-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl /app/thirdai-0.9.27-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
+
+# TODO(pratik): Add actions to build arm wheels and push to PyPI
+# Install thirdai package based on the argument
+RUN if [ "$use_local_wheel" = "true" ]; then \
+    python3 -m pip install /app/thirdai-0.9.27-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl[neural_db_v2]; \
+    else \
+    python3 -m pip install "thirdai[neural_db_v2]>=0.9.21"; \
+    fi
+
 # Install dependencies before copying the directory so python dependencies are 
 # cached even when there are changes in the directory.
 COPY requirements.txt /app/requirements.txt
 RUN pip install -r /app/requirements.txt
 
-# Install thirdai package separately since this is the dependency that changes
-# the most often. This allows the other packages to stay cached.
-RUN python3 -m pip install thirdai[neural_db_v2]>=0.9.21
+# Ensure latest version of langchain-community is installed
 RUN python3 -m pip install -U langchain-community
 
 COPY . /app
 
-# Disable outbound telemetry for the Unstructured library
+# Disable outbound telemetry for Unstructured and HuggingFace
 ENV SCARF_NO_ANALYTICS=true
-
-# Disable outbound telemetry for the HuggingFace library
 ENV HF_HUB_DISABLE_TELEMETRY=1
 
 # Download nltk models

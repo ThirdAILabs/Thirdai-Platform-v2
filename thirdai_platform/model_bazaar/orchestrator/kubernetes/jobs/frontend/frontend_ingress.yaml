@@ -3,7 +3,9 @@ kind: Ingress
 metadata:
   name: thirdai-platform-frontend
   annotations:
+    {{- if not .IsLocal }}
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    {{- end }}
     nginx.ingress.kubernetes.io/proxy-body-size: "100m"
 spec:
   ingressClassName: nginx

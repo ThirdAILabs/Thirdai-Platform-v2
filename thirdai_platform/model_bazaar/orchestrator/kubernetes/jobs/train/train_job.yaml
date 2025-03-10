@@ -12,8 +12,16 @@ spec:
       restartPolicy: Never
       containers:
       - name: backend
+        {{- if .Driver.Registry }}
         image: "{{ .Driver.Registry }}/{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
+        {{- else }}
+        image: "{{ .Driver.ImageName }}:{{ .Driver.Tag }}"
+        {{- end }}
+        {{- if .IsLocal }}
+        imagePullPolicy: Always
+        {{- else }}
         imagePullPolicy: IfNotPresent
+        {{- end }}
         command: ["python3"]
         args: ["-m", "train_job.run", "--config", "{{ .ConfigPath }}"]
         env:
@@ -35,10 +43,19 @@ spec:
             value: "/model_bazaar/pretrained-models"
         resources:
           requests:
+            {{- if .IsLocal }}
+            cpu: "2"
+            memory: "1000Mi"
+            {{- else }}
             cpu: "{{ .Resources.AllocationCores }}"
             memory: "{{ .Resources.AllocationMemory }}Mi"
+            {{- end }}
           limits:
+            {{- if .IsLocal }}
+            memory: "1000Mi"
+            {{- else }}
             memory: "{{ .Resources.AllocationMemoryMax }}Mi"
+            {{- end }}
         volumeMounts:
           - name: model-bazaar
             mountPath: "/model_bazaar"
@@ -46,5 +63,10 @@ spec:
         - name: docker-credentials-secret
       volumes:
         - name: model-bazaar
+          {{- if .IsLocal }}
+          persistentVolumeClaim:
+            claimName: modelbazaar-local-pvc
+          {{- else }}
           persistentVolumeClaim:
             claimName: model-bazaar-pvc
+          {{- end }}

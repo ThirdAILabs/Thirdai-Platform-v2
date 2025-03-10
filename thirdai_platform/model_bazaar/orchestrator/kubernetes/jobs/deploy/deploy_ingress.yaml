@@ -4,8 +4,10 @@ metadata:
   name: "{{ .JobName }}"
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$1
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    {{- if not .IsLocal }}
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    {{- end }}
 spec:
   ingressClassName: nginx
   rules:
@@ -19,7 +21,20 @@ spec:
                 name: "{{ .JobName }}"
                 port:
                   number: 80
+    {{- if .IsLocal }}
+    - host: host.minikube.internal
+      http:
+        paths:
+          - path: /{{ .ModelId }}/(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: "{{ .JobName }}"
+                port:
+                  number: 80
+    {{- end }}
 
+{{- if not .IsLocal }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -41,3 +56,4 @@ spec:
                 name: "{{ .JobName }}"
                 port:
                   number: 80
+{{- end }}

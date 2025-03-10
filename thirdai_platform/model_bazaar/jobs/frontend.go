@@ -13,6 +13,7 @@ type FrontendJobArgs struct {
 	MajorityCriticalServiceNodes int
 	UseSslInLogin                bool
 	OpenaiKey                    string
+	IsLocal                      bool
 }
 
 func StartFrontendJob(orchestratorClient orchestrator.Client, driver orchestrator.DockerDriver, args FrontendJobArgs) error {
@@ -27,6 +28,7 @@ func StartFrontendJob(orchestratorClient orchestrator.Client, driver orchestrato
 		UseSslInLogin:                args.UseSslInLogin,
 		Driver:                       driver,
 		IngressHostname:              orchestratorClient.IngressHostname(),
+		IsLocal:                      args.IsLocal,
 	}
 
 	err := orchestratorClient.StartJob(job)

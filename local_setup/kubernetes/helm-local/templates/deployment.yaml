@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: modelbazaar
+spec:
+  selector:
+    matchLabels:
+      app: modelbazaar
+  template:
+    metadata:
+      labels:
+        app: modelbazaar
+    spec:
+      serviceAccountName: modelbazaar-sa
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
+      imagePullSecrets:
+        - name: docker-credentials-secret
+      containers:
+        - name: modelbazaar
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+{{- range .Values.env }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+{{- end }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.readinessProbe.path }}
+              port: {{ .Values.readinessProbe.port }}
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+          resources:
+            requests:
+              cpu: "{{ .Values.resources.requests.cpu }}"
+              memory: "{{ .Values.resources.requests.memory }}"
+            limits:
+              cpu: "{{ .Values.resources.limits.cpu }}"
+              memory: "{{ .Values.resources.limits.memory }}"
+          volumeMounts:
+            - name: shared-modelbazaar
+              mountPath: /model_bazaar
+            - name: jobs-volume
+              mountPath: /opt/model_bazaar/jobs
+          securityContext:
+            privileged: true
+            runAsUser: 0
+            allowPrivilegeEscalation: true
+            capabilities:
+              add: ["ALL"]
+      volumes:
+        - name: shared-modelbazaar
+          persistentVolumeClaim:
+            claimName: modelbazaar-local-pvc
+        - name: jobs-volume
+          hostPath:
+            path: /opt/model_bazaar/jobs
+            type: DirectoryOrCreate

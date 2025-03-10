@@ -22,6 +22,7 @@ type Variables struct {
 	CloudCredentials orchestrator.CloudCredentials
 
 	LlmProviders map[string]string
+	IsLocal      bool
 }
 
 func (vars *Variables) DockerEnv() orchestrator.DockerEnv {

@@ -13,8 +13,9 @@ func StartOnPremGenerationJobDefaultArgs(
 	orchestratorClient orchestrator.Client,
 	storage storage.Storage,
 	docker orchestrator.DockerEnv,
+	isLocal bool,
 ) error {
-	return StartOnPremGenerationJob(orchestratorClient, storage, docker, "", true, true, -1)
+	return StartOnPremGenerationJob(orchestratorClient, storage, docker, "", true, true, -1, isLocal)
 }
 
 const genaiModelsPath = "pretrained-models/genai"
@@ -27,6 +28,7 @@ func StartOnPremGenerationJob(
 	restart bool,
 	autoscaling bool,
 	coresPerAllocation int,
+	isLocal bool,
 ) error {
 	slog.Info("starting on-prem-generation job")
 	if model == "" {
@@ -68,6 +70,7 @@ func StartOnPremGenerationJob(
 			AllocationCores:     coresPerAllocation,
 		},
 		IngressHostname: orchestratorClient.IngressHostname(),
+		IsLocal:         isLocal,
 	}
 
 	if !restart {

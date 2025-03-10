@@ -39,6 +39,7 @@ type modelBazaarEnv struct {
 	Kubernetes                 string
 	ShareDir                   string
 	JwtSecret                  string
+	IsLocal                    bool `default:"false"`
 
 	AdminUsername string
 	AdminEmail    string
@@ -117,6 +118,7 @@ func loadEnv() modelBazaarEnv {
 
 		ShareDir:  requiredEnv("SHARE_DIR"),
 		JwtSecret: requiredEnv("JWT_SECRET"),
+		IsLocal:   optionalEnv("IS_LOCAL") == "true",
 
 		AdminUsername: requiredEnv("ADMIN_USERNAME"),
 		AdminEmail:    requiredEnv("ADMIN_MAIL"),
@@ -132,9 +134,9 @@ func loadEnv() modelBazaarEnv {
 
 		MajorityCriticalServiceNodes: utils.IntEnvVar("MAJORITY_CRITICAL_SERVICE_NODES", 1),
 
-		DockerRegistry: requiredEnv("DOCKER_REGISTRY"),
-		DockerUsername: requiredEnv("DOCKER_USERNAME"),
-		DockerPassword: requiredEnv("DOCKER_PASSWORD"),
+		DockerRegistry: optionalEnv("DOCKER_REGISTRY"),
+		DockerUsername: optionalEnv("DOCKER_USERNAME"),
+		DockerPassword: optionalEnv("DOCKER_PASSWORD"),
 		Tag:            utils.OptionalEnv("TAG"),
 		BackendImage:   utils.OptionalEnv("JOBS_IMAGE_NAME"),
 		FrontendImage:  utils.OptionalEnv("FRONTEND_IMAGE_NAME"),
@@ -170,6 +172,10 @@ func loadEnv() modelBazaarEnv {
 	}
 	if env.NomadEndpoint != "" && env.NomadToken == "" {
 		log.Fatal("Must specify TASK_RUNNER_TOKEN when using NOMAD_ENDPOINT")
+	}
+
+	if !env.IsLocal && (env.DockerPassword == "" || env.DockerUsername == "" || env.DockerRegistry == "") {
+		log.Fatal("When not running locally, must specify DOCKER_REGISTRY, DOCKER_USERNAME, and DOCKER_PASSWORD")
 	}
 
 	return env
@@ -293,6 +299,13 @@ func main() {
 	}
 	defer auditLog.Close()
 
+	if _, err := os.Stat(filepath.Join(env.ShareDir, "jobs/")); os.IsNotExist(err) {
+		err = os.MkdirAll(filepath.Join(env.ShareDir, "jobs/"), 0777)
+		if err != nil {
+			log.Fatalf("error creating job directory: %v", err)
+		}
+	}
+
 	initLogging(logFile)
 
 	db := initDb(env.postgresDsn())
@@ -328,6 +341,7 @@ func main() {
 		ModelBazaarEndpoint: env.PrivateModelBazaarEndpoint,
 		CloudCredentials:    env.CloudCredentials,
 		LlmProviders:        env.llmProviders(),
+		IsLocal:             env.IsLocal,
 	}
 
 	var identityProvider auth.IdentityProvider
@@ -376,14 +390,14 @@ func main() {
 		[]byte(env.JwtSecret),
 	)
 
-	if !*skipAll && !*skipCache {
-		err = jobs.StartLlmCacheJob(orchestratorClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
+	if !env.IsLocal && !*skipAll && !*skipCache {
+		err = jobs.StartLlmCacheJob(orchestratorClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir, env.IsLocal)
 		if err != nil {
 			log.Fatalf("failed to start llm cache job: %v", err)
 		}
 	}
 
-	if !*skipAll && !*skipDispatch {
+	if !env.IsLocal && !*skipAll && !*skipDispatch {
 		err = jobs.StartLlmDispatchJob(orchestratorClient, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
 		if err != nil {
 			log.Fatalf("failed to start llm dispatch job: %v", err)
@@ -419,6 +433,7 @@ func main() {
 			MajorityCriticalServiceNodes: env.MajorityCriticalServiceNodes,
 			UseSslInLogin:                env.UseSslInLogin,
 			OpenaiKey:                    variables.LlmProviders["openai"],
+			IsLocal:                      env.IsLocal,
 		}
 		err = jobs.StartFrontendJob(orchestratorClient, env.FrontendDriver(), frontendArgs)
 		if err != nil {

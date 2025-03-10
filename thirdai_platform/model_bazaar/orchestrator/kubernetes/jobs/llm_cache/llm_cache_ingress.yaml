@@ -3,7 +3,9 @@ kind: Ingress
 metadata:
   name: llm-cache
   annotations:
+    {{- if not .IsLocal }}
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    {{- end }}
     nginx.ingress.kubernetes.io/proxy-body-size: "100m"
 spec:
   ingressClassName: nginx
@@ -18,7 +20,22 @@ spec:
                 name: llm-cache
                 port:
                   number: 80
+    {{- if .IsLocal }}
+    - host: host.minikube.internal
+      http:
+      paths:
+        - path: /cache/
+        pathType: Prefix
+        backend:
+          service:
+          name: llm-cache
+          port:
+            number: 80
+    {{- end }}
 
+
+
+{{- if not .IsLocal }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -39,3 +56,4 @@ spec:
                 name: llm-cache
                 port:
                   number: 80
+{{- end }}

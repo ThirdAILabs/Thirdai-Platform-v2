@@ -18,7 +18,22 @@ spec:
                 name: llm-dispatch
                 port:
                   number: 80
+    {{- if .IsLocal }}
+    - host: host.minikube.internal
+      http:
+      paths:
+        - path: /llm-dispatch/
+        pathType: Prefix
+        backend:
+          service:
+          name: llm-dispatch
+          port:
+            number: 80
+    {{- end }}
 
+
+
+{{- if not .IsLocal }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -39,3 +54,4 @@ spec:
                 name: llm-dispatch
                 port:
                   number: 80
+{{- end }}

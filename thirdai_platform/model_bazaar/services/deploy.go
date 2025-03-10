@@ -220,6 +220,7 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 				JobToken:           uuid.New().String(),
 				IsKE:               isKE,
 				IngressHostname:    s.orchestratorClient.IngressHostname(),
+				IsLocal:            s.variables.IsLocal,
 			},
 		)
 		var newStatus string
@@ -247,7 +248,7 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 	}
 
 	if requiresOnPremLlm {
-		err := jobs.StartOnPremGenerationJobDefaultArgs(s.orchestratorClient, s.storage, s.variables.DockerEnv())
+		err := jobs.StartOnPremGenerationJobDefaultArgs(s.orchestratorClient, s.storage, s.variables.DockerEnv(), s.variables.IsLocal)
 		if err != nil {
 			slog.Error("error starting on-prem-generation job", "error", err)
 			return CodedError(errors.New("unable to start on prem generation job"), http.StatusInternalServerError)

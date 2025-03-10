@@ -17,7 +17,7 @@ spec:
       containers:
         - name: backend
           {{ with .Driver }}
-          image: "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          image: "{{ if .Registry }}{{ .Registry }}/{{ end }}{{ .ImageName }}:{{ .Tag }}"
           {{ end }}
           command: ["python3"]
           args:
@@ -38,11 +38,20 @@ spec:
           ports:
             - containerPort: 80
           resources:
+            {{- if .IsLocal }}
+            requests:
+              cpu: "200m"
+              memory: "500Mi"
+            limits:
+              cpu: "200m"
+              memory: "500Mi"
+            {{- else }}
             requests:
               cpu: "500m"
               memory: "1000Mi"
             limits:
               cpu: "500m"
               memory: "1000Mi"
+            {{- end }}
       imagePullSecrets:
         - name: docker-credentials-secret

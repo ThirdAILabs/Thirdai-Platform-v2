@@ -9,8 +9,7 @@ spec:
       restartPolicy: Never
       initContainers:
         - name: datagen
-          {{- with .Driver }}
-          image: "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
+          image: "{{ if .Registry }}{{ .Registry }}/{{ end }}{{ .ImageName }}:{{ .Tag }}"
           {{- end }}
           command: ["python3"]
           args:
@@ -74,5 +73,10 @@ spec:
         - name: docker-credentials-secret
       volumes:
         - name: model-bazaar
+          {{- if .IsLocal }}
+          persistentVolumeClaim:
+            claimName: modelbazaar-local-pvc
+          {{- else }}
           persistentVolumeClaim:
             claimName: model-bazaar-pvc
+          {{- end }}

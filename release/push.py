@@ -47,6 +47,11 @@ def get_args() -> argparse.Namespace:
         action="store_true",
         help="If this flag is present, we dont update the scope with latest images, helpful for running docker tests.",
     )
+    parser.add_argument(
+        "--platform",
+        default="linux/x86_64"
+        help="The platform to build the image for. E.g. 'linux/x86_64', 'linux/arm64', etc.",
+    )
     return parser.parse_args()
 
 
@@ -81,6 +86,7 @@ def build_image(
     tag: str,
     buildargs: Dict[str, str],
     nocache: bool,
+    platform: str,
     dockerfile_path: str,
     context_path: str,
 ) -> Dict[str, str]:
@@ -106,7 +112,7 @@ def build_image(
 
     full_name = provider.get_full_image_name(name, branch, tag)
     image_id = provider.build_image(
-        str(dockerfile_path), str(context_path), full_name, nocache, buildargs
+        str(dockerfile_path), str(context_path), full_name, nocache, buildargs, platform
     )
     return {name: image_id}
 
@@ -118,6 +124,7 @@ def build_images(
     username: str,
     password: str,
     nocache: bool,
+    platform: str,
 ) -> Dict[str, str]:
     """
     Build all Docker images.
@@ -332,7 +339,13 @@ def main() -> None:
 
         # Build images
         image_ids = build_images(
-            provider, args.branch, tag, pull_username, pull_password, args.no_cache
+            provider,
+            args.branch,
+            tag,
+            pull_username,
+            pull_password,
+            args.no_cache,
+            args.platform,
         )
 
         verify_tag(provider, image_ids, tag, args.branch)

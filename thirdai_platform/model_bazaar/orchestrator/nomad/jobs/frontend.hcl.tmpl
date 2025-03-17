@@ -47,11 +47,12 @@ job "thirdai-platform-frontend" {
       env {
         NEXT_PUBLIC_OPENAI_API_KEY = "{{ .OpenaiApiKey }}"
         NEXT_PUBLIC_IDENTITY_PROVIDER = "{{ .IdentityProvider }}"
-        KEYCLOAK_CLIENT_ID = "thirdai-login-client"
+        KEYCLOAK_CLIENT_ID = "thirdai-platform-login"
         KEYCLOAK_CLIENT_SECRET = ""
         KEYCLOAK_ISSUER = "https://{{ .KeycloakServerHostname }}/keycloak/realms/ThirdAI-Platform"
         AUTH_TRUST_HOST = "true"
         NEXTAUTH_SECRET = "{{ .NextAuthSecret }}"
+        NODE_TLS_REJECT_UNAUTHORIZED = "0"
 
         {{ if .UseSslInLogin }}
         NODE_EXTRA_CA_CERTS = "/certs/traefik.crt"

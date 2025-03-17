@@ -19,10 +19,9 @@ spec:
           {{ with .Docker }}
           image: "{{ .Registry }}/llama.cpp:server"
           {{ end }}
-          command: ["python3"]
           args:
             - "-m"
-            - "/model_bazaar/pretrained-models/{{ .ModelName }}"
+            - "/model_bazaar/pretrained-models/genai/{{ .ModelName }}"
             - "-c"
             - "8192"
             - "--host"

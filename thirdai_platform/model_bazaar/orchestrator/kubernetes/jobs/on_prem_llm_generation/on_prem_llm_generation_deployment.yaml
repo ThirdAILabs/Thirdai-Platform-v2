@@ -33,6 +33,7 @@ spec:
             - "{{ .Resources.AllocationCores }}"
             - "--threads-http"
             - "{{ .Resources.AllocationCores }}"
+            - "--cache-prompt"
           ports:
             - containerPort: 80
           volumeMounts:

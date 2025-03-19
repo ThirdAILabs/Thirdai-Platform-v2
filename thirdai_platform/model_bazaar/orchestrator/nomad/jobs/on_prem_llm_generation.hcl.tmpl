@@ -80,7 +80,8 @@ job "on-prem-llm-generation" {
           "--port", "${NOMAD_PORT_on_prem_generation_http}",
           {{ with .Resources }}
           "--threads", {{ .AllocationCores }},
-          "--threads-http", {{ .AllocationCores }}
+          "--threads-http", {{ .AllocationCores }},
+          "--cache-prompt"
           {{ end }}
         ]
       }

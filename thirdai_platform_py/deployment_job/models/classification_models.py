@@ -47,6 +47,10 @@ class ClassificationModel(Model):
     def predict(self, **kwargs):
         pass
 
+    @abstractmethod
+    def predict_batch(self, **kwargs):
+        pass
+
 
 class TextClassificationModel(ClassificationModel):
     def __init__(self, config: DeploymentConfig, logger: JobLogger):
@@ -130,6 +134,34 @@ class TextClassificationModel(ClassificationModel):
                 query_text=text,
                 predicted_classes=predicted_classes,
             )
+        except Exception as e:
+            self.logger.error(f"Error predicting: {e}", code=LogCode.MODEL_PREDICT)
+            raise e
+
+    def predict_batch(self, texts: List[str], top_k: int, **kwargs):
+        try:
+            top_k = min(top_k, self.num_classes)
+            predictions = self.model.predict_batch(
+                [{self.text_col: text} for text in texts], top_k=top_k
+            )
+            predicted_classes = [
+                [
+                    {
+                        "class": self.model.class_name(class_id),
+                        "score": float(activation),
+                    }
+                    for class_id, activation in zip(*prediction)
+                ]
+                for prediction in predictions
+            ]
+
+            return [
+                SearchResultsTextClassification(
+                    query_text=text,
+                    predicted_classes=predicted_class,
+                )
+                for text, predicted_class in zip(texts, predicted_classes)
+            ]
         except Exception as e:
             self.logger.error(f"Error predicting: {e}", code=LogCode.MODEL_PREDICT)
             raise e
@@ -254,6 +286,39 @@ class TokenClassificationModel(ClassificationModel):
             raise e
 
         return result
+
+    def predict_batch(self, texts: List[str], data_type: str, **kwargs):
+        try:
+            if data_type == "unstructured":
+                logs = [UnstructuredText(text) for text in texts]
+            elif data_type == "xml":
+                logs = [XMLLog(text) for text in texts]
+            else:
+                raise ValueError(
+                    "Expected data type to be either 'unstructured' or 'xml'. Found: {data_type}"
+                )
+
+            model_predictions = self.model.predict_batch(
+                [log.inference_sample for log in logs], top_k=1, as_unicode=True
+            )
+            results = [
+                log.process_prediction(model_prediction)
+                for log, model_prediction in zip(logs, model_predictions)
+            ]
+
+        except ValueError as e:
+            message = f"Error processing prediction: {e}"
+            self.logger.error(message, code=LogCode.MODEL_PREDICT)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=message,
+            )
+        except Exception as e:
+            message = f"Error processing prediction: {e}"
+            self.logger.error(message, code=LogCode.MODEL_PREDICT)
+            raise e
+
+        return results
 
     @property
     def tag_metadata(self) -> TagMetadata:

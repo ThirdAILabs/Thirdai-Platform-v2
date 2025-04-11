@@ -1,5 +1,11 @@
+import json
 import os
+import shutil
 import time
+import uuid
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import List, Optional
 
 from deployment_job.models.classification_models import (
     ClassificationModel,
@@ -8,20 +14,33 @@ from deployment_job.models.classification_models import (
 )
 from deployment_job.permissions import Permissions
 from deployment_job.pydantic_models.inputs import (
+    DocumentList,
     TextAnalysisPredictParams,
     TokenAnalysisPredictParams,
 )
 from deployment_job.reporter import Reporter
+from deployment_job.routers.knowledge_extraction import JOB_TOKEN
 from deployment_job.throughput import Throughput
-from fastapi import APIRouter, Depends, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.encoders import jsonable_encoder
 from platform_common.dependencies import is_on_low_disk
+from platform_common.file_handler import download_local_files
 from platform_common.logging import JobLogger, LogCode
 from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
 from platform_common.pii.data_types import (
     UnstructuredTokenClassificationResults,
     XMLTokenClassificationResults,
 )
+from platform_common.pii.schema import Base, UDTReport
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.thirdai_storage.data_types import (
     LabelCollection,
@@ -31,11 +50,29 @@ from platform_common.thirdai_storage.data_types import (
 )
 from platform_common.utils import response
 from prometheus_client import Summary
+from pydantic import BaseModel, ValidationError
+from sqlalchemy import and_, create_engine, or_
+from sqlalchemy.orm import Session, scoped_session, sessionmaker
 from thirdai import neural_db as ndb
 
 udt_predict_metric = Summary("udt_predict", "UDT predictions")
 
 udt_query_length = Summary("udt_query_length", "Distribution of query lengths")
+
+
+def verify_job_token(request: Request):
+    auth_header = request.headers.get("Authorization")
+    if auth_header.split(" ", 1)[1] != JOB_TOKEN:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="invalid access token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return None
+
+
+MAX_ATTEMPTS = 3
+REPORT_TIMEOUT = timedelta(minutes=10)
 
 
 class UDTBaseRouter:
@@ -50,8 +87,33 @@ class UDTBaseRouter:
         self.queries_ingested_bytes = Throughput()
 
         self.router = APIRouter()
+
+        self.reports_base_path = (
+            Path(config.model_bazaar_dir) / "models" / config.model_id / "reports"
+        )
+        self.reports_base_path.mkdir(parents=True, exist_ok=True)
+
+        self.db_path = (
+            Path(config.model_bazaar_dir)
+            / "models"
+            / config.model_id
+            / "reports"
+            / "report.db"
+        )
+
+        self.engine = self._initialize_db()
+        self.Session = scoped_session(sessionmaker(bind=self.engine))
+
         self.router.add_api_route("/stats", self.stats, methods=["GET"])
         self.router.add_api_route("/get-text", self.get_text, methods=["POST"])
+
+    def _initialize_db(self):
+        if not self.db_path.parent.exists():
+            self.db_path.parent.mkdir(parents=True)
+
+        engine = create_engine(f"sqlite:///{self.db_path}")
+        Base.metadata.create_all(engine)
+        return engine
 
     @staticmethod
     def get_model(config: DeploymentConfig, logger: JobLogger) -> ClassificationModel:
@@ -154,6 +216,9 @@ class UDTBaseRouter:
             },
         )
 
+    def get_session(self) -> Session:
+        return self.Session()
+
 
 class UDTRouterTextClassification(UDTBaseRouter):
     def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: JobLogger):
@@ -247,6 +312,12 @@ class UDTRouterTextClassification(UDTBaseRouter):
             message="Successful",
             data=jsonable_encoder(recent_samples),
         )
+
+
+class UpdateReportRequest(BaseModel):
+    new_status: str
+    attempt: int
+    msg: Optional[str] = (None,)
 
 
 class UDTRouterTokenClassification(UDTBaseRouter):
@@ -440,3 +511,255 @@ class UDTRouterTokenClassification(UDTBaseRouter):
             message="Successful",
             data=response_data,
         )
+
+    def new_report(
+        self,
+        documents: str = Form(...),
+        tags: str = Form(None),
+        files: List[UploadFile] = [],
+        _=Depends(Permissions.verify_permission("write")),
+    ):
+        try:
+            documents = DocumentList.model_validate_json(documents).documents
+        except ValidationError as e:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Invalid format for document report",
+                data={"details": str(e), "documents": documents},
+            )
+
+        if not documents:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="No documents supplied for report. Must supply at least one document.",
+            )
+
+        report_id = str(uuid.uuid4())
+
+        documents = download_local_files(
+            files=files,
+            file_infos=documents,
+            dest_dir=self.reports_base_path / report_id / "documents",
+        )
+
+        with open(self.reports_base_path / report_id / "documents.json", "w") as file:
+            json.dump([doc.model_dump() for doc in documents], file)
+
+        custom_tags = tags if tags is not None else "[]"
+
+        with self.get_session() as session:
+            new_report = UDTReport(
+                id=report_id,
+                status="queued",
+                submitted_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+                custom_tags=custom_tags,
+            )
+            session.add(new_report)
+            session.commit()
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully submitted the documents to get the report, use the report_id to check the status.",
+            data={"report_id": str(report_id)},
+        )
+
+    def get_report(
+        self, report_id: str, _=Depends(Permissions.verify_permission("read"))
+    ):
+        with self.get_session() as session:
+            report: UDTReport = session.query(UDTReport).get(report_id)
+
+            if not report:
+                return response(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    message=f"Report with ID '{report_id}' not found.",
+                )
+
+            with open(
+                self.reports_base_path / report_id / "documents.json", "r"
+            ) as file:
+                documents = json.load(file)
+
+            report_data = {
+                "report_id": report.id,
+                "status": report.status,
+                "submitted_at": report.submitted_at,
+                "updated_at": report.updated_at,
+                "documents": documents,
+                "msg": report.msg,
+            }
+
+            if report.status == "complete":
+                report_file_path = (
+                    self.reports_base_path / report_id / f"report_{report.attempt}.json"
+                )
+
+                if not report_file_path.exists():
+                    if report.status == "complete":
+                        return response(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            message=f"Processed reports directory for ID '{report_id}' is missing.",
+                        )
+
+                try:
+                    with open(report_file_path) as file:
+                        report_data["content"] = json.load(file)
+                except Exception as e:
+                    self.logger.error(
+                        f"Failed to read document report {report_file_path}: {e}"
+                    )
+
+                    return response(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        message=f"failed to load report content",
+                    )
+
+            return response(
+                status_code=status.HTTP_200_OK,
+                message="Successfully retrieved the report details.",
+                data=jsonable_encoder(report_data),
+            )
+
+    def delete_report(
+        self, report_id: str, _=Depends(Permissions.verify_permission("write"))
+    ):
+        with self.get_session() as session:
+            report = session.query(UDTReport).get(report_id)
+
+            if not report:
+                return response(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    message=f"Report with ID '{report_id}' not found.",
+                )
+
+            session.delete(report)
+            session.commit()
+
+        report_path = self.reports_base_path / report_id
+        if report_path.exists() and report_path.is_dir():
+            try:
+                shutil.rmtree(report_path)
+            except Exception as e:
+                return response(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    message=f"Failed to delete report files for ID '{report_id}'.",
+                    data={"details": str(e)},
+                )
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message=f"Successfully deleted report with ID '{report_id}'.",
+        )
+
+    def list_reports(self, _=Depends(Permissions.verify_permission("read"))):
+        with self.get_session() as session:
+            reports = session.query(UDTReport).all()
+
+        data = [
+            {
+                "report_id": report.id,
+                "status": report.status,
+                "submitted_at": report.submitted_at,
+                "updated_at": report.updated_at,
+            }
+            for report in reports
+        ]
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully retrieved the reports.",
+            data=jsonable_encoder(data),
+        )
+
+    def update_report_status(
+        self,
+        report_id: str,
+        params: UpdateReportRequest,
+        _=Depends(verify_job_token),
+    ):
+        try:
+            with self.get_session() as session:
+                report = session.query(UDTReport).get(report_id)
+                if not report:
+                    return response(
+                        status_code=status.HTTP_404_BAD_REQUEST,
+                        message=f"report {report_id} not found",
+                    )
+
+                if report.attempt != params.attempt:
+                    return response(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        message="invalid attempt number, this report has been assigned to a new worker",
+                    )
+
+                report.status = params.new_status
+                report.updated_at = datetime.utcnow()
+                report.msg = params.msg
+                session.commit()
+                self.logger.info(
+                    f"updated status of report {report_id} to {params.new_status}"
+                )
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message="updated report status",
+                )
+        except Exception as e:
+            self.logger.error(
+                f"error updating report status of {report_id} to {params.new_status}: {e}"
+            )
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message="An error occurred while updating report status.",
+                data={"details": str(e)},
+            )
+
+    def next_unprocessed_report(self, _=Depends(verify_job_token)):
+        try:
+            self.logger.info("checking for unprocessed reports")
+            with self.get_session() as session:
+                report = (
+                    session.query(UDTReport)
+                    .where(
+                        or_(
+                            UDTReport.status == "queued",
+                            and_(
+                                UDTReport.status == "in_progress",
+                                UDTReport.attempt < MAX_ATTEMPTS,
+                                UDTReport.updated_at
+                                < (datetime.utcnow() - REPORT_TIMEOUT),
+                            ),
+                        )
+                    )
+                    .order_by(UDTReport.submitted_at.asc())  # Process oldest first
+                    .with_for_update(skip_locked=True)  # Lock row to prevent conflicts
+                    .first()
+                )
+                if report:
+                    self.logger.info(f"found unprocessed report: {report.id}")
+                    report.status = "in_progress"
+                    report.attempt += 1
+                    report.updated_at = datetime.utcnow()
+                    session.commit()
+
+                    return response(
+                        status_code=status.HTTP_200_OK,
+                        message="found unprocessed report",
+                        data={"report_id": report.id, "attempt": report.attempt},
+                    )
+                else:
+                    self.logger.info("no unprocessed reports found")
+
+                    return response(
+                        status_code=status.HTTP_200_OK,
+                        message="no unprocessed reports found",
+                        data={"report_id": None, "attempt": None},
+                    )
+
+        except Exception as e:
+            self.logger.error(f"error checking for unprocessed report: {e}")
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message="An error occurred while checking for unprocessed reports.",
+                data={"details": str(e)},
+            )

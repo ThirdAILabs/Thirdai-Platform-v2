@@ -16,14 +16,6 @@ azure:
         password: F2yp3m5uWE/8liQ6lFyGTtZxlMgpirMRStAcdQc6Mu+ACRB6nTfH
         username: thirdaiplatform-push-docker-tests
       version: 0.0.1
-    k8s_telemetry:
-      pull_credentials:
-        password: R1nzrtz5V/jEzre3i3DH0HP3ujDqNekl+eMDhgCta5+ACRCMFIwJ
-        username: thirdaiplatform-pull-k8s-telemetry
-      push_credentials:
-        password: dxwy5rEEvG29Nx6xKH2O1mAqYjQsbxstAP8BoDBOwy+ACRC9nGut
-        username: thirdaiplatform-push-k8s-telemetry
-      version: 0.0.1
     frontend-keycloak:
       pull_credentials:
         password: 9O/dSuSgUaIHdu5tQp45xySaSQ7FJhZLv1kPCfDaxG+ACRCeCgsx
@@ -39,6 +31,14 @@ azure:
       push_credentials:
         password: t53jJc//6Bypn8U7SAl46SxgiX+qH042PJBxLLHGcQ+ACRBGarrQ
         username: thirdaiplatform-push-go-images
+      version: 0.0.1
+    k8s_telemetry:
+      pull_credentials:
+        password: R1nzrtz5V/jEzre3i3DH0HP3ujDqNekl+eMDhgCta5+ACRCMFIwJ
+        username: thirdaiplatform-pull-k8s-telemetry
+      push_credentials:
+        password: dxwy5rEEvG29Nx6xKH2O1mAqYjQsbxstAP8BoDBOwy+ACRC9nGut
+        username: thirdaiplatform-push-k8s-telemetry
       version: 0.0.1
     local_registry:
       pull_credentials:
@@ -118,6 +118,14 @@ azure:
       push_credentials:
         password: PkCR7YWr0zG/sW6rZex19qzQdR4A1QNg7RXWFKCBGt+ACRDolvsb
         username: thirdaiplatform-push-test-3
+      version: 0.0.1
+    v2:
+      pull_credentials:
+        password: JVzqhkZmSGfBjIWImO0+hApr9T4kVeSfi9CtIvkCWy+ACRD+ya71
+        username: thirdaiplatform-pull-v2
+      push_credentials:
+        password: w9G7P+JUR2PbZC4+sIwj8eeO1J0PaOYITfAIRBs9rl+ACRB5xoIK
+        username: thirdaiplatform-push-v2
       version: 0.0.1
   registry: thirdaiplatform.azurecr.io
 provider: azure

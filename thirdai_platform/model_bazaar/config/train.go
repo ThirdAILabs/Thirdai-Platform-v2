@@ -50,9 +50,15 @@ func validateFileInfo(files []TrainFile) error {
 }
 
 type NdbOptions struct {
-	ModelType      string `json:"model_type"`
-	OnDisk         *bool  `json:"on_disk"`
-	AdvancedSearch bool   `json:"advanced_search"`
+	ModelType                     string                     `json:"model_type"`
+	OnDisk                        *bool                      `json:"on_disk"`
+	AdvancedSearch                bool                       `json:"advanced_search"`
+	AutopopulateDocMetadataFields []AutopopulateMetadataInfo `json:"autopopulate_doc_metadata_fields,omitempty"`
+}
+
+type AutopopulateMetadataInfo struct {
+	AttributeName string `json:"attribute_name"`
+	Description   string `json:"description"`
 }
 
 func (opts *NdbOptions) Validate() error {

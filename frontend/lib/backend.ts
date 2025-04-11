@@ -299,12 +299,30 @@ export async function train_ndb({ name, formData }: TrainNdbParams): Promise<any
   }
 
   const { upload_id } = (await uploadResponse.json()) as UploadResponse;
-  console.log('Upload response:', upload_id); // Debug log
+  console.log('Upload response:', upload_id);
+
+  // Extract model_options from formData
+  let modelOptions: any = {};
+  const modelOptionsStr = formData.get('model_options');
+  if (modelOptionsStr && typeof modelOptionsStr === 'string') {
+    try {
+      modelOptions = JSON.parse(modelOptionsStr);
+
+      // IMPORTANT: Instead of setting autopopulate_doc_metadata_fields directly,
+      // we need to include it as a raw JSON property
+      if (modelOptions.autopopulate_doc_metadata_fields) {
+        console.log('Found metadata fields:', modelOptions.autopopulate_doc_metadata_fields);
+      }
+    } catch (e) {
+      console.error('Error parsing model_options:', e);
+    }
+  }
 
   // Step 2: Train NDB with upload ID
   const requestData = {
     model_name: name,
-    model_options: {},
+    // Here's the key change - we pass the raw JSON directly to bypass the Go struct validation
+    model_options: modelOptions,
     data: {
       unsupervised_files: [
         {
@@ -314,6 +332,8 @@ export async function train_ndb({ name, formData }: TrainNdbParams): Promise<any
       ],
     },
   };
+
+  console.log('Sending training request with data:', JSON.stringify(requestData, null, 2));
 
   const trainResponse = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/train/ndb`, {
     method: 'POST',
@@ -2640,4 +2660,151 @@ export async function trainNLPTextModel(params: {
     }
     throw new Error('Failed to train NLP model');
   }
+}
+
+export interface DocumentMetadataResponse {
+  status_code: number;
+  message: string;
+  data: {
+    [key: string]: string | number; // Metadata is a key-value pair
+  };
+}
+
+// Improved getDocumentMetadata function with better error handling
+export async function getDocumentMetadata(
+  deploymentUrl: string,
+  sourceId: string
+): Promise<DocumentMetadataResponse> {
+  const accessToken = getAccessToken();
+
+  return new Promise((resolve, reject) => {
+    console.log(`Requesting metadata for source_id: ${sourceId}`);
+    console.log(`URL: ${deploymentUrl}/doc_metadata with param source_id=${sourceId}`);
+
+    axios
+      .get<DocumentMetadataResponse>(`${deploymentUrl}/doc_metadata`, {
+        params: {
+          source_id: sourceId,
+        },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+      .then((res) => {
+        console.log(`Metadata response for ${sourceId}:`, res.data);
+        resolve(res.data);
+      })
+      .catch((err) => {
+        console.error(`Error fetching document metadata for ${sourceId}:`, err);
+
+        // More detailed error logging
+        // Type the error for axios
+        if (axios.isAxiosError(err)) {
+          if (err.response) {
+            // The request was made and the server responded with a status code
+            // that falls out of the range of 2xx
+            console.error(`Status: ${err.response.status}`);
+            console.error(`Data:`, err.response.data);
+            console.error(`Headers:`, err.response.headers);
+
+            // Pass more specific error message based on status code
+            if (err.response.status === 404) {
+              reject(new Error(`Metadata not found for document (404)`));
+            } else if (err.response.status === 401 || err.response.status === 403) {
+              reject(new Error(`Authentication error accessing metadata (${err.response.status})`));
+            } else {
+              reject(
+                new Error(
+                  `Server error: ${err.response.status} - ${err.response.data?.message || 'Unknown error'}`
+                )
+              );
+            }
+          } else if (err.request) {
+            // The request was made but no response was received
+            console.error('No response received:', err.request);
+            reject(new Error('No response received from server'));
+          } else {
+            // Something happened in setting up the request that triggered an Error
+            console.error('Error setting up request:', err.message);
+            reject(new Error(`Request setup error: ${err.message}`));
+          }
+        } else {
+          // Not an axios error
+          console.error('Unknown error:', err);
+          reject(new Error('Unknown error occurred'));
+        }
+      });
+  });
+}
+
+export interface Source {
+  source: string;
+  source_id: string;
+}
+
+export interface SourcesResponse {
+  data: Source[];
+}
+
+export async function getSources(deploymentUrl: string): Promise<Source[]> {
+  const accessToken = getAccessToken();
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get<SourcesResponse>(`${deploymentUrl}/sources`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+      .then((res) => {
+        resolve(res.data.data);
+      })
+      .catch((err) => {
+        console.error('Error fetching sources:', err);
+        reject(new Error('Failed to fetch sources'));
+      });
+  });
+}
+
+export interface NewMetadata {
+  metadata: {
+    [key: string]: string | number;
+  };
+}
+
+export interface UpdateMetadataResponse {
+  status_code: number;
+  message: string;
+}
+
+export async function updateDocumentMetadata(
+  deploymentUrl: string,
+  sourceId: string,
+  metadata: NewMetadata
+): Promise<UpdateMetadataResponse> {
+  const accessToken = getAccessToken();
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post<UpdateMetadataResponse>(`${deploymentUrl}/doc_metadata`, metadata, {
+        params: {
+          source_id: sourceId,
+        },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      })
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        console.error('Error updating document metadata:', err);
+        if (err.response?.data?.message) {
+          reject(new Error(err.response.data.message));
+        } else {
+          reject(new Error('Failed to update document metadata'));
+        }
+      });
+  });
 }

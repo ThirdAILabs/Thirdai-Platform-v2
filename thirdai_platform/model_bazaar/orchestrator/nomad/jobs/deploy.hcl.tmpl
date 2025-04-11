@@ -7,7 +7,7 @@ job "{{ .JobName }}" {
   group "deployment" {
     count = 1
 
-    {{ if not .IsKE }}
+    {{ if not .WorkerEnabled }}
     scaling {
       enabled = {{ .AutoscalingEnabled }}
       min = {{ .AutoscalingMin }}
@@ -61,20 +61,20 @@ job "{{ .JobName }}" {
     task "backend" {
       {{ if isLocal .Driver }}
         driver = "raw_exec"
-      {{ else if isDocker .Driver }}  
+      {{ else if isDocker .Driver }}
         driver = "docker"
         kill_timeout = "15s"
 
-      template {
-        destination = "${NOMAD_SECRETS_DIR}/env.vars"
-        env         = true
-        change_mode = "restart"
-        data        = <<EOF
+        template {
+          destination = "${NOMAD_SECRETS_DIR}/env.vars"
+          env         = true
+          change_mode = "restart"
+          data        = <<EOF
 {{ `{{- with nomadVar "nomad/jobs" -}}
 TASK_RUNNER_TOKEN = {{ .task_runner_token }}
 {{- end -}}` }}
 EOF
-      }
+        }
 
       {{ end }}
 
@@ -92,7 +92,7 @@ EOF
       }
 
       config {
-        {{ if isDocker .Driver }} 
+        {{ if isDocker .Driver }}
           {{ with .Driver }}
           image = "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
           {{ end }}
@@ -129,9 +129,8 @@ EOF
   }
 
 
-  {{ if .IsKE }}
-
-  group "knowledge-extraction" {
+  {{ if .WorkerEnabled }}
+  group "worker" {
     scaling {
       enabled = "{{ .AutoscalingEnabled }}"
       min = {{ .AutoscalingMin }}
@@ -150,17 +149,17 @@ EOF
       }
     }
 
-    task "knowledge-extraction-worker" {
+    task "{{ .WorkerType }}-worker" {
       {{ if isLocal .Driver }}
         driver = "raw_exec"
-      {{ else if isDocker .Driver }}  
+      {{ else if isDocker .Driver }}
         driver = "docker"
       {{ end }}
 
-      template {
-        destination = "${NOMAD_SECRETS_DIR}/env.vars"
-        env         = true
-        data        = <<EOF
+        template {
+          destination = "${NOMAD_SECRETS_DIR}/env.vars"
+          env         = true
+          data        = <<EOF
 {{ `{{ range nomadService "` }}{{ .JobName }}{{ `" }}
 JOB_ENDPOINT = {{ .Address }}:{{ .Port }}
 {{- end -}}` }}
@@ -168,7 +167,7 @@ EOF
       }
 
       config {
-        {{ if isDocker .Driver }}  
+        {{ if isDocker .Driver }}
           {{ with .Driver }}
           image = "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
           image_pull_timeout = "15m"
@@ -181,12 +180,23 @@ EOF
             "{{ .ShareDir }}:/model_bazaar"
           ]
           command = "python3"
-          args    = ["-m", "deployment_job.workers.knowledge_extraction"]
+          args = [ "-m",
+            {{ if eq .WorkerType "knowledge_extraction" }}
+              "deployment_job.workers.knowledge_extraction"
+            {{ else if eq .WorkerType "text_extraction" }}
+              "deployment_job.workers.text_extraction"
+            {{ else }}
+              "error"  // unknown worker type
+            {{ end }}
+          ]
           {{ end }}
         {{ else if isLocal .Driver }}
           {{ with .Driver }}
           command = "/bin/sh"
-          args    = ["-c", "cd {{ .PlatformDir }} && {{ .PythonPath }} -m deployment_job.workers.knowledge_extraction"]
+          args = ["-c", "cd {{ .PlatformDir }} && {{ .PythonPath }} -m deployment_job.workers." 
+            {{ if eq .WorkerType "knowledge_extraction" }} "knowledge_extraction"
+            {{ else if eq .WorkerType "text_extraction" }} "text_extraction"
+            {{ else }} "error" {{ end }}]
           {{ end }}
         {{ end }}
       }

@@ -337,6 +337,25 @@ class UDTRouterTokenClassification(UDTBaseRouter):
             "/get_recent_samples", self.get_recent_samples, methods=["GET"]
         )
         self.router.add_api_route("/predict", self.predict, methods=["POST"])
+        self.router.add_api_route(
+            "/report/create",
+            self.new_report,
+            methods=["POST"],
+            dependencies=[Depends(is_on_low_disk(path=self.config.model_bazaar_dir))],
+        )
+        self.router.add_api_route(
+            "/report/{report_id}", self.get_report, methods=["GET"]
+        )
+        self.router.add_api_route(
+            "/report/{report_id}", self.delete_report, methods=["DELETE"]
+        )
+        self.router.add_api_route("/reports", self.list_reports, methods=["GET"])
+        self.router.add_api_route(
+            "/report/{report_id}/status", self.update_report_status, methods=["POST"]
+        )
+        self.router.add_api_route(
+            "/report/next", self.next_unprocessed_report, methods=["POST"]
+        )
 
     @staticmethod
     def get_model(config: DeploymentConfig, logger: JobLogger) -> ClassificationModel:

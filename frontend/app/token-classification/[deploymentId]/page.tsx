@@ -18,10 +18,7 @@ export default function Page() {
         <div className="max-w-7xl mx-auto space-y-4">
           <Breadcrumb>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Home</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="#" aria-current="page">{workflowName}</BreadcrumbLink>
+              <BreadcrumbLink href="#" aria-current="page">Token Classification</BreadcrumbLink>
             </BreadcrumbItem>
           </Breadcrumb>
           

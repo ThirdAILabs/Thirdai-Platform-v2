@@ -10,6 +10,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card } from '@/components/ui/card';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 
 interface Job {
   id: string;
@@ -48,12 +50,16 @@ const jobs: Job[] = [
 ];
 
 export default function Jobs() {
+  const params = useParams();
+  
   return (
     <Card>
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-semibold">Jobs</h2>
-          <Button>New</Button>
+          <Link href={`/token-classification/${params.deploymentId}/jobs/new`}>
+            <Button>New</Button>
+          </Link>
         </div>
 
         <div className="rounded-md border">
@@ -94,7 +100,12 @@ export default function Jobs() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <button className="text-primary hover:underline">View</button>
+                    <Link
+                      href={`/token-classification/${params.deploymentId}/jobs/${job.id}`}
+                      className="text-primary hover:underline"
+                    >
+                      View
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))}

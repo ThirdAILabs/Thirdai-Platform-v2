@@ -19,7 +19,6 @@ from deployment_job.pydantic_models.inputs import (
     TokenAnalysisPredictParams,
 )
 from deployment_job.reporter import Reporter
-from deployment_job.routers.knowledge_extraction import JOB_TOKEN
 from deployment_job.throughput import Throughput
 from fastapi import (
     APIRouter,
@@ -59,6 +58,7 @@ udt_predict_metric = Summary("udt_predict", "UDT predictions")
 
 udt_query_length = Summary("udt_query_length", "Distribution of query lengths")
 
+JOB_TOKEN = os.environ["JOB_TOKEN"]
 
 def verify_job_token(request: Request):
     auth_header = request.headers.get("Authorization")
@@ -341,7 +341,7 @@ class UDTRouterTokenClassification(UDTBaseRouter):
             "/report/create",
             self.new_report,
             methods=["POST"],
-            dependencies=[Depends(is_on_low_disk(path=self.config.model_bazaar_dir))],
+            dependencies=[Depends(is_on_low_disk(path=config.model_bazaar_dir))],
         )
         self.router.add_api_route(
             "/report/{report_id}", self.get_report, methods=["GET"]

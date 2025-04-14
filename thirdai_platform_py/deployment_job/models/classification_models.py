@@ -299,7 +299,7 @@ class TokenClassificationModel(ClassificationModel):
                 )
 
             model_predictions = self.model.predict_batch(
-                [log.inference_sample for log in logs], top_k=1, as_unicode=True
+                [log.inference_sample for log in logs], top_k=1
             )
             results = [
                 log.process_prediction(model_prediction)
@@ -307,6 +307,7 @@ class TokenClassificationModel(ClassificationModel):
             ]
 
         except ValueError as e:
+            import traceback; traceback.print_exc();
             message = f"Error processing prediction: {e}"
             self.logger.error(message, code=LogCode.MODEL_PREDICT)
             raise HTTPException(

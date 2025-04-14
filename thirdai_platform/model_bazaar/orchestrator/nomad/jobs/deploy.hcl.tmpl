@@ -179,6 +179,7 @@ EOF
           volumes = [
             "{{ .ShareDir }}:/model_bazaar"
           ]
+          {{ end }}
           command = "python3"
           args = [ "-m",
             {{ if eq .WorkerType "knowledge_extraction" }}
@@ -189,14 +190,13 @@ EOF
               "error"  // unknown worker type
             {{ end }}
           ]
-          {{ end }}
         {{ else if isLocal .Driver }}
-          {{ with .Driver }}
           command = "/bin/sh"
-          args = ["-c", "cd {{ .PlatformDir }} && {{ .PythonPath }} -m deployment_job.workers." 
-            {{ if eq .WorkerType "knowledge_extraction" }} "knowledge_extraction"
-            {{ else if eq .WorkerType "text_extraction" }} "text_extraction"
-            {{ else }} "error" {{ end }}]
+          {{ if eq .WorkerType "knowledge_extraction" }}
+          args = ["-c", "cd {{ .Driver.PlatformDir }} && {{ .Driver.PythonPath }} -m deployment_job.workers.knowledge_extraction"]
+          {{ else if eq .WorkerType "text_extraction" }}
+          args = ["-c", "cd {{ .Driver.PlatformDir }} && {{ .Driver.PythonPath }} -m deployment_job.workers.text_extraction"]
+          {{ else }} "error"  // unknown worker type
           {{ end }}
         {{ end }}
       }

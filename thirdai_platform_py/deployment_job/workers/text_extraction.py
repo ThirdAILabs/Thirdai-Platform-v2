@@ -6,9 +6,10 @@ from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urljoin
 
+from fastapi.encoders import jsonable_encoder
 import requests
 import torch
-from deployment_job.models.classification_models import ClassificationModel
+from deployment_job.models.classification_models import TokenClassificationModel
 from platform_common.file_handler import expand_cloud_buckets_and_directories
 from platform_common.logging import setup_logger
 from platform_common.ndb.ndbv1_parser import parse_doc
@@ -37,7 +38,7 @@ class UDTRReportProcessorWorker:
         self.job_endpoint = "http://" + os.getenv("JOB_ENDPOINT") + "/"
         self.auth_header = {"Authorization": f"Bearer {os.environ['JOB_TOKEN']}"}
 
-        self.model = ClassificationModel(config=self.config, logger=self.logger)
+        self.model = TokenClassificationModel(config=self.config, logger=self.logger)
 
         cores = int(os.getenv("WORKER_CORES", 1))
         torch.set_num_threads(cores)
@@ -185,13 +186,14 @@ class UDTRReportProcessorWorker:
             )
             report_file_path.parent.mkdir(parents=True, exist_ok=True)
             with open(report_file_path, "w") as writer:
-                json.dump({"report_id": report_id, "results": report_results}, writer)
+                json.dump({"report_id": report_id, "results": jsonable_encoder(report_results)}, writer)
 
             self.update_report_status(
                 report_id=report_id, new_status="complete", attempt=attempt
             )
             self.logger.info(f"Successfully processed report: {report_id}")
         except Exception as e:
+            import traceback; traceback.print_exc();
             self.logger.error(f"Error processing report {report_id}: {e}")
             self.update_report_status(
                 report_id=report_id,

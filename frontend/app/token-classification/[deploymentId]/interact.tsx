@@ -40,6 +40,7 @@ import {
 } from '@/utils/fileParsingUtils';
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
 import ExpandingInput from '@/components/ui/ExpandingInput';
+import { useParams } from 'next/navigation';
 
 interface Token {
   text: string;
@@ -240,6 +241,8 @@ function TagSelector({ open, choices, onSelect, onNewLabel, currentTag }: TagSel
 }
 
 export default function Interact() {
+  const params = useParams();
+  const deploymentId = params.deploymentId as string;
   const { predict, insertSample, addLabel, getLabels, getTextFromFile } =
     useTokenClassificationEndpoints();
 
@@ -868,89 +871,114 @@ export default function Interact() {
   };
 
   return (
-    <Container
-      style={{
-        display: 'flex',
-        width: '90%',
-        maxWidth: '1200px',
-        marginTop: '20vh',
-        paddingBottom: '100vh',
-      }}
-    >
-      <div style={{ flex: 2, marginRight: '20px' }}>
-        <Box display="flex" flexDirection="column" width="100%">
-          <Box display="flex" justifyContent="center" alignItems="center" width="100%">
-            <ExpandingInput onSubmit={handleRun} onFileChange={handleFileChange} />
-          </Box>
-
-          {fileError && (
-            <Alert severity="error" style={{ marginTop: '8px' }}>
-              {fileError}
-            </Alert>
-          )}
-        </Box>
-
-        {annotations.length > 0 && (
-          <Box mt={4} mb={2} display="flex" alignItems="center" justifyContent="flex-end">
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={showHighlightedOnly}
-                  onChange={toggleHighlightedOnly}
-                  color="primary"
-                />
-              }
-              label="Tagged Text Only"
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Left Column: User Input Area */}
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="p-6">
+            <textarea
+              placeholder="Enter text here..."
+              value={inputText}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInputText(e.target.value)}
+              className="w-full min-h-[100px] p-3 border rounded-md resize-y"
             />
-          </Box>
-        )}
+            
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  or
+                </span>
+              </div>
+            </div>
 
-        {isLoading ? (
-          <Box mt={4} display="flex" justifyContent="center">
-            <CircularProgress />
-          </Box>
-        ) : (
-          annotations.length > 0 && (
-            <Box mt={4}>
-              <Card
-                className="p-7 text-start"
-                style={{ lineHeight: 2, maxHeight: '70vh', overflowY: 'auto' }}
-                onMouseUp={(e) => {
-                  setSelecting(false);
-                  if (startIndex !== null && endIndex !== null) {
-                    setSelectedRange([startIndex, endIndex]);
-                    triggers.current[endIndex]?.click();
-                  }
+            <div 
+              className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                onChange={handleFileChange}
+                accept=".txt,.csv,.xlsx,.pdf"
+              />
+              <p className="text-muted-foreground">Upload Document here</p>
+              {fileInputRef.current?.files?.[0] && (
+                <p className="mt-2 text-sm text-primary">{fileInputRef.current.files[0].name}</p>
+              )}
+            </div>
+
+            <Button 
+              className="w-full mt-4" 
+              onClick={() => handleRun(inputText)}
+              disabled={isLoading || (!inputText && !fileInputRef.current?.files?.[0])}
+            >
+              {isLoading ? "Processing..." : "Run"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Results Section */}
+        {annotations.length > 0 && (
+          <Card>
+            <CardContent className="p-6">
+              {renderContent()}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Right Column: API Info */}
+      <div>
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold mb-4">API</h3>
+            <div className="relative">
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+                <code>{`curl -X POST \\
+  https://platform.thirdai.com/${deploymentId}/query \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "text": "Your text here"
+  }'`}</code>
+              </pre>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2"
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `curl -X POST \\
+  https://platform.thirdai.com/${deploymentId}/query \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "text": "Your text here"
+  }'`
+                  );
                 }}
               >
-                {renderContent()}
-              </Card>
-            </Box>
-          )
-        )}
-      </div>
-      <div
-        style={{
-          flex: 1,
-          marginTop: '4.7cm', // This will push the FeedbackDashboard 1cm lower
-        }}
-      >
-        {processingTime !== undefined && annotations.length && (
-          <div className="mb-4">
-            {' '}
-            <InferenceTimeDisplay processingTime={processingTime} tokenCount={annotations.length} />
-          </div>
-        )}
-
-        <Card className="p-7 text-start">
-          <FeedbackDashboard
-            cachedTags={cachedTags}
-            tagColors={tagColors}
-            deleteFeedbackExample={deleteFeedbackExample}
-            submitFeedback={submitFeedback}
-          />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                </svg>
+              </Button>
+            </div>
+          </CardContent>
         </Card>
       </div>
-    </Container>
+    </div>
   );
 }

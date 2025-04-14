@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -9,63 +9,99 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Card } from '@/components/ui/card';
 
 interface Job {
   id: string;
-  status: string;
-  createdAt: string;
-  completedAt?: string;
-  type: string;
+  name: string;
+  source: string;
+  initiated: string;
+  progress: {
+    status: 'completed' | 'in_progress';
+    text: string;
+    percentage?: number;
+  };
 }
 
+const jobs: Job[] = [
+  {
+    id: '1',
+    name: 'Daniel Docs 1',
+    source: 'S3 Bucket - Daniel Docs 1',
+    initiated: '2 months ago',
+    progress: {
+      status: 'completed',
+      text: 'Completed 2 months ago',
+    },
+  },
+  {
+    id: '2',
+    name: 'Daniel Docs 2',
+    source: 'S3 Bucket - Daniel Docs 2',
+    initiated: '3 days ago',
+    progress: {
+      status: 'in_progress',
+      text: '52M / 92M',
+      percentage: 56.5,
+    },
+  },
+];
+
 export default function Jobs() {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // TODO: Implement job fetching logic
-    setLoading(false);
-  }, []);
-
-  if (loading) {
-    return <div>Loading jobs...</div>;
-  }
-
   return (
-    <div className="rounded-lg border bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Job ID</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead>Completed</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {jobs.map((job) => (
-            <TableRow key={job.id}>
-              <TableCell className="font-mono">{job.id}</TableCell>
-              <TableCell>{job.type}</TableCell>
-              <TableCell>{job.status}</TableCell>
-              <TableCell>{new Date(job.createdAt).toLocaleString()}</TableCell>
-              <TableCell>
-                {job.completedAt
-                  ? new Date(job.completedAt).toLocaleString()
-                  : '-'}
-              </TableCell>
-            </TableRow>
-          ))}
-          {jobs.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">
-                No jobs found
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </div>
+    <Card>
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-lg font-semibold">Jobs</h2>
+          <Button>New</Button>
+        </div>
+
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="font-semibold">Name</TableHead>
+                <TableHead className="font-semibold">Source</TableHead>
+                <TableHead className="font-semibold">Initiated</TableHead>
+                <TableHead className="font-semibold">Progress</TableHead>
+                <TableHead className="font-semibold">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {jobs.map((job, index) => (
+                <TableRow
+                  key={job.id}
+                  className={index % 2 === 0 ? 'bg-white' : 'bg-muted/50'}
+                >
+                  <TableCell>{job.name}</TableCell>
+                  <TableCell>{job.source}</TableCell>
+                  <TableCell>{job.initiated}</TableCell>
+                  <TableCell>
+                    {job.progress.status === 'completed' ? (
+                      job.progress.text
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all"
+                            style={{ width: `${job.progress.percentage}%` }}
+                          />
+                        </div>
+                        <span className="text-sm text-muted-foreground whitespace-nowrap">
+                          {job.progress.text}
+                        </span>
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <button className="text-primary hover:underline">View</button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    </Card>
   );
 } 

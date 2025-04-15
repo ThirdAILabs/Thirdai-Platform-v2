@@ -8,6 +8,7 @@ from urllib.parse import urljoin
 
 from fastapi.encoders import jsonable_encoder
 import requests
+import thirdai
 import torch
 from deployment_job.models.classification_models import TokenClassificationModel
 from platform_common.file_handler import expand_cloud_buckets_and_directories
@@ -218,6 +219,7 @@ class UDTRReportProcessorWorker:
 
 
 if __name__ == "__main__":
+    print(f"ThirdAI version: {thirdai.__version__}", flush=True)
     config: DeploymentConfig = load_config()
 
     setup_logger(

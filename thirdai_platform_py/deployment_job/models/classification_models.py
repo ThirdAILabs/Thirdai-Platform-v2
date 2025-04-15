@@ -307,7 +307,9 @@ class TokenClassificationModel(ClassificationModel):
             ]
 
         except ValueError as e:
-            import traceback; traceback.print_exc();
+            import traceback
+
+            traceback.print_exc()
             message = f"Error processing prediction: {e}"
             self.logger.error(message, code=LogCode.MODEL_PREDICT)
             raise HTTPException(

@@ -60,6 +60,7 @@ udt_query_length = Summary("udt_query_length", "Distribution of query lengths")
 
 JOB_TOKEN = os.environ["JOB_TOKEN"]
 
+
 def verify_job_token(request: Request):
     auth_header = request.headers.get("Authorization")
     if auth_header.split(" ", 1)[1] != JOB_TOKEN:

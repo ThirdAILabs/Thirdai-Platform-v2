@@ -1,125 +1,86 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  TableHead,
-  TableRow,
-  TableHeader,
-  TableBody,
-  Table,
-  TableCell,
-} from '@/components/ui/table';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DeploymentStatsTable, useTokenClassificationEndpoints } from '@/lib/backend';
+
+interface UsageMetrics {
+  totalRequests: number;
+  averageLatency: number;
+  successRate: number;
+  lastDayRequests: number;
+}
 
 export default function Dashboard() {
-  const [system, setSystem] = useState<DeploymentStatsTable>({
-    header: ['--', '--'],
-    rows: [
-      ['--', '--'],
-      ['--', '--'],
-      ['--', '--'],
-      ['--', '--'],
-    ],
+  const [metrics, setMetrics] = useState<UsageMetrics>({
+    totalRequests: 0,
+    averageLatency: 0,
+    successRate: 0,
+    lastDayRequests: 0,
   });
-
-  const [throughput, setThroughput] = useState<DeploymentStatsTable>({
-    header: ['--', '--', '--', '--'],
-    rows: [
-      ['--', '--', '--', '--'],
-      ['--', '--', '--', '--'],
-    ],
-  });
-
-  const { getStats } = useTokenClassificationEndpoints();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!getStats) {
-      return;
-    }
-    const fetchStats = () => {
-      getStats().then(({ system, throughput }) => {
-        setSystem(system);
-        setThroughput(throughput);
-      });
-    };
+    // TODO: Implement metrics fetching logic
+    setLoading(false);
+  }, []);
 
-    fetchStats();
-
-    // Fetch stats every 2 seconds
-    const intervalId = setInterval(fetchStats, 2000);
-
-    // Clean up the interval on component unmount
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [getStats]);
-
-  const table = (tableInfo: DeploymentStatsTable, title: string) => {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{tableInfo.header[0]}</TableHead>
-                {tableInfo.header.slice(1, tableInfo.header.length).map((h, i) => (
-                  <TableHead key={i} className="text-right">
-                    {h}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tableInfo.rows.map((row, i) => {
-                return (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium" align="left">
-                      {row[0]}
-                    </TableCell>
-                    {row.slice(1, row.length).map((c, i) => (
-                      <TableCell key={i} className="font-medium" align="right">
-                        {c}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    );
-  };
+  if (loading) {
+    return <div>Loading metrics...</div>;
+  }
 
   return (
-    <>
-      <div
-        className="bg-muted"
-        style={{
-          width: '100%',
-          paddingTop: '10%',
-          display: 'flex',
-          justifyContent: 'center',
-          height: '100vh',
-        }}
-      >
-        <div
-          style={{
-            width: '80%',
-            display: 'flex',
-            justifyContent: 'center',
-            height: 'fit-content',
-          }}
-        >
-          {table(system, 'System Info')}
-          <div style={{ width: '30px' }} />
-          {table(throughput, 'Throughput')}
-        </div>
-      </div>
-    </>
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{metrics.totalRequests}</div>
+          <p className="text-xs text-muted-foreground">
+            All-time inference requests
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Average Latency</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            {metrics.averageLatency.toFixed(2)}ms
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Response time per request
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            {(metrics.successRate * 100).toFixed(1)}%
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Successful inference requests
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Last 24 Hours</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{metrics.lastDayRequests}</div>
+          <p className="text-xs text-muted-foreground">
+            Requests in past 24 hours
+          </p>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

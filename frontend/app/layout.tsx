@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/react';
 import UserWrapper from './user_wrapper';
 import SessionGuard from '@/utils/SessionGuard';
 import { Providers } from './Providers';
+import { Toaster } from 'sonner';
 
 import ThemeProvider from '../theme';
 export const metadata = {
@@ -25,6 +26,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </ThemeProvider>
           <SessionGuard />
         </Providers>
+        <Toaster />
       </body>
       <Analytics />
     </html>

@@ -2641,3 +2641,100 @@ export async function trainNLPTextModel(params: {
     throw new Error('Failed to train NLP model');
   }
 }
+
+// Report related interfaces
+export interface Report {
+  report_id: string;
+  status: string;
+  submitted_at: string;
+  updated_at: string;
+  documents?: Array<{
+    path: string;
+    location: string;
+    source_id: string | null;
+    options: Record<string, any>;
+    metadata: any;
+  }>;
+  msg?: string | null;
+}
+
+export interface ReportResponse {
+  status: string;
+  message: string;
+  data: {
+    reports: Report[];
+  };
+}
+
+export interface ReportStatusResponse {
+  status: string;
+  message: string;
+  data: {
+    report: Report;
+  };
+}
+
+// Report API endpoints
+export async function listReports(deploymentId: string): Promise<Report[]> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  try {
+    const response = await axios.get<{ status: string; message: string; data: Report[] }>(
+      `${deploymentBaseUrl}/${deploymentId}/reports`
+    );
+    return response.data.data;
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+    throw new Error('Failed to fetch reports');
+  }
+}
+
+export async function getReportStatus(deploymentId: string, reportId: string): Promise<Report> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  try {
+    const response = await axios.get<ReportStatusResponse>(
+      `${deploymentBaseUrl}/${deploymentId}/report/${reportId}`
+    );
+    return response.data.data.report;
+  } catch (error) {
+    console.error('Error fetching report status:', error);
+    throw new Error('Failed to fetch report status');
+  }
+}
+
+export async function createReport(
+  deploymentId: string,
+  file: File,
+  tags: string[] = []
+): Promise<Report> {
+  const accessToken = getAccessToken();
+  const formData = new FormData();
+  formData.append('files', file);
+  formData.append('documents', JSON.stringify({
+    documents: [{
+      path: file.name,
+      location: 'local'
+    }]
+  }));
+  formData.append('tags', JSON.stringify(tags));
+
+  try {
+    const response = await axios.post<ReportStatusResponse>(
+      `${deploymentBaseUrl}/${deploymentId}/report/create`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data.data.report;
+  } catch (error) {
+    console.error('Error creating report:', error);
+    throw new Error('Failed to create report');
+  }
+}

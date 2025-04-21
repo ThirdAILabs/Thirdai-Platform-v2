@@ -1,0 +1,2 @@
+This is a test document for report creation.
+It contains some sample text to be processed.

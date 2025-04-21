@@ -86,7 +86,9 @@ type DeployJob struct {
 	CloudCredentials CloudCredentials
 
 	JobToken string
-	IsKE     bool
+
+	WorkerEnabled bool   // if true, a worker task will be launched in addition to the backend.
+	WorkerType    string // one of "knowledge_extraction" or "text_extraction" (or others in the future).
 
 	IngressHostname string
 }

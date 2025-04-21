@@ -140,12 +140,22 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 
 		attrs := model.GetAttributes()
 
-		isKE := (model.Type == schema.KnowledgeExtraction)
+		var workerEnabled bool
+		var workerType string
+		if model.Type == schema.KnowledgeExtraction {
+			workerEnabled = true
+			workerType = "knowledge_extraction"
+		} else if model.Type == schema.NlpTokenModel || model.Type == schema.NlpTextModel || model.Type == schema.NlpDocModel {
+			workerEnabled = true
+			workerType = "text_extraction"
+		} else {
+			workerEnabled = false
+			workerType = ""
+		}
 
 		var resources orchestrator.Resources
-		if !isKE {
+		if !workerEnabled {
 			memory := getDeploymentMemory(modelId, memory, attrs)
-
 			resources = orchestrator.Resources{
 				AllocationCores:     2,
 				AllocationMhz:       2400,
@@ -153,11 +163,20 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 				AllocationMemoryMax: 4 * memory,
 			}
 		} else {
-			resources = orchestrator.Resources{
-				AllocationCores:     4,
-				AllocationMhz:       9600,
-				AllocationMemory:    4000,
-				AllocationMemoryMax: 8000,
+			if workerType == "knowledge_extraction" {
+				resources = orchestrator.Resources{
+					AllocationCores:     4,
+					AllocationMhz:       9600,
+					AllocationMemory:    4000,
+					AllocationMemoryMax: 8000,
+				}
+			} else if workerType == "text_extraction" {
+				resources = orchestrator.Resources{
+					AllocationCores:     2,
+					AllocationMhz:       2400,
+					AllocationMemory:    3000,
+					AllocationMemoryMax: 6000,
+				}
 			}
 		}
 
@@ -166,7 +185,7 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 			return CodedError(err, GetResponseCode(err))
 		}
 
-		token, err := s.jobAuth.CreateModelJwt(modelId, time.Hour*1000*24)
+		token, err := s.jobAuth.CreateModelJwt(modelId, time.Hour*24*1000)
 		if err != nil {
 			slog.Error("job token creation failed", "model_id", modelId, "error", err)
 			return CodedError(errors.New("error setting up model deployment"), http.StatusInternalServerError)
@@ -218,7 +237,8 @@ func (s *DeployService) deployModel(modelId uuid.UUID, user schema.User, autosca
 				Resources:          resources,
 				CloudCredentials:   s.variables.CloudCredentials,
 				JobToken:           uuid.New().String(),
-				IsKE:               isKE,
+				WorkerEnabled:      workerEnabled,
+				WorkerType:         workerType,
 				IngressHostname:    s.orchestratorClient.IngressHostname(),
 			},
 		)

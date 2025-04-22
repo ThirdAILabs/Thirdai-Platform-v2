@@ -2643,19 +2643,29 @@ export async function trainNLPTextModel(params: {
 }
 
 // Report related interfaces
+export interface ReportDocument {
+  path: string;
+  location: string;
+  source_id: string | null;
+  options: Record<string, any>;
+  metadata: any;
+}
+
+export interface ReportContent {
+  report_id: string;
+  results: Array<{
+    [key: string]: any[];  // Key is the document path, value is the results array
+  }>;
+}
+
 export interface Report {
   report_id: string;
   status: string;
   submitted_at: string;
   updated_at: string;
-  documents?: Array<{
-    path: string;
-    location: string;
-    source_id: string | null;
-    options: Record<string, any>;
-    metadata: any;
-  }>;
-  msg?: string | null;
+  documents: ReportDocument[];
+  msg: string | null;
+  content?: ReportContent;
 }
 
 export interface ReportResponse {
@@ -2669,9 +2679,7 @@ export interface ReportResponse {
 export interface ReportStatusResponse {
   status: string;
   message: string;
-  data: {
-    report: Report;
-  };
+  data: Report;  // The report data is directly under data
 }
 
 // Report API endpoints
@@ -2698,7 +2706,8 @@ export async function getReportStatus(deploymentId: string, reportId: string): P
     const response = await axios.get<ReportStatusResponse>(
       `${deploymentBaseUrl}/${deploymentId}/report/${reportId}`
     );
-    return response.data.data.report;
+    console.log('Raw response:', response.data);
+    return response.data.data;
   } catch (error) {
     console.error('Error fetching report status:', error);
     throw new Error('Failed to fetch report status');
@@ -2732,7 +2741,7 @@ export async function createReport(
         },
       }
     );
-    return response.data.data.report;
+    return response.data.data;  // Fixed: return the report data directly
   } catch (error) {
     console.error('Error creating report:', error);
     throw new Error('Failed to create report');

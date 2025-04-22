@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -16,6 +16,7 @@ import {
   Stack,
 } from '@mui/material';
 import { RefreshRounded, PauseRounded, StopRounded } from '@mui/icons-material';
+import { getReportStatus } from '@/lib/backend';
 import Configuration from './configuration';
 import Analytics from './analytics';
 import Outputs from './outputs';
@@ -47,13 +48,29 @@ export default function JobDetail() {
   const [lastUpdated, setLastUpdated] = useState(0);
   const [tabValue, setTabValue] = useState(0);
 
+  // Fetch report status when component mounts
+  useEffect(() => {
+    const fetchReportStatus = async () => {
+      try {
+        const deploymentId = params.deploymentId as string;
+        const jobId = params.jobId as string;
+        const report = await getReportStatus(deploymentId, jobId);
+        console.log('Report Status:', report);
+      } catch (error) {
+        console.error('Error fetching report status:', error);
+      }
+    };
+
+    fetchReportStatus();
+  }, [params.deploymentId, params.jobId]);
+
   // Increment last updated counter every second
-  useState(() => {
+  useEffect(() => {
     const interval = setInterval(() => {
       setLastUpdated(prev => prev + 1);
     }, 1000);
     return () => clearInterval(interval);
-  });
+  }, []);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);

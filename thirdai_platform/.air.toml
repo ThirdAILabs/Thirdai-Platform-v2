@@ -1,0 +1,37 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+# The command that will be executed when running Air
+cmd = "go build -o ./tmp/main cmd/model_bazaar/main.go"
+# Binary file produced by cmd
+bin = "./tmp/main"
+# Additional command line arguments for the binary
+full_bin = "./tmp/main --env ./cmd/model_bazaar/.env"
+# Files to watch for changes
+include_ext = ["go", "tpl", "tmpl", "html", "env"]
+# Files to exclude
+exclude_dir = ["assets", "tmp", "vendor", "testdata"]
+# Kill process before starting a new one
+kill_delay = "0s"
+# Send Interrupt signal before killing process (windows doesn't support this)
+send_interrupt = true
+# Delay after sending Interrupt signal
+delay = 1000
+# Watch these directories
+watch_paths = [".", "../../"]
+
+[log]
+# Show log time
+time = true
+
+[color]
+# Customize each log part's color
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
+
+[misc]
+# Delete tmp directory on exit
+clean_on_exit = true

@@ -5,7 +5,7 @@ import time
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional
+from typing import Counter, List, Optional
 
 from deployment_job.models.classification_models import (
     ClassificationModel,
@@ -357,6 +357,7 @@ class UDTRouterTokenClassification(UDTBaseRouter):
         self.router.add_api_route(
             "/report/next", self.next_unprocessed_report, methods=["POST"]
         )
+        self.router.add_api_route("/report/{report_id}/get-tag-count", self.get_tag_count, methods=["GET"])
 
     @staticmethod
     def get_model(config: DeploymentConfig, logger: JobLogger) -> ClassificationModel:
@@ -781,5 +782,61 @@ class UDTRouterTokenClassification(UDTBaseRouter):
             return response(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 message="An error occurred while checking for unprocessed reports.",
+                data={"details": str(e)},
+            )
+
+    def get_tag_count(self, report_id: str, _=Depends(Permissions.verify_permission("read"))):
+        try:
+            with self.get_session() as session:
+                report: UDTReport = session.query(UDTReport).get(report_id)
+
+                if not report:
+                    return response(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        message=f"Report with ID '{report_id}' not found.",
+                    )
+
+                if report.status != "complete":
+                    return response(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        message=f"Report with ID '{report_id}' is not complete yet.",
+                    )
+
+                report_file_path = self.reports_base_path / report_id / f"report_{report.attempt}.json"
+                if not report_file_path.exists():
+                    return response(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        message=f"Processed report file for ID '{report_id}' is missing.",
+                    )
+
+                with open(report_file_path, "r") as file:
+                    report_data = json.load(file)
+
+                # Extract the tag counts from the results
+                tag_counter = Counter()
+
+                for document_result in report_data.get("results", []):
+                    for doc_path, doc_results in document_result.items():
+                        for pred in doc_results:
+                            print(pred, flush= True)
+                            for pred in doc_results:
+                                if pred.get("data_type") == "unstructured":
+                                    for tag in pred["predicted_tags"]:
+                                        tag_counter[tag[0]] += 1
+                                elif pred.get("data_type") == "xml":
+                                    for prediction in pred["predictions"]:
+                                        tag_counter[prediction["label"]] += 1
+
+            return response(
+                status_code=status.HTTP_200_OK,
+                message="Successfully retrieved tag counts.",
+                data=jsonable_encoder(tag_counter),
+            )
+
+        except Exception as e:
+            self.logger.error(f"Error processing tag count for report {report_id}: {e}")
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message="An error occurred while processing tag counts.",
                 data={"details": str(e)},
             )

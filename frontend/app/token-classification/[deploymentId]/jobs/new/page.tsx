@@ -13,37 +13,43 @@ import { toast } from 'sonner';
 export default function NewJob() {
   const router = useRouter();
   const params = useParams();
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      if (selectedFile.type === 'application/pdf') {
-        setFile(selectedFile);
-      } else {
-        toast.error('Please upload a PDF file');
+    if (e.target.files) {
+      const selectedFiles = Array.from(e.target.files);
+      const pdfFiles = selectedFiles.filter(file => file.type === 'application/pdf');
+      
+      if (pdfFiles.length === 0) {
+        toast.error('Please upload PDF files only');
         e.target.value = '';
+        return;
       }
+
+      setFiles(pdfFiles);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) {
-      toast.error('Please select a file');
+    if (files.length === 0) {
+      toast.error('Please select at least one file');
       return;
     }
 
     setIsSubmitting(true);
     try {
       const deploymentId = params.deploymentId as string;
-      await createReport(deploymentId, file);
-      toast.success('Report created successfully');
+      // Process each file
+      for (const file of files) {
+        await createReport(deploymentId, file);
+      }
+      toast.success(`Successfully created ${files.length} report${files.length > 1 ? 's' : ''}`);
       router.push(`/token-classification/${deploymentId}?tab=jobs`);
     } catch (error) {
-      console.error('Error creating report:', error);
-      toast.error('Failed to create report');
+      console.error('Error creating reports:', error);
+      toast.error('Failed to create reports');
     } finally {
       setIsSubmitting(false);
     }
@@ -56,18 +62,29 @@ export default function NewJob() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label.Root htmlFor="file" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-              Upload PDF File
+              Upload PDF Files
             </Label.Root>
             <Input
               id="file"
               type="file"
               accept=".pdf"
+              multiple
               onChange={handleFileChange}
               className="cursor-pointer"
             />
             <p className="text-sm text-muted-foreground">
-              Please upload a PDF file for processing
+              You can upload one or more PDF files for processing
             </p>
+            {files.length > 0 && (
+              <div className="mt-2">
+                <p className="text-sm font-medium">Selected files:</p>
+                <ul className="text-sm text-muted-foreground list-disc list-inside">
+                  {files.map((file, index) => (
+                    <li key={index}>{file.name}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
           <div className="flex justify-end space-x-4">
             <Button
@@ -78,8 +95,8 @@ export default function NewJob() {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!file || isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Create Job'}
+            <Button type="submit" disabled={files.length === 0 || isSubmitting}>
+              {isSubmitting ? 'Creating...' : `Create Job${files.length > 1 ? 's' : ''}`}
             </Button>
           </div>
         </form>

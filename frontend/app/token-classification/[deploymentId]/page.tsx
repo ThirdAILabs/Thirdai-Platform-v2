@@ -4,16 +4,63 @@ import { useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink } from '@/components/ui/breadcrumb';
 import * as _ from 'lodash';
-import { useTokenClassificationEndpoints } from '@/lib/backend';
+import { useTokenClassificationEndpoints, getTrainReport } from '@/lib/backend';
 import Interact from './interact';
 import Dashboard from './dashboard';
 import Jobs from './jobs';
 import { useSearchParams } from 'next/navigation';
+import { TrainingResults } from '@/app/(dashboard)/analytics/MetricsChart';
+import { Card, CardContent } from '@/components/ui/card';
+import { Alert } from '@mui/material';
+import type { TrainReportData, LabelMetrics, ExampleCategories } from '@/lib/backend';
+
+const emptyMetrics: LabelMetrics = {
+  'O': {
+    precision: 0,
+    recall: 0,
+    fmeasure: 0
+  }
+};
+
+const emptyExamples: ExampleCategories = {
+  true_positives: {},
+  false_positives: {},
+  false_negatives: {}
+};
+
+const emptyReport: TrainReportData = {
+  before_train_metrics: emptyMetrics,
+  after_train_metrics: emptyMetrics,
+  after_train_examples: emptyExamples
+};
 
 export default function Page() {
   const { workflowName } = useTokenClassificationEndpoints();
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab') || 'testing';
+  const [trainReport, setTrainReport] = useState<TrainReportData>(emptyReport);
+  const [isLoadingReport, setIsLoadingReport] = useState(true);
+  const [reportError, setReportError] = useState('');
+
+  // Fetch training report for monitoring tab
+  useEffect(() => {
+    const fetchReport = async () => {
+      try {
+        setIsLoadingReport(true);
+        setReportError('');
+        const response = await getTrainReport(workflowName);
+        setTrainReport(response.data);
+      } catch (error) {
+        setReportError(error instanceof Error ? error.message : 'Failed to fetch training report');
+        // Even on error, we want to show the TrainingResults component with empty data
+        setTrainReport(emptyReport);
+      } finally {
+        setIsLoadingReport(false);
+      }
+    };
+
+    fetchReport();
+  }, [workflowName]);
 
   return (
     <div className="bg-muted min-h-screen">
@@ -40,7 +87,15 @@ export default function Page() {
           </TabsList>
           
           <TabsContent value="monitoring" className="mt-0">
-            <Dashboard />
+            {isLoadingReport ? (
+              <Card>
+                <CardContent>
+                  <div className="text-center py-8">Loading training report...</div>
+                </CardContent>
+              </Card>
+            ) : (
+              <TrainingResults report={trainReport} />
+            )}
           </TabsContent>
           
           <TabsContent value="testing" className="mt-0">

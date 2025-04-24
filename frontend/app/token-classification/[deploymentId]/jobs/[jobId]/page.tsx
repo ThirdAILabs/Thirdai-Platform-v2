@@ -66,6 +66,16 @@ function Highlight({
   currentToken: Token;
   tagColors: Record<string, HighlightColor>;
 }) {
+  // Skip highlighting for "O" tags
+  if (currentToken.tag == 'O') {
+    return (
+      <span>
+        {currentToken.text}
+        <span> </span>
+      </span>
+    );
+  }
+
   return (
     <span
       style={{

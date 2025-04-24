@@ -334,10 +334,9 @@ export default function JobDetail() {
             </FormControl>
 
             <Tabs value={tabValue} onChange={handleTabChange}>
-              <Tab label="Content" />
+              <Tab label="Output" />
               <Tab label="Configuration" />
               <Tab label="Analytics" />
-              <Tab label="Outputs" />
             </Tabs>
 
             <TabPanel value={tabValue} index={0}>
@@ -358,9 +357,6 @@ export default function JobDetail() {
             </TabPanel>
             <TabPanel value={tabValue} index={2}>
               <Analytics />
-            </TabPanel>
-            <TabPanel value={tabValue} index={3}>
-              <Outputs />
             </TabPanel>
           </Box>
         </Box>

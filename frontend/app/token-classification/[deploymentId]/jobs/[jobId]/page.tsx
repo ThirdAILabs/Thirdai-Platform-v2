@@ -29,6 +29,8 @@ import { getReportStatus, Report, getTagCounts, TagCount } from '@/lib/backend';
 import Configuration from './configuration';
 import Analytics from './analytics';
 import Outputs from './outputs';
+import { DatabaseTable } from './(database-table)/DatabaseTable';
+import { loadMoreMockClassifiedTokenRecords, loadMoreMockObjectRecords, mockGroups, mockTags } from './mockdata';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -337,6 +339,7 @@ export default function JobDetail() {
               <Tab label="Output" />
               <Tab label="Configuration" />
               <Tab label="Analytics" />
+              <Tab label="Database Table" />
             </Tabs>
 
             <TabPanel value={tabValue} index={0}>
@@ -357,6 +360,14 @@ export default function JobDetail() {
             </TabPanel>
             <TabPanel value={tabValue} index={2}>
               <Analytics />
+            </TabPanel>
+            <TabPanel value={tabValue} index={3}>
+              <DatabaseTable 
+                loadMoreObjectRecords={loadMoreMockObjectRecords}
+                loadMoreClassifiedTokenRecords={loadMoreMockClassifiedTokenRecords}
+                groups={mockGroups}
+                tags={mockTags}
+              />
             </TabPanel>
           </Box>
         </Box>

@@ -121,7 +121,9 @@ export function DatabaseTable({ loadMoreRecords, groups, tags }: DatabaseTablePr
   const [isGroupsExpanded, setIsGroupsExpanded] = useState(true);
   const [isTagsExpanded, setIsTagsExpanded] = useState(true);
   const [showShadow, setShowShadow] = useState(false);
+  const [showTableShadow, setShowTableShadow] = useState(false);
   const filterScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
 
   // Filter handling
   const handleGroupFilterChange = (filterKey: string) => {
@@ -171,17 +173,23 @@ export function DatabaseTable({ loadMoreRecords, groups, tags }: DatabaseTablePr
     setTagFilters(Object.fromEntries(tags.map(tag => [tag, false])));
   };
 
-  // Handle scroll for shadow
+  // Handle scroll for shadows
   const handleFilterScroll = () => {
     if (filterScrollRef.current) {
       setShowShadow(filterScrollRef.current.scrollTop > 0);
     }
   };
 
+  const handleTableScroll = () => {
+    if (tableScrollRef.current) {
+      setShowTableShadow(tableScrollRef.current.scrollTop > 0);
+    }
+  };
+
   const renderTableHeader = () => {
     if (viewMode === 'object') {
         return (
-          <TableHeader className="sticky top-0 bg-white">
+          <TableHeader>
             <TableRow>
               <TableHead>Tagged Tokens</TableHead>
               <TableHead>Source Object</TableHead>
@@ -192,7 +200,7 @@ export function DatabaseTable({ loadMoreRecords, groups, tags }: DatabaseTablePr
       }
   
       return (
-        <TableHeader className="sticky top-0 bg-white">
+        <TableHeader>
             <TableRow>
               <TableHead>Token</TableHead>
               <TableHead>Tag</TableHead>
@@ -239,10 +247,10 @@ export function DatabaseTable({ loadMoreRecords, groups, tags }: DatabaseTablePr
           {/* Left Column - Filter Section */}
           <div className="w-64 flex flex-col border-r relative">
             {/* Fixed Filter Header */}
-            <div className="sticky top-0 p-6 pb-4 bg-white z-10">
+            <div className="sticky top-0 p-6 pb-2 pt-4 z-10">
               <div className="flex items-center gap-2">
                 <ListFilter className="h-5 w-5" />
-                <span className="font-medium">Filter</span>
+                <span className="flex font-medium h-[40px] items-center">Filter</span>
               </div>
             </div>
 
@@ -356,45 +364,51 @@ export function DatabaseTable({ loadMoreRecords, groups, tags }: DatabaseTablePr
           {/* Right Column - Main Content */}
           <div className="flex-1 flex flex-col h-full">
             {/* Fixed Header Content */}
-            <div className="p-6 pb-0 bg-white">
+            <div className="p-6 pb-2 pt-4 bg-white">
               <div className="flex items-center space-x-4">
-                  <div className="font-medium">View By</div>
-                  <Tabs value={viewMode} onValueChange={handleViewModeChange as any}>
-                    <TabsList>
-                      <TabsTrigger value="object">Object</TabsTrigger>
-                      <TabsTrigger value="classified-token">Classified Token</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                    <div className="font-medium pl-2">Query</div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                        <div className="flex-1">
-                        <Input
-                            type="text"
-                            placeholder="Enter query..."
-                            value={query}
-                            onChange={handleQueryChange}
-                        />
-                        </div>
-                        <SaveButton 
-                        onClick={handleSave}
-                        style={{
-                            width: '40px',
-                            height: '40px',
-                            minWidth: '40px',
-                            padding: '8px'
-                        }}
-                        />
+                <div className="font-medium">View By</div>
+                <Tabs value={viewMode} onValueChange={handleViewModeChange as any}>
+                  <TabsList>
+                    <TabsTrigger value="object">Object</TabsTrigger>
+                    <TabsTrigger value="classified-token">Classified Token</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                <div className="font-medium pl-2">Query</div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <Input
+                        type="text"
+                        placeholder="Enter query..."
+                        value={query}
+                        onChange={handleQueryChange}
+                      />
                     </div>
-
+                    <SaveButton 
+                      onClick={handleSave}
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        minWidth: '40px',
+                        padding: '8px'
+                      }}
+                    />
                   </div>
+                </div>
               </div>
             </div>
 
             {/* Table Container */}
-            <div className="flex-1 overflow-hidden">
-              <div className="h-full overflow-auto px-6">
-                <Table className="relative">
+            <div 
+              ref={tableScrollRef}
+              className="flex-1 overflow-auto"
+              onScroll={handleTableScroll}
+              style={{
+                boxShadow: showTableShadow ? 'inset 0 4px 6px -4px rgba(0, 0, 0, 0.1)' : 'none'
+              }}
+            >
+              <div className="px-6">
+                <Table>
                   {renderTableHeader()}
                   {renderTableContent()}
                 </Table>

@@ -2747,3 +2747,36 @@ export async function createReport(
     throw new Error('Failed to create report');
   }
 }
+
+export interface TagCount {
+  tag: string;
+  count: number;
+}
+
+export interface TagCountResponse {
+  status: string;
+  message: string;
+  data: {
+    [key: string]: number;  // Changed from tag_counts to a dynamic object
+  };
+}
+
+export async function getTagCounts(deploymentId: string, reportId: string): Promise<TagCount[]> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  try {
+    const response = await axios.get<TagCountResponse>(
+      `${deploymentBaseUrl}/${deploymentId}/report/${reportId}/get-tag-count`
+    );
+    // Transform the data from { "TAG": count } to [{ tag: "TAG", count: count }]
+    const tagCounts = Object.entries(response.data.data).map(([tag, count]) => ({
+      tag,
+      count
+    }));
+    return tagCounts;
+  } catch (error) {
+    console.error('Error fetching tag counts:', error);
+    throw new Error('Failed to fetch tag counts');
+  }
+}

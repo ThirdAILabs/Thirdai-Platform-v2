@@ -40,7 +40,7 @@ export default function NewJob() {
       const deploymentId = params.deploymentId as string;
       await createReport(deploymentId, file);
       toast.success('Report created successfully');
-      router.back();
+      router.push(`/token-classification/${deploymentId}?tab=jobs`);
     } catch (error) {
       console.error('Error creating report:', error);
       toast.error('Failed to create report');

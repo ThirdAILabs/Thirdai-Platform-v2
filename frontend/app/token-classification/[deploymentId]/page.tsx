@@ -8,9 +8,12 @@ import { useTokenClassificationEndpoints } from '@/lib/backend';
 import Interact from './interact';
 import Dashboard from './dashboard';
 import Jobs from './jobs';
+import { useSearchParams } from 'next/navigation';
 
 export default function Page() {
   const { workflowName } = useTokenClassificationEndpoints();
+  const searchParams = useSearchParams();
+  const tab = searchParams.get('tab') || 'testing';
 
   return (
     <div className="bg-muted min-h-screen">
@@ -29,7 +32,7 @@ export default function Page() {
       </header>
 
       <main className="max-w-7xl mx-auto p-4">
-        <Tabs defaultValue="testing" className="w-full">
+        <Tabs defaultValue={tab} className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
             <TabsTrigger value="testing">Testing</TabsTrigger>

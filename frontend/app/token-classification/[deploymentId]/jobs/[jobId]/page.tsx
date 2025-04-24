@@ -157,6 +157,10 @@ function ReportContentDisplay({ report }: { report: Report }) {
     );
   }
 
+  const getFilename = (path: string) => {
+    return path.split('/').pop() || path;
+  };
+
   return (
     <Card>
       <CardContent>
@@ -166,7 +170,7 @@ function ReportContentDisplay({ report }: { report: Report }) {
             return (
               <Paper key={index} elevation={1} sx={{ p: 2 }}>
                 <Typography variant="h6" gutterBottom>
-                  Document: {docPath}
+                  Document: {getFilename(docPath)}
                 </Typography>
                 <Box sx={{ pl: 2 }}>
                   {results.map((item, itemIndex) => {

@@ -32,6 +32,8 @@ interface DatabaseTableProps {
 export function DatabaseTable({ loadMoreObjectRecords, loadMoreClassifiedTokenRecords, groups, tags }: DatabaseTableProps) {
     const [isLoadingTokenRecords, setIsLoadingTokenRecords] = useState(false);
     const [isLoadingObjectRecords, setIsLoadingObjectRecords] = useState(false);
+    const loadedInitialTokenRecords = useRef(false);
+    const loadedInitialObjectRecords = useRef(false);
 
     const loadTokenRecords = () => {
         setIsLoadingTokenRecords(true);
@@ -50,17 +52,22 @@ export function DatabaseTable({ loadMoreObjectRecords, loadMoreClassifiedTokenRe
     }
 
     useEffect(() => {
-        loadTokenRecords();
-        loadObjectRecords();
+        if (!loadedInitialTokenRecords.current) {
+            loadTokenRecords();
+            loadedInitialTokenRecords.current = true;
+        }
+        if (!loadedInitialObjectRecords.current) {
+            loadObjectRecords();
+            loadedInitialObjectRecords.current = true;
+        }
     }, []);
 
   const [tokenRecords, setTokenRecords] = useState<ClassifiedTokenDatabaseRecord[]>([]);
   const [objectRecords, setObjectRecords] = useState<ObjectDatabaseRecord[]>([]);
 
   // Separate states for groups and tags
-  const [groupFilters, setGroupFilters] = useState<Record<string, boolean>>(Object.fromEntries(groups.map(group => [group, true])) );
-
-  const [tagFilters, setTagFilters] = useState<Record<string, boolean>>(Object.fromEntries(tags.map(tag => [tag, true])) );
+  const [groupFilters, setGroupFilters] = useState<Record<string, boolean>>(Object.fromEntries(groups.map(group => [group, true])));
+  const [tagFilters, setTagFilters] = useState<Record<string, boolean>>(Object.fromEntries(tags.map(tag => [tag, true])));
 
   const [viewMode, setViewMode] = useState<'object' | 'classified-token'>('object');
   const [query, setQuery] = useState('');
@@ -174,7 +181,9 @@ export function DatabaseTable({ loadMoreObjectRecords, loadMoreClassifiedTokenRe
     if (viewMode === 'object') {
       return (
         <TableBody>
-            {objectRecords.map((record, index) => (
+            {objectRecords.filter((record) => {
+              return record.groups.some((group) => groupFilters[group]) && record.taggedTokens.map(v => v[1]).some(tag => tagFilters[tag]);
+            }).map((record, index) => (
                 <TableRow key={index}>
                 <TableCell>{record.taggedTokens.map((token, index) => `${token[0]} (${token[1]})`).join(' ')}</TableCell>
                 <TableCell>{record.sourceObject}</TableCell>
@@ -197,7 +206,9 @@ export function DatabaseTable({ loadMoreObjectRecords, loadMoreClassifiedTokenRe
   
     return (
         <TableBody>
-            {tokenRecords.map((record, index) => (
+            {tokenRecords.filter((record) => {
+              return record.groups.some((group) => groupFilters[group]) && tagFilters[record.tag];
+            }).map((record, index) => (
             <TableRow key={index}>
                 <TableCell>{record.token}</TableCell>
                 <TableCell>{record.tag}</TableCell>
@@ -282,7 +293,7 @@ export function DatabaseTable({ loadMoreObjectRecords, loadMoreClassifiedTokenRe
                               onChange={() => handleGroupFilterChange(filter)}
                               className="mr-2"
                             />
-                            {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                            {filter}
                           </label>
                         ))}
                       </div>
@@ -329,7 +340,7 @@ export function DatabaseTable({ loadMoreObjectRecords, loadMoreClassifiedTokenRe
                               onChange={() => handleTagFilterChange(filter)}
                               className="mr-2"
                             />
-                            {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                            {filter}
                           </label>
                         ))}
                       </div>

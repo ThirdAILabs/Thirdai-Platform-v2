@@ -7,9 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SaveButton from '@/app/semantic-search/[deploymentId]/components/buttons/SaveButton';
-import { ChevronDown, ChevronUp, ListFilter } from 'lucide-react';
+import { ChevronDown, ChevronUp, ListFilter, Loader2 } from 'lucide-react';
 
-interface DatabaseRecord {
+interface ObjectDatabaseRecord {
+  taggedTokens: [string, string][];
+  sourceObject: string;
+  groups: string[];
+}
+
+interface ClassifiedTokenDatabaseRecord {
   token: string;
   tag: string;
   sourceObject: string;
@@ -17,99 +23,39 @@ interface DatabaseRecord {
 }
 
 interface DatabaseTableProps {
-  loadMoreRecords: () => Promise<DatabaseRecord[]>;
+  loadMoreObjectRecords: () => Promise<ObjectDatabaseRecord[]>;
+  loadMoreClassifiedTokenRecords: () => Promise<ClassifiedTokenDatabaseRecord[]>;
   groups: string[];
   tags: string[];
 }
 
-export function DatabaseTable({ loadMoreRecords, groups, tags }: DatabaseTableProps) {
-  const [records, setRecords] = useState<DatabaseRecord[]>([
-    {
-      token: '1234567890',
-      tag: 'PHONE_NUMBER',
-      sourceObject: '/path/to/s3/bucket/file.txt',
-      groups: ['Reject', 'Sensitive'],
-    },
-    {
-      token: '1234567890',
-      tag: 'PHONE_NUMBER',
-      sourceObject: '/path/to/s3/bucket/file.txt',
-      groups: ['Reject', 'Sensitive'],
-    },
-    {
-      token: '1234567890',
-      tag: 'PHONE_NUMBER',
-      sourceObject: '/path/to/s3/bucket/file.txt',
-      groups: ['Reject', 'Sensitive'],
-    },
-    {
-      token: '1234567890',
-      tag: 'PHONE_NUMBER',
-      sourceObject: '/path/to/s3/bucket/file.txt',
-      groups: ['Reject', 'Sensitive'],
-    },
-    {
-      token: '1234567890',
-      tag: 'PHONE_NUMBER',
-      sourceObject: '/path/to/s3/bucket/file.txt',
-      groups: ['Reject', 'Sensitive'],
-    },
-    {
-      token: '1234567890',
-      tag: 'PHONE_NUMBER',
-      sourceObject: '/path/to/s3/bucket/file.txt',
-      groups: ['Reject', 'Sensitive'],
-    },
-    {
-      token: '1234567890',
-      tag: 'PHONE_NUMBER',
-      sourceObject: '/path/to/s3/bucket/file.txt',
-      groups: ['Reject', 'Sensitive'],
-    },
-    {
-      token: '1234567890',
-      tag: 'PHONE_NUMBER',
-      sourceObject: '/path/to/s3/bucket/file.txt',
-      groups: ['Reject', 'Sensitive'],
-    },
-    {
-      token: '1234567890',
-      tag: 'PHONE_NUMBER',
-      sourceObject: '/path/to/s3/bucket/file.txt',
-      groups: ['Reject', 'Sensitive'],
-    },
-    {
-      token: '1234567890',
-      tag: 'PHONE_NUMBER',
-      sourceObject: '/path/to/s3/bucket/file.txt',
-      groups: ['Reject', 'Sensitive'],
-    },
-    {
-      token: '1234567890',
-      tag: 'PHONE_NUMBER',
-      sourceObject: '/path/to/s3/bucket/file.txt',
-      groups: ['Reject', 'Sensitive'],
-    },
-    {
-      token: '1234567890',
-      tag: 'PHONE_NUMBER',
-      sourceObject: '/path/to/s3/bucket/file.txt',
-      groups: ['Reject', 'Sensitive'],
-    },
-    {
-      token: '1234567890',
-      tag: 'PHONE_NUMBER',
-      sourceObject: '/path/to/s3/bucket/file.txt',
-      groups: ['Reject', 'Sensitive'],
-    },
-    {
-      token: '1234567890',
-      tag: 'PHONE_NUMBER',
-      sourceObject: '/path/to/s3/bucket/file.txt',
-      groups: ['Reject', 'Sensitive'],
-    },
-    
-  ]);
+export function DatabaseTable({ loadMoreObjectRecords, loadMoreClassifiedTokenRecords, groups, tags }: DatabaseTableProps) {
+    const [isLoadingTokenRecords, setIsLoadingTokenRecords] = useState(false);
+    const [isLoadingObjectRecords, setIsLoadingObjectRecords] = useState(false);
+
+    const loadTokenRecords = () => {
+        setIsLoadingTokenRecords(true);
+        loadMoreClassifiedTokenRecords().then((records) => {
+            setTokenRecords(prev => [...prev, ...records]);
+            setIsLoadingTokenRecords(false);
+        });
+    }
+
+    const loadObjectRecords = () => {
+        setIsLoadingObjectRecords(true);
+        loadMoreObjectRecords().then((records) => {
+            setObjectRecords(prev => [...prev, ...records]);
+            setIsLoadingObjectRecords(false);
+        });
+    }
+
+    useEffect(() => {
+        loadTokenRecords();
+        loadObjectRecords();
+    }, []);
+
+  const [tokenRecords, setTokenRecords] = useState<ClassifiedTokenDatabaseRecord[]>([]);
+  const [objectRecords, setObjectRecords] = useState<ObjectDatabaseRecord[]>([]);
 
   // Separate states for groups and tags
   const [groupFilters, setGroupFilters] = useState<Record<string, boolean>>(Object.fromEntries(groups.map(group => [group, true])) );
@@ -183,6 +129,19 @@ export function DatabaseTable({ loadMoreRecords, groups, tags }: DatabaseTablePr
   const handleTableScroll = () => {
     if (tableScrollRef.current) {
       setShowTableShadow(tableScrollRef.current.scrollTop > 0);
+
+      // Check if we're near the bottom
+      const { scrollTop, scrollHeight, clientHeight } = tableScrollRef.current;
+      const bottomThreshold = 100; // pixels from bottom to trigger load
+      
+      if (scrollHeight - (scrollTop + clientHeight) < bottomThreshold) {
+        // Load more records based on view mode
+        if (viewMode === 'object' && !isLoadingObjectRecords) {
+          loadObjectRecords();
+        } else if (viewMode === 'classified-token' && !isLoadingTokenRecords) {
+          loadTokenRecords();
+        }
+      }
     }
   };
 
@@ -215,20 +174,30 @@ export function DatabaseTable({ loadMoreRecords, groups, tags }: DatabaseTablePr
     if (viewMode === 'object') {
       return (
         <TableBody>
-            {records.map((record, index) => (
+            {objectRecords.map((record, index) => (
                 <TableRow key={index}>
-                <TableCell>{record.token} ({record.tag})</TableCell>
+                <TableCell>{record.taggedTokens.map((token, index) => `${token[0]} (${token[1]})`).join(' ')}</TableCell>
                 <TableCell>{record.sourceObject}</TableCell>
                 <TableCell>{record.groups.join(', ')}</TableCell>
                 </TableRow>
-                ))}
+            ))}
+            {isLoadingObjectRecords && (
+              <TableRow>
+                <TableCell colSpan={3} className="text-center py-4 text-gray-500">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading more records...
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
         </TableBody>
       );
     }
   
     return (
         <TableBody>
-            {records.map((record, index) => (
+            {tokenRecords.map((record, index) => (
             <TableRow key={index}>
                 <TableCell>{record.token}</TableCell>
                 <TableCell>{record.tag}</TableCell>
@@ -236,6 +205,16 @@ export function DatabaseTable({ loadMoreRecords, groups, tags }: DatabaseTablePr
                 <TableCell>{record.groups.join(', ')}</TableCell>
             </TableRow>
             ))}
+            {isLoadingTokenRecords && (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-4 text-gray-500">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading more records...
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
         </TableBody>
     );
   };

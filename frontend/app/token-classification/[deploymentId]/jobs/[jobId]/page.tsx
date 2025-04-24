@@ -17,9 +17,15 @@ import {
   Card,
   CardContent,
   Button,
+  Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  SelectChangeEvent,
 } from '@mui/material';
 import { RefreshRounded, PauseRounded, StopRounded, ArrowBack } from '@mui/icons-material';
-import { getReportStatus, Report } from '@/lib/backend';
+import { getReportStatus, Report, getTagCounts, TagCount } from '@/lib/backend';
 import Configuration from './configuration';
 import Analytics from './analytics';
 import Outputs from './outputs';
@@ -202,36 +208,55 @@ export default function JobDetail() {
   const [tabValue, setTabValue] = useState(0);
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
 
-  // Fetch report status when component mounts
+  // Fetch report status and tag counts when component mounts
   useEffect(() => {
-    const fetchReportStatus = async () => {
+    const fetchData = async () => {
       try {
         const deploymentId = params.deploymentId as string;
         const jobId = params.jobId as string;
-        const reportData = await getReportStatus(deploymentId, jobId);
+        const [reportData, tagCounts] = await Promise.all([
+          getReportStatus(deploymentId, jobId),
+          getTagCounts(deploymentId, jobId)
+        ]);
         setReport(reportData);
+        // Get unique tags excluding 'O'
+        const tags = tagCounts
+          .map(tc => tc.tag)
+          .filter(tag => tag !== 'O');
+        setAvailableTags(tags);
       } catch (error) {
-        console.error('Error fetching report status:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchReportStatus();
+    fetchData();
   }, [params.deploymentId, params.jobId, lastUpdated]);
 
-  // Increment last updated counter every second
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLastUpdated(prev => prev + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const handleTagChange = (event: SelectChangeEvent<string[]>) => {
+    const value = event.target.value;
+    setSelectedTags(typeof value === 'string' ? value.split(',') : value);
+  };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
+
+  // Filter content based on selected tags
+  const filteredContent = report?.content?.results.map(result => {
+    const [docPath, results] = Object.entries(result)[0];
+    return {
+      [docPath]: results.filter(item => {
+        if (!item.predicted_tags) return false;
+        if (selectedTags.length === 0) return true;
+        return item.predicted_tags.some((tag: string) => selectedTags.includes(tag));
+      })
+    };
+  }) || [];
 
   if (loading) {
     return (
@@ -282,6 +307,28 @@ export default function JobDetail() {
           </Stack>
 
           <Box sx={{ mt: 2 }}>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Filter by Tags</InputLabel>
+              <Select
+                multiple
+                value={selectedTags}
+                onChange={handleTagChange}
+                renderValue={(selected) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {selected.map((value) => (
+                      <Chip key={value} label={value} />
+                    ))}
+                  </Box>
+                )}
+              >
+                {availableTags.map((tag) => (
+                  <MenuItem key={tag} value={tag}>
+                    {tag}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
             <Tabs value={tabValue} onChange={handleTabChange}>
               <Tab label="Content" />
               <Tab label="Configuration" />
@@ -290,7 +337,17 @@ export default function JobDetail() {
             </Tabs>
 
             <TabPanel value={tabValue} index={0}>
-              <ReportContentDisplay report={report} />
+              {report?.content && (
+                <ReportContentDisplay 
+                  report={{ 
+                    ...report, 
+                    content: { 
+                      report_id: report.content.report_id,
+                      results: filteredContent 
+                    } 
+                  }} 
+                />
+              )}
             </TabPanel>
             <TabPanel value={tabValue} index={1}>
               <Configuration />

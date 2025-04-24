@@ -16,8 +16,9 @@ import {
   Stack,
   Card,
   CardContent,
+  Button,
 } from '@mui/material';
-import { RefreshRounded, PauseRounded, StopRounded } from '@mui/icons-material';
+import { RefreshRounded, PauseRounded, StopRounded, ArrowBack } from '@mui/icons-material';
 import { getReportStatus, Report } from '@/lib/backend';
 import Configuration from './configuration';
 import Analytics from './analytics';
@@ -253,11 +254,21 @@ export default function JobDetail() {
         </Breadcrumbs>
 
         <Box sx={{ mt: 3 }}>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Typography variant="h5">Report Details</Typography>
-            <IconButton onClick={() => setLastUpdated(prev => prev + 1)}>
-              <RefreshRounded />
-            </IconButton>
+          <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Typography variant="h5">Report Details</Typography>
+              <IconButton onClick={() => setLastUpdated(prev => prev + 1)}>
+                <RefreshRounded />
+              </IconButton>
+            </Stack>
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBack />}
+              component={Link}
+              href={`/token-classification/${params.deploymentId}?tab=jobs`}
+            >
+              Back to Jobs
+            </Button>
           </Stack>
 
           <Box sx={{ mt: 2 }}>

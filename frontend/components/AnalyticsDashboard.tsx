@@ -64,56 +64,54 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       {/* Top Widgets */}
       <div className="grid grid-cols-3 gap-4">
         {/* Progress Widget */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center justify-center">
-              <div className="relative h-32 w-32">
-                <svg className="h-full w-full" viewBox="0 0 100 100">
-                  {/* Background circle */}
-                  <circle
-                    className="stroke-muted"
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                    strokeWidth="10"
-                  />
-                  {/* Progress circle */}
-                  <circle
-                    className="stroke-primary"
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                    strokeWidth="10"
-                    strokeDasharray={`${progress * 2.51327} 251.327`}
-                    transform="rotate(-90 50 50)"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-2xl font-bold">{progress}%</span>
-                </div>
+        <Card className="flex flex-col justify-between">
+          <CardContent className="flex flex-col items-center justify-center flex-1 pt-6">
+            <div className="relative h-32 w-32">
+              <svg className="h-full w-full" viewBox="0 0 100 100">
+                {/* Background circle */}
+                <circle
+                  className="stroke-muted"
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  fill="none"
+                  strokeWidth="10"
+                />
+                {/* Progress circle */}
+                <circle
+                  className="stroke-primary"
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  fill="none"
+                  strokeWidth="10"
+                  strokeDasharray={`${progress * 2.51327} 251.327`}
+                  transform="rotate(-90 50 50)"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-2xl font-bold">{progress}%</span>
               </div>
-              <h3 className="mt-4 text-sm font-medium text-muted-foreground">Progress</h3>
             </div>
+            <h3 className="mt-auto text-sm text-muted-foreground">Progress</h3>
           </CardContent>
         </Card>
 
         {/* Tokens Processed Widget */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center justify-center h-full">
+        <Card className="flex flex-col justify-between">
+          <CardContent className="flex flex-col items-center pt-6 h-full">
+            <div className="flex-1 flex items-center">
               <span className="text-4xl font-semibold">{formatNumber(tokensProcessed)}</span>
-              <h3 className="mt-2 text-sm text-muted-foreground">Tokens Processed</h3>
             </div>
+            <h3 className="text-sm text-muted-foreground">Tokens Processed</h3>
           </CardContent>
         </Card>
 
         {/* Live Latency Widget */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center justify-center h-full">
-              <div className="w-full h-24">
+        <Card className="flex flex-col justify-between">
+          <CardContent className="flex flex-col pt-6 h-full">
+            <div className="flex-1">
+              <div className="w-full h-[120px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={latencyData.slice(-20)} margin={{ top: 5, right: 10, bottom: 16, left: 25 }}>
                     <CartesianGrid 
@@ -181,10 +179,12 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-              <h3 className="mt-2 text-sm text-muted-foreground">Live Latency</h3>
+            </div>
+            <div className="flex flex-col items-center">
               <span className="text-sm text-muted-foreground">
                 {latencyData[latencyData.length - 1]?.latency.toFixed(1)}ms/token
               </span>
+              <h3 className="text-sm text-muted-foreground">Live Latency</h3>
             </div>
           </CardContent>
         </Card>

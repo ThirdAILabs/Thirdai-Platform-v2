@@ -95,9 +95,17 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
   // State for groups
   const [groups, setGroups] = useState<Group[]>(initialGroups);
 
+  const showReadOnlyAlert = () => {
+    alert('The configuration of an initiated job cannot be edited');
+  };
+
   // Handle source selection and configuration
   const handleSourceSelect = (source: 's3' | 'local') => {
-    if (jobStarted) return;
+    if (jobStarted) {
+      showReadOnlyAlert();
+      return;
+    }
+
     const name = prompt(`Configure ${source === 's3' ? 'S3 Bucket' : 'Local Storage'} name:`);
     if (name) {
       onConfigureSource?.(source, name);
@@ -109,7 +117,10 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
 
   // Handle tag selection
   const handleTagSelect = (tag: string) => {
-    if (jobStarted) return;
+    if (jobStarted) {
+      showReadOnlyAlert();
+      return;
+    }
     
     const newTags = selectedTags.includes(tag)
       ? selectedTags.filter(t => t !== tag)
@@ -121,7 +132,10 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
 
   // Handle select all tags
   const handleSelectAllTags = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (jobStarted) return;
+    if (jobStarted) {
+      showReadOnlyAlert();
+      return;
+    }
     
     const newTags = e.target.checked ? PREDEFINED_TAGS : [];
     setSelectedTags(newTags);
@@ -130,7 +144,10 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
 
   // Handle adding a new group
   const handleAddGroup = () => {
-    if (jobStarted) return;
+    if (jobStarted) {
+      showReadOnlyAlert();
+      return;
+    }
     
     const newGroup: Group = {
       name: `Group ${groups.length + 1}`,
@@ -143,7 +160,10 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
 
   // Handle removing a group
   const handleRemoveGroup = (indexToRemove: number) => {
-    if (jobStarted) return;
+    if (jobStarted) {
+      showReadOnlyAlert();
+      return;
+    }
     
     const updatedGroups = groups.filter((_, index) => index !== indexToRemove);
     setGroups(updatedGroups);
@@ -152,7 +172,10 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
 
   // Handle updating group
   const handleUpdateGroup = (index: number, name: string, definition: string) => {
-    if (jobStarted) return;
+    if (jobStarted) {
+      showReadOnlyAlert();
+      return;
+    }
     
     const updatedGroups = [...groups];
     updatedGroups[index] = { name, definition };
@@ -160,9 +183,12 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
     onGroupsChange?.(updatedGroups);
   };
 
-  // Handle save location selection and configuration
+  // Handle save location selection
   const handleSaveLocationSelect = (location: 's3' | 'local' | 'none') => {
-    if (jobStarted) return;
+    if (jobStarted) {
+      showReadOnlyAlert();
+      return;
+    }
 
     if (location !== 'none') {
       const name = prompt(`Configure ${location === 's3' ? 'S3 Bucket' : 'Local Storage'} name:`);
@@ -195,7 +221,6 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
               isSelected={selectedSource === 's3'}
               onClick={() => handleSourceSelect('s3')}
               showEditIcon={!jobStarted}
-              disabled={jobStarted}
             />
             <StorageOptionButton
               title="Local Storage"
@@ -203,7 +228,6 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
               isSelected={selectedSource === 'local'}
               onClick={() => handleSourceSelect('local')}
               showEditIcon={!jobStarted}
-              disabled={jobStarted}
             />
             <StorageOptionButton
               title="More options"
@@ -223,7 +247,6 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
                 className="mr-2"
                 checked={selectedTags.length === PREDEFINED_TAGS.length}
                 onChange={handleSelectAllTags}
-                disabled={jobStarted}
               />
               <span>Select All</span>
             </label>
@@ -235,7 +258,6 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
                 variant={selectedTags.includes(tag) ? "default" : "outline"}
                 onClick={() => handleTagSelect(tag)}
                 className={`text-sm ${selectedTags.includes(tag) ? BUTTON_STYLES.default : BUTTON_STYLES.outline}`}
-                disabled={jobStarted}
               >
                 {tag}
               </Button>
@@ -255,7 +277,7 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
                 onDelete={() => handleRemoveGroup(index)}
               />
             ))}
-            {!jobStarted && <AddGroupButton onClick={handleAddGroup} />}
+            <AddGroupButton onClick={handleAddGroup} />
           </div>
         </Box>
 
@@ -269,7 +291,6 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
               isSelected={selectedSaveLocation === 's3'}
               onClick={() => handleSaveLocationSelect('s3')}
               showEditIcon={!jobStarted}
-              disabled={jobStarted}
             />
             <StorageOptionButton
               title="Local Storage"
@@ -277,14 +298,12 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
               isSelected={selectedSaveLocation === 'local'}
               onClick={() => handleSaveLocationSelect('local')}
               showEditIcon={!jobStarted}
-              disabled={jobStarted}
             />
             <StorageOptionButton
               title="No storage location"
               description="You can still save groups"
               isSelected={selectedSaveLocation === 'none'}
               onClick={() => handleSaveLocationSelect('none')}
-              disabled={jobStarted}
             />
             <StorageOptionButton
               title="More options"

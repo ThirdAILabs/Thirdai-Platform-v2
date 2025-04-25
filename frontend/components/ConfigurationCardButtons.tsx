@@ -34,6 +34,8 @@ interface BaseCardButtonProps {
   showDeleteButton?: boolean;
   onDelete?: () => void;
   isSelected?: boolean;
+  disabled?: boolean;
+  preserveStyles?: boolean;
 }
 
 const BaseCardButton: React.FC<BaseCardButtonProps> = ({
@@ -43,6 +45,8 @@ const BaseCardButton: React.FC<BaseCardButtonProps> = ({
   showDeleteButton = false,
   onDelete,
   isSelected = false,
+  disabled = false,
+  preserveStyles = false,
 }) => {
   return (
     <div className="relative group">
@@ -56,12 +60,14 @@ const BaseCardButton: React.FC<BaseCardButtonProps> = ({
           hover:border-blue-300
           transition-all duration-200
           ${isSelected ? 'border-2 border-blue-500' : ''}
+          ${disabled && !preserveStyles ? 'opacity-50' : ''}
           ${className}
         `}
+        disabled={disabled}
       >
         {children}
       </Button>
-      {showDeleteButton && onDelete && (
+      {showDeleteButton && onDelete && !disabled && (
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -89,6 +95,7 @@ interface StorageOptionButtonProps {
   onClick?: () => void;
   showEditIcon?: boolean;
   disabled?: boolean;
+  preserveStyles?: boolean;
 }
 
 export const StorageOptionButton: React.FC<StorageOptionButtonProps> = ({
@@ -98,26 +105,14 @@ export const StorageOptionButton: React.FC<StorageOptionButtonProps> = ({
   onClick,
   showEditIcon = false,
   disabled = false,
+  preserveStyles = false,
 }) => {
-  if (disabled) {
-    return (
-      <BaseCardButton className="cursor-not-allowed opacity-50">
-        <div className="h-full w-full">
-          <div className="text-left">
-            <ButtonTitle>{title}</ButtonTitle>
-            {description && (
-              <p className="text-sm text-gray-500 mt-2 w-full whitespace-normal break-words">{description}</p>
-            )}
-          </div>
-        </div>
-      </BaseCardButton>
-    );
-  }
-
   return (
     <BaseCardButton
       onClick={onClick}
       isSelected={isSelected}
+      disabled={disabled}
+      preserveStyles={preserveStyles}
     >
       <div className="h-full w-full flex flex-col">
         <div className="text-left">
@@ -126,7 +121,7 @@ export const StorageOptionButton: React.FC<StorageOptionButtonProps> = ({
             <p className="text-sm text-gray-500 mt-2 w-full whitespace-normal break-words">{description}</p>
           )}
         </div>
-        {showEditIcon && (
+        {showEditIcon && !disabled && (
           <div className="mt-auto self-end">
             <EditIcon className="text-gray-500" />
           </div>

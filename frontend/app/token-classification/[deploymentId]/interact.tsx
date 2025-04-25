@@ -274,15 +274,6 @@ export default function Interact() {
 
   const [cachedTags, setCachedTags] = useState<CachedTags>({});
 
-  useEffect(() => {
-    const stopSelectingOnOutsideClick = () => {
-      setSelecting(false);
-      setSelectedRange(null);
-    };
-    window.addEventListener('mousedown', stopSelectingOnOutsideClick);
-    return () => window.removeEventListener('mousedown', stopSelectingOnOutsideClick);
-  }, []);
-
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setInputText(event.target.value);
     setParsedData(null);
@@ -468,101 +459,147 @@ export default function Interact() {
     return -1; // This should never happen if selectedRange is valid
   };
 
+  const handleMouseDown = (index: number) => {
+    console.log('Mouse down:', { index });
+    setSelecting(true);
+    setMouseDownIndex(index);
+    setMouseUpIndex(index);
+    setSelectedTokenIndex(index);
+    setSelectedRange([index, index]);
+  };
+
+  const handleMouseOver = (index: number) => {
+    if (selecting) {
+      console.log('Mouse over while selecting:', { index, mouseDownIndex });
+      setMouseUpIndex(index);
+      if (mouseDownIndex !== null) {
+        const start = Math.min(mouseDownIndex, index);
+        const end = Math.max(mouseDownIndex, index);
+        setSelectedRange([start, end]);
+      }
+    }
+  };
+
+  const handleCardMouseUp = (e: React.MouseEvent) => {
+    console.log('Card mouse up:', { startIndex, endIndex });
+    e.stopPropagation();
+    if (startIndex !== null && endIndex !== null) {
+      setSelectedRange([startIndex, endIndex]);
+    }
+  };
+
+  // Modify the mouse up handler to maintain selection
+  useEffect(() => {
+    const handleMouseUp = (e: MouseEvent) => {
+      console.log('Mouse up:', { selecting, mouseDownIndex, mouseUpIndex, selectedRange });
+      if (selecting && mouseDownIndex !== null && mouseUpIndex !== null) {
+        const start = Math.min(mouseDownIndex, mouseUpIndex);
+        const end = Math.max(mouseDownIndex, mouseUpIndex);
+        setSelectedRange([start, end]);
+        // Only clear the selecting state, keep other states
+        setSelecting(false);
+      }
+    };
+
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, [selecting, mouseDownIndex, mouseUpIndex]);
+
   const cacheNewTag = async (newTag: string) => {
-    if (!selectedRange) return;
-    setSelectedTokenIndex(null); // Clear dropdown
+    console.log('Cache new tag called:', { newTag, selectedRange, annotations });
+    if (!selectedRange) {
+      console.log('No selected range, returning');
+      return;
+    }
 
-    const updatedTags = annotations.map((token, index) => ({
-      text: token.text,
-      tag:
-        selectedRange && index >= selectedRange[0] && index <= selectedRange[1]
-          ? newTag
-          : token.tag,
-    }));
+    // Clear dropdown
+    setSelectedTokenIndex(null);
 
-    console.log('updatedTags', updatedTags);
+    // Update annotations with new tag
+    const updatedTags = annotations.map((token, index) => {
+      const isInRange = index >= selectedRange[0] && index <= selectedRange[1];
+      console.log('Processing token:', { index, token, isInRange, newTag });
+      return {
+        text: token.text,
+        tag: isInRange ? newTag : token.tag
+      };
+    });
 
-    setCachedTags((prev) => {
-      const updatedCachedTags: CachedTags = { ...prev };
+    // Update annotations state
+    console.log('Setting new annotations:', updatedTags);
+    setAnnotations(updatedTags);
+    
+    // Update tag colors
+    updateTagColors([[newTag]]);
 
-      if (parsedData) {
-        let paragraphs: string[];
-        let rowIndices: number[] | null = null;
-        let isCSV = false;
-        let isDirectQuery = false;
+    // Update cached tags
+    if (parsedData) {
+      let paragraphs: string[];
+      let rowIndices: number[] | null = null;
+      let isCSV = false;
+      let isDirectQuery = false;
 
-        if (parsedData.type === 'pdf' && parsedData.pdfParagraphs) {
-          paragraphs = parsedData.pdfParagraphs;
-        } else if ((parsedData.type === 'csv' || parsedData.type === 'other') && parsedData.rows) {
-          const csvData = convertCSVToPDFFormat(parsedData.rows);
-          paragraphs = parsedData.rows.map((row) => row.content.replace(/\n/g, ' '));
-          rowIndices = csvData.rowIndices;
-          isCSV = true;
-        } else {
-          // This is a direct query
-          isDirectQuery = true;
-          paragraphs = [parsedData.content]; // Treat the entire content as a single paragraph
-        }
+      if (parsedData.type === 'pdf' && parsedData.pdfParagraphs) {
+        paragraphs = parsedData.pdfParagraphs;
+      } else if ((parsedData.type === 'csv' || parsedData.type === 'other') && parsedData.rows) {
+        const csvData = convertCSVToPDFFormat(parsedData.rows);
+        paragraphs = parsedData.rows.map((row) => row.content.replace(/\n/g, ' '));
+        rowIndices = csvData.rowIndices;
+        isCSV = true;
+      } else {
+        isDirectQuery = true;
+        paragraphs = [parsedData.content];
+      }
 
-        console.log('selectedRange', selectedRange);
+      let relevantParagraphIndex: number;
+      if (isDirectQuery) {
+        relevantParagraphIndex = 0;
+      } else if (isCSV && rowIndices) {
+        relevantParagraphIndex = findCSVRowIndex(selectedRange, rowIndices);
+      } else {
+        relevantParagraphIndex = findParagraphIndex(selectedRange, paragraphs);
+      }
 
-        let relevantParagraphIndex: number;
+      console.log('Found relevant paragraph:', { relevantParagraphIndex, isDirectQuery, isCSV });
+
+      if (relevantParagraphIndex !== -1) {
+        const relevantParagraph = paragraphs[relevantParagraphIndex];
+        const feedbackKey = isDirectQuery
+          ? 'direct-query'
+          : isCSV
+            ? `row-${relevantParagraphIndex}`
+            : `paragraph-${relevantParagraphIndex}`;
+
+        const paragraphTokens = tokenizeParagraph(relevantParagraph);
+        let paragraphStartIndex = 0;
+        
         if (isDirectQuery) {
-          relevantParagraphIndex = 0; // For direct queries, we only have one paragraph
+          paragraphStartIndex = 0;
         } else if (isCSV && rowIndices) {
-          relevantParagraphIndex = findCSVRowIndex(selectedRange, rowIndices);
+          paragraphStartIndex = rowIndices[relevantParagraphIndex];
         } else {
-          relevantParagraphIndex = findParagraphIndex(selectedRange, paragraphs);
+          let tokenCount = 0;
+          for (let i = 0; i < relevantParagraphIndex; i++) {
+            tokenCount += tokenizeParagraph(paragraphs[i]).length;
+          }
+          paragraphStartIndex = tokenCount;
         }
 
-        console.log('relevantParagraphIndex', relevantParagraphIndex);
+        const newContent = paragraphTokens.map((word, index) => ({
+          text: word,
+          tag: updatedTags[paragraphStartIndex + index]?.tag || 'O',
+        }));
 
-        if (relevantParagraphIndex !== -1) {
-          const relevantParagraph = paragraphs[relevantParagraphIndex];
+        console.log('Updating cached tags:', { feedbackKey, newContent });
 
-          // Use paragraph index as key
-          const feedbackKey = isDirectQuery
-            ? 'direct-query'
-            : isCSV
-              ? `row-${relevantParagraphIndex}`
-              : `paragraph-${relevantParagraphIndex}`;
-
-          // Tokenize the paragraph
-          const paragraphTokens = tokenizeParagraph(relevantParagraph);
-
-          // Find the start index of this paragraph in the overall annotations
-          let paragraphStartIndex = 0;
-          if (isDirectQuery) {
-            paragraphStartIndex = 0;
-          } else if (isCSV && rowIndices) {
-            paragraphStartIndex = rowIndices[relevantParagraphIndex];
-          } else {
-            let tokenCount = 0;
-            for (let i = 0; i < relevantParagraphIndex; i++) {
-              tokenCount += tokenizeParagraph(paragraphs[i]).length;
-            }
-            paragraphStartIndex = tokenCount;
-          }
-
-          console.log('rowIndices', rowIndices);
-          console.log('updatedTags 2', updatedTags);
-          console.log('paragraphStartIndex', paragraphStartIndex);
-
-          // Create new content with correct tags
-          const newContent = paragraphTokens.map((word, index) => ({
-            text: word,
-            tag: updatedTags[paragraphStartIndex + index]?.tag || 'O',
-          }));
-
-          console.log('newContent', newContent);
-
-          // Update cachedTags
+        setCachedTags((prev) => {
+          const updatedCachedTags = { ...prev };
+          
           if (updatedCachedTags[feedbackKey]) {
             if (isColumnData(updatedCachedTags[feedbackKey])) {
-              // Merge existing content with new content
-              const existingContent = updatedCachedTags[feedbackKey].content;
+              const existingContent = (updatedCachedTags[feedbackKey] as ColumnData).content;
               const mergedContent = mergeTokens(existingContent, newContent);
-              updatedCachedTags[feedbackKey].content = mergedContent;
+              (updatedCachedTags[feedbackKey] as ColumnData).content = mergedContent;
             }
           } else {
             updatedCachedTags[feedbackKey] = {
@@ -574,14 +611,14 @@ export default function Interact() {
               content: newContent,
             };
           }
-        }
+          
+          console.log('New cached tags state:', updatedCachedTags);
+          return updatedCachedTags;
+        });
       }
+    }
 
-      return updatedCachedTags;
-    });
-
-    setAnnotations(updatedTags);
-    updateTagColors([[newTag]]);
+    // Reset selection state after the tag has been applied
     setSelectedRange(null);
     setMouseDownIndex(null);
     setMouseUpIndex(null);
@@ -614,9 +651,12 @@ export default function Interact() {
 
   useEffect(() => {
     updateFeedbackDashboard();
+    // Add debug logging
+    console.log('Current cached tags:', cachedTags);
   }, [annotations]);
 
   const submitFeedback = async () => {
+    console.log('Submitting feedback with cached tags:', cachedTags);
     try {
       for (const [sentence, tags] of Object.entries(cachedTags)) {
         let submission: { tokens: string[]; tags: string[] };
@@ -774,19 +814,6 @@ export default function Interact() {
     ));
   };
 
-  const handleMouseDown = (index: number) => {
-    setSelecting(true);
-    setMouseDownIndex(index);
-    setMouseUpIndex(index);
-    setSelectedTokenIndex(index);
-  };
-
-  const handleMouseOver = (index: number) => {
-    if (selecting) {
-      setMouseUpIndex(index);
-    }
-  };
-
   const renderHighlightedContent = (content: string) => {
     const words = content.split(/\s+/);
     let currentIndex = 0;
@@ -931,52 +958,21 @@ export default function Interact() {
         )}
       </div>
 
-      {/* Right Column: API Info */}
+      {/* Right Column: Feedback Dashboard */}
       <div>
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">API</h3>
-            <div className="relative">
-              <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
-                <code>{`curl -X POST \\
-  https://platform.thirdai.com/${deploymentId}/query \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "text": "Your text here"
-  }'`}</code>
-              </pre>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-2 right-2"
-                onClick={() => {
-                  navigator.clipboard.writeText(
-                    `curl -X POST \\
-  https://platform.thirdai.com/${deploymentId}/query \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "text": "Your text here"
-  }'`
-                  );
-                }}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
-                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-                </svg>
-              </Button>
-            </div>
-          </CardContent>
+        {processingTime !== undefined && annotations.length > 0 && (
+          <div className="mb-4">
+            <InferenceTimeDisplay processingTime={processingTime} tokenCount={annotations.length} />
+          </div>
+        )}
+
+        <Card className="p-6">
+          <FeedbackDashboard
+            cachedTags={cachedTags}
+            tagColors={tagColors}
+            deleteFeedbackExample={deleteFeedbackExample}
+            submitFeedback={submitFeedback}
+          />
         </Card>
       </div>
     </div>

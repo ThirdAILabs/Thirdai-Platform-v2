@@ -7,7 +7,8 @@ import { WorkFlow } from './workflow';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@mui/material';
-import { fetchWorkflows, Workflow } from '@/lib/backend';
+import { Workflow } from '@/lib/backend';
+import { fetchWorkflows } from '@/lib/mock-backend';
 
 export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: number }) {
   // Hardcode the model display

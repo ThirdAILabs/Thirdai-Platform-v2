@@ -3,12 +3,10 @@ import { TextField, Typography, Box, Tooltip, Button, Alert } from '@mui/materia
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, HelpCircle } from 'lucide-react';
 import {
-  retrainTokenClassifier,
-  trainUDTWithCSV,
-  getTrainReport,
   getAccessToken,
   useTokenClassificationEndpoints,
 } from '@/lib/backend';
+import { retrainTokenClassifier, trainUDTWithCSV, getTrainReport, getLabels } from '@/lib/mock_backend';
 import RecentSamples from './samples';
 import { TrainingResults } from './MetricsChart';
 import type { TrainReportData } from '@/lib/backend';
@@ -307,17 +305,17 @@ export default function ModelUpdate({
     setNumTagDisplay(5);
   };
 
-  const getLabels = async (): Promise<string[]> => {
-    axios.defaults.headers.common.Authorization = `Bearer ${getAccessToken()}`;
-    try {
-      const response = await axios.get(`${deploymentUrl}/get_labels`);
-      return response.data.data;
-    } catch (error) {
-      console.error('Error fetching labels:', error);
-      alert('Error fetching labels:' + error);
-      throw new Error('Failed to fetch labels');
-    }
-  };
+  // const getLabels = async (): Promise<string[]> => {
+  //   axios.defaults.headers.common.Authorization = `Bearer ${getAccessToken()}`;
+  //   try {
+  //     const response = await axios.get(`${deploymentUrl}/get_labels`);
+  //     return response.data.data;
+  //   } catch (error) {
+  //     console.error('Error fetching labels:', error);
+  //     alert('Error fetching labels:' + error);
+  //     throw new Error('Failed to fetch labels');
+  //   }
+  // };
 
   useEffect(() => {
     async function getTags() {

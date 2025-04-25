@@ -15,28 +15,57 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { listReports, Report } from '@/lib/backend';
 
+const mockReport: Report = {
+  name: "Sample Token Classification Job",
+  report_id: "tcr_123456789",
+  status: "completed",
+  submitted_at: "2024-01-15T10:30:00Z",
+  updated_at: "2024-01-15T10:35:00Z",
+  documents: [
+    {
+      path: "sample_doc.txt",
+      location: "s3://bucket/sample_doc.txt",
+      source_id: "doc_123",
+      options: {},
+      metadata: {}
+    }
+  ],
+  msg: null,
+  content: {
+    report_id: "tcr_123456789",
+    results: [
+      {
+        "sample_doc.txt": [
+          { text: "John Smith", tag: "PERSON" },
+          { text: "New York", tag: "LOCATION" }
+        ]
+      }
+    ]
+  }
+};
+
 export default function Jobs() {
   const params = useParams();
-  const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [reports, setReports] = useState<Report[]>([mockReport]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchReports = async () => {
-      try {
-        const deploymentId = params.deploymentId as string;
-        const reportsData = await listReports(deploymentId);
-        setReports(reportsData);
-      } catch (err) {
-        setError('Failed to fetch reports');
-        console.error('Error fetching reports:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // useEffect(() => {
+  //   const fetchReports = async () => {
+  //     try {
+  //       const deploymentId = params.deploymentId as string;
+  //       const reportsData = await listReports(deploymentId);
+  //       setReports(reportsData);
+  //     } catch (err) {
+  //       setError('Failed to fetch reports');
+  //       console.error('Error fetching reports:', err);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
-    fetchReports();
-  }, [params.deploymentId]);
+  //   fetchReports();
+  // }, [params.deploymentId]);
 
   if (loading) {
     return (
@@ -84,6 +113,7 @@ export default function Jobs() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="font-semibold">Name</TableHead>
                 <TableHead className="font-semibold">Report ID</TableHead>
                 <TableHead className="font-semibold">Status</TableHead>
                 <TableHead className="font-semibold">Submitted At</TableHead>
@@ -98,6 +128,7 @@ export default function Jobs() {
                     key={report.report_id}
                     className={index % 2 === 0 ? 'bg-white' : 'bg-muted/50'}
                   >
+                    <TableCell>{report.name}</TableCell>
                     <TableCell>{report.report_id}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">

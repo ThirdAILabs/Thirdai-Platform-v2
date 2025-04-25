@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef, MouseEvent as ReactMouseEvent } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useLabels, useRecentSamples } from '@/lib/backend';
+import { useLabels, useRecentSamples } from '@/lib/mock_backend';
 import { associations, reformulations, upvotes } from './mock_samples';
 import useRollingSamples from './rolling';
 import axios from 'axios';

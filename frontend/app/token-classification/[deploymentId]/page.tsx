@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink } from '@/components/ui/breadcrumb';
 import * as _ from 'lodash';
-import { useTokenClassificationEndpoints, getTrainReport } from '@/lib/backend';
+import { useTokenClassificationEndpoints } from '@/lib/backend';
+import { getTrainReport } from '@/lib/mock_backend';
 import Interact from './interact';
 import Dashboard from './dashboard';
 import Jobs from './jobs';
@@ -13,6 +14,7 @@ import { TrainingResults } from '@/app/(dashboard)/analytics/MetricsChart';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert } from '@mui/material';
 import type { TrainReportData, LabelMetrics, ExampleCategories } from '@/lib/backend';
+import ModelUpdate from '@/app/(dashboard)/analytics/ModelUpdate';
 
 const emptyMetrics: LabelMetrics = {
   'O': {
@@ -35,11 +37,12 @@ const emptyReport: TrainReportData = {
 };
 
 export default function Page() {
-  const { workflowName } = useTokenClassificationEndpoints();
+  // const { workflowName } = useTokenClassificationEndpoints();
+  const workflowName = 'Test Name';
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab') || 'testing';
   const [trainReport, setTrainReport] = useState<TrainReportData>(emptyReport);
-  const [isLoadingReport, setIsLoadingReport] = useState(true);
+  const [isLoadingReport, setIsLoadingReport] = useState(false);
   const [reportError, setReportError] = useState('');
 
   // Fetch training report for monitoring tab
@@ -61,6 +64,16 @@ export default function Page() {
 
     fetchReport();
   }, [workflowName]);
+
+  // Mock data for ModelUpdate component
+  const mockModelData = {
+    username: 'testuser',
+    modelName: 'token-classifier',
+    deploymentUrl: 'https://mock-deployment-url.com',
+    workflowNames: ['token-classifier', 'token-classifier-v2'],
+    deployStatus: 'complete',
+    modelId: 'mock-model-id-123'
+  };
 
   return (
     <div className="bg-muted min-h-screen">
@@ -87,15 +100,7 @@ export default function Page() {
           </TabsList>
           
           <TabsContent value="monitoring" className="mt-0">
-            {isLoadingReport ? (
-              <Card>
-                <CardContent>
-                  <div className="text-center py-8">Loading training report...</div>
-                </CardContent>
-              </Card>
-            ) : (
-              <TrainingResults report={trainReport} />
-            )}
+            <ModelUpdate {...mockModelData} />
           </TabsContent>
           
           <TabsContent value="testing" className="mt-0">

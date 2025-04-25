@@ -2659,6 +2659,7 @@ export interface ReportContent {
 }
 
 export interface Report {
+  name: string;
   report_id: string;
   status: string;
   submitted_at: string;

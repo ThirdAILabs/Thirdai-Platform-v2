@@ -160,17 +160,16 @@ export function DatabaseTable({
               }}
             >
               <div className="px-6">
-                <Table>
-                  <TableContent
-                    viewMode={viewMode}
-                    objectRecords={objectRecords}
-                    tokenRecords={tokenRecords}
-                    groupFilters={groupFilters}
-                    tagFilters={tagFilters}
-                    isLoadingObjectRecords={isLoadingObjectRecords}
-                    isLoadingTokenRecords={isLoadingTokenRecords}
-                  />
-                </Table>
+                <TableContent
+                  viewMode={viewMode}
+                  objectRecords={objectRecords}
+                  tokenRecords={tokenRecords}
+                  groupFilters={groupFilters}
+                  tagFilters={tagFilters}
+                  isLoadingObjectRecords={isLoadingObjectRecords}
+                  isLoadingTokenRecords={isLoadingTokenRecords}
+                  tags={tags}
+                />
               </div>
             </div>
           </div>

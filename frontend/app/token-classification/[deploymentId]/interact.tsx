@@ -21,7 +21,8 @@ import React, {
 } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import * as _ from 'lodash';
-import { useTokenClassificationEndpoints } from '@/lib/backend';
+// import { useTokenClassificationEndpoints } from '@/lib/backend';
+import { useTokenClassificationEndpoints } from '@/lib/mock-backend';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -380,6 +381,7 @@ export default function Interact() {
     setIsLoading(true);
     try {
       const result = await predict(text);
+      console.log('Prediction result:', result);
       updateTagColors(result.prediction_results.predicted_tags);
       setProcessingTime(result.time_taken);
       setAnnotations(
@@ -893,6 +895,7 @@ export default function Interact() {
     } else if (parsedData.type === 'pdf' && parsedData.pdfParagraphs) {
       return <div style={contentStyle}>{renderPDFContent(parsedData.pdfParagraphs)}</div>;
     } else {
+      console.log("parsedData.content:", parsedData.content);
       return <div style={contentStyle}>{renderHighlightedContent(parsedData.content)}</div>;
     }
   };

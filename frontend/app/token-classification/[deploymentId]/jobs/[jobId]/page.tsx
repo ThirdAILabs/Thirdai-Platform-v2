@@ -9,50 +9,20 @@ import {
   Typography,
   Breadcrumbs,
   Link as MuiLink,
-  Tabs,
-  Tab,
-  Paper,
   IconButton,
   Stack,
-  Card,
-  CardContent,
   Button,
-  Chip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  SelectChangeEvent,
 } from '@mui/material';
 import { RefreshRounded, PauseRounded, StopRounded, ArrowBack } from '@mui/icons-material';
-import { getReportStatus, Report, getTagCounts, TagCount } from '@/lib/backend';
+// import { getReportStatus, Report, getTagCounts, TagCount } from '@/lib/backend';
 import Configuration from './configuration';
 import Analytics from './analytics';
 import Outputs from './outputs';
 import { DatabaseTable } from './(database-table)/DatabaseTable';
 import { loadMoreMockClassifiedTokenRecords, loadMoreMockObjectRecords, mockGroups, mockTags } from './mockdata';
-
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`simple-tabpanel-${index}`}
-      aria-labelledby={`simple-tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
-    </div>
-  );
-}
+import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
+import ConfigurationCard from '@/components/ConfigurationCard';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 interface Token {
   text: string;
@@ -119,258 +89,131 @@ function Highlight({
   );
 }
 
-function ReportContentDisplay({ report }: { report: Report }) {
-  const [tagColors, setTagColors] = useState<Record<string, HighlightColor>>({});
-
-  useEffect(() => {
-    // Generate colors for tags
-    const pastels = ['#E5A49C', '#F6C886', '#FBE7AA', '#99E3B5', '#A6E6E7', '#A5A1E1', '#D8A4E2'];
-    const darkers = ['#D34F3E', '#F09336', '#F7CF5F', '#5CC96E', '#65CFD0', '#597CE2', '#B64DC8'];
-
-    if (report.content) {
-      const colors: Record<string, HighlightColor> = {};
-      report.content.results.forEach(result => {
-        const [_, results] = Object.entries(result)[0];
-        results.forEach(item => {
-          if (item.predicted_tags) {
-            item.predicted_tags.forEach((tag: string, index: number) => {
-              if (tag !== 'O' && !colors[tag]) {
-                const i = Object.keys(colors).length;
-                colors[tag] = {
-                  text: pastels[i % pastels.length],
-                  tag: darkers[i % darkers.length],
-                };
-              }
-            });
-          }
-        });
-      });
-      setTagColors(colors);
-    }
-  }, [report.content]);
-
-  if (!report.content) {
-    return (
-      <Card>
-        <CardContent>
-          <Typography variant="body1">No content available yet.</Typography>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const getFilename = (path: string) => {
-    return path.split('/').pop() || path;
-  };
-
-  return (
-    <Card>
-      <CardContent>
-        <Stack spacing={2}>
-          {report.content.results.map((result, index) => {
-            const [docPath, results] = Object.entries(result)[0];
-            return (
-              <Paper key={index} elevation={1} sx={{ p: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  Document: {getFilename(docPath)}
-                </Typography>
-                <Box sx={{ pl: 2 }}>
-                  {results.map((item, itemIndex) => {
-                    if (item.tokens && item.predicted_tags) {
-                      const tokens: Token[] = item.tokens.map((token: string, i: number) => ({
-                        text: token,
-                        tag: item.predicted_tags[i],
-                      }));
-
-                      return (
-                        <Box key={itemIndex} sx={{ mb: 2 }}>
-                          <Typography variant="body1" component="div">
-                            {tokens.map((token, tokenIndex) => (
-                              <Highlight
-                                key={tokenIndex}
-                                currentToken={token}
-                                tagColors={tagColors}
-                              />
-                            ))}
-                          </Typography>
-                        </Box>
-                      );
-                    }
-                    return null;
-                  })}
-                </Box>
-              </Paper>
-            );
-          })}
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function JobDetail() {
   const params = useParams();
   const [lastUpdated, setLastUpdated] = useState(0);
-  const [tabValue, setTabValue] = useState(0);
-  const [report, setReport] = useState<Report | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
-
-  // Fetch report status and tag counts when component mounts
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const deploymentId = params.deploymentId as string;
-        const jobId = params.jobId as string;
-        const [reportData, tagCounts] = await Promise.all([
-          getReportStatus(deploymentId, jobId),
-          getTagCounts(deploymentId, jobId)
-        ]);
-        setReport(reportData);
-        // Get unique tags excluding 'O'
-        const tags = tagCounts
-          .map(tc => tc.tag)
-          .filter(tag => tag !== 'O');
-        setAvailableTags(tags);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [params.deploymentId, params.jobId, lastUpdated]);
-
-  const handleTagChange = (event: SelectChangeEvent<string[]>) => {
-    const value = event.target.value;
-    setSelectedTags(typeof value === 'string' ? value.split(',') : value);
-  };
-
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
-
-  // Filter content based on selected tags
-  const filteredContent = report?.content?.results.map(result => {
-    const [docPath, results] = Object.entries(result)[0];
-    return {
-      [docPath]: results.filter(item => {
-        if (!item.predicted_tags) return false;
-        if (selectedTags.length === 0) return true;
-        return item.predicted_tags.some((tag: string) => selectedTags.includes(tag));
-      })
-    };
-  }) || [];
-
-  if (loading) {
-    return (
-      <Container>
-        <Box sx={{ p: 3 }}>
-          <Typography>Loading...</Typography>
-        </Box>
-      </Container>
-    );
-  }
-
-  if (!report) {
-    return (
-      <Container>
-        <Box sx={{ p: 3 }}>
-          <Typography color="error">Failed to load report</Typography>
-        </Box>
-      </Container>
-    );
-  }
+  const [tabValue, setTabValue] = useState('analytics');
 
   return (
-    <Container>
-      <Box sx={{ p: 3 }}>
-        <Breadcrumbs aria-label="breadcrumb">
-          <MuiLink component={Link} href={`/token-classification/${params.deploymentId}/jobs`}>
-            Jobs
-          </MuiLink>
-          <Typography color="text.primary">Report {report.report_id}</Typography>
-        </Breadcrumbs>
+    <Container maxWidth="lg" sx={{ px: 4 }}>
+      <Box sx={{ py: 3 }}>
+        {/* Breadcrumbs */}
+        <Stack direction="row" spacing={2} alignItems="center" mb={3}>
+          <Breadcrumbs aria-label="breadcrumb">
+            <MuiLink component={Link} href={`/token-classification/${params.deploymentId}/jobs`}>
+              Jobs
+            </MuiLink>
+            <Typography color="text.primary">HIPAA 25</Typography>
+          </Breadcrumbs>
+        </Stack>
 
-        <Box sx={{ mt: 3 }}>
-          <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
+        {/* Title and Back Button */}
+        <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" mb={3}>
+          <Typography variant="h5">HIPAA 25</Typography>
+          <Button
+            variant="outlined"
+            startIcon={<ArrowBack />}
+            component={Link}
+            href={`/token-classification/${params.deploymentId}?tab=jobs`}
+          >
+            Back to Jobs
+          </Button>
+        </Stack>
+
+        {/* Tabs, Controls and Content */}
+        <Tabs value={tabValue} onValueChange={setTabValue}>
+          <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" mb={3}>
+            <TabsList>
+              <TabsTrigger value="configuration">Configuration</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              <TabsTrigger value="output">Output</TabsTrigger>
+            </TabsList>
+
             <Stack direction="row" spacing={2} alignItems="center">
-              <Typography variant="h5">Report Details</Typography>
-              <IconButton onClick={() => setLastUpdated(prev => prev + 1)}>
+              <Typography variant="body2" color="text.secondary">
+                Last updated: {lastUpdated} seconds ago
+              </Typography>
+              <IconButton onClick={() => setLastUpdated(0)} size="small">
                 <RefreshRounded />
               </IconButton>
+              <IconButton size="small">
+                <PauseRounded />
+              </IconButton>
+              <IconButton size="small">
+                <StopRounded />
+              </IconButton>
             </Stack>
-            <Button
-              variant="outlined"
-              startIcon={<ArrowBack />}
-              component={Link}
-              href={`/token-classification/${params.deploymentId}?tab=jobs`}
-            >
-              Back to Jobs
-            </Button>
           </Stack>
 
-          <Box sx={{ mt: 2 }}>
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>Filter by Tags</InputLabel>
-              <Select
-                multiple
-                value={selectedTags}
-                onChange={handleTagChange}
-                renderValue={(selected) => (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {selected.map((value) => (
-                      <Chip key={value} label={value} />
-                    ))}
-                  </Box>
-                )}
-              >
-                {availableTags.map((tag) => (
-                  <MenuItem key={tag} value={tag}>
-                    {tag}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <Tabs value={tabValue} onChange={handleTabChange}>
-              <Tab label="Output" />
-              <Tab label="Configuration" />
-              <Tab label="Analytics" />
-              <Tab label="Database Table" />
-            </Tabs>
-
-            <TabPanel value={tabValue} index={0}>
-              {report?.content && (
-                <ReportContentDisplay 
-                  report={{ 
-                    ...report, 
-                    content: { 
-                      report_id: report.content.report_id,
-                      results: filteredContent 
-                    } 
-                  }} 
-                />
-              )}
-            </TabPanel>
-            <TabPanel value={tabValue} index={1}>
-              <Configuration />
-            </TabPanel>
-            <TabPanel value={tabValue} index={2}>
-              <Analytics />
-            </TabPanel>
-            <TabPanel value={tabValue} index={3}>
-              <DatabaseTable 
-                loadMoreObjectRecords={loadMoreMockObjectRecords}
-                loadMoreClassifiedTokenRecords={loadMoreMockClassifiedTokenRecords}
-                groups={mockGroups}
-                tags={mockTags}
-              />
-            </TabPanel>
-          </Box>
-        </Box>
+          <TabsContent value="configuration">
+            <ConfigurationCard 
+              sourceS3Config={{ name: '/path/to/bucket' }}
+              sourceLocalConfig={{ name: '' }}
+              saveS3Config={{ name: '/path/to/bucket' }}
+              saveLocalConfig={{ name: 'local' }}
+              selectedSource={'s3'}
+              selectedSaveLocation={'s3'}
+              initialGroups={[
+                {
+                  name: 'group1',
+                  definition: 'group1 definition',
+                },
+              ]}
+              jobStarted={true}
+            /> 
+          </TabsContent>
+          
+          <TabsContent value="analytics">
+            <AnalyticsDashboard
+              progress={40}
+              tokensProcessed={1229000}
+              latencyData={[
+                { timestamp: '2024-03-10T12:00:00', latency: 5.6 },
+                { timestamp: '2024-03-10T12:00:01', latency: 3.6 },
+                { timestamp: '2024-03-10T12:00:02', latency: 2.6 },
+                { timestamp: '2024-03-10T12:00:03', latency: 5.8 },
+                { timestamp: '2024-03-10T12:00:04', latency: 5.7 },
+                { timestamp: '2024-03-10T12:00:05', latency: 5.2 },
+                { timestamp: '2024-03-10T12:00:06', latency: 5.1 },
+                { timestamp: '2024-03-10T12:00:07', latency: 5.0 },
+                { timestamp: '2024-03-10T12:00:08', latency: 4.9 },
+                { timestamp: '2024-03-10T12:00:09', latency: 4.8 },
+                { timestamp: '2024-03-10T12:00:10', latency: 4.7 },
+                { timestamp: '2024-03-10T12:00:11', latency: 4.6 },
+                { timestamp: '2024-03-10T12:00:12', latency: 4.5 },
+                { timestamp: '2024-03-10T12:00:13', latency: 5.2 },
+                { timestamp: '2024-03-10T12:00:14', latency: 5.3 },
+                { timestamp: '2024-03-10T12:00:15', latency: 4.2 },
+                { timestamp: '2024-03-10T12:00:16', latency: 4.1 },
+                { timestamp: '2024-03-10T12:00:17', latency: 4.8 },
+                { timestamp: '2024-03-10T12:00:18', latency: 3.9 },
+                { timestamp: '2024-03-10T12:00:19', latency: 4.9 },
+                { timestamp: '2024-03-10T12:00:20', latency: 5.0 },
+                { timestamp: '2024-03-10T12:00:21', latency: 3.6 },
+                { timestamp: '2024-03-10T12:00:22', latency: 5.1 },
+              ]}
+              tokenTypes={['NAME', 'VIN', 'ORG', 'ID', 'SSN', 'ADDRESS', 'EMAIL']}
+              tokenCounts={{
+                'NAME': 21200000,
+                'VIN': 19800000,
+                'ORG': 13300000,
+                'ID': 13300000,
+                'SSN': 13300000,
+                'ADDRESS': 5600000,
+                'EMAIL': 3800000
+              }}
+            />
+          </TabsContent>
+          
+          <TabsContent value="output">
+            <DatabaseTable 
+              loadMoreObjectRecords={loadMoreMockObjectRecords}
+              loadMoreClassifiedTokenRecords={loadMoreMockClassifiedTokenRecords}
+              groups={mockGroups}
+              tags={mockTags}
+            />
+          </TabsContent>
+        </Tabs>
       </Box>
     </Container>
   );

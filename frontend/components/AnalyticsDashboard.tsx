@@ -113,7 +113,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             <div className="flex-1">
               <div className="w-full h-[120px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={latencyData.slice(-20)} margin={{ top: 5, right: 10, bottom: 16, left: 25 }}>
+                  <LineChart data={latencyData.slice(-20)}>
                     <CartesianGrid 
                       strokeDasharray="3 3" 
                       horizontal={true}
@@ -196,15 +196,23 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           <CardTitle>Identified Tokens</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px]">
+          <div style={{ height: `${Math.max(300, tokenChartData.length * 50)}px` }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={tokenChartData}
                 layout="vertical"
-                margin={{ top: 20, right: 30, left: 70, bottom: 5 }}
+                margin={{ top: 20, right: 30, left: 50, bottom: 30 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
+                <XAxis 
+                  type="number" 
+                  label={{ 
+                    value: "Number of tokens", 
+                    position: "bottom",
+                    offset: 15
+                  }}
+                  tickFormatter={formatNumber}
+                />
                 <YAxis dataKey="type" type="category" />
                 <Tooltip
                   formatter={(value: number) => formatNumber(value)}

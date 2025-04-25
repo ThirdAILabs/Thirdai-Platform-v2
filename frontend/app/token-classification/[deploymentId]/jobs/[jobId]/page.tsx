@@ -145,7 +145,7 @@ export default function JobDetail() {
             </Stack>
           </Stack>
 
-          <TabsContent value="configuration">
+          <TabsContent value="configuration" forceMount={true} hidden={tabValue !== 'configuration'}>
             <ConfigurationCard 
               sourceS3Config={{ name: '/path/to/bucket' }}
               sourceLocalConfig={{ name: '' }}
@@ -163,7 +163,7 @@ export default function JobDetail() {
             /> 
           </TabsContent>
           
-          <TabsContent value="analytics">
+          <TabsContent value="analytics" forceMount={true} hidden={tabValue !== 'analytics'}>
             <AnalyticsDashboard
               progress={40}
               tokensProcessed={1229000}
@@ -205,7 +205,7 @@ export default function JobDetail() {
             />
           </TabsContent>
           
-          <TabsContent value="output">
+          <TabsContent value="output" forceMount={true} hidden={tabValue !== 'output'}>
             <DatabaseTable 
               loadMoreObjectRecords={loadMoreMockObjectRecords}
               loadMoreClassifiedTokenRecords={loadMoreMockClassifiedTokenRecords}

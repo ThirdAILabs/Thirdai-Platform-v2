@@ -19,7 +19,7 @@ import Configuration from './configuration';
 import Analytics from './analytics';
 import Outputs from './outputs';
 import { DatabaseTable } from './(database-table)/DatabaseTable';
-import { loadMoreMockClassifiedTokenRecords, loadMoreMockObjectRecords, mockGroups, mockTags } from './mockdata';
+import { loadMoreMockClassifiedTokenRecords, loadMoreMockObjectRecords, mockGroups, mockTags } from '@/lib/mock-data';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 import ConfigurationCard from '@/components/ConfigurationCard';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -103,13 +103,13 @@ export default function JobDetail() {
             <MuiLink component={Link} href={`/token-classification/${params.deploymentId}/jobs`}>
               Jobs
             </MuiLink>
-            <Typography color="text.primary">HIPAA 25</Typography>
+            <Typography color="text.primary">Customer Calls</Typography>
           </Breadcrumbs>
         </Stack>
 
         {/* Title and Back Button */}
         <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" mb={3}>
-          <Typography variant="h5">HIPAA 25</Typography>
+          <Typography variant="h5">Customer Calls</Typography>
           <Button
             variant="outlined"
             startIcon={<ArrowBack />}
@@ -145,21 +145,30 @@ export default function JobDetail() {
             </Stack>
           </Stack>
 
+          {/* TODO: MOCK DATA */}
           <TabsContent value="configuration" forceMount={true} hidden={tabValue !== 'configuration'}>
             <ConfigurationCard 
-              sourceS3Config={{ name: '/path/to/bucket' }}
+              sourceS3Config={{ name: 's3://thirdai-dev/customer-calls/2025/' }}
               sourceLocalConfig={{ name: '' }}
-              saveS3Config={{ name: '/path/to/bucket' }}
+              saveS3Config={{ name: 'thirdai-dev/sensitive/customer-calls/2025/' }}
               saveLocalConfig={{ name: 'local' }}
               selectedSource={'s3'}
               selectedSaveLocation={'s3'}
               initialGroups={[
                 {
-                  name: 'group1',
-                  definition: 'group1 definition',
+                  name: 'Reject',
+                  definition: 'COUNT(tags) > 5',
+                },
+                {
+                  name: 'Sensitive',
+                  definition: 'COUNT(tags) > 0',
+                },
+                {
+                  name: 'Safe',
+                  definition: 'COUNT(tags) = 0',
                 },
               ]}
-              jobStarted={true}
+              jobStarted={false}
             /> 
           </TabsContent>
           

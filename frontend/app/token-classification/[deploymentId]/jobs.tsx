@@ -15,38 +15,114 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { listReports, Report } from '@/lib/backend';
 
-const mockReport: Report = {
-  name: "Sample Token Classification Job",
-  report_id: "tcr_123456789",
-  status: "completed",
-  submitted_at: "2024-01-15T10:30:00Z",
-  updated_at: "2024-01-15T10:35:00Z",
-  documents: [
-    {
-      path: "sample_doc.txt",
-      location: "s3://bucket/sample_doc.txt",
-      source_id: "doc_123",
-      options: {},
-      metadata: {}
-    }
-  ],
-  msg: null,
-  content: {
+// TODO: MOCK DATA
+const mockReports: Report[] = [
+  {
+    name: "Medical Records Review",
     report_id: "tcr_123456789",
-    results: [
+    status: "completed", 
+    submitted_at: "2024-01-15T10:30:00Z",
+    updated_at: "2024-01-15T10:35:00Z",
+    documents: [
       {
-        "sample_doc.txt": [
-          { text: "John Smith", tag: "PERSON" },
-          { text: "New York", tag: "LOCATION" }
-        ]
+        path: "medical_records.txt",
+        location: "s3://bucket/medical_records.txt",
+        source_id: "doc_123",
+        options: {},
+        metadata: {}
       }
-    ]
-  }
-};
+    ],
+    msg: null,
+    content: {
+      report_id: "tcr_123456789",
+      results: [
+        {
+          "medical_records.txt": [
+            { text: "123-45-6789", tag: "SSN" },
+            { text: "01/15/1980", tag: "DOB" },
+            { text: "555-123-4567", tag: "PHONE" },
+            { text: "123 Main St, Apt 4B", tag: "ADDRESS" },
+            { text: "robert.chen1982@gmail.com", tag: "EMAIL" },
+            { text: "Diabetes Type 2", tag: "MEDICAL_CONDITION" },
+            { text: "Metformin 500mg", tag: "MEDICATION" },
+            { text: "Dr. Sarah Wilson", tag: "PROVIDER_NAME" },
+            { text: "Memorial Hospital", tag: "FACILITY_NAME" },
+            { text: "INS-987654321", tag: "INSURANCE_ID" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    name: "Insurance Claims Processing",
+    report_id: "tcr_987654321", 
+    status: "completed",
+    submitted_at: "2024-01-15T11:30:00Z",
+    updated_at: "2024-01-15T11:35:00Z",
+    documents: [
+      {
+        path: "insurance_claims.txt",
+        location: "s3://bucket/insurance_claims.txt",
+        source_id: "doc_456",
+        options: {},
+        metadata: {}
+      }
+    ],
+    msg: null,
+    content: {
+      report_id: "tcr_987654321",
+      results: [
+        {
+          "insurance_claims.txt": [
+            { text: "CLM-123456", tag: "CLAIM_ID" },
+            { text: "POL-789012", tag: "POLICY_NUMBER" },
+            { text: "John Smith", tag: "NAME" },
+            { text: "Hypertension", tag: "MEDICAL_CONDITION" },
+            { text: "Lisinopril", tag: "MEDICATION" },
+            { text: "Dr. Michael Brown", tag: "PROVIDER_NAME" },
+            { text: "City Medical Center", tag: "FACILITY_NAME" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    name: "Customer Support Chat Logs",
+    report_id: "tcr_456789123",
+    status: "completed",
+    submitted_at: "2024-01-15T12:30:00Z",
+    updated_at: "2024-01-15T12:35:00Z",
+    documents: [
+      {
+        path: "chat_logs.txt",
+        location: "s3://bucket/chat_logs.txt",
+        source_id: "doc_789",
+        options: {},
+        metadata: {}
+      }
+    ],
+    msg: null,
+    content: {
+      report_id: "tcr_456789123",
+      results: [
+        {
+          "chat_logs.txt": [
+            { text: "4832-5691-2748-1035", tag: "CREDIT_CARD" },
+            { text: "09/27", tag: "EXPIRATION_DATE" },
+            { text: "382", tag: "CVV" },
+            { text: "jane.doe@email.com", tag: "EMAIL" },
+            { text: "987-654-3210", tag: "PHONE" },
+            { text: "532-48-1095", tag: "SSN" }
+          ]
+        }
+      ]
+    }
+  },
+];
 
 export default function Jobs() {
   const params = useParams();
-  const [reports, setReports] = useState<Report[]>([mockReport]);
+  const [reports, setReports] = useState<Report[]>(mockReports);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

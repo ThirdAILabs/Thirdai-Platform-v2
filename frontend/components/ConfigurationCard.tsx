@@ -37,6 +37,7 @@ interface ConfigurationCardProps {
   selectedSource?: 's3' | 'local' | null;
   selectedSaveLocation?: 's3' | 'local' | 'none' | null;
   initialGroups?: Group[];
+  initialTags?: string[];
   jobStarted?: boolean;
   onSourceSelect?: (source: 's3' | 'local') => void;
   onSaveLocationSelect?: (location: 's3' | 'local' | 'none') => void;
@@ -73,6 +74,7 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
   selectedSource: controlledSource = null,
   selectedSaveLocation: controlledSaveLocation = null,
   initialGroups = [],
+  initialTags = [],
   jobStarted = false,
   onSourceSelect,
   onSaveLocationSelect,
@@ -90,7 +92,7 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
   const selectedSaveLocation = controlledSaveLocation ?? internalSelectedSaveLocation;
 
   // State for selected tags
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>(PREDEFINED_TAGS);
   
   // State for groups
   const [groups, setGroups] = useState<Group[]>(initialGroups);

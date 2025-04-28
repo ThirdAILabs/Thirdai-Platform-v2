@@ -81,22 +81,22 @@ export function WorkFlow({
     setIsCollapsed(!isCollapsed);
   };
 
-  useEffect(() => {
-    async function getModelsData() {
-      const modelData = await getModels();
-      const tempModelOwner: { [key: string]: string } = {}; // TypeScript object to store name as key and owner as value
-      if (modelData) {
-        for (let index = 0; index < modelData.length; index++) {
-          const name = modelData[index].name;
-          const owner = modelData[index].owner;
-          tempModelOwner[name] = owner;
-        }
-      }
-      setModelOwner(tempModelOwner);
-    }
+  // useEffect(() => {
+  //   async function getModelsData() {
+  //     const modelData = await getModels();
+  //     const tempModelOwner: { [key: string]: string } = {}; // TypeScript object to store name as key and owner as value
+  //     if (modelData) {
+  //       for (let index = 0; index < modelData.length; index++) {
+  //         const name = modelData[index].name;
+  //         const owner = modelData[index].owner;
+  //         tempModelOwner[name] = owner;
+  //       }
+  //     }
+  //     setModelOwner(tempModelOwner);
+  //   }
 
-    getModelsData();
-  }, []);
+  //   getModelsData();
+  // }, []);
 
   function goToEndpoint() {
     switch (workflow.type) {

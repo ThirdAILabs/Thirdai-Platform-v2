@@ -154,7 +154,14 @@ export function TableContent({
             })
             .map((record, index) => (
               <TableRow key={index}>
-                <TableCell>
+                <TableCell
+                  style={{
+                    maxWidth: '50%',
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
+                  }}
+                >
                   {record.taggedTokens.map((token, tokenIndex) => (
                     <HighlightedToken
                       key={`${index}-${tokenIndex}`}

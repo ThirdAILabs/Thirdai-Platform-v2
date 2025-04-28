@@ -108,10 +108,10 @@ export const ConfigurationCard: React.FC<ConfigurationCardProps> = ({
       return;
     }
 
-    const name = prompt(`Configure ${source === 's3' ? 'S3 Bucket' : 'Local Storage'} name:`);
-    if (name) {
-      onConfigureSource?.(source, name);
-    }
+    // const name = prompt(`Configure ${source === 's3' ? 'S3 Bucket' : 'Local Storage'} name:`);
+    // if (name) {
+    //   onConfigureSource?.(source, name);
+    // }
     
     setInternalSelectedSource(source);
     onSourceSelect?.(source);

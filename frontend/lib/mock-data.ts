@@ -179,7 +179,7 @@ export const mockPredictionResponses: Record<string, any> = {
   'Customer : Also , I will be staying alone and my primary residence at 1742 Oakdale Avenue in Pasadena will be vacant for those three months . Is there anything else I need to do regarding my prescription ?': {
     prediction_results: {
       tokens: ['Customer', ':', 'Also', ',', 'I', 'will', 'be', 'staying', 'alone', 'and', 'my', 'primary', 'residence', 'at', '1742', 'Oakdale', 'Avenue', 'in', 'Pasadena', 'will', 'be', 'vacant', 'for', 'those', 'three', 'months', '.', 'Is', 'there', 'anything', 'else', 'I', 'need', 'to', 'do', 'regarding', 'my', 'prescription', '?'],
-      predicted_tags: [['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['ADDRESS'], ['ADDRESS'], ['ADDRESS'], ['O'], ['LOCATION'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O']],
+      predicted_tags: [['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['ADDRESS'], ['ADDRESS'], ['ADDRESS'], ['O'], ['LOCATION'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O'], ['O']],
       source_object: 'customer_chat_20231110.txt'
     },
     time_taken: 0.0032
@@ -384,7 +384,7 @@ export const mockTrainReport: TrainReportData = {
 };
 
 // ===== TOKEN CLASSIFICATION DATA =====
-export const mockGroups = ["Reject", "Sensitive", "Safe"];
+export const mockGroups = ["Sensitive", "Review", "Safe"];
 
 export const mockTags = ["NAME", "SSN", "DOB", "EMAIL", "PHONE", "ADDRESS", "POLICY_NUMBER", "CLAIM_ID", "DATE", "TIME", "MEDICAL_CONDITION", "MEDICATION", "PROVIDER_NAME", "FACILITY_NAME", "INSURANCE_ID"];
 
@@ -446,7 +446,7 @@ export const mockObjectRecords: ObjectDatabaseRecord[] = [
       ['Date', 'O'], ['of', 'O'], ['birth', 'O'], ['is', 'O'], ['01/15/1980', 'DOB']
     ],
     sourceObject: 'customer_chat_20231107.txt',
-    groups: ['Reject', 'Sensitive'],
+    groups: ['Sensitive', 'Sensitive'],
   },
   {
     taggedTokens: [
@@ -474,32 +474,7 @@ export const mockObjectRecords: ObjectDatabaseRecord[] = [
   },
 ];
 
-export const mockClassifiedTokenRecords: ClassifiedTokenDatabaseRecord[] = [
-  {
-    token: 'John',
-    tag: 'NAME',
-    sourceObject: 'customer_chat_20231105.txt',
-    groups: ['Sensitive'],
-  },
-  {
-    token: '555-123-4567',
-    tag: 'PHONE',
-    sourceObject: 'customer_chat_20231105.txt',
-    groups: ['Sensitive'],
-  },
-  {
-    token: '123-45-6789',
-    tag: 'SSN',
-    sourceObject: 'customer_chat_20231107.txt',
-    groups: ['Reject', 'Sensitive'],
-  },
-  {
-    token: 'john.smith@healthcare.com',
-    tag: 'EMAIL',
-    sourceObject: 'customer_chat_20231109.txt',
-    groups: ['Safe'],
-  },
-];
+export const mockClassifiedTokenRecords: ClassifiedTokenDatabaseRecord[] = [{'token': 'Robert', 'tag': 'NAME', 'sourceObject': 'customer_chat_20231105_1.txt', 'groups': ['Review']}, {'token': 'Chen', 'tag': 'NAME', 'sourceObject': 'customer_chat_20231105_1.txt', 'groups': ['Review']}, {'token': 'Chen', 'tag': 'NAME', 'sourceObject': 'customer_chat_20231105_2.txt', 'groups': ['Review']}, {'token': 'robert.chen1982', 'tag': 'EMAIL', 'sourceObject': 'customer_chat_20231105_3.txt', 'groups': ['Review']}, {'token': '@', 'tag': 'EMAIL', 'sourceObject': 'customer_chat_20231105_3.txt', 'groups': ['Review']}, {'token': 'gmail.com', 'tag': 'EMAIL', 'sourceObject': 'customer_chat_20231105_3.txt', 'groups': ['Review']}, {'token': '5784', 'tag': 'PHONE', 'sourceObject': 'customer_chat_20231105_5.txt', 'groups': ['Review']}, {'token': '728', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231105_6.txt', 'groups': ['Sensitive']}, {'token': 'Maple', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231105_6.txt', 'groups': ['Sensitive']}, {'token': 'Street', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231105_6.txt', 'groups': ['Sensitive']}, {'token': ',', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231105_6.txt', 'groups': ['Sensitive']}, {'token': 'Apartment', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231105_6.txt', 'groups': ['Sensitive']}, {'token': '4B', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231105_6.txt', 'groups': ['Sensitive']}, {'token': ',', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231105_6.txt', 'groups': ['Sensitive']}, {'token': 'San', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231105_6.txt', 'groups': ['Sensitive']}, {'token': 'Francisco', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231105_6.txt', 'groups': ['Sensitive']}, {'token': ',', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231105_6.txt', 'groups': ['Sensitive']}, {'token': 'CA', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231105_6.txt', 'groups': ['Sensitive']}, {'token': '94107', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231105_6.txt', 'groups': ['Sensitive']}, {'token': '4832', 'tag': 'CREDIT_CARD', 'sourceObject': 'customer_chat_20231105_9.txt', 'groups': ['Sensitive']}, {'token': '5691', 'tag': 'CREDIT_CARD', 'sourceObject': 'customer_chat_20231105_9.txt', 'groups': ['Sensitive']}, {'token': '2748', 'tag': 'CREDIT_CARD', 'sourceObject': 'customer_chat_20231105_9.txt', 'groups': ['Sensitive']}, {'token': '1035', 'tag': 'CREDIT_CARD', 'sourceObject': 'customer_chat_20231105_9.txt', 'groups': ['Sensitive']}, {'token': '09', 'tag': 'EXPIRATION_DATE', 'sourceObject': 'customer_chat_20231105_9.txt', 'groups': ['Sensitive']}, {'token': '/', 'tag': 'EXPIRATION_DATE', 'sourceObject': 'customer_chat_20231105_9.txt', 'groups': ['Sensitive']}, {'token': '27', 'tag': 'EXPIRATION_DATE', 'sourceObject': 'customer_chat_20231105_9.txt', 'groups': ['Sensitive']}, {'token': '382', 'tag': 'CVV', 'sourceObject': 'customer_chat_20231105_9.txt', 'groups': ['Sensitive']}, {'token': '532', 'tag': 'SSN', 'sourceObject': 'customer_chat_20231105_10.txt', 'groups': ['Sensitive']}, {'token': '-', 'tag': 'SSN', 'sourceObject': 'customer_chat_20231105_10.txt', 'groups': ['Sensitive']}, {'token': '48', 'tag': 'SSN', 'sourceObject': 'customer_chat_20231105_10.txt', 'groups': ['Sensitive']}, {'token': '-', 'tag': 'SSN', 'sourceObject': 'customer_chat_20231105_10.txt', 'groups': ['Sensitive']}, {'token': '1095', 'tag': 'SSN', 'sourceObject': 'customer_chat_20231105_10.txt', 'groups': ['Sensitive']}, {'token': 'John', 'tag': 'NAME', 'sourceObject': 'customer_chat_20231105.txt', 'groups': ['Sensitive']}, {'token': 'Smith', 'tag': 'NAME', 'sourceObject': 'customer_chat_20231105.txt', 'groups': ['Sensitive']}, {'token': '555-123-4567', 'tag': 'PHONE', 'sourceObject': 'customer_chat_20231105.txt', 'groups': ['Sensitive']}, {'token': '123', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231106.txt', 'groups': ['Safe']}, {'token': 'Main', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231106.txt', 'groups': ['Safe']}, {'token': 'Street', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231106.txt', 'groups': ['Safe']}, {'token': 'Apt', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231106.txt', 'groups': ['Safe']}, {'token': '4B', 'tag': 'ADDRESS', 'sourceObject': 'customer_chat_20231106.txt', 'groups': ['Safe']}, {'token': '123-45-6789', 'tag': 'SSN', 'sourceObject': 'customer_chat_20231107.txt', 'groups': ['Sensitive', 'Sensitive']}, {'token': '01/15/1980', 'tag': 'DOB', 'sourceObject': 'customer_chat_20231107.txt', 'groups': ['Sensitive', 'Sensitive']}, {'token': '987654321', 'tag': 'CLAIM_ID', 'sourceObject': 'customer_chat_20231108.txt', 'groups': ['Sensitive']}, {'token': 'john.smith', 'tag': 'EMAIL', 'sourceObject': 'customer_chat_20231109.txt', 'groups': ['Safe']}, {'token': '@', 'tag': 'EMAIL', 'sourceObject': 'customer_chat_20231109.txt', 'groups': ['Safe']}, {'token': 'healthcare.com', 'tag': 'EMAIL', 'sourceObject': 'customer_chat_20231109.txt', 'groups': ['Safe']}, {'token': 'POL987654321', 'tag': 'POLICY_NUMBER', 'sourceObject': 'customer_chat_20231110.txt', 'groups': ['Sensitive']}];
 
 // Helper function for loading more mock data
 export const makeLoadMoreMockData = <T>(records: T[]): () => Promise<T[]> => {

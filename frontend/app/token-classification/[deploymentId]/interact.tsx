@@ -384,6 +384,8 @@ export default function Interact() {
       console.log('Prediction result:', result);
       updateTagColors(result.prediction_results.predicted_tags);
       setProcessingTime(result.time_taken);
+      console.log(result.prediction_results.tokens.length, result.prediction_results.predicted_tags.length)
+      console.log(_.zip(result.prediction_results.tokens, result.prediction_results.predicted_tags))
       setAnnotations(
         _.zip(result.prediction_results.tokens, result.prediction_results.predicted_tags).map(
           ([text, tag]) => ({
@@ -392,6 +394,8 @@ export default function Interact() {
           })
         )
       );
+      
+      console.log("HERE3")
 
       if (!isFileUpload) {
         setParsedData({ type: 'other', content: text });

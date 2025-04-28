@@ -124,7 +124,7 @@ export function DatabaseTable({
   };
 
   return (
-    <Card className="h-[40vh]">
+    <Card className="h-[70vh]">
       <CardContent className="p-0 h-full">
         <div className="flex h-full">
           <FilterSection

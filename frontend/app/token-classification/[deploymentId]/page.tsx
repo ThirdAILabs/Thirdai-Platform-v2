@@ -38,7 +38,7 @@ const emptyReport: TrainReportData = {
 
 export default function Page() {
   // const { workflowName } = useTokenClassificationEndpoints();
-  const workflowName = 'Test Name';
+  const workflowName = 'PII';
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab') || 'testing';
   const [trainReport, setTrainReport] = useState<TrainReportData>(emptyReport);

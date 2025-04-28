@@ -48,8 +48,11 @@ export const formatAmount = (amount: number): string => {
 
 // Mock API functions
 export const predict = async (text: string, mode: string = 'default') => {
+  console.log("HERE")
+  console.log('text', text);
   await delay(500);
-  return mockPredictionResponses[mode] || mockPredictionResponses['default'];
+  console.log('mockPredictionResponses', mockPredictionResponses[text]);
+  return mockPredictionResponses[text] || mockPredictionResponses['default'];
 };
 
 export const getStats = async () => {
@@ -141,6 +144,7 @@ export function useTokenClassificationEndpoints() {
 
   const predict = async (text: string) => {
     setIsLoading(true);
+    console.log("HERE")
     try {
       await delay(500);
       return mockPredictionResponses[text] || mockPredictionResponses['default'];

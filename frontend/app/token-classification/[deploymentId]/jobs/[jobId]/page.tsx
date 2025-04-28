@@ -146,13 +146,13 @@ export default function JobDetail() {
           </Stack>
 
           {/* TODO: MOCK DATA */}
-          <TabsContent value="configuration" forceMount={true} hidden={tabValue !== 'configuration'}>
+          <TabsContent value="configuration" hidden={tabValue !== 'configuration'}>
             <ConfigurationCard 
               sourceS3Config={{ name: 's3://thirdai-dev/customer-calls/2025/' }}
               sourceLocalConfig={{ name: '' }}
               saveS3Config={{ name: 'thirdai-dev/sensitive/customer-calls/2025/' }}
               saveLocalConfig={{ name: 'local' }}
-              selectedSource={'s3'}
+              selectedSource={null}
               selectedSaveLocation={'s3'}
               initialGroups={[
                 {
@@ -172,34 +172,35 @@ export default function JobDetail() {
             /> 
           </TabsContent>
           
-          <TabsContent value="analytics" forceMount={true} hidden={tabValue !== 'analytics'}>
+          <TabsContent value="analytics" hidden={tabValue !== 'analytics'}>
+            {/* TODO: MOCK DATA */}
             <AnalyticsDashboard
               progress={40}
               tokensProcessed={1229000}
               latencyData={[
-                { timestamp: '2024-03-10T12:00:00', latency: 5.6 },
-                { timestamp: '2024-03-10T12:00:01', latency: 3.6 },
-                { timestamp: '2024-03-10T12:00:02', latency: 2.6 },
-                { timestamp: '2024-03-10T12:00:03', latency: 5.8 },
-                { timestamp: '2024-03-10T12:00:04', latency: 5.7 },
-                { timestamp: '2024-03-10T12:00:05', latency: 5.2 },
-                { timestamp: '2024-03-10T12:00:06', latency: 5.1 },
-                { timestamp: '2024-03-10T12:00:07', latency: 5.0 },
-                { timestamp: '2024-03-10T12:00:08', latency: 4.9 },
-                { timestamp: '2024-03-10T12:00:09', latency: 4.8 },
-                { timestamp: '2024-03-10T12:00:10', latency: 4.7 },
-                { timestamp: '2024-03-10T12:00:11', latency: 4.6 },
-                { timestamp: '2024-03-10T12:00:12', latency: 4.5 },
-                { timestamp: '2024-03-10T12:00:13', latency: 5.2 },
-                { timestamp: '2024-03-10T12:00:14', latency: 5.3 },
-                { timestamp: '2024-03-10T12:00:15', latency: 4.2 },
-                { timestamp: '2024-03-10T12:00:16', latency: 4.1 },
-                { timestamp: '2024-03-10T12:00:17', latency: 4.8 },
-                { timestamp: '2024-03-10T12:00:18', latency: 3.9 },
-                { timestamp: '2024-03-10T12:00:19', latency: 4.9 },
-                { timestamp: '2024-03-10T12:00:20', latency: 5.0 },
-                { timestamp: '2024-03-10T12:00:21', latency: 3.6 },
-                { timestamp: '2024-03-10T12:00:22', latency: 5.1 },
+                { timestamp: '2024-03-10T12:00:00', latency: 0.096 },
+                { timestamp: '2024-03-10T12:00:01', latency: 0.09 },
+                { timestamp: '2024-03-10T12:00:02', latency: 0.082 },
+                { timestamp: '2024-03-10T12:00:03', latency: 0.101 },
+                { timestamp: '2024-03-10T12:00:04', latency: 0.098 },
+                { timestamp: '2024-03-10T12:00:05', latency: 0.095 },
+                { timestamp: '2024-03-10T12:00:06', latency: 0.097 },
+                { timestamp: '2024-03-10T12:00:07', latency: 0.099 },
+                { timestamp: '2024-03-10T12:00:08', latency: 0.094 },
+                { timestamp: '2024-03-10T12:00:09', latency: 0.093 },
+                { timestamp: '2024-03-10T12:00:10', latency: 0.088 }, 
+                { timestamp: '2024-03-10T12:00:11', latency: 0.082 },
+                { timestamp: '2024-03-10T12:00:12', latency: 0.079 },
+                { timestamp: '2024-03-10T12:00:13', latency: 0.087 },
+                { timestamp: '2024-03-10T12:00:14', latency: 0.083 },
+                { timestamp: '2024-03-10T12:00:15', latency: 0.084 },
+                { timestamp: '2024-03-10T12:00:16', latency: 0.086 },
+                { timestamp: '2024-03-10T12:00:17', latency: 0.083 },
+                { timestamp: '2024-03-10T12:00:18', latency: 0.089 },
+                { timestamp: '2024-03-10T12:00:19', latency: 0.091 },
+                { timestamp: '2024-03-10T12:00:20', latency: 0.083 },
+                { timestamp: '2024-03-10T12:00:21', latency: 0.092 },
+                { timestamp: '2024-03-10T12:00:22', latency: 0.094 },
               ]}
               tokenTypes={['NAME', 'VIN', 'ORG', 'ID', 'SSN', 'ADDRESS', 'EMAIL']}
               tokenCounts={{
@@ -211,10 +212,16 @@ export default function JobDetail() {
                 'ADDRESS': 5600000,
                 'EMAIL': 3800000
               }}
+              clusterSpecs={{
+                cpus: 48,
+                vendorId: 'GenuineIntel',
+                modelName: 'Intel Xeon E5-2680',
+                cpuMhz: 1197.408
+              }}
             />
           </TabsContent>
           
-          <TabsContent value="output" forceMount={true} hidden={tabValue !== 'output'}>
+          <TabsContent value="output" hidden={tabValue !== 'output'}>
             <DatabaseTable 
               loadMoreObjectRecords={loadMoreMockObjectRecords}
               loadMoreClassifiedTokenRecords={loadMoreMockClassifiedTokenRecords}

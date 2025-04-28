@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import _ from 'lodash';
 
 interface TokenCount {
   type: string;
@@ -22,12 +23,20 @@ interface LatencyDataPoint {
   latency: number;
 }
 
+interface ClusterSpecs {
+  cpus: number;
+  vendorId: string;
+  modelName: string;
+  cpuMhz: number;
+}
+
 interface AnalyticsDashboardProps {
   progress: number;
   tokensProcessed: number;
   latencyData: LatencyDataPoint[];
   tokenTypes: string[];
   tokenCounts: Record<string, number>;
+  clusterSpecs: ClusterSpecs;
 }
 
 const formatNumber = (num: number): string => {
@@ -46,6 +55,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   latencyData,
   tokenTypes,
   tokenCounts,
+  clusterSpecs,
 }) => {
   // Convert token counts to chart data format
   const tokenChartData = Object.entries(tokenCounts).map(([type, count]) => ({
@@ -62,7 +72,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   return (
     <div className="space-y-6 w-full">
       {/* Top Widgets */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         {/* Progress Widget */}
         <Card className="flex flex-col justify-between">
           <CardContent className="flex flex-col items-center justify-center flex-1 pt-6">
@@ -182,10 +192,35 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             </div>
             <div className="flex flex-col items-center">
               <span className="text-sm text-muted-foreground">
-                {latencyData[latencyData.length - 1]?.latency.toFixed(1)}ms/token
+                {_.mean(latencyData.map(d => d.latency)).toFixed(3)}ms/token
               </span>
               <h3 className="text-sm text-muted-foreground">Live Latency</h3>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Cluster Specs Widget */}
+        <Card className="flex flex-col justify-between">
+          <CardContent className="flex flex-col pt-6 h-full">
+            <div className="flex-1 space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">CPU(s):</span>
+                <span className="font-medium">{clusterSpecs.cpus}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Vendor ID:</span>
+                <span className="font-medium">{clusterSpecs.vendorId}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Model name:</span>
+                <span className="font-medium text-xs">{clusterSpecs.modelName}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">CPU MHz:</span>
+                <span className="font-medium">{clusterSpecs.cpuMhz.toFixed(3)}</span>
+              </div>
+            </div>
+            <h3 className="text-sm text-muted-foreground mt-4 text-center">Cluster Specs</h3>
           </CardContent>
         </Card>
       </div>

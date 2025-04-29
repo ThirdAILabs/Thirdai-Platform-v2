@@ -1,326 +1,319 @@
 import React, { useState } from 'react';
-import { Box, Card, CardContent, Typography, Grid, Paper, Button } from '@mui/material';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-// Keep only the table data
-const entityLabels = ['O', 'NAME', 'PHONE', 'EMAIL', 'ADDRESS'];
-const tableData = [
-  { label: 'O', beforeF1: 0.89, afterF1: 0.93, change: 0.04 },
-  { label: 'NAME', beforeF1: 0.81, afterF1: 0.86, change: 0.05 },
-  { label: 'PHONE', beforeF1: 0.84, afterF1: 0.90, change: 0.06 },
-  { label: 'EMAIL', beforeF1: 0.88, afterF1: 0.94, change: 0.06 },
-  { label: 'ADDRESS', beforeF1: 0.79, afterF1: 0.87, change: 0.08 },
-  { label: 'Overall Average', beforeF1: 0.842, afterF1: 0.90, change: 0.058 }
-];
+// Mock data structure to match frontend version
+interface LabelMetrics {
+  [key: string]: {
+    precision: number;
+    recall: number;
+    fmeasure: number;
+  };
+}
 
-// Metrics for specific entity (for the detailed view)
-const entitySpecificMetrics = {
-  'O': { 
-    precision: 0.95, 
-    recall: 0.92, 
-    f1Score: 0.93,
-    beforeValues: { precision: 0.90, recall: 0.88, f1Score: 0.89 }
+interface TrainReportData {
+  before_train_metrics: LabelMetrics;
+  after_train_metrics: LabelMetrics;
+  // These would normally include training examples too
+}
+
+// Sample mock data
+const mockReportData: TrainReportData = {
+  before_train_metrics: {
+    'O': { precision: 0.90, recall: 0.88, fmeasure: 0.89 },
+    'NAME': { precision: 0.83, recall: 0.79, fmeasure: 0.81 },
+    'PHONE': { precision: 0.86, recall: 0.82, fmeasure: 0.84 },
+    'EMAIL': { precision: 0.90, recall: 0.86, fmeasure: 0.88 },
+    'ADDRESS': { precision: 0.81, recall: 0.77, fmeasure: 0.79 }
   },
-  'NAME': { 
-    precision: 0.88, 
-    recall: 0.84, 
-    f1Score: 0.86,
-    beforeValues: { precision: 0.83, recall: 0.79, f1Score: 0.81 }
-  },
-  'PHONE': { 
-    precision: 0.92, 
-    recall: 0.88, 
-    f1Score: 0.90,
-    beforeValues: { precision: 0.86, recall: 0.82, f1Score: 0.84 }
-  },
-  'EMAIL': { 
-    precision: 0.96, 
-    recall: 0.92, 
-    f1Score: 0.94,
-    beforeValues: { precision: 0.90, recall: 0.86, f1Score: 0.88 }
-  },
-  'ADDRESS': { 
-    precision: 0.89, 
-    recall: 0.85, 
-    f1Score: 0.87,
-    beforeValues: { precision: 0.81, recall: 0.77, f1Score: 0.79 }
+  after_train_metrics: {
+    'O': { precision: 0.95, recall: 0.92, fmeasure: 0.93 },
+    'NAME': { precision: 0.88, recall: 0.84, fmeasure: 0.86 },
+    'PHONE': { precision: 0.92, recall: 0.88, fmeasure: 0.90 },
+    'EMAIL': { precision: 0.96, recall: 0.92, fmeasure: 0.94 },
+    'ADDRESS': { precision: 0.89, recall: 0.85, fmeasure: 0.87 }
   }
 };
 
-const TrainingResults = () => {
-  const [selectedEntity, setSelectedEntity] = useState('O');
+interface MetricsChartProps {
+  beforeMetrics: LabelMetrics;
+  afterMetrics: LabelMetrics;
+}
 
-  // Handle entity selection for detailed view
-  const handleEntityChange = (entity: string) => {
-    setSelectedEntity(entity);
+const MetricsChart: React.FC<MetricsChartProps> = ({ beforeMetrics, afterMetrics }) => {
+  // Get all unique labels
+  const allLabels = Array.from(
+    new Set([...Object.keys(beforeMetrics), ...Object.keys(afterMetrics)])
+  );
+
+  // State for selected label
+  const [selectedLabel, setSelectedLabel] = useState(allLabels[0]);
+
+  const prepareChartData = (label: string) => {
+    return [
+      {
+        name: 'Precision',
+        'Before Training': Number.isFinite(beforeMetrics[label]?.precision)
+          ? beforeMetrics[label].precision * 100
+          : null,
+        'After Training': Number.isFinite(afterMetrics[label]?.precision)
+          ? afterMetrics[label].precision * 100
+          : null,
+      },
+      {
+        name: 'Recall',
+        'Before Training': Number.isFinite(beforeMetrics[label]?.recall)
+          ? beforeMetrics[label].recall * 100
+          : null,
+        'After Training': Number.isFinite(afterMetrics[label]?.recall)
+          ? afterMetrics[label].recall * 100
+          : null,
+      },
+      {
+        name: 'F1',
+        'Before Training': Number.isFinite(beforeMetrics[label]?.fmeasure)
+          ? beforeMetrics[label].fmeasure * 100
+          : null,
+        'After Training': Number.isFinite(afterMetrics[label]?.fmeasure)
+          ? afterMetrics[label].fmeasure * 100
+          : null,
+      },
+    ];
+  };
+
+  const formatTooltip = (value: string | number | Array<string | number>) => {
+    if (typeof value === 'number') {
+      return `${value.toFixed(1)}%`;
+    }
+    return value;
+  };
+
+  const getMetricDifference = (label: string, metricKey: 'precision' | 'recall' | 'fmeasure') => {
+    const before = beforeMetrics[label]?.[metricKey] || 0;
+    const after = afterMetrics[label]?.[metricKey] || 0;
+    return ((after - before) * 100).toFixed(1);
   };
 
   return (
-    <Card sx={{ mb: 4, backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.12)' }}>
-      <CardContent>
-        <Typography variant="h6" sx={{ fontWeight: 500, mb: 1 }}>
-          Fine-tuning Metrics Comparison
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Performance metrics comparison before and after fine-tuning the model with your data
-        </Typography>
-        
-        <Typography variant="h6" fontWeight={500} mt={2} mb={1}>
-          Performance Summary
-        </Typography>
-        <Typography variant="body2" color="text.secondary" mb={2}>
-          Overview of F1 score changes across all labels
-        </Typography>
-        
-        <Paper sx={{ width: '100%', boxShadow: 'none', border: '1px solid rgba(0, 0, 0, 0.12)', borderRadius: '4px', mb: 4 }}>
-          <Box sx={{ 
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr 1fr',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.12)',
-            bgcolor: 'rgba(0, 0, 0, 0.02)',
-            p: 2
-          }}>
-            <Typography variant="subtitle2" fontWeight={500}>TAG</Typography>
-            <Typography variant="subtitle2" fontWeight={500}>F1 before fine-tuning</Typography>
-            <Typography variant="subtitle2" fontWeight={500}>F1 after fine-tuning</Typography>
-            <Typography variant="subtitle2" fontWeight={500}>Change</Typography>
-          </Box>
-          
-          {tableData.map((row, index) => (
-            <Box 
-              key={row.label}
-              sx={{ 
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr 1fr 1fr',
-                p: 2,
-                borderBottom: index < tableData.length - 1 ? '1px solid rgba(0, 0, 0, 0.06)' : 'none',
-                bgcolor: row.label === 'Overall Average' ? 'rgba(0, 0, 0, 0.02)' : 'transparent',
-                fontWeight: row.label === 'Overall Average' ? 500 : 400,
-              }}
+    <div className="space-y-6">
+      {/* Label Selection */}
+      <div className="flex flex-wrap gap-2">
+        {allLabels.map((label) => (
+          <button
+            key={label}
+            onClick={() => setSelectedLabel(label)}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors
+              ${
+                selectedLabel === label
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Metrics Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Metrics for &quot;{selectedLabel}&quot;</CardTitle>
+          <CardDescription>Comparing performance before and after training</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Chart */}
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart
+              data={prepareChartData(selectedLabel)}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              barSize={40}
             >
-              <Typography variant="body2" fontWeight={row.label === 'Overall Average' ? 500 : 400}>
-                {row.label}
-              </Typography>
-              <Typography variant="body2">{(row.beforeF1 * 100).toFixed(1)}%</Typography>
-              <Typography variant="body2">{(row.afterF1 * 100).toFixed(1)}%</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Box 
-                  component="span" 
-                  sx={{ 
-                    color: '#4caf50',
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+              <Tooltip formatter={formatTooltip} />
+              <Legend />
+              <Bar dataKey="Before Training" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="After Training" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+
+          {/* Metrics Summary */}
+          <div className="grid grid-cols-3 gap-4 mt-6">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="text-sm font-medium text-gray-500">Precision</div>
+              <div className="mt-2 flex items-baseline justify-between">
+                <span className="text-2xl font-semibold">
+                  {(afterMetrics[selectedLabel]?.precision * 100).toFixed(1)}%
+                </span>
+                <span
+                  className={`text-sm font-medium ${
+                    Number(getMetricDifference(selectedLabel, 'precision')) >= 0
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}
                 >
-                  <Box component="span" sx={{ mr: 0.5 }}>↑</Box>
-                  +{(row.change * 100).toFixed(1)}%
-                </Box>
-              </Box>
-            </Box>
+                  {Number(getMetricDifference(selectedLabel, 'precision')) >= 0 ? '+' : ''}
+                  {getMetricDifference(selectedLabel, 'precision')}%
+                </span>
+              </div>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="text-sm font-medium text-gray-500">Recall</div>
+              <div className="mt-2 flex items-baseline justify-between">
+                <span className="text-2xl font-semibold">
+                  {(afterMetrics[selectedLabel]?.recall * 100).toFixed(1)}%
+                </span>
+                <span
+                  className={`text-sm font-medium ${
+                    Number(getMetricDifference(selectedLabel, 'recall')) >= 0
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}
+                >
+                  {Number(getMetricDifference(selectedLabel, 'recall')) >= 0 ? '+' : ''}
+                  {getMetricDifference(selectedLabel, 'recall')}%
+                </span>
+              </div>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="text-sm font-medium text-gray-500">F1 Score</div>
+              <div className="mt-2 flex items-baseline justify-between">
+                <span className="text-2xl font-semibold">
+                  {(afterMetrics[selectedLabel]?.fmeasure * 100).toFixed(1)}%
+                </span>
+                <span
+                  className={`text-sm font-medium ${
+                    Number(getMetricDifference(selectedLabel, 'fmeasure')) >= 0
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}
+                >
+                  {Number(getMetricDifference(selectedLabel, 'fmeasure')) >= 0 ? '+' : ''}
+                  {getMetricDifference(selectedLabel, 'fmeasure')}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Performance Summary Component
+interface PerformanceSummaryProps {
+  beforeMetrics: LabelMetrics;
+  afterMetrics: LabelMetrics;
+}
+
+const PerformanceSummary: React.FC<PerformanceSummaryProps> = ({ beforeMetrics, afterMetrics }) => {
+  // Calculate overall averages
+  const calculateAverage = (metrics: LabelMetrics, key: 'precision' | 'recall' | 'fmeasure') => {
+    const values = Object.values(metrics).map(m => m[key]);
+    return values.reduce((sum, val) => sum + val, 0) / values.length;
+  };
+
+  const labels = Array.from(
+    new Set([...Object.keys(beforeMetrics), ...Object.keys(afterMetrics)])
+  );
+
+  const tableData = labels.map(label => ({
+    label,
+    beforeF1: beforeMetrics[label]?.fmeasure || 0,
+    afterF1: afterMetrics[label]?.fmeasure || 0,
+    change: (afterMetrics[label]?.fmeasure || 0) - (beforeMetrics[label]?.fmeasure || 0)
+  }));
+
+  // Add overall average row
+  const beforeAvgF1 = calculateAverage(beforeMetrics, 'fmeasure');
+  const afterAvgF1 = calculateAverage(afterMetrics, 'fmeasure');
+  
+  tableData.push({
+    label: 'Overall Average',
+    beforeF1: beforeAvgF1,
+    afterF1: afterAvgF1,
+    change: afterAvgF1 - beforeAvgF1
+  });
+
+  return (
+    <div className="mb-8">
+      <h3 className="text-lg font-semibold mb-2">Performance Summary</h3>
+      <p className="text-sm text-gray-500 mb-4">Overview of F1 score changes across all labels</p>
+      
+      <div className="overflow-hidden border rounded-md">
+        <div className="bg-gray-50 grid grid-cols-4 p-3 border-b text-sm font-medium">
+          <div>TAG</div>
+          <div>F1 before fine-tuning</div>
+          <div>F1 after fine-tuning</div>
+          <div>Change</div>
+        </div>
+        
+        <div className="divide-y">
+          {tableData.map((row, idx) => (
+            <div 
+              key={row.label}
+              className={`grid grid-cols-4 p-3 text-sm ${
+                row.label === 'Overall Average' ? 'bg-gray-50 font-medium' : ''
+              }`}
+            >
+              <div>{row.label}</div>
+              <div>{(row.beforeF1 * 100).toFixed(1)}%</div>
+              <div>{(row.afterF1 * 100).toFixed(1)}%</div>
+              <div className="text-green-600">
+                ↑ +{(row.change * 100).toFixed(1)}%
+              </div>
+            </div>
           ))}
-        </Paper>
-        
-        {/* Filter tabs */}
-        <Box sx={{ mb: 2 }}>
-          <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
-            {entityLabels.map(label => (
-              <Button
-                key={label}
-                variant={selectedEntity === label ? 'contained' : 'outlined'}
-                color="primary"
-                size="small"
-                sx={{ 
-                  borderRadius: '16px', 
-                  px: 2, 
-                  py: 0.5,
-                  backgroundColor: selectedEntity === label ? '#E3F2FD' : '#F5F7FA',
-                  color: selectedEntity === label ? '#1976d2' : 'rgba(0, 0, 0, 0.6)',
-                  border: selectedEntity === label ? '1px solid #90CAF9' : '1px solid rgba(0, 0, 0, 0.12)',
-                  '&:hover': {
-                    backgroundColor: selectedEntity === label ? '#BBDEFB' : '#ECEFF1'
-                  }
-                }}
-                onClick={() => handleEntityChange(label)}
-              >
-                {label}
-              </Button>
-            ))}
-          </Box>
-        </Box>
-        
-        {/* Entity-specific metrics */}
-        <Paper sx={{ p: 3, border: '1px solid rgba(0, 0, 0, 0.12)', boxShadow: 'none', borderRadius: '4px' }}>
-          <Typography variant="h6" fontWeight={500} mb={1}>
-            Metrics for "{selectedEntity}"
-          </Typography>
-          <Typography variant="body2" color="text.secondary" mb={3}>
-            Comparing performance before and after training
-          </Typography>
-          
-          <Box sx={{ 
-            height: 300, 
-            px: 3, 
-            display: 'flex', 
-            justifyContent: 'space-around', 
-            alignItems: 'flex-end',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.12)',
-            position: 'relative',
-            mb: 3
-          }}>
-            {/* Y-axis labels */}
-            <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', py: 3 }}>
-              <Typography variant="caption" color="text.secondary">100%</Typography>
-              <Typography variant="caption" color="text.secondary">75%</Typography>
-              <Typography variant="caption" color="text.secondary">50%</Typography>
-              <Typography variant="caption" color="text.secondary">25%</Typography>
-              <Typography variant="caption" color="text.secondary">0%</Typography>
-            </Box>
-            
-            {/* Grid lines */}
-            <Box sx={{ position: 'absolute', left: 30, right: 0, top: 0, bottom: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', py: 3 }}>
-              <Box sx={{ borderTop: '1px dashed rgba(0, 0, 0, 0.1)', width: '100%' }} />
-              <Box sx={{ borderTop: '1px dashed rgba(0, 0, 0, 0.1)', width: '100%' }} />
-              <Box sx={{ borderTop: '1px dashed rgba(0, 0, 0, 0.1)', width: '100%' }} />
-              <Box sx={{ borderTop: '1px dashed rgba(0, 0, 0, 0.1)', width: '100%' }} />
-              <Box sx={{ borderTop: '1px dashed rgba(0, 0, 0, 0.1)', width: '100%' }} />
-            </Box>
-            
-            {/* Bar charts */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, width: '80px' }}>
-              <Typography variant="body2" mb={2}>Precision</Typography>
-              <Box sx={{ display: 'flex', width: '100%', height: '200px', alignItems: 'flex-end' }}>
-                <Box sx={{ 
-                  width: '45%', 
-                  height: `${entitySpecificMetrics[selectedEntity as keyof typeof entitySpecificMetrics].beforeValues.precision * 200}px`, 
-                  bgcolor: '#94bbf7',
-                  mr: 1
-                }} />
-                <Box sx={{ 
-                  width: '45%', 
-                  height: `${entitySpecificMetrics[selectedEntity as keyof typeof entitySpecificMetrics].precision * 200}px`, 
-                  bgcolor: '#4A90E2'
-                }} />
-              </Box>
-            </Box>
-            
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, width: '80px' }}>
-              <Typography variant="body2" mb={2}>Recall</Typography>
-              <Box sx={{ display: 'flex', width: '100%', height: '200px', alignItems: 'flex-end' }}>
-                <Box sx={{ 
-                  width: '45%', 
-                  height: `${entitySpecificMetrics[selectedEntity as keyof typeof entitySpecificMetrics].beforeValues.recall * 200}px`, 
-                  bgcolor: '#94d3a7',
-                  mr: 1
-                }} />
-                <Box sx={{ 
-                  width: '45%', 
-                  height: `${entitySpecificMetrics[selectedEntity as keyof typeof entitySpecificMetrics].recall * 200}px`, 
-                  bgcolor: '#50C878'
-                }} />
-              </Box>
-            </Box>
-            
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, width: '80px' }}>
-              <Typography variant="body2" mb={2}>F1</Typography>
-              <Box sx={{ display: 'flex', width: '100%', height: '200px', alignItems: 'flex-end' }}>
-                <Box sx={{ 
-                  width: '45%', 
-                  height: `${entitySpecificMetrics[selectedEntity as keyof typeof entitySpecificMetrics].beforeValues.f1Score * 200}px`, 
-                  bgcolor: '#ffcc90',
-                  mr: 1
-                }} />
-                <Box sx={{ 
-                  width: '45%', 
-                  height: `${entitySpecificMetrics[selectedEntity as keyof typeof entitySpecificMetrics].f1Score * 200}px`, 
-                  bgcolor: '#FF8C00'
-                }} />
-              </Box>
-            </Box>
-          </Box>
-          
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mr: 3 }}>
-              <Box sx={{ width: 16, height: 16, bgcolor: '#94bbf7', mr: 1, borderRadius: 1 }} />
-              <Typography variant="caption">Before Training</Typography>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Box sx={{ width: 16, height: 16, bgcolor: '#4A90E2', mr: 1, borderRadius: 1 }} />
-              <Typography variant="caption">After Training</Typography>
-            </Box>
-          </Box>
-          
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-            <Box sx={{ 
-              p: 2, 
-              bgcolor: 'rgba(0, 0, 0, 0.02)', 
-              borderRadius: '4px', 
-              flex: 1, 
-              mr: 2, 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center' 
-            }}>
-              <Typography variant="body2" color="text.secondary" mb={1}>Precision</Typography>
-              <Typography variant="h5" fontWeight={500}>{(entitySpecificMetrics[selectedEntity as keyof typeof entitySpecificMetrics].precision * 100).toFixed(1)}%</Typography>
-              <Box sx={{ 
-                color: '#4caf50', 
-                display: 'flex', 
-                alignItems: 'center',
-                mt: 1
-              }}>
-                <Box component="span" sx={{ mr: 0.5 }}>+</Box>
-                {((entitySpecificMetrics[selectedEntity as keyof typeof entitySpecificMetrics].precision - 
-                  entitySpecificMetrics[selectedEntity as keyof typeof entitySpecificMetrics].beforeValues.precision) * 100).toFixed(1)}%
-              </Box>
-            </Box>
-            
-            <Box sx={{ 
-              p: 2, 
-              bgcolor: 'rgba(0, 0, 0, 0.02)', 
-              borderRadius: '4px', 
-              flex: 1, 
-              mr: 2,
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center'
-            }}>
-              <Typography variant="body2" color="text.secondary" mb={1}>Recall</Typography>
-              <Typography variant="h5" fontWeight={500}>{(entitySpecificMetrics[selectedEntity as keyof typeof entitySpecificMetrics].recall * 100).toFixed(1)}%</Typography>
-              <Box sx={{ 
-                color: '#4caf50', 
-                display: 'flex', 
-                alignItems: 'center',
-                mt: 1
-              }}>
-                <Box component="span" sx={{ mr: 0.5 }}>+</Box>
-                {((entitySpecificMetrics[selectedEntity as keyof typeof entitySpecificMetrics].recall - 
-                  entitySpecificMetrics[selectedEntity as keyof typeof entitySpecificMetrics].beforeValues.recall) * 100).toFixed(1)}%
-              </Box>
-            </Box>
-            
-            <Box sx={{ 
-              p: 2, 
-              bgcolor: 'rgba(0, 0, 0, 0.02)', 
-              borderRadius: '4px', 
-              flex: 1,
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center'
-            }}>
-              <Typography variant="body2" color="text.secondary" mb={1}>F1 Score</Typography>
-              <Typography variant="h5" fontWeight={500}>{(entitySpecificMetrics[selectedEntity as keyof typeof entitySpecificMetrics].f1Score * 100).toFixed(1)}%</Typography>
-              <Box sx={{ 
-                color: '#4caf50', 
-                display: 'flex', 
-                alignItems: 'center',
-                mt: 1
-              }}>
-                <Box component="span" sx={{ mr: 0.5 }}>+</Box>
-                {((entitySpecificMetrics[selectedEntity as keyof typeof entitySpecificMetrics].f1Score - 
-                  entitySpecificMetrics[selectedEntity as keyof typeof entitySpecificMetrics].beforeValues.f1Score) * 100).toFixed(1)}%
-              </Box>
-            </Box>
-          </Box>
-        </Paper>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Example visualizer component (simplified)
+const ExamplesVisualizer: React.FC<{ report: TrainReportData }> = ({ report }) => {
+  return (
+    <div className="border rounded-md p-4">
+      <h3 className="text-lg font-semibold mb-2">Training Examples</h3>
+      <p className="text-sm text-gray-500">
+        This is a placeholder for training examples visualization.
+        In the actual component, this would show examples of model predictions.
+      </p>
+    </div>
+  );
+};
+
+interface TrainingResultsProps {
+  report?: TrainReportData;
+}
+
+const TrainingResults: React.FC<TrainingResultsProps> = ({ report = mockReportData }) => {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Fine-tuning Metrics Comparison</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-8">
+        <PerformanceSummary
+          beforeMetrics={report.before_train_metrics}
+          afterMetrics={report.after_train_metrics}
+        />
+
+        <MetricsChart
+          beforeMetrics={report.before_train_metrics}
+          afterMetrics={report.after_train_metrics}
+        />
+        <ExamplesVisualizer report={report} />
       </CardContent>
     </Card>
   );

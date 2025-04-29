@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import { useParams } from 'next/navigation';
 import TrainingResults from './metrics/TrainingResults';
+import ExamplesVisualizer from './metrics/ExamplesVisualizer';
 
 const Dashboard = () => {
   const { deploymentId } = useParams();
@@ -43,6 +44,7 @@ const Dashboard = () => {
   return (
     <Box sx={{ padding: '24px', backgroundColor: '#F5F7FA', minHeight: 'calc(100vh - 112px)' }}>
       <TrainingResults />
+      <ExamplesVisualizer />
     </Box>
   );
 };

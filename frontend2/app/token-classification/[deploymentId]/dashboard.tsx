@@ -10,6 +10,7 @@ import {
 import { useParams } from 'next/navigation';
 import TrainingResults from './metrics/TrainingResults';
 import ExamplesVisualizer from './metrics/ExamplesVisualizer';
+import ModelUpdate from './metrics/ModelUpdate';
 
 const Dashboard = () => {
   const { deploymentId } = useParams();
@@ -45,6 +46,12 @@ const Dashboard = () => {
     <Box sx={{ padding: '24px', backgroundColor: '#F5F7FA', minHeight: 'calc(100vh - 112px)' }}>
       <TrainingResults />
       <ExamplesVisualizer />
+      <ModelUpdate 
+        username="user"
+        modelName={deploymentId as string}
+        deploymentUrl={`/api/token-classification/${deploymentId}`}
+        modelId={`user/${deploymentId}`}
+      />
     </Box>
   );
 };

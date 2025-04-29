@@ -6,20 +6,15 @@ import {
   Typography,
   TextField,
   Button,
-  Card,
-  CardContent,
-  Tooltip,
   Alert,
-  Chip,
-  Paper,
-  Divider,
-  IconButton
+  Tooltip
 } from '@mui/material';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import ArrowDropUpIcon from '@mui/icons-material/ArrowDropUp';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Upload, HelpCircle } from 'lucide-react';
 import RecentSamples from './RecentSamples';
+// Comment out the import that's causing errors until the component is created
+// import { TrainingResults } from './MetricsChart';
+// import type { TrainReportData } from '@/lib/backend';
 
 // Mock functions to simulate API calls
 // These would be replaced with actual API calls in a real implementation
@@ -112,9 +107,6 @@ const ModelUpdate: React.FC<ModelUpdateProps> = ({
   // New state for polling model name
   const [pollingModelName, setPollingModelName] = useState(``);
   const [pollingWarningMessage, setPollingWarningMessage] = useState('');
-
-  // File input reference
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Effect to validate model name on each change
   useEffect(() => {
@@ -358,175 +350,172 @@ const ModelUpdate: React.FC<ModelUpdateProps> = ({
     setNumTagDisplay(5);
   };
 
-  const openFileSelector = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  };
-
   return (
-    <Box sx={{ mb: 4 }}>
+    <div className="space-y-6 px-1">
+      {/* Training Report Section */}
+      {isLoadingReport ? (
+        <Card>
+          <CardContent>
+            <div className="text-center py-8">Loading training report...</div>
+          </CardContent>
+        </Card>
+      ) : reportError ? (
+        <></>
+      ) : (
+        trainReport && (
+          <Card>
+            <CardContent>
+              <div className="text-center py-4">
+                <Typography variant="h6">Training Report</Typography>
+                <div className="mt-2">
+                  <div>Before: F1 {trainReport.metrics?.before?.f1.toFixed(2) || 'N/A'}</div>
+                  <div>After: F1 {trainReport.metrics?.after?.f1.toFixed(2) || 'N/A'}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      )}
+
       {/* CSV Upload Section */}
-      <Card sx={{ mb: 4, backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.12)' }}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Update Model with your own data</CardTitle>
+          <CardDescription>
+            {`Upload a CSV file with token-level annotations. Your CSV file should follow these requirements:`}
+            <br />
+            <br />
+            {`• Two columns: 'source' and 'target'`}
+            <br />
+            {`• Source column: Contains full text`}
+            <br />
+            {`• Target column: Space-separated labels matching each word/token from source`}
+            <br />
+            {`• IMPORTANT: Number of tokens in source (split by space) MUST match number of labels in target`}
+            <br />
+            <br />
+            {`Example (6 tokens each):`}
+            <br />
+            {`Source: "The borrower name is John Smith"`}
+            <br />
+            {`Target: "O O O O NAME NAME"`}
+            <br />
+            <br />
+            <div className="flex flex-wrap gap-2">
+              <span className="">Tags Used for Training: </span>
+              <div className="w-fit max-w-[600px]">
+                {/* Tags Box */}
+                <div className="p-1 border-2 border-slate-300 rounded-lg flex flex-wrap">
+                  {tags.map(
+                    (tag, index) =>
+                      index < numTagDisplay && (
+                        <div className="rounded-lg p-2 m-2 bg-slate-100" key={`${index}-${tag}`}>
+                          {tag}
+                        </div>
+                      )
+                  )}
+                  {tags.length > 5 && (
+                    <Button
+                      color="inherit"
+                      variant="outlined"
+                      size="medium"
+                      onClick={numTagDisplay === 5 ? handleTagDisplayMore : handleTagDisplayLess}
+                    >
+                      {numTagDisplay === 5 ? 'Expand ▼' : 'Collapse ▲'}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+            <br />
+          </CardDescription>
+        </CardHeader>
         <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 500, mb: 1 }}>
-            Update Model with your own data
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Upload a CSV file with token-level annotations. Your CSV file should follow these requirements:
-            <Box component="ul" sx={{ pl: 2, mt: 1 }}>
-              <Box component="li">Two columns: 'source' and 'target'</Box>
-              <Box component="li">Source column: Contains full text</Box>
-              <Box component="li">Target column: Space-separated labels matching each word/token from source</Box>
-              <Box component="li" sx={{ fontWeight: 'bold' }}>
-                IMPORTANT: Number of tokens in source (split by space) MUST match number of labels in target
+          <div className="space-y-4">
+            <Box sx={{ mb: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <Typography variant="h6" component="h3" sx={{ mr: 1 }}>
+                  Name Your Updated Model
+                </Typography>
+                <Tooltip title="Use alphanumeric characters, hyphens, and underscores only. This will be the identifier for your updated model.">
+                  <HelpCircle size={20} />
+                </Tooltip>
               </Box>
+              <TextField
+                fullWidth
+                id="model-name"
+                label="New Model Name"
+                variant="outlined"
+                value={newModelName}
+                onChange={(e) => setNewModelName(e.target.value)}
+                placeholder="Enter new model name"
+                helperText={warningMessage || 'Example: my-model-v2 or updated_model_123'}
+                error={!!warningMessage}
+                sx={{ mt: 1 }}
+              />
             </Box>
-            <Box sx={{ mt: 2 }}>
-              Example (6 tokens each):<br />
-              Source: "The borrower name is John Smith"<br />
-              Target: "O O O O NAME NAME"
-            </Box>
-            
-            <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1 }}>
-              <Typography variant="body2">Tags Used for Training:</Typography>
-              <Paper 
-                variant="outlined" 
-                sx={{ 
-                  p: 1, 
-                  display: 'flex', 
-                  flexWrap: 'wrap', 
-                  gap: 1, 
-                  alignItems: 'center',
-                  maxWidth: 600,
-                  flex: 1
-                }}
-              >
-                {tags.slice(0, numTagDisplay).map((tag, index) => (
-                  <Chip 
-                    key={`${index}-${tag}`} 
-                    label={tag} 
-                    size="small" 
-                    sx={{ 
-                      bgcolor: 'rgba(0, 0, 0, 0.05)', 
-                      borderRadius: '4px' 
-                    }} 
-                  />
-                ))}
-                {tags.length > 5 && (
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={numTagDisplay === 5 ? handleTagDisplayMore : handleTagDisplayLess}
-                    endIcon={numTagDisplay === 5 ? <ArrowDropDownIcon /> : <ArrowDropUpIcon />}
-                    sx={{ ml: 1 }}
-                  >
-                    {numTagDisplay === 5 ? 'Expand' : 'Collapse'}
-                  </Button>
-                )}
-              </Paper>
-            </Box>
-          </Typography>
-          
-          <Box sx={{ mb: 3, mt: 4 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <Typography variant="subtitle1" sx={{ mr: 1, fontWeight: 500 }}>
-                Name Your Updated Model
-              </Typography>
-              <Tooltip title="Use alphanumeric characters, hyphens, and underscores only. This will be the identifier for your updated model.">
-                <HelpOutlineIcon fontSize="small" color="action" />
-              </Tooltip>
-            </Box>
-            <TextField
-              fullWidth
-              id="model-name"
-              label="New Model Name"
-              variant="outlined"
-              value={newModelName}
-              onChange={(e) => setNewModelName(e.target.value)}
-              placeholder="Enter new model name"
-              helperText={warningMessage || 'Example: my-model-v2 or updated_model_123'}
-              error={!!warningMessage}
-              size="small"
-            />
-          </Box>
-          
-          <Box 
-            sx={{ 
-              border: '2px dashed',
-              borderColor: selectedFile ? 'primary.main' : 'divider',
-              borderRadius: 1,
-              p: 3,
-              textAlign: 'center',
-              cursor: 'pointer',
-              mb: 3,
-              transition: 'border-color 0.2s',
-              '&:hover': {
-                borderColor: 'primary.main'
-              }
-            }}
-            onClick={openFileSelector}
-          >
-            <input
-              type="file"
-              ref={fileInputRef}
-              hidden
-              accept=".csv"
-              onChange={handleFileInput}
-            />
-            <CloudUploadIcon color="action" sx={{ fontSize: 40, mb: 1 }} />
-            {selectedFile ? (
-              <Typography color="primary">Selected: {selectedFile.name}</Typography>
-            ) : (
-              <Typography color="textSecondary">Click to select a CSV file</Typography>
+            <div
+              className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors"
+              onClick={() => document.getElementById('file-input')?.click()}
+            >
+              <input
+                type="file"
+                id="file-input"
+                className="hidden"
+                accept=".csv"
+                onChange={handleFileInput}
+              />
+              <Upload className="mx-auto mb-2 text-gray-400" size={24} />
+              {selectedFile ? (
+                <p className="text-green-600">Selected: {selectedFile.name}</p>
+              ) : (
+                <p className="text-gray-600">Click to select a CSV file</p>
+              )}
+            </div>
+
+            {uploadError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {uploadError}
+              </Alert>
             )}
-          </Box>
-          
-          {uploadError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {uploadError}
-            </Alert>
-          )}
-          
-          {uploadSuccess && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              Update process initiated successfully with uploaded CSV.
-            </Alert>
-          )}
-          
-          <Button
-            onClick={handleUploadUpdate}
-            disabled={isUploadUpdating || !selectedFile || uploadButtonDisabled}
-            variant="contained"
-            color={uploadSuccess ? 'success' : 'primary'}
-            fullWidth
-          >
-            {isUploadUpdating
-              ? 'Initiating Update...'
-              : uploadSuccess
-                ? 'Update Initiated!'
-                : 'Update Model with CSV'}
-          </Button>
+
+            {uploadSuccess && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                Update process initiated successfully with uploaded CSV.
+              </Alert>
+            )}
+
+            <Button
+              onClick={handleUploadUpdate}
+              disabled={isUploadUpdating || !selectedFile || uploadButtonDisabled}
+              variant="contained"
+              color={uploadSuccess ? 'success' : 'primary'}
+              fullWidth
+            >
+              {isUploadUpdating
+                ? 'Initiating Update...'
+                : uploadSuccess
+                  ? 'Update Initiated!'
+                  : 'Update Model with CSV'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
-      
+
       {/* Polled Data Section with Recent Samples */}
-      <Card sx={{ mb: 4, backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.12)' }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 500, mb: 1 }}>
-            Update Model with Recent User Feedback
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            View and use recent labeled samples to update the model
-          </Typography>
-          
+      <Card>
+        <CardHeader>
+          <CardTitle>Update Model with Recent User Feedback</CardTitle>
+          <CardDescription>View and use recent labeled samples to update the model</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
           <Box sx={{ mb: 4 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <Typography variant="subtitle1" sx={{ mr: 1, fontWeight: 500 }}>
+              <Typography variant="h6" component="h3" sx={{ mr: 1 }}>
                 Name Your New Model
               </Typography>
               <Tooltip title="Use alphanumeric characters, hyphens, and underscores only. This will be the identifier for your updated model.">
-                <HelpOutlineIcon fontSize="small" color="action" />
+                <HelpCircle size={20} />
               </Tooltip>
             </Box>
             <TextField
@@ -539,44 +528,46 @@ const ModelUpdate: React.FC<ModelUpdateProps> = ({
               placeholder="Enter new model name"
               helperText={pollingWarningMessage || 'Example: my-model-v2 or updated_model_123'}
               error={!!pollingWarningMessage}
-              size="small"
+              sx={{ mt: 1 }}
             />
           </Box>
-          
-          <Box sx={{ mb: 4 }}>
+
+          <div className="mb-6">
             <RecentSamples deploymentUrl={deploymentUrl} />
-          </Box>
-          
-          {pollingError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {pollingError}
-            </Alert>
-          )}
-          
-          {pollingSuccess && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              Update process initiated successfully with polled data.
-            </Alert>
-          )}
-          
-          <Button
-            onClick={handlePollingUpdate}
-            disabled={isPollingUpdating || pollingButtonDisabled || deployStatus !== 'complete'}
-            variant="contained"
-            color={pollingSuccess ? 'success' : 'primary'}
-            fullWidth
-          >
-            {isPollingUpdating
-              ? 'Initiating Update...'
-              : pollingSuccess
-                ? 'Update Initiated!'
-                : deployStatus !== 'complete'
-                  ? "Model Must Be Deployed First (refresh page once it's deployed)"
-                  : 'Update Model with User Feedback'}
-          </Button>
+          </div>
+
+          <div className="space-y-4">
+            {pollingError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {pollingError}
+              </Alert>
+            )}
+
+            {pollingSuccess && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                Update process initiated successfully with polled data.
+              </Alert>
+            )}
+
+            <Button
+              onClick={handlePollingUpdate}
+              disabled={isPollingUpdating || pollingButtonDisabled || deployStatus !== 'complete'}
+              variant="contained"
+              color={pollingSuccess ? 'success' : 'primary'}
+              fullWidth
+            >
+              {isPollingUpdating
+                ? 'Initiating Update...'
+                : pollingSuccess
+                  ? 'Update Initiated!'
+                  : deployStatus !== 'complete'
+                    ? "Model Must Be Deployed First (refresh page once it's deployed)"
+                    : 'Update Model with User Feedback'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
-    </Box>
+    </div>
   );
 };
 

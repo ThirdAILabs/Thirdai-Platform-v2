@@ -170,33 +170,18 @@ export default function Page() {
           </Tabs>
         </Box>
         
-        {/* Tab Content Sections - Styled to match original */}
-        <Box sx={{ 
-          mt: 0,
-          '& > div': {
-            display: tabValue === 'monitoring' ? 'block' : 'none'
-          }
-        }}>
+        {/* Tab Content Sections */}
+        <div style={{ display: tabValue === 'monitoring' ? 'block' : 'none' }}>
           <Dashboard />
-        </Box>
+        </div>
         
-        <Box sx={{ 
-          mt: 0,
-          '& > div': {
-            display: tabValue === 'testing' ? 'block' : 'none'
-          }
-        }}>
+        <div style={{ display: tabValue === 'testing' ? 'block' : 'none' }}>
           <Interact />
-        </Box>
+        </div>
         
-        <Box sx={{ 
-          mt: 0,
-          '& > div': {
-            display: tabValue === 'jobs' ? 'block' : 'none'
-          }
-        }}>
+        <div style={{ display: tabValue === 'jobs' ? 'block' : 'none' }}>
           <Jobs />
-        </Box>
+        </div>
       </main>
     </div>
   );

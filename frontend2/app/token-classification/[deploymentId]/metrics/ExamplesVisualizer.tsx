@@ -1,16 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Paper,
-  Divider,
-  Chip
-} from '@mui/material';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 // Types to match the original
 interface TrainingExample {
@@ -134,7 +125,6 @@ const mockReport: TrainReportData = {
   }
 };
 
-// Token highlight component similar to the original
 interface TokenHighlightProps {
   text: string;
   index: number;
@@ -146,44 +136,28 @@ const TokenHighlight: React.FC<TokenHighlightProps> = ({ text, index, highlightI
   const isHighlighted = index === highlightIndex;
 
   const getHighlightColor = () => {
-    if (!isHighlighted) return {};
-    
+    if (!isHighlighted) return 'bg-transparent';
     switch (type) {
       case 'tp':
-        return { 
-          backgroundColor: 'rgba(76, 175, 80, 0.1)', 
-          border: '2px solid rgba(76, 175, 80, 0.4)' 
-        };
+        return 'bg-green-100 border-green-400';
       case 'fp':
-        return { 
-          backgroundColor: 'rgba(244, 67, 54, 0.1)', 
-          border: '2px solid rgba(244, 67, 54, 0.4)' 
-        };
+        return 'bg-red-100 border-red-400';
       case 'fn':
-        return { 
-          backgroundColor: 'rgba(255, 152, 0, 0.1)', 
-          border: '2px solid rgba(255, 152, 0, 0.4)' 
-        };
+        return 'bg-yellow-100 border-yellow-400';
       default:
-        return {};
+        return 'bg-transparent';
     }
   };
 
   return (
-    <Box
-      component="span"
-      sx={{
-        padding: '2px 4px',
-        borderRadius: '4px',
-        ...getHighlightColor()
-      }}
+    <span
+      className={`px-1 py-0.5 rounded ${getHighlightColor()} ${isHighlighted ? 'border-2' : ''}`}
     >
       {text}
-    </Box>
+    </span>
   );
 };
 
-// Example pair component similar to the original
 interface ExamplePairProps {
   example: TrainingExample;
   type: 'tp' | 'fp' | 'fn';
@@ -208,56 +182,24 @@ const ExamplePair: React.FC<ExamplePairProps> = ({ example, type }) => {
   const getTypeColor = () => {
     switch (type) {
       case 'tp':
-        return { 
-          color: '#2e7d32', 
-          backgroundColor: '#e8f5e9' 
-        };
+        return 'text-green-700 bg-green-50';
       case 'fp':
-        return { 
-          color: '#c62828', 
-          backgroundColor: '#ffebee' 
-        };
+        return 'text-red-700 bg-red-50';
       case 'fn':
-        return { 
-          color: '#ef6c00', 
-          backgroundColor: '#fff3e0' 
-        };
+        return 'text-yellow-700 bg-yellow-50';
     }
   };
 
   return (
-    <Paper 
-      variant="outlined" 
-      sx={{ 
-        p: 3, 
-        mb: 2,
-        borderRadius: '8px'
-      }}
-    >
-      <Chip
-        label={getTypeLabel()}
-        size="small"
-        sx={{
-          mb: 2,
-          fontWeight: 500,
-          ...getTypeColor(),
-          borderRadius: '16px'
-        }}
-      />
+    <div className="border rounded-lg p-4 space-y-3">
+      <div className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getTypeColor()}`}>
+        {getTypeLabel()}
+      </div>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
-            Input
-          </Typography>
-          <Paper 
-            variant="outlined" 
-            sx={{ 
-              p: 1.5, 
-              backgroundColor: 'rgba(0, 0, 0, 0.02)',
-              borderColor: 'rgba(0, 0, 0, 0.08)'
-            }}
-          >
+      <div className="space-y-2">
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-gray-500">Input</div>
+          <div className="p-2 bg-gray-50 rounded">
             {sourceTokens.map((token, idx) => (
               <React.Fragment key={idx}>
                 <TokenHighlight
@@ -269,21 +211,12 @@ const ExamplePair: React.FC<ExamplePairProps> = ({ example, type }) => {
                 {idx < sourceTokens.length - 1 && ' '}
               </React.Fragment>
             ))}
-          </Paper>
-        </Box>
+          </div>
+        </div>
 
-        <Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
-            Ground Truth
-          </Typography>
-          <Paper 
-            variant="outlined" 
-            sx={{ 
-              p: 1.5, 
-              backgroundColor: 'rgba(0, 0, 0, 0.02)',
-              borderColor: 'rgba(0, 0, 0, 0.08)'
-            }}
-          >
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-gray-500">Ground Truth</div>
+          <div className="p-2 bg-gray-50 rounded">
             {targetTokens.map((token, idx) => (
               <React.Fragment key={idx}>
                 <TokenHighlight
@@ -295,21 +228,12 @@ const ExamplePair: React.FC<ExamplePairProps> = ({ example, type }) => {
                 {idx < targetTokens.length - 1 && ' '}
               </React.Fragment>
             ))}
-          </Paper>
-        </Box>
+          </div>
+        </div>
 
-        <Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
-            Prediction
-          </Typography>
-          <Paper 
-            variant="outlined" 
-            sx={{ 
-              p: 1.5, 
-              backgroundColor: 'rgba(0, 0, 0, 0.02)',
-              borderColor: 'rgba(0, 0, 0, 0.08)'
-            }}
-          >
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-gray-500">Prediction</div>
+          <div className="p-2 bg-gray-50 rounded">
             {predictionTokens.map((token, idx) => (
               <React.Fragment key={idx}>
                 <TokenHighlight
@@ -321,33 +245,27 @@ const ExamplePair: React.FC<ExamplePairProps> = ({ example, type }) => {
                 {idx < predictionTokens.length - 1 && ' '}
               </React.Fragment>
             ))}
-          </Paper>
-        </Box>
-      </Box>
-    </Paper>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
-// Main ExamplesVisualizer component
-export const ExamplesVisualizer: React.FC = () => {
-  const report = mockReport; // Use mock data for display
+interface ExamplesVisualizerProps {
+  report?: TrainReportData;
+}
+
+const ExamplesVisualizer: React.FC<ExamplesVisualizerProps> = ({ report = mockReport }) => {
   const allLabels = Object.keys(report.after_train_examples.true_positives);
   const [selectedLabel, setSelectedLabel] = useState(allLabels[0]);
   const [selectedType, setSelectedType] = useState<'tp' | 'fp' | 'fn'>('tp');
 
   const predictionTypes = [
-    { id: 'tp', label: 'True Positives', color: { light: '#e8f5e9', hover: '#c8e6c9' }},
-    { id: 'fp', label: 'False Positives', color: { light: '#ffebee', hover: '#ffcdd2' }},
-    { id: 'fn', label: 'False Negatives', color: { light: '#fff3e0', hover: '#ffe0b2' }},
+    { id: 'tp', label: 'True Positives', color: 'bg-green-100 hover:bg-green-200' },
+    { id: 'fp', label: 'False Positives', color: 'bg-red-100 hover:bg-red-200' },
+    { id: 'fn', label: 'False Negatives', color: 'bg-yellow-100 hover:bg-yellow-200' },
   ] as const;
-
-  const handleLabelChange = (label: string) => {
-    setSelectedLabel(label);
-  };
-
-  const handleTypeChange = (type: 'tp' | 'fp' | 'fn') => {
-    setSelectedType(type);
-  };
 
   const getExamples = () => {
     switch (selectedType) {
@@ -360,100 +278,62 @@ export const ExamplesVisualizer: React.FC = () => {
     }
   };
 
-  const examples = getExamples();
-
   return (
-    <Card sx={{ mb: 4, backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.12)' }}>
-      <CardContent>
-        <Typography variant="h6" sx={{ fontWeight: 500, mb: 1 }}>
-          Sample Predictions
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Analyze model predictions with token-level details
-        </Typography>
-
+    <Card>
+      <CardHeader>
+        <CardTitle>Sample Predictions</CardTitle>
+        <CardDescription>Analyze model predictions with token-level details</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
         {/* Label Selection */}
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 500 }}>
-            Select Label
-          </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-gray-500">Select Label</div>
+          <div className="flex flex-wrap gap-2">
             {allLabels.map((label) => (
-              <Button
+              <button
                 key={label}
-                variant={selectedLabel === label ? 'contained' : 'outlined'}
-                size="small"
-                onClick={() => handleLabelChange(label)}
-                sx={{
-                  textTransform: 'none',
-                  backgroundColor: selectedLabel === label ? '#bbdefb' : '#f5f5f5',
-                  color: selectedLabel === label ? '#0d47a1' : '#616161',
-                  border: selectedLabel === label ? '1px solid #90caf9' : '1px solid #e0e0e0',
-                  '&:hover': {
-                    backgroundColor: selectedLabel === label ? '#90caf9' : '#e0e0e0',
-                  },
-                  boxShadow: 'none',
-                }}
+                onClick={() => setSelectedLabel(label)}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors
+                  ${
+                    selectedLabel === label
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
               >
                 {label}
-              </Button>
+              </button>
             ))}
-          </Box>
-        </Box>
+          </div>
+        </div>
 
         {/* Prediction Type Selection */}
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 500 }}>
-            Select Prediction Type
-          </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-gray-500">Select Prediction Type</div>
+          <div className="flex flex-wrap gap-2">
             {predictionTypes.map(({ id, label, color }) => (
-              <Button
+              <button
                 key={id}
-                variant={selectedType === id ? 'contained' : 'outlined'}
-                size="small"
-                onClick={() => handleTypeChange(id)}
-                sx={{
-                  textTransform: 'none',
-                  backgroundColor: selectedType === id ? color.light : '#f5f5f5',
-                  color: selectedType === id ? 
-                    (id === 'tp' ? '#2e7d32' : id === 'fp' ? '#c62828' : '#ef6c00') : 
-                    '#616161',
-                  border: selectedType === id ? 
-                    `1px solid ${id === 'tp' ? '#a5d6a7' : id === 'fp' ? '#ef9a9a' : '#ffcc80'}` : 
-                    '1px solid #e0e0e0',
-                  '&:hover': {
-                    backgroundColor: selectedType === id ? color.hover : '#e0e0e0',
-                  },
-                  boxShadow: 'none',
-                }}
+                onClick={() => setSelectedType(id)}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors
+                  ${selectedType === id ? color : 'bg-gray-100 hover:bg-gray-200'}`}
               >
                 {label}
-              </Button>
+              </button>
             ))}
-          </Box>
-        </Box>
+          </div>
+        </div>
 
-        {/* Examples display */}
-        <Box sx={{ mt: 3 }}>
-          {examples.length > 0 ? (
-            examples.map((example, idx) => (
-              <ExamplePair key={idx} example={example} type={selectedType} />
-            ))
-          ) : (
-            <Box 
-              sx={{ 
-                textAlign: 'center', 
-                py: 4, 
-                color: 'text.secondary',
-                border: '1px dashed #ccc',
-                borderRadius: '8px'
-              }}
-            >
+        {/* Examples */}
+        <div className="space-y-4">
+          {getExamples().map((example, idx) => (
+            <ExamplePair key={idx} example={example} type={selectedType} />
+          ))}
+          {getExamples().length === 0 && (
+            <div className="text-center py-8 text-gray-500">
               No examples found for this combination
-            </Box>
+            </div>
           )}
-        </Box>
+        </div>
       </CardContent>
     </Card>
   );

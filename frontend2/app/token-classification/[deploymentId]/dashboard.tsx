@@ -44,14 +44,16 @@ const Dashboard = () => {
   
   return (
     <Box sx={{ padding: '24px', backgroundColor: '#F5F7FA', minHeight: 'calc(100vh - 112px)' }}>
-      <TrainingResults />
-      <ExamplesVisualizer />
-      <ModelUpdate 
-        username="user"
-        modelName={deploymentId as string}
-        deploymentUrl={`/api/token-classification/${deploymentId}`}
-        modelId={`user/${deploymentId}`}
-      />
+      <div className="space-y-6">
+        <TrainingResults />
+        <ExamplesVisualizer />
+        <ModelUpdate 
+          username="user"
+          modelName={deploymentId as string}
+          deploymentUrl={`/api/token-classification/${deploymentId}`}
+          modelId={`user/${deploymentId}`}
+        />
+      </div>
     </Box>
   );
 };

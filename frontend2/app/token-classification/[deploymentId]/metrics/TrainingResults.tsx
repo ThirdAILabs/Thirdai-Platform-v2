@@ -129,7 +129,7 @@ const MetricsChart: React.FC<MetricsChartProps> = ({ beforeMetrics, afterMetrics
           <CardTitle className="text-lg">Metrics for &quot;{selectedLabel}&quot;</CardTitle>
           <CardDescription>Comparing performance before and after training</CardDescription>
         </CardHeader>
-        <CardContent>
+      <CardContent>
           {/* Chart */}
           <ResponsiveContainer width="100%" height={300}>
             <BarChart
@@ -280,19 +280,6 @@ const PerformanceSummary: React.FC<PerformanceSummaryProps> = ({ beforeMetrics, 
   );
 };
 
-// Example visualizer component (simplified)
-const ExamplesVisualizer: React.FC<{ report: TrainReportData }> = ({ report }) => {
-  return (
-    <div className="border rounded-md p-4">
-      <h3 className="text-lg font-semibold mb-2">Training Examples</h3>
-      <p className="text-sm text-gray-500">
-        This is a placeholder for training examples visualization.
-        In the actual component, this would show examples of model predictions.
-      </p>
-    </div>
-  );
-};
-
 interface TrainingResultsProps {
   report?: TrainReportData;
 }
@@ -313,7 +300,6 @@ const TrainingResults: React.FC<TrainingResultsProps> = ({ report = mockReportDa
           beforeMetrics={report.before_train_metrics}
           afterMetrics={report.after_train_metrics}
         />
-        <ExamplesVisualizer report={report} />
       </CardContent>
     </Card>
   );

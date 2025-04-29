@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useEffect, useState } from 'react';
 import {
   Box,
@@ -13,13 +14,14 @@ import {
 } from '@mui/material';
 import { Card, CardContent } from '@mui/material';
 import { useParams } from 'next/navigation';
+import TrainingResults from './metrics/TrainingResults';
 
 // Types for model metrics
 interface ModelMetrics {
-  precision: number;
-  recall: number;
-  f1Score: number;
-  accuracy: number;
+  precision?: number;
+  recall?: number;
+  f1Score?: number;
+  accuracy?: number;
   requestsPerDay: number[];
   averageLatency: number;
 }
@@ -31,11 +33,14 @@ const useMonitoringAPI = () => {
       // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 800));
       
+      // Simulate a scenario where some metrics might be undefined
+      const simulateDataAvailability = Math.random() > 0.3;
+      
       return {
-        precision: 0.94,
-        recall: 0.91,
-        f1Score: 0.925,
-        accuracy: 0.93,
+        precision: simulateDataAvailability ? 0.94 : undefined,
+        recall: simulateDataAvailability ? 0.91 : undefined,
+        f1Score: simulateDataAvailability ? 0.925 : undefined,
+        accuracy: simulateDataAvailability ? 0.93 : undefined,
         requestsPerDay: [145, 156, 162, 170, 182, 167, 190],
         averageLatency: 120, // ms
       };
@@ -55,7 +60,7 @@ const useMonitoringAPI = () => {
   };
 };
 
-export default function Dashboard() {
+const Dashboard = () => {
   const { deploymentId } = useParams();
   const [metrics, setMetrics] = useState<ModelMetrics | null>(null);
   const [modelDetails, setModelDetails] = useState<any>(null);
@@ -110,173 +115,144 @@ export default function Dashboard() {
   }
   
   return (
-    <div>
-      <Card sx={{ mb: 4, backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ fontWeight: 500, fontSize: '1.1rem' }}>
-            Model Status
-          </Typography>
-          
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} md={4}>
-              <Paper sx={{ p: 2, height: '100%', boxShadow: 'none', border: '1px solid #eee' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>Status</Typography>
-                  <Chip 
-                    label={modelDetails.status}
-                    color={modelDetails.status === 'active' ? 'success' : 'default'}
-                    size="small"
-                    sx={{ height: '22px', fontSize: '0.75rem' }}
-                  />
-                </Box>
-                <Divider sx={{ my: 1 }} />
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>Version</Typography>
-                  <Typography variant="body2">{modelDetails.version}</Typography>
-                </Box>
-                <Divider sx={{ my: 1 }} />
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>Deployed At</Typography>
-                  <Typography variant="body2">{formatDate(modelDetails.deployedAt)}</Typography>
+    <Box sx={{ padding: '24px', backgroundColor: '#F5F7FA', minHeight: 'calc(100vh - 112px)' }}>
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6}>
+          <Card sx={{ backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.12)', height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ fontWeight: 500, mb: 2 }}>
+                Model Status
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                <Chip 
+                  label={modelDetails.status} 
+                  color={modelDetails.status === 'active' ? 'success' : 'default'} 
+                  size="small" 
+                  sx={{ fontWeight: 500, borderRadius: '4px' }} 
+                />
+                <Typography variant="body2" color="text.secondary">
+                  Last updated: {formatDate(modelDetails.lastUpdated)}
+                </Typography>
+              </Box>
+              
+              <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: '4px', mb: 2 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Model Information
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">Base Model</Typography>
+                    <Typography variant="body2" fontWeight={500}>BERT-large</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">Fine-tuned</Typography>
+                    <Typography variant="body2" fontWeight={500}>Yes</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">Deployment Date</Typography>
+                    <Typography variant="body2" fontWeight={500}>{formatDate(modelDetails.deployedAt)}</Typography>
+                  </Box>
                 </Box>
               </Paper>
-            </Grid>
-            
-            <Grid item xs={12} md={8}>
-              <Paper sx={{ p: 2, height: '100%', boxShadow: 'none', border: '1px solid #eee' }}>
-                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 500 }}>
-                  Endpoint Details
-                </Typography>
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>URL</Typography>
-                  <Typography variant="body2" sx={{ wordBreak: 'break-all', mt: 0.5 }}>
-                    {modelDetails.endpoint}
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} md={6}>
+          <Card sx={{ backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.12)', height: '100%' }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ fontWeight: 500, mb: 2 }}>
+                Performance Metrics
+              </Typography>
+              
+              {(!metrics?.precision && !metrics?.recall && !metrics?.f1Score) ? (
+                <Box sx={{ p: 2, textAlign: 'center', border: '1px dashed #ccc', borderRadius: '4px', mb: 3 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Metrics data is currently unavailable. Please check back later.
                   </Typography>
                 </Box>
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>Last Updated</Typography>
-                  <Typography variant="body2" sx={{ mt: 0.5 }}>
-                    {formatDate(modelDetails.lastUpdated)}
-                  </Typography>
-                </Box>
-              </Paper>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-      
-      <Card sx={{ backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ fontWeight: 500, fontSize: '1.1rem' }}>
-            Performance Metrics
-          </Typography>
-          
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2, boxShadow: 'none', border: '1px solid #eee' }}>
-                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 500 }}>
-                  Accuracy Metrics
-                </Typography>
-                
-                <Box sx={{ mt: 2 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="body2">Precision</Typography>
-                    <Typography variant="body2">{metrics?.precision.toFixed(3)}</Typography>
-                  </Box>
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={metrics?.precision ? metrics.precision * 100 : 0} 
-                    sx={{ 
-                      mb: 2, 
-                      height: 8, 
-                      borderRadius: 1,
-                      backgroundColor: '#e0e0e0',
-                      '& .MuiLinearProgress-bar': {
-                        backgroundColor: '#4caf50'
-                      }
-                    }}
-                  />
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="body2">Recall</Typography>
-                    <Typography variant="body2">{metrics?.recall.toFixed(3)}</Typography>
-                  </Box>
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={metrics?.recall ? metrics.recall * 100 : 0} 
-                    sx={{ 
-                      mb: 2, 
-                      height: 8, 
-                      borderRadius: 1,
-                      backgroundColor: '#e0e0e0',
-                      '& .MuiLinearProgress-bar': {
-                        backgroundColor: '#2196f3'
-                      }
-                    }}
-                  />
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="body2">F1 Score</Typography>
-                    <Typography variant="body2">{metrics?.f1Score.toFixed(3)}</Typography>
-                  </Box>
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={metrics?.f1Score ? metrics.f1Score * 100 : 0} 
-                    sx={{ 
-                      mb: 2, 
-                      height: 8, 
-                      borderRadius: 1,
-                      backgroundColor: '#e0e0e0',
-                      '& .MuiLinearProgress-bar': {
-                        backgroundColor: '#ff9800'
-                      }
-                    }}
-                  />
-                </Box>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2, boxShadow: 'none', border: '1px solid #eee' }}>
-                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 500 }}>
-                  Performance
-                </Typography>
-                
-                <Box sx={{ mt: 2 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="body2">Average Latency</Typography>
-                    <Typography variant="body2">{metrics?.averageLatency} ms</Typography>
-                  </Box>
-                  <Box sx={{ mt: 3 }}>
-                    <Typography variant="body2" gutterBottom>
-                      Requests per day (last week)
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-end', mt: 1, height: 60 }}>
-                      {metrics?.requestsPerDay.map((requests, index) => (
-                        <Box 
-                          key={index}
-                          sx={{
-                            height: `${(requests / 200) * 100}%`,
-                            width: `${100 / metrics.requestsPerDay.length}%`,
-                            backgroundColor: '#1a73e8',
-                            mx: 0.5,
-                            borderTopLeftRadius: 2,
-                            borderTopRightRadius: 2,
-                          }}
-                        />
-                      ))}
+              ) : (
+                <>
+                  <Box sx={{ mb: 3 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">Precision</Typography>
+                      <Typography variant="body2" fontWeight={500}>{metrics?.precision !== undefined ? (metrics.precision * 100).toFixed(1) : '0.0'}%</Typography>
                     </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                      <Typography variant="caption">7 days ago</Typography>
-                      <Typography variant="caption">Today</Typography>
-                    </Box>
+                    <LinearProgress 
+                      variant="determinate" 
+                      value={metrics?.precision !== undefined ? metrics.precision * 100 : 0} 
+                      sx={{ 
+                        height: 8, 
+                        borderRadius: 4,
+                        backgroundColor: '#e1f5fe',
+                        '& .MuiLinearProgress-bar': {
+                          backgroundColor: '#4A90E2',
+                        }
+                      }} 
+                    />
                   </Box>
-                </Box>
+                  
+                  <Box sx={{ mb: 3 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">Recall</Typography>
+                      <Typography variant="body2" fontWeight={500}>{metrics?.recall !== undefined ? (metrics.recall * 100).toFixed(1) : '0.0'}%</Typography>
+                    </Box>
+                    <LinearProgress 
+                      variant="determinate" 
+                      value={metrics?.recall !== undefined ? metrics.recall * 100 : 0}
+                      sx={{ 
+                        height: 8, 
+                        borderRadius: 4,
+                        backgroundColor: '#e8f5e9',
+                        '& .MuiLinearProgress-bar': {
+                          backgroundColor: '#50C878',
+                        }
+                      }} 
+                    />
+                  </Box>
+                  
+                  <Box sx={{ mb: 3 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">F1 Score</Typography>
+                      <Typography variant="body2" fontWeight={500}>{metrics?.f1Score !== undefined ? (metrics.f1Score * 100).toFixed(1) : '0.0'}%</Typography>
+                    </Box>
+                    <LinearProgress 
+                      variant="determinate" 
+                      value={metrics?.f1Score !== undefined ? metrics.f1Score * 100 : 0}
+                      sx={{ 
+                        height: 8, 
+                        borderRadius: 4,
+                        backgroundColor: '#fff3e0',
+                        '& .MuiLinearProgress-bar': {
+                          backgroundColor: '#FF8C00',
+                        }
+                      }} 
+                    />
+                  </Box>
+                </>
+              )}
+              
+              <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: '4px' }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Requests per day
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 500, color: '#333' }}>
+                  2,547
+                </Typography>
+                <Typography variant="body2" color="success.main" sx={{ display: 'flex', alignItems: 'center' }}>
+                  ↑ 12% from last week
+                </Typography>
               </Paper>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-    </div>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12}>
+          <TrainingResults />
+        </Grid>
+      </Grid>
+    </Box>
   );
-} 
+};
+
+export default Dashboard; 

@@ -452,19 +452,28 @@ export default function Interact() {
     console.log('Submit feedback clicked');
   };
 
+  // Update layout to exactly match the original
   return (
-    <Box sx={{ display: 'flex', gap: 3 }}>
-      <Box sx={{ flex: '1' }}>
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+      gap: '1.5rem'
+    }}>
+      {/* Left Column: Input area */}
+      <div>
+        <Card sx={{ 
+          backgroundColor: '#fff',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+        }}>
+          <CardContent sx={{ p: 3 }}>
             <textarea
-              className="w-full p-3 border border-gray-300 rounded min-h-32 mb-4"
               placeholder="Enter text here..."
               value={input}
               onChange={handleInputChange}
               style={{ 
-                resize: 'none', 
+                width: '100%',
                 minHeight: '120px',
+                resize: 'none', 
                 backgroundColor: '#fff',
                 borderRadius: '4px',
                 border: '1px solid #ddd',
@@ -474,20 +483,29 @@ export default function Interact() {
             
             <Box 
               sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                my: 2,
-                '&::before, &::after': {
+                position: 'relative',
+                my: 3,
+                '&::before': {
                   content: '""',
-                  flex: 1,
-                  borderBottom: '1px solid #ddd'
+                  position: 'absolute',
+                  top: '50%',
+                  width: '100%',
+                  borderTop: '1px solid #ddd'
                 }
               }}
             >
               <Typography 
                 variant="body2" 
-                color="text.secondary" 
-                sx={{ mx: 2 }}
+                color="text.secondary"
+                align="center"
+                sx={{ 
+                  position: 'relative',
+                  backgroundColor: '#fff',
+                  display: 'inline-block',
+                  px: 2,
+                  left: '50%',
+                  transform: 'translateX(-50%)'
+                }}
               >
                 OR
               </Typography>
@@ -500,7 +518,7 @@ export default function Interact() {
                 p: 3, 
                 textAlign: 'center',
                 cursor: 'pointer',
-                my: 2,
+                mb: 3,
                 '&:hover': {
                   borderColor: '#aaa'
                 }
@@ -512,7 +530,7 @@ export default function Interact() {
               </Typography>
             </Box>
             
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
               <Button
                 variant="contained"
                 onClick={handleRun}
@@ -536,20 +554,28 @@ export default function Interact() {
         </Card>
 
         {tokens.length > 0 && (
-          <Card>
-            <CardContent>
+          <Card sx={{ 
+            backgroundColor: '#fff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            mt: 3
+          }}>
+            <CardContent sx={{ p: 3 }}>
               <Box ref={cardRef} onMouseUp={handleCardMouseUp}>
                 {renderHighlightedContent()}
               </Box>
             </CardContent>
           </Card>
         )}
-      </Box>
+      </div>
       
-      <Box sx={{ width: '320px' }}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
+      {/* Right Column: Feedback Dashboard */}
+      <div>
+        <Card sx={{ 
+          backgroundColor: '#fff',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+        }}>
+          <CardContent sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 500 }}>
               Feedback from this session
             </Typography>
             
@@ -572,7 +598,7 @@ export default function Interact() {
             </Box>
           </CardContent>
         </Card>
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 } 

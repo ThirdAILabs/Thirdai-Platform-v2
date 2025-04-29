@@ -111,49 +111,50 @@ export default function Dashboard() {
   
   return (
     <div>
-      <Card sx={{ mb: 4 }}>
+      <Card sx={{ mb: 4, backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 500, fontSize: '1.1rem' }}>
             Model Status
           </Typography>
           
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12} md={4}>
-              <Paper sx={{ p: 2, height: '100%' }}>
+              <Paper sx={{ p: 2, height: '100%', boxShadow: 'none', border: '1px solid #eee' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="subtitle2">Status</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>Status</Typography>
                   <Chip 
                     label={modelDetails.status}
                     color={modelDetails.status === 'active' ? 'success' : 'default'}
                     size="small"
+                    sx={{ height: '22px', fontSize: '0.75rem' }}
                   />
                 </Box>
                 <Divider sx={{ my: 1 }} />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="subtitle2">Version</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>Version</Typography>
                   <Typography variant="body2">{modelDetails.version}</Typography>
                 </Box>
                 <Divider sx={{ my: 1 }} />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="subtitle2">Deployed At</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>Deployed At</Typography>
                   <Typography variant="body2">{formatDate(modelDetails.deployedAt)}</Typography>
                 </Box>
               </Paper>
             </Grid>
             
             <Grid item xs={12} md={8}>
-              <Paper sx={{ p: 2, height: '100%' }}>
-                <Typography variant="subtitle1" gutterBottom>
+              <Paper sx={{ p: 2, height: '100%', boxShadow: 'none', border: '1px solid #eee' }}>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 500 }}>
                   Endpoint Details
                 </Typography>
                 <Box sx={{ mt: 2 }}>
-                  <Typography variant="subtitle2">URL</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>URL</Typography>
                   <Typography variant="body2" sx={{ wordBreak: 'break-all', mt: 0.5 }}>
                     {modelDetails.endpoint}
                   </Typography>
                 </Box>
                 <Box sx={{ mt: 2 }}>
-                  <Typography variant="subtitle2">Last Updated</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>Last Updated</Typography>
                   <Typography variant="body2" sx={{ mt: 0.5 }}>
                     {formatDate(modelDetails.lastUpdated)}
                   </Typography>
@@ -164,16 +165,16 @@ export default function Dashboard() {
         </CardContent>
       </Card>
       
-      <Card>
+      <Card sx={{ backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 500, fontSize: '1.1rem' }}>
             Performance Metrics
           </Typography>
           
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" gutterBottom>
+              <Paper sx={{ p: 2, boxShadow: 'none', border: '1px solid #eee' }}>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 500 }}>
                   Accuracy Metrics
                 </Typography>
                 
@@ -185,7 +186,15 @@ export default function Dashboard() {
                   <LinearProgress 
                     variant="determinate" 
                     value={metrics?.precision ? metrics.precision * 100 : 0} 
-                    sx={{ mb: 2, height: 8, borderRadius: 1 }}
+                    sx={{ 
+                      mb: 2, 
+                      height: 8, 
+                      borderRadius: 1,
+                      backgroundColor: '#e0e0e0',
+                      '& .MuiLinearProgress-bar': {
+                        backgroundColor: '#4caf50'
+                      }
+                    }}
                   />
                   
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
@@ -195,7 +204,15 @@ export default function Dashboard() {
                   <LinearProgress 
                     variant="determinate" 
                     value={metrics?.recall ? metrics.recall * 100 : 0} 
-                    sx={{ mb: 2, height: 8, borderRadius: 1 }}
+                    sx={{ 
+                      mb: 2, 
+                      height: 8, 
+                      borderRadius: 1,
+                      backgroundColor: '#e0e0e0',
+                      '& .MuiLinearProgress-bar': {
+                        backgroundColor: '#2196f3'
+                      }
+                    }}
                   />
                   
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
@@ -205,15 +222,23 @@ export default function Dashboard() {
                   <LinearProgress 
                     variant="determinate" 
                     value={metrics?.f1Score ? metrics.f1Score * 100 : 0} 
-                    sx={{ mb: 2, height: 8, borderRadius: 1 }}
+                    sx={{ 
+                      mb: 2, 
+                      height: 8, 
+                      borderRadius: 1,
+                      backgroundColor: '#e0e0e0',
+                      '& .MuiLinearProgress-bar': {
+                        backgroundColor: '#ff9800'
+                      }
+                    }}
                   />
                 </Box>
               </Paper>
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" gutterBottom>
+              <Paper sx={{ p: 2, boxShadow: 'none', border: '1px solid #eee' }}>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 500 }}>
                   Performance
                 </Typography>
                 
@@ -233,7 +258,7 @@ export default function Dashboard() {
                           sx={{
                             height: `${(requests / 200) * 100}%`,
                             width: `${100 / metrics.requestsPerDay.length}%`,
-                            backgroundColor: 'primary.main',
+                            backgroundColor: '#1a73e8',
                             mx: 0.5,
                             borderTopLeftRadius: 2,
                             borderTopRightRadius: 2,

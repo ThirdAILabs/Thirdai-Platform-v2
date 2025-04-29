@@ -113,47 +113,77 @@ export default function Page() {
   };
 
   return (
-    <div className="bg-muted min-h-screen">
-      <header className="w-full p-4 bg-muted border-b">
-        <div className="max-w-7xl mx-auto space-y-4">
-          <Breadcrumbs>
-            <MuiLink href="#" underline="hover" color="inherit">
-              Token Classification
-            </MuiLink>
-          </Breadcrumbs>
+    <div style={{ backgroundColor: '#F5F7FA', minHeight: '100vh' }}>
+      <header style={{ width: '100%', padding: '16px', borderBottom: '1px solid #e0e0e0' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', marginBottom: '16px' }}>
+          <Typography 
+            variant="body1" 
+            color="textSecondary" 
+            gutterBottom
+            style={{ fontWeight: 500 }}
+          >
+            Token Classification
+          </Typography>
           
-          <Typography variant="h5" className="font-bold truncate" title={workflowName}>
+          <Typography 
+            variant="h5" 
+            style={{ 
+              fontWeight: 'bold', 
+              overflow: 'hidden', 
+              textOverflow: 'ellipsis', 
+              whiteSpace: 'nowrap' 
+            }} 
+            title={workflowName}
+          >
             {workflowName}
           </Typography>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-4">
-        <Tabs 
-          value={tabValue} 
-          onChange={handleTabChange}
-          aria-label="token classification tabs"
-          className="w-full mb-6"
-        >
-          <Tab label="Monitoring" value="monitoring" />
-          <Tab label="Testing" value="testing" />
-          <Tab label="Jobs" value="jobs" />
-        </Tabs>
+      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '16px' }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+          <Tabs 
+            value={tabValue} 
+            onChange={handleTabChange}
+            aria-label="token classification tabs"
+            sx={{
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontWeight: 500,
+                fontSize: '1rem',
+                color: '#5F6368',
+                minWidth: 100,
+                padding: '12px 16px',
+                '&.Mui-selected': {
+                  color: '#1a73e8',
+                  fontWeight: 500
+                }
+              },
+              '& .MuiTabs-indicator': {
+                backgroundColor: '#1a73e8'
+              }
+            }}
+          >
+            <Tab label="Monitoring" value="monitoring" />
+            <Tab label="Testing" value="testing" />
+            <Tab label="Jobs" value="jobs" />
+          </Tabs>
+        </Box>
         
         {tabValue === 'monitoring' && (
-          <Box className="mt-0">
+          <Box>
             <Dashboard />
           </Box>
         )}
         
         {tabValue === 'testing' && (
-          <Box className="mt-0">
+          <Box>
             <Interact />
           </Box>
         )}
         
         {tabValue === 'jobs' && (
-          <Box className="mt-0">
+          <Box>
             <Jobs />
           </Box>
         )}

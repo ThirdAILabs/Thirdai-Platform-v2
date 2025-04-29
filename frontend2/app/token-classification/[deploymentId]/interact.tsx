@@ -8,6 +8,8 @@ import {
   Switch,
   FormControlLabel,
   Alert,
+  Divider,
+  Paper,
 } from '@mui/material';
 import { Button } from '@mui/material';
 import React, {
@@ -325,6 +327,11 @@ export default function Interact() {
     }
   };
 
+  const handleFileUpload = () => {
+    // This would be implemented to handle file uploads
+    console.log('File upload clicked');
+  };
+
   const handleNewLabel = async (newLabel: string) => {
     try {
       await API.addLabel(newLabel);
@@ -441,40 +448,131 @@ export default function Interact() {
     );
   };
 
+  const handleSubmitFeedback = () => {
+    console.log('Submit feedback clicked');
+  };
+
   return (
-    <Card>
-      <CardContent>
-        <Typography variant="h6" gutterBottom>
-          Test Token Classification
-        </Typography>
-        
-        <textarea
-          className="w-full p-3 border border-gray-300 rounded min-h-32 mb-4"
-          placeholder="Enter text to classify tokens..."
-          value={input}
-          onChange={handleInputChange}
-        />
-        
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleRun}
-            disabled={isLoading || !input.trim()}
-          >
-            {isLoading ? <CircularProgress size={24} /> : 'Classify Tokens'}
-          </Button>
-        </Box>
+    <Box sx={{ display: 'flex', gap: 3 }}>
+      <Box sx={{ flex: '1' }}>
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <textarea
+              className="w-full p-3 border border-gray-300 rounded min-h-32 mb-4"
+              placeholder="Enter text here..."
+              value={input}
+              onChange={handleInputChange}
+              style={{ 
+                resize: 'none', 
+                minHeight: '120px',
+                backgroundColor: '#fff',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+                padding: '12px'
+              }}
+            />
+            
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                my: 2,
+                '&::before, &::after': {
+                  content: '""',
+                  flex: 1,
+                  borderBottom: '1px solid #ddd'
+                }
+              }}
+            >
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ mx: 2 }}
+              >
+                OR
+              </Typography>
+            </Box>
+            
+            <Box 
+              sx={{ 
+                border: '1px dashed #ccc', 
+                borderRadius: '4px', 
+                p: 3, 
+                textAlign: 'center',
+                cursor: 'pointer',
+                my: 2,
+                '&:hover': {
+                  borderColor: '#aaa'
+                }
+              }}
+              onClick={handleFileUpload}
+            >
+              <Typography color="text.secondary">
+                Upload Document here
+              </Typography>
+            </Box>
+            
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              <Button
+                variant="contained"
+                onClick={handleRun}
+                disabled={isLoading || !input.trim()}
+                sx={{ 
+                  backgroundColor: '#9E9E9E',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: '#757575'
+                  },
+                  minWidth: '100px',
+                  borderRadius: '4px',
+                  boxShadow: 'none',
+                  textTransform: 'none'
+                }}
+              >
+                {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Run'}
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
 
         {tokens.length > 0 && (
-          <Box sx={{ mt: 4, p: 3, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Results
-            </Typography>
-            {renderHighlightedContent()}
-          </Box>
+          <Card>
+            <CardContent>
+              <Box ref={cardRef} onMouseUp={handleCardMouseUp}>
+                {renderHighlightedContent()}
+              </Box>
+            </CardContent>
+          </Card>
         )}
-      </CardContent>
-    </Card>
+      </Box>
+      
+      <Box sx={{ width: '320px' }}>
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Feedback from this session
+            </Typography>
+            
+            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-start' }}>
+              <Button 
+                variant="contained" 
+                sx={{ 
+                  backgroundColor: '#EEEEEE', 
+                  color: '#666',
+                  '&:hover': {
+                    backgroundColor: '#E0E0E0'
+                  },
+                  textTransform: 'none',
+                  boxShadow: 'none'
+                }}
+                onClick={handleSubmitFeedback}
+              >
+                Submit Feedback
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
+      </Box>
+    </Box>
   );
 } 

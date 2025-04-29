@@ -110,12 +110,26 @@ export default function Jobs() {
   };
 
   return (
-    <Card>
+    <Card sx={{ backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h6">Token Classification Jobs</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 500, fontSize: '1.1rem' }}>
+            Jobs
+          </Typography>
           <Link href={`/token-classification/${deploymentId}/jobs/new`} passHref>
-            <Button variant="contained" color="primary">
+            <Button 
+              variant="contained" 
+              color="primary"
+              sx={{
+                backgroundColor: '#1a73e8',
+                textTransform: 'none',
+                boxShadow: 'none',
+                '&:hover': {
+                  backgroundColor: '#1765cc',
+                  boxShadow: 'none'
+                }
+              }}
+            >
               New Job
             </Button>
           </Link>
@@ -123,40 +137,63 @@ export default function Jobs() {
 
         {isLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-            <CircularProgress />
+            <CircularProgress size={24} sx={{ color: '#1a73e8' }} />
           </Box>
         ) : error ? (
           <Box sx={{ my: 2 }}>
             <Typography color="error">{error}</Typography>
           </Box>
         ) : (
-          <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
+          <TableContainer 
+            component={Paper} 
+            sx={{ 
+              boxShadow: 'none',
+              border: '1px solid #eee',
+              borderRadius: '4px',
+              overflow: 'hidden'
+            }}
+          >
             <Table>
-              <TableHead sx={{ bgcolor: 'rgba(0, 0, 0, 0.04)' }}>
+              <TableHead sx={{ bgcolor: '#f5f5f5' }}>
                 <TableRow>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Report ID</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Submitted At</TableCell>
-                  <TableCell>Actions</TableCell>
+                  <TableCell sx={{ color: '#5f6368', fontWeight: 500, fontSize: '0.8rem' }}>Name</TableCell>
+                  <TableCell sx={{ color: '#5f6368', fontWeight: 500, fontSize: '0.8rem' }}>Report ID</TableCell>
+                  <TableCell sx={{ color: '#5f6368', fontWeight: 500, fontSize: '0.8rem' }}>Status</TableCell>
+                  <TableCell sx={{ color: '#5f6368', fontWeight: 500, fontSize: '0.8rem' }}>Submitted At</TableCell>
+                  <TableCell sx={{ color: '#5f6368', fontWeight: 500, fontSize: '0.8rem' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {jobs.map((job) => (
-                  <TableRow key={job.id}>
-                    <TableCell>{job.name}</TableCell>
-                    <TableCell>{job.reportId}</TableCell>
+                  <TableRow key={job.id} sx={{ '&:hover': { backgroundColor: '#f8f9fa' } }}>
+                    <TableCell sx={{ fontSize: '0.9rem' }}>{job.name}</TableCell>
+                    <TableCell sx={{ fontSize: '0.9rem', color: '#5f6368' }}>{job.reportId}</TableCell>
                     <TableCell>
                       <Chip 
                         label={job.status} 
                         color={getStatusColor(job.status) as any}
                         size="small"
+                        sx={{ 
+                          height: '22px', 
+                          fontSize: '0.75rem',
+                          textTransform: 'capitalize'
+                        }}
                       />
                     </TableCell>
-                    <TableCell>{formatDate(job.createdAt)}</TableCell>
+                    <TableCell sx={{ fontSize: '0.9rem', color: '#5f6368' }}>{formatDate(job.createdAt)}</TableCell>
                     <TableCell>
                       <Link href={`/token-classification/${deploymentId}/jobs/${job.reportId}`} passHref>
-                        <Button size="small" color="primary">
+                        <Button 
+                          size="small" 
+                          sx={{ 
+                            color: '#1a73e8', 
+                            textTransform: 'none',
+                            '&:hover': {
+                              backgroundColor: 'transparent',
+                              textDecoration: 'underline'
+                            }
+                          }}
+                        >
                           View
                         </Button>
                       </Link>

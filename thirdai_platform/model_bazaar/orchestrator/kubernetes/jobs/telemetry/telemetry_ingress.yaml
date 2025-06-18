@@ -18,8 +18,7 @@ spec:
                 name: telemetry-service
                 port:
                   number: 3000
-          
-	  - path: /victorialogs/
+          - path: /victorialogs/
             pathType: Prefix
             backend:
               service:

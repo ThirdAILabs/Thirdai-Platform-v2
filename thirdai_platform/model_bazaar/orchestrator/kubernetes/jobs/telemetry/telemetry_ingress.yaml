@@ -18,6 +18,14 @@ spec:
                 name: telemetry-service
                 port:
                   number: 3000
+          - path: /victorialogs/
+            pathType: Prefix
+            backend:
+              service:
+                name: telemetry-service
+                port:
+                  number: 9428
+                  
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress

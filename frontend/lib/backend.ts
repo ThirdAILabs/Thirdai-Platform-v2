@@ -1,5 +1,3 @@
-// /lib/backend.js
-// 'use client';
 import axios, { AxiosError } from 'axios';
 import { access } from 'fs';
 import _, { get, set } from 'lodash';
@@ -688,7 +686,7 @@ export function trainTextClassifierWithCSV({
             reject(
               new Error(
                 (axiosError.response.data as any).detail ||
-                  'Failed to train text classification model'
+                'Failed to train text classification model'
               )
             );
           } else {
@@ -2125,7 +2123,7 @@ export async function verifyUser(user_id: string): Promise<void> {
       },
     });
     if (!response.ok) {
-      const errorData = await response.json().catch(() => {});
+      const errorData = await response.json().catch(() => { });
       alert('Error verifying user:' + errorData.detail);
       throw new Error(errorData.detail || 'Failed to verify user');
     }
@@ -2327,7 +2325,7 @@ export async function deleteUserAccount(user_id: string): Promise<void> {
       },
     });
     if (!response.ok) {
-      const errorData = await response.json().catch(() => {});
+      const errorData = await response.json().catch(() => { });
       alert('Error deleting user account:' + errorData.detail);
       throw new Error(errorData.detail || 'Failed to delete user account');
     }
@@ -2381,7 +2379,7 @@ export async function promoteUserToGlobalAdmin(user_id: string): Promise<void> {
       },
     });
     if (!response.ok) {
-      const errorData = await response.json().catch(() => {});
+      const errorData = await response.json().catch(() => { });
       alert('Error promoting user:' + errorData.detail);
       throw new Error(errorData.detail || 'Failed to promote user');
     }

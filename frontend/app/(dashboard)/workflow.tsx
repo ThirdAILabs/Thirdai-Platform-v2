@@ -297,8 +297,6 @@ export function WorkFlow({
     };
 
     fetchStatuses();
-    // const intervalId = setInterval(fetchStatuses, 2000);
-    // return () => clearInterval(intervalId);
   }, [workflow.username, workflow.model_name]);
 
   const copyContentToClipboard = () => {

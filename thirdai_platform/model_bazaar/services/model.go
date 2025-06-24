@@ -523,7 +523,7 @@ func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	permission, err := auth.GetModelPermissions(modelId, user, s.db)
-	// fmt.Printf("permission: %+v\n", permission)
+
 	if err != nil {
 		if errors.Is(err, schema.ErrModelNotFound) {
 			http.Error(w, err.Error(), http.StatusNotFound)

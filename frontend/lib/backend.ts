@@ -1,11 +1,9 @@
-// /lib/backend.js
-
 import axios, { AxiosError } from 'axios';
 import { access } from 'fs';
 import _, { get, set } from 'lodash';
 import { useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
-
+import { UserContext } from '../app/user_wrapper';
 import { verifyRoleSignature } from './cryptoUtils';
 
 export const thirdaiPlatformBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
@@ -280,6 +278,30 @@ interface TrainNdbParams {
 interface UploadResponse {
   upload_id: string;
 }
+
+let logoutFunction: () => void;
+export const setLogoutFunction = (fn: () => void) => {
+  logoutFunction = fn;
+};
+
+const logoutEndpoints = ['/list', '/status'];
+
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const requestUrl = error.config?.url;
+      if (requestUrl && logoutEndpoints.some((endpoint) => requestUrl.endsWith(endpoint))) {
+        if (logoutFunction) {
+          logoutFunction();
+        } else {
+          console.error('Logout function not set but received 401 status');
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export async function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
   const accessToken = getAccessToken();
@@ -1530,7 +1552,7 @@ export function trainSentenceClassifier(
   });
 }
 
-function useAccessToken() {
+export function useAccessToken() {
   const [accessToken, setAccessToken] = useState<string | undefined>();
   useEffect(() => {
     const accessToken = localStorage.getItem('accessToken');

@@ -106,16 +106,20 @@ type ModelDependency struct {
 }
 
 type ModelInfo struct {
-	ModelId      uuid.UUID  `json:"model_id"`
-	ModelName    string     `json:"model_name"`
-	Type         string     `json:"type"`
-	Access       string     `json:"access"`
-	TrainStatus  string     `json:"train_status"`
-	DeployStatus string     `json:"deploy_status"`
-	PublishDate  time.Time  `json:"publish_date"`
-	UserEmail    string     `json:"user_email"`
-	Username     string     `json:"username"`
-	TeamId       *uuid.UUID `json:"team_id"`
+	ModelId        uuid.UUID  `json:"model_id"`
+	ModelName      string     `json:"model_name"`
+	Type           string     `json:"type"`
+	Access         string     `json:"access"`
+	TrainStatus    string     `json:"train_status"`
+	TrainErrors    []string   `json:"train_errors"`
+	TrainWarnings  []string   `json:"train_warnings"`
+	DeployStatus   string     `json:"deploy_status"`
+	DeployErrors   []string   `json:"deploy_errors"`
+	DeployWarnings []string   `json:"deploy_warnings"`
+	PublishDate    time.Time  `json:"publish_date"`
+	UserEmail      string     `json:"user_email"`
+	Username       string     `json:"username"`
+	TeamId         *uuid.UUID `json:"team_id"`
 
 	Attributes map[string]string `json:"attributes"`
 
@@ -130,6 +134,16 @@ func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 	deployStatus, _, err := getModelStatus(model, db, false)
 	if err != nil {
 		return ModelInfo{}, fmt.Errorf("error retrieving model deploy status: %w", err)
+	}
+
+	trainErrors, trainWarnings, err := getJobLogs(db, model.Id, "train")
+	if err != nil {
+		return ModelInfo{}, fmt.Errorf("error retrieving train logs: %w", err)
+	}
+
+	deployErrors, deployWarnings, err := getJobLogs(db, model.Id, "deploy")
+	if err != nil {
+		return ModelInfo{}, fmt.Errorf("error retrieving deploy logs: %w", err)
 	}
 
 	attributes := make(map[string]string, len(model.Attributes))
@@ -151,12 +165,10 @@ func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 			ModelId: dep.DependencyId,
 		}
 
-		// Check if Dependency exists
 		if dep.Dependency != nil {
 			depEntry.ModelName = dep.Dependency.Name
 			depEntry.Type = dep.Dependency.Type
 
-			// Check if Dependency.User exists
 			if dep.Dependency.User != nil {
 				depEntry.Username = dep.Dependency.User.Username
 			}
@@ -166,18 +178,22 @@ func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 	}
 
 	return ModelInfo{
-		ModelId:      model.Id,
-		ModelName:    model.Name,
-		Type:         model.Type,
-		Access:       model.Access,
-		TrainStatus:  trainStatus,
-		DeployStatus: deployStatus,
-		PublishDate:  model.PublishedDate,
-		UserEmail:    userEmail,
-		Username:     username,
-		TeamId:       model.TeamId,
-		Attributes:   attributes,
-		Dependencies: deps,
+		ModelId:        model.Id,
+		ModelName:      model.Name,
+		Type:           model.Type,
+		Access:         model.Access,
+		TrainStatus:    trainStatus,
+		TrainErrors:    trainErrors,
+		TrainWarnings:  trainWarnings,
+		DeployStatus:   deployStatus,
+		DeployErrors:   deployErrors,
+		DeployWarnings: deployWarnings,
+		PublishDate:    model.PublishedDate,
+		UserEmail:      userEmail,
+		Username:       username,
+		TeamId:         model.TeamId,
+		Attributes:     attributes,
+		Dependencies:   deps,
 	}, nil
 }
 
@@ -507,6 +523,7 @@ func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	permission, err := auth.GetModelPermissions(modelId, user, s.db)
+	// fmt.Printf("permission: %+v\n", permission)
 	if err != nil {
 		if errors.Is(err, schema.ErrModelNotFound) {
 			http.Error(w, err.Error(), http.StatusNotFound)

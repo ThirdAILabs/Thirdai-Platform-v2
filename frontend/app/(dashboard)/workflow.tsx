@@ -253,13 +253,13 @@ export function WorkFlow({
           {
             status: workflow.train_status,
             errors: workflow.train_errors,
-            warnings: workflow.train_warnings
+            warnings: workflow.train_warnings,
           },
           {
             status: workflow.deploy_status,
             errors: workflow.deploy_errors,
-            warnings: workflow.deploy_warnings
-          }
+            warnings: workflow.deploy_warnings,
+          },
         ];
 
         // Check training status

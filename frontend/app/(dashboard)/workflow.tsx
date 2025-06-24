@@ -54,11 +54,6 @@ interface WarningState {
   messages: string[];
 }
 
-interface WarningState {
-  type: 'training' | 'deployment';
-  messages: string[];
-}
-
 export function WorkFlow({
   workflow,
   Workflows,
@@ -249,55 +244,61 @@ export function WorkFlow({
     }
   };
 
-  // Add new state for error handling
+  // Remove the fetchStatuses function call from component body
+  // Add new useEffect for status checking
+  useEffect(() => {
+    try {
+      if (workflow.model_id) {
+        const [trainStatus, deployStatus] = [
+          {
+            status: workflow.train_status,
+            errors: workflow.train_errors,
+            warnings: workflow.train_warnings,
+          },
+          {
+            status: workflow.deploy_status,
+            errors: workflow.deploy_errors,
+            warnings: workflow.deploy_warnings,
+          },
+        ];
+
+        // Check training status
+        if (trainStatus.status === 'failed' && trainStatus.errors?.length > 0) {
+          setError({
+            type: 'training',
+            messages: trainStatus.errors,
+          });
+        } else {
+          setError(null);
+        }
+
+        // Check warnings separately
+        if (trainStatus.warnings?.length > 0) {
+          setWarning({
+            type: 'training',
+            messages: trainStatus.warnings,
+          });
+        } else {
+          setWarning(null);
+        }
+
+        // Check deployment
+        if (deployStatus.status === 'failed' && deployStatus.errors?.length > 0) {
+          setError({
+            type: 'deployment',
+            messages: deployStatus.errors,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error checking statuses:', error);
+    }
+  }, [workflow]);
+
+  // Add new state for error handling with proper types
   const [error, setError] = useState<ErrorState | null>(null);
   const [warning, setWarning] = useState<WarningState | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
-
-  useEffect(() => {
-    const fetchStatuses = async () => {
-      try {
-        if (workflow.model_id) {
-          const [trainStatus, deployStatus] = await Promise.all([
-            getTrainingStatus(workflow.model_id),
-            getDeployStatus(workflow.model_id),
-          ]);
-
-          // Check training status
-          if (trainStatus.status === 'failed' && trainStatus.errors?.length > 0) {
-            setError({
-              type: 'training',
-              messages: trainStatus.errors,
-            });
-          } else {
-            setError(null);
-          }
-
-          // Check warnings separately
-          if (trainStatus.warnings?.length > 0) {
-            setWarning({
-              type: 'training',
-              messages: trainStatus.warnings,
-            });
-          } else {
-            setWarning(null);
-          }
-
-          // Check deployment
-          if (deployStatus.status === 'failed' && deployStatus.errors?.length > 0) {
-            setError({
-              type: 'deployment',
-              messages: deployStatus.errors,
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching statuses:', error);
-      }
-    };
-
-    fetchStatuses();
-  }, [workflow.username, workflow.model_name]);
 
   const copyContentToClipboard = () => {
     try {

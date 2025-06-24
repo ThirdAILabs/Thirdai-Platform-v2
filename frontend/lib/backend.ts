@@ -1067,6 +1067,10 @@ export interface Workflow {
   dependencies: Dependency[];
   size: string;
   size_in_memory: string;
+  train_errors: string[];
+  train_warnings: string[];
+  deploy_errors: string[];
+  deploy_warnings: string[];
 }
 
 export async function fetchWorkflows(): Promise<Workflow[]> {

@@ -7,8 +7,8 @@ import { WorkFlow } from './workflow';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@mui/material';
-import { fetchWorkflows, Workflow } from '@/lib/backend';
-
+import { fetchAllModels, fetchWorkflows, Workflow } from '@/lib/backend';
+import { getModels } from '@/utils/apiRequests';
 export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: number }) {
   // Hardcode the model display
   let modelsPerPage = 10;
@@ -32,6 +32,7 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
   }
 
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [modelOwners, setModelOwners] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     async function getWorkflows() {
@@ -54,6 +55,24 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
 
     return () => clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    // Fetch model owners once when component mounts
+    async function getModelsData() {
+      const modelData = await getModels();
+      const tempModelOwner: { [key: string]: string } = {};
+      if (modelData) {
+        for (let index = 0; index < modelData.length; index++) {
+          const name = modelData[index].name;
+          const owner = modelData[index].owner;
+          tempModelOwner[name] = owner;
+        }
+      }
+      setModelOwners(tempModelOwner);
+    }
+
+    getModelsData();
+  }, []); // Only run once on mount
 
   const filteredWorkflows = workflows.filter(
     (workflow) =>
@@ -90,6 +109,7 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
                 Workflows={workflows}
                 allowActions={true}
                 level={0}
+                modelOwners={modelOwners} // Pass modelOwners as prop
               />
             ))}
           </TableBody>

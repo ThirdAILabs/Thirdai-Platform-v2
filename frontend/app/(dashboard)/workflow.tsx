@@ -59,13 +59,13 @@ export function WorkFlow({
   Workflows,
   allowActions,
   level,
-  modelOwners, // Add this prop
+  modelOwners,
 }: {
   workflow: Workflow;
   Workflows: Workflow[];
   allowActions: boolean;
   level: number;
-  modelOwners: { [key: string]: string }; // Add this type
+  modelOwners: { [key: string]: string };
 }) {
   const { user } = useContext(UserContext);
   const [deployStatus, setDeployStatus] = useState<DeployStatus>(DeployStatus.None);
@@ -654,7 +654,7 @@ export function WorkFlow({
                   Workflows={Workflows}
                   allowActions={false}
                   level={1}
-                  modelOwners={modelOwners} // Pass modelOwners down to child component
+                  modelOwners={modelOwners}
                 />
               );
             }

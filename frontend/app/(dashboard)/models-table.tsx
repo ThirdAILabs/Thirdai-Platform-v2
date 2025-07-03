@@ -57,7 +57,6 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
   }, []);
 
   useEffect(() => {
-    // Fetch model owners once when component mounts
     async function getModelsData() {
       const modelData = await getModels();
       const tempModelOwner: { [key: string]: string } = {};
@@ -72,7 +71,7 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
     }
 
     getModelsData();
-  }, []); // Only run once on mount
+  }, []);
 
   const filteredWorkflows = workflows.filter(
     (workflow) =>

@@ -24,7 +24,7 @@ on:
 
 jobs:
   go-unit-tests:
-    runs-on: ubuntu-22.04-4core
+    runs-on: ubuntu-22.04-4-cores
     steps:
       - uses: actions/checkout@v2
 

@@ -10,15 +10,14 @@ concurrency:
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   merge_group:
     types: [checks_requested]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-
 
 jobs:
   golangci:
@@ -26,10 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Go >=1.23.1
+      - name: Set up Go == 1.23.9
         uses: actions/setup-go@v5
         with:
-          go-version: '>=1.23.1'
+          go-version: "==1.23.9"
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:

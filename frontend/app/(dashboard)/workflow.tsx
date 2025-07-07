@@ -59,39 +59,23 @@ export function WorkFlow({
   Workflows,
   allowActions,
   level,
+  modelOwners,
 }: {
   workflow: Workflow;
   Workflows: Workflow[];
   allowActions: boolean;
   level: number;
+  modelOwners: { [key: string]: string };
 }) {
   const { user } = useContext(UserContext);
   const [deployStatus, setDeployStatus] = useState<DeployStatus>(DeployStatus.None);
   const [deployType, setDeployType] = useState<string>('');
-  const [modelOwner, setModelOwner] = useState<{ [key: string]: string }>({});
   const [selectedMode, setSelectedMode] = useState<DeployMode>(DeployMode.Dev);
   const [showDeploymentModal, setShowDeploymentModal] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(true);
   const toggleCollapseIcon = () => {
     setIsCollapsed(!isCollapsed);
   };
-
-  useEffect(() => {
-    async function getModelsData() {
-      const modelData = await getModels();
-      const tempModelOwner: { [key: string]: string } = {}; // TypeScript object to store name as key and owner as value
-      if (modelData) {
-        for (let index = 0; index < modelData.length; index++) {
-          const name = modelData[index].name;
-          const owner = modelData[index].owner;
-          tempModelOwner[name] = owner;
-        }
-      }
-      setModelOwner(tempModelOwner);
-    }
-
-    getModelsData();
-  }, []);
 
   function goToEndpoint() {
     switch (workflow.type) {
@@ -131,7 +115,6 @@ export function WorkFlow({
       }
       default:
         throw new Error(`Invalid workflow type ${workflow.type}`);
-        break;
     }
   }
 
@@ -244,8 +227,6 @@ export function WorkFlow({
     }
   };
 
-  // Remove the fetchStatuses function call from component body
-  // Add new useEffect for status checking
   useEffect(() => {
     try {
       if (workflow.model_id) {
@@ -467,7 +448,7 @@ export function WorkFlow({
                   </DropdownMenuItem>
                 )}
 
-                {(modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
+                {(modelOwners[workflow.model_name] === user?.username || user?.global_admin) && (
                   <DropdownMenuItem
                     onClick={async () => {
                       if (window.confirm('Are you sure you want to delete this workflow?')) {
@@ -488,7 +469,7 @@ export function WorkFlow({
                 )}
 
                 {workflow.type === 'enterprise-search' &&
-                  (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
+                  (modelOwners[workflow.model_name] === user?.username || user?.global_admin) && (
                     <Link
                       href={`/analytics?id=${encodeURIComponent(workflow.dependencies[0].model_id)}&username=${encodeURIComponent(workflow.dependencies[0].username)}&model_name=${encodeURIComponent(workflow.dependencies[0].model_name)}&old_model_id=${encodeURIComponent(workflow.dependencies[0].model_id)}`}
                     >
@@ -673,6 +654,7 @@ export function WorkFlow({
                   Workflows={Workflows}
                   allowActions={false}
                   level={1}
+                  modelOwners={modelOwners}
                 />
               );
             }

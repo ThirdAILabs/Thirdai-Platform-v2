@@ -8,14 +8,14 @@ concurrency:
 
 env:
   PRODUCT_VERSION: "latest"
-  
+
 # Controls when the workflow will run
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   merge_group:
     types: [checks_requested]
 
@@ -24,7 +24,7 @@ on:
 
 jobs:
   go-unit-tests:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-22.04-8-cores
     steps:
       - uses: actions/checkout@v2
 
@@ -33,18 +33,18 @@ jobs:
           repository: ThirdAILabs/Universe
           token: ${{ secrets.UNIVERSE_ACCESS_KEY }}
           path: ./Universe
-          submodules: 'recursive'
+          submodules: "recursive"
 
       - name: set up go >=1.23.1
         uses: actions/setup-go@v5
         with:
-          go-version: '>=1.23.1'
+          go-version: ">=1.23.1"
 
       - name: build universe library
         run: |
           cd ./Universe
           bin/build.py -f THIRDAI_BUILD_LICENSE THIRDAI_CHECK_LICENSE
-      
+
       - name: copy libraries for bindings
         run: |
           mkdir -p thirdai_platform/search/ndb/lib/linux_x64
@@ -72,43 +72,43 @@ jobs:
   python-unit-tests:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
 
-    - name: install dependencies
-      run: |
-        pip3 install -r thirdai_platform_py/requirements.txt
-        pip3 install pytest
-        pip3 install httpx
-        pip3 install pyopenssl --upgrade
+      - name: install dependencies
+        run: |
+          pip3 install -r thirdai_platform_py/requirements.txt
+          pip3 install pytest
+          pip3 install httpx
+          pip3 install pyopenssl --upgrade
 
-    - name: test train job
-      run: |
-        cd thirdai_platform_py
-        python3 -m pytest train_job -v
+      - name: test train job
+        run: |
+          cd thirdai_platform_py
+          python3 -m pytest train_job -v
 
-    - name: test recovery snapshot job
-      run: |
-        cd thirdai_platform_py
-        python3 -m pytest recovery_snapshot_job -v
+      - name: test recovery snapshot job
+        run: |
+          cd thirdai_platform_py
+          python3 -m pytest recovery_snapshot_job -v
 
-    - name: test llm dispatch job
-      run: |
-        cd thirdai_platform_py
-        python3 -m pytest llm_dispatch_job -v
+      - name: test llm dispatch job
+        run: |
+          cd thirdai_platform_py
+          python3 -m pytest llm_dispatch_job -v
 
-    - name: test llm cache job
-      run: |
-        python3 -m pytest ./thirdai_platform_py/llm_cache_job -v
+      - name: test llm cache job
+        run: |
+          python3 -m pytest ./thirdai_platform_py/llm_cache_job -v
 
-    - name: test feedback storage
-      run: |
-        python3 -m pytest ./thirdai_platform_py/tests -v
+      - name: test feedback storage
+        run: |
+          python3 -m pytest ./thirdai_platform_py/tests -v
 
-    - name: test deployment job
-      run: |
-        python3 -m pytest ./thirdai_platform_py/deployment_job -v
+      - name: test deployment job
+        run: |
+          python3 -m pytest ./thirdai_platform_py/deployment_job -v

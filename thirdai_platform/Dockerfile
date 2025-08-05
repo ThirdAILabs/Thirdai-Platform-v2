@@ -21,7 +21,9 @@ FROM gcr.io/distroless/base-debian11 AS build-release-stage
 WORKDIR /app
 
 COPY --from=build-stage /app/bin/* .
-COPY --from=build-stage /app/third_party_licenses .
+COPY --from=build-stage /app/third_party_licenses ./third_party_licenses
+COPY --from=build-stage /app/COPYING .
+COPY --from=build-stage /app/search/ndb/lib/THIRD_PARTY_NOTICES.txt .
 
 # Copy SSL libraries from their actual location
 COPY --from=build-stage /usr/lib/x86_64-linux-gnu/libssl.so* /lib/x86_64-linux-gnu/

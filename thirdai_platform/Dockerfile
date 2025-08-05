@@ -5,10 +5,13 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     libssl3
 
+RUN go install github.com/google/go-licenses@latest
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
 COPY . .
+
+RUN go-licenses save ./cmd/model_bazaar --save_path ./third_party_licenses || :
 
 RUN mkdir -p bin
 RUN CGO_ENABLED=1 GOOS=linux go build -o bin/model_bazaar -v ./cmd/model_bazaar/main.go 
@@ -18,6 +21,7 @@ FROM gcr.io/distroless/base-debian11 AS build-release-stage
 WORKDIR /app
 
 COPY --from=build-stage /app/bin/* .
+COPY --from=build-stage /app/third_party_licenses .
 
 # Copy SSL libraries from their actual location
 COPY --from=build-stage /usr/lib/x86_64-linux-gnu/libssl.so* /lib/x86_64-linux-gnu/

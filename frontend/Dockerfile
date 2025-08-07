@@ -8,9 +8,9 @@ WORKDIR /app
 
 FROM base AS prod-deps
 COPY package.json pnpm-lock.yaml ./
-COPY THIRD_PARTY_NOTICES.txt ./
 RUN pnpm install --frozen-lockfile
 RUN pnpm add sharp @svgr/webpack  # Install the missing dependencies, needed for efficient building
+RUN pnpm i -D generate-license-file && npx generate-license-file --input package.json --output THIRD_PARTY_NOTICES.txt --overwrite
 
 FROM base
 COPY --from=prod-deps /app/node_modules /app/node_modules

@@ -83,7 +83,7 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
     setAccessTokenImpl(token);
     if (token) {
       await fetchUser(token);
-      return true
+      return true;
     }
     await logout();
     return false;

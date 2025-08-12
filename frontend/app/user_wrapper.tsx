@@ -47,7 +47,7 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
     }
   };
 
-  const fetchUser = async (token: string | null) => {
+  const fetchUser = async (token: string) => {
     try {
       const thisUser = await accessTokenUser(token);
       if (thisUser) {

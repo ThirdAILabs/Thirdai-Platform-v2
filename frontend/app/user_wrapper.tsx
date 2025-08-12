@@ -8,7 +8,7 @@ import federatedLogout from '@/utils/federatedLogout';
 interface UserContext {
   user: User | null;
   accessToken?: string | null;
-  setAccessToken: Dispatch<SetStateAction<string | null | undefined>>;
+  setAccessToken: (token: string | null | undefined) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -17,13 +17,13 @@ interface UserContext {
 export const UserContext = createContext<UserContext>({
   user: null,
   accessToken: null,
-  setAccessToken: (user) => {},
+  setAccessToken: async (token) => false,
   logout: () => {},
 });
 
 export default function UserWrapper({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [accessToken, setAccessToken] = useState<string | null | undefined>(() => {
+  const [accessToken, setAccessTokenImpl] = useState<string | null | undefined>(() => {
     // Initialize from localStorage during component mount
     if (typeof window !== 'undefined') {
       return localStorage.getItem('accessToken');
@@ -33,7 +33,7 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
   const [user, setUser] = useState<User | null>(null);
 
   const logout = async () => {
-    setAccessToken(null);
+    setAccessTokenImpl(null);
     localStorage.removeItem('accessToken');
     setUser(null);
     if (
@@ -47,28 +47,29 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
     }
   };
 
+  const fetchUser = async (token: string) => {
+    try {
+      const thisUser = await accessTokenUser(token);
+      if (thisUser) {
+        setUser(thisUser);
+      } else {
+        await logout();
+      }
+    } catch (error) {
+      await logout();
+    }
+  };
+
   // Handle access token changes
   useEffect(() => {
     if (!accessToken) {
       setUser(null);
+      logout();
       return;
     }
 
-    const fetchUser = async () => {
-      try {
-        const thisUser = await accessTokenUser(accessToken);
-        if (thisUser) {
-          setUser(thisUser);
-        } else {
-          await logout();
-        }
-      } catch (error) {
-        await logout();
-      }
-    };
-
-    fetchUser();
-  }, [accessToken]);
+    fetchUser(accessToken);
+  }, []);
 
   useEffect(() => {
     if (accessToken) {
@@ -77,6 +78,17 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
       localStorage.removeItem('accessToken');
     }
   }, [accessToken]);
+
+  const setAccessToken = async (token: string | null | undefined) => {
+    setAccessTokenImpl(token);
+    if (token) {
+      await fetchUser(token);
+      return true;
+    }
+    await logout();
+    return false;
+  };
+
   return (
     <UserContext.Provider value={{ user, accessToken, setAccessToken, logout }}>
       {children}

@@ -1248,7 +1248,7 @@ export async function getWorkflowDetails(model_id: string): Promise<ModelDetails
 export async function userEmailLogin(
   email: string,
   password: string,
-  setAccessToken: (token: string | null | undefined) => void
+  setAccessToken: (token: string | null | undefined) => Promise<boolean>
 ): Promise<any> {
   try {
     const apiUrl = `${thirdaiPlatformBaseUrl}/api/v2/user/login`;
@@ -1271,7 +1271,7 @@ export async function userEmailLogin(
     const accessToken = data.access_token;
 
     if (accessToken) {
-      setAccessToken(accessToken); // Set the token in context first
+      await setAccessToken(accessToken); // Set the token in context first
     } else {
       throw new Error('No access token received from server');
     }
@@ -1279,7 +1279,7 @@ export async function userEmailLogin(
     return data;
   } catch (error) {
     console.error('Error logging in:', error);
-    setAccessToken(null);
+    await setAccessToken(null);
     throw error;
   }
 }
@@ -1287,7 +1287,7 @@ export async function userEmailLogin(
 //TODO: check once before merging....
 export async function SyncKeycloakUser(
   accessToken: string,
-  setAccessToken: (token: string | null | undefined) => void
+  setAccessToken: (token: string | null | undefined) => Promise<boolean>
 ): Promise<any> {
   try {
     const response = await fetch(`${thirdaiPlatformBaseUrl}/api/v2/user/login-with-token`, {
@@ -1304,7 +1304,7 @@ export async function SyncKeycloakUser(
     }
     const data = await response.json();
     if (accessToken) {
-      setAccessToken(accessToken); // Set the token in context first
+      await setAccessToken(accessToken); // Set the token in context first
     } else {
       throw new Error('No access token received from server');
     }
@@ -1312,7 +1312,7 @@ export async function SyncKeycloakUser(
     return data;
   } catch (error) {
     console.error('Error logging in:', error);
-    setAccessToken(null);
+    await setAccessToken(null);
     throw error;
   }
 }

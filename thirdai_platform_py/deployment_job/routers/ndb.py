@@ -6,7 +6,7 @@ import traceback
 import uuid
 from pathlib import Path
 from queue import Queue
-from typing import AsyncGenerator, List, Optional
+from typing import AsyncGenerator, Dict, List, Optional
 
 import fitz
 import jwt
@@ -53,7 +53,7 @@ from platform_common.pydantic_models.feedback_logs import (
 )
 from platform_common.utils import response
 from prometheus_client import Counter, Summary
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 ndb_query_metric = Summary("ndb_query", "NDB Queries")
 ndb_upvote_metric = Summary("ndb_upvote", "NDB upvotes")
@@ -69,6 +69,10 @@ ndb_top_k_selections = [
     )
     for i in range(1, 1 + TOPK_SELECTIONS_TO_TRACK)
 ]
+
+
+class NewMetadata(BaseModel):
+    metadata: Dict[str, str]
 
 
 class NDBRouter:
@@ -121,6 +125,14 @@ class NDBRouter:
             "/get-signed-url", self.get_signed_url, methods=["GET"]
         )
         self.router.add_api_route("/get-metadata", self.get_metadata, methods=["GET"])
+
+        self.router.add_api_route(
+            "/doc_metadata", self.get_doc_metadata, methods=["GET"]
+        )
+
+        self.router.add_api_route(
+            "/doc_metadata", self.update_doc_metadata, methods=["POST"]
+        )
 
         # Only enable task queue in dev mode
         if not self.config.autoscaling_enabled:
@@ -568,6 +580,75 @@ class NDBRouter:
         return response(
             status_code=status.HTTP_200_OK,
             message="Implicit feedback logged successfully.",
+        )
+
+    def get_doc_metadata(
+        self, source_id: str, _=Depends(Permissions.verify_permission("read"))
+    ):
+        """
+        Get metadata for a document by source_id.
+
+        Parameters:
+        - source_id: str - The source ID of the document.
+
+        Returns:
+        - JSONResponse: The document metadata.
+        """
+        try:
+            chunks = self.model.db.chunk_store.get_chunks(
+                self.model.db.chunk_store.get_doc_chunks(
+                    source_id, before_version=float("inf")
+                )
+            )
+            metadata = chunks[0].metadata
+            if "page" in metadata:
+                del metadata["page"]
+            if "highlight" in metadata:
+                del metadata["highlight"]
+        except Exception as e:
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message=f"Failed with error: {e}",
+            )
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successful",
+            data=metadata,
+        )
+
+    def update_doc_metadata(
+        self,
+        source_id: str,
+        metadata: NewMetadata,
+        _=Depends(Permissions.verify_permission("write")),
+    ):
+        """
+        Update metadata for a document by source_id.
+
+        Parameters:
+        - source_id: str - The source ID of the document.
+        - metadata: NewMetadata - The new metadata to set.
+
+        Returns:
+        - JSONResponse: Success or error message.
+        """
+        for key in metadata.metadata.keys():
+            metadata.metadata[key] = metadata.metadata[key].lower()
+        try:
+            if not self.config.autoscaling_enabled:
+                with self.model.db_lock:
+                    self.model.db.chunk_store.update_metadata(
+                        source_id, metadata.metadata
+                    )
+        except Exception as e:
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message=f"Failed with error: {e}",
+            )
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successful",
         )
 
     def update_chat_settings(
